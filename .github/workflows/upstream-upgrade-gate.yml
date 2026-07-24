@@ -427,6 +427,7 @@ jobs:
           git diff --name-only --no-renames "$expected_tree" "$HEAD_SHA" -- \
             . \
             ":(exclude)${report}" \
+            ":(exclude).github/custom-database-exceptions.tsv" \
             ":(exclude).github/custom-upstream-baseline.env" \
             ":(exclude).github/custom-upstream-delta.tsv" |
             sort -u > /tmp/unexpected-upgrade-tree-files.txt
@@ -438,7 +439,7 @@ jobs:
           grep -E \
             '^(\.github/(CODEOWNERS|custom-|upstream-shadowed-sources\.tsv)|\.github/workflows/|backend/cmd/custom-database-boundary/|backend/internal/custom/databaseboundary/|deploy/release/|deploy/tests/|tools/(validate_pnpm_audit|test_validate_pnpm_audit)\.py)' \
             /tmp/upgrade-head-files.txt |
-            grep -Ev '^\.github/custom-upstream-(baseline\.env|delta\.tsv)$' \
+            grep -Ev '^\.github/(custom-database-exceptions\.tsv|custom-upstream-(baseline\.env|delta\.tsv))$' \
               > /tmp/control-plane-files.txt || true
           if [[ -s /tmp/control-plane-files.txt ]]; then
             echo "Upgrade PRs must not modify trusted upgrade control-plane files." >&2
@@ -490,6 +491,9 @@ jobs:
           fi
           git update-ref "refs/tags/${VENDOR_TAG}" "$official_commit"
           /bin/bash deploy/tests/custom-upstream-delta-test.sh \
+            --candidate-tree "$candidate_tree"
+          /bin/bash deploy/tests/custom-database-boundary-test.sh \
+            --mode final \
             --candidate-tree "$candidate_tree"
 
           trusted_baseline_file="/tmp/custom-upstream-baseline.env"
