@@ -50,7 +50,7 @@ done
 [[ "$tag_ref_oid" =~ ^[0-9a-f]{40,64}$ ]] || usage
 [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || usage
 [[ "${GITHUB_REPOSITORY:-}" == "o87110/sub2api-custom-public" ]] ||
-  fail "publishing is restricted to the private custom repository"
+  fail "publishing is restricted to the trusted public custom repository"
 for tool in gh jq oras sha256sum unzip; do
   command -v "$tool" >/dev/null 2>&1 || fail "required publishing tool is missing: $tool"
 done

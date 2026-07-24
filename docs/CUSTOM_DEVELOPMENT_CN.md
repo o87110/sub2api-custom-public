@@ -85,8 +85,8 @@ frontend/src/custom/
 - 后端、前端和生成代码检查通过；
 - 差异台账及影子路径映射保持一致；
 - 涉及部署、更新、版本或权限时同步更新对应文档；
-- CI 与 Security Scan 通过；
+- CI 通过；Security Scan 独立运行并如实记录，不作为发布硬门禁；
 - 发布前确认准确提交、标签和官方基线关系。
 
 公开迁移后的首次 Release 应使用手动工作流。完成分支保护、GHCR 可见性和
-Environment 审批配置后，才启用自动发布变量。
+`custom-release-publish` Environment 审批配置后，才启用自动发布变量。

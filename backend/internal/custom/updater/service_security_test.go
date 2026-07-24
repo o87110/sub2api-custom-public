@@ -308,7 +308,7 @@ func TestExtractBinaryObservesCanceledContext(t *testing.T) {
 
 func TestCustomUpdateCacheUsesRepositoryAndSchemaNamespace(t *testing.T) {
 	cache := newUpdateCache(nil).(*updateCache)
-	require.Equal(t, "update:custom:o87110:sub2api-custom:v2", cache.key)
+	require.Equal(t, "update:custom:o87110:sub2api-custom-public:v2", cache.key)
 }
 
 func TestCachedReleaseWithoutAssetIDIsRejected(t *testing.T) {

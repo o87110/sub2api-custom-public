@@ -40,7 +40,7 @@ done
 [[ "${GITHUB_SHA:-}" =~ ^[0-9a-f]{40}$ ]] || fail "GITHUB_SHA is required"
 [[ -n "${GITHUB_REF:-}" ]] || fail "GITHUB_REF is required"
 [[ "${GITHUB_REPOSITORY:-}" == "o87110/sub2api-custom-public" ]] ||
-  fail "release manifest repository is not the private custom repository"
+  fail "release manifest repository is not the trusted public custom repository"
 
 jq \
   --arg repository "$GITHUB_REPOSITORY" \

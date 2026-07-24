@@ -39,7 +39,7 @@ upstream  = https://github.com/Wei-Shaw/sub2api.git
 | `upstream-upgrade-gate.yml` | 升级门禁与基线收尾 |
 
 公开迁移后的自动发布默认关闭。首次发布使用 `workflow_dispatch`；完成分支保护、
-GHCR 和 Environment 设置后，再创建仓库变量：
+GHCR 和 `custom-release-publish` Environment 设置后，再创建仓库变量：
 
 ```text
 AUTO_PUBLISH_ENABLED=true
@@ -70,7 +70,8 @@ Release Workflow 分为三个权限隔离阶段：
 
 1. `context`：验证 Tag、提交、CI 和现有 Release 状态。
 2. `build`：无发布权限地构建归档、校验和与 OCI Layout，并上传短期 Artifact。
-3. `publish`：验证 Artifact 和 Manifest 后创建 Release、上传资产并推送 GHCR。
+3. `publish`：通过 `custom-release-publish` Environment 审批后，验证 Artifact 和
+   Manifest，再创建 Release、上传资产并推送 GHCR。
 
 构建阶段不持有 `packages: write`，发布阶段不重新执行仓库业务脚本。第三方工具
 使用固定版本和 SHA256，Action 使用完整提交 SHA。
@@ -112,7 +113,7 @@ vX.Y.Z-custom.N-arm64
 `main` 至少配置：
 
 - 必须通过 PR；
-- 必须通过 CI 与 Security Scan；
+- 必须通过 CI；Security Scan 独立报告且不得配置为 Required Check；
 - 禁止 Force Push 和删除；
 - Workflow、发布脚本和差异台账要求 Code Owner Review；
 - 合并前分支必须是最新状态；
