@@ -71,6 +71,22 @@ grep -Fq -- '--new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"' \
 
 backend_ci="$repo_root/.github/workflows/backend-ci.yml"
 upgrade_gate="$repo_root/.github/workflows/upstream-upgrade-gate.yml"
+upgrade_backend_job="$(
+  awk '
+    /^  backend:$/ { in_job = 1 }
+    /^  [[:alnum:]_-]+:$/ && in_job && $0 !~ /^  backend:$/ { exit }
+    in_job { print }
+  ' "$upgrade_gate"
+)"
+grep -Fq 'fetch-depth: 0' <<<"$upgrade_backend_job" ||
+  fail "upgrade golangci-lint checkout does not fetch the explicit baseline history"
+grep -Fq 'source ../.github/custom-upstream-baseline.env' <<<"$upgrade_backend_job" ||
+  fail "upgrade golangci-lint does not load the explicit custom baseline"
+grep -Fq 'git merge-base --is-ancestor "$CUSTOM_UPSTREAM_BASE_COMMIT" HEAD' \
+  <<<"$upgrade_backend_job" ||
+  fail "upgrade golangci-lint does not verify that the explicit baseline is an ancestor"
+grep -Fq -- '--new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"' <<<"$upgrade_backend_job" ||
+  fail "upgrade golangci-lint is not scoped to changes from the explicit custom baseline"
 grep -Fq 'is_official_upgrade: ${{ steps.resolve.outputs.is_official_upgrade }}' \
   "$backend_ci" ||
   fail "CI does not expose exact official-upgrade classification"

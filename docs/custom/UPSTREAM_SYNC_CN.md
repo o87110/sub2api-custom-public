@@ -101,6 +101,12 @@ UPSTREAM_SYNC_ENABLED=true
   交给受信任升级门禁；普通分支仍按当前 `vendor-*` 基线执行这两项检查。
 - 升级分支的普通 CI 仍必须继续执行供应链、Shell、后端、前端、Lint 和构建检查，
   不能因为处于升级流程而跳过。
+- 普通 CI 与升级专用门禁的后端 Lint 都加载
+  `.github/custom-upstream-baseline.env`，验证可信基线是当前 Head 的祖先，并使用
+  `--new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"` 只阻断基线后的新增问题；基线中
+  已存在的官方继承 Lint 问题只记录，不通过修改官方源码来消除。
+- 后端 Unit、Integration、Wire 生成一致性、前端完整检查和 Release 预构建仍是
+  全量硬门禁，不受增量 Lint 范围影响。
 - Branch Protection 除普通 CI 检查外，还必须要求
   `Required upgrade validation`。该状态由受信任 `main` Workflow 绑定准确 PR Head
   SHA 发布，升级所需的差异台账、影子来源、保护路径和数据库批准均成功后才为
