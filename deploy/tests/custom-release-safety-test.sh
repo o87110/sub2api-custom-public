@@ -179,6 +179,11 @@ grep -Fq 'actions/artifacts/${artifact_id}/zip' "$publisher"
 grep -Fq 'all(.[]; (.artifacts | type) == "array")' "$publisher"
 grep -Fq '[.[].artifacts[]]' "$publisher"
 grep -Fq 'oras repo tags --format json' "$publisher"
+grep -Fq 'is_missing_ghcr_repository_error()' "$publisher"
+grep -Fq '[[ "$(<"$error_file")" == \' "$publisher"
+grep -Fq '"Error response from registry: name unknown: repository name not known to registry" ]]' "$publisher"
+grep -Fq 'if is_missing_ghcr_repository_error "$error_file"; then' "$publisher"
+grep -Fq "tags_json='{\"tags\":[]}'" "$publisher"
 fail_if_present \
   "GHCR query failures must not be treated as missing tags" \
   'oras resolve "$oci_repository:$1" 2>/dev/null || true' \

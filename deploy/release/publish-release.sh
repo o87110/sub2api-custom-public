@@ -361,6 +361,12 @@ validate_payload() {
 }
 
 remote_digest_value=""
+is_missing_ghcr_repository_error() {
+  local error_file="$1"
+  [[ "$(<"$error_file")" == \
+    "Error response from registry: name unknown: repository name not known to registry" ]]
+}
+
 resolve_remote_digest() {
   local remote_tag="$1"
   local tags_json digest error_file
@@ -369,7 +375,11 @@ resolve_remote_digest() {
   if ! tags_json="$(
     oras repo tags --format json "$oci_repository" 2>"$error_file"
   )"; then
-    fail "cannot query GHCR tags: $(<"$error_file")"
+    if is_missing_ghcr_repository_error "$error_file"; then
+      tags_json='{"tags":[]}'
+    else
+      fail "cannot query GHCR tags: $(<"$error_file")"
+    fi
   fi
   jq -e '.tags | type == "array" and all(.[]; type == "string")' \
     <<<"$tags_json" >/dev/null ||

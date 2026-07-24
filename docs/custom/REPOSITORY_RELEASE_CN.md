@@ -107,6 +107,8 @@ vX.Y.Z-custom.N-arm64
 
 不发布 `latest`、主版本或次版本浮动标签。Package Visibility 与仓库 Visibility
 独立；首次发布后必须核对包是否为 Public，并限制 Actions Access 只授予本仓库。
+首次发布查询尚不存在的 GHCR 仓库时，仅允许把固定 ORAS 版本返回的完整、精确
+`NAME_UNKNOWN` 错误视为空仓库；鉴权、网络、格式或其他查询失败仍必须失败关闭。
 
 ## 8. 分支保护
 
