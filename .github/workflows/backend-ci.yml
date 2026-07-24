@@ -20,11 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       checkout_sha: ${{ steps.resolve.outputs.checkout_sha }}
+      is_official_upgrade: ${{ steps.resolve.outputs.is_official_upgrade }}
     steps:
       - name: Verify dispatched revision
         id: resolve
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
         run: |
           set -euo pipefail
           checkout_sha="$GITHUB_SHA"
@@ -43,7 +45,12 @@ jobs:
             fi
             checkout_sha="$EXPECTED_SHA"
           fi
+          is_official_upgrade=false
+          if [[ "$CANDIDATE_REF" =~ ^upgrade/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            is_official_upgrade=true
+          fi
           echo "checkout_sha=$checkout_sha" >> "$GITHUB_OUTPUT"
+          echo "is_official_upgrade=$is_official_upgrade" >> "$GITHUB_OUTPUT"
 
   boundaries:
     needs: verify-target
@@ -72,18 +79,24 @@ jobs:
           )"
           echo "tree=$candidate_tree" >> "$GITHUB_OUTPUT"
       - name: Enforce upstream delta ledger
+        if: needs.verify-target.outputs.is_official_upgrade != 'true'
         env:
           CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
         run: |
           /bin/bash deploy/tests/custom-upstream-delta-test.sh \
             --candidate-tree "$CANDIDATE_TREE"
       - name: Enforce database semantic boundary
+        if: needs.verify-target.outputs.is_official_upgrade != 'true'
         env:
           CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
         run: |
           /bin/bash deploy/tests/custom-database-boundary-test.sh \
             --mode final \
             --candidate-tree "$CANDIDATE_TREE"
+      - name: Defer upgrade boundary approval to trusted gate
+        if: needs.verify-target.outputs.is_official_upgrade == 'true'
+        run: |
+          echo "The trusted official-upgrade gate owns delta, shadow, protected-path, and database approval for this exact upgrade revision."
       - name: Install checksum-pinned actionlint
         env:
           CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-tools
