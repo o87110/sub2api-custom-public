@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	customupdater "github.com/Wei-Shaw/sub2api/internal/custom/updater"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/sysutil"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -44,10 +45,9 @@ func systemUpdateContext(ctx context.Context) (context.Context, context.CancelFu
 }
 
 type systemUpdateService interface {
-	CheckUpdate(ctx context.Context, force bool) (*service.UpdateInfo, error)
+	CheckUpdate(ctx context.Context, force bool) (*customupdater.UpdateInfo, error)
 	PerformUpdate(ctx context.Context) error
-	Rollback() error
-	ListRollbackVersions(ctx context.Context) ([]service.RollbackVersion, error)
+	ListRollbackVersions(ctx context.Context) ([]customupdater.RollbackVersion, error)
 	RollbackToVersion(ctx context.Context, version string) error
 }
 
@@ -64,7 +64,8 @@ func NewSystemHandler(updateSvc systemUpdateService, lockSvc *service.SystemOper
 func (h *SystemHandler) GetVersion(c *gin.Context) {
 	info, _ := h.updateSvc.CheckUpdate(c.Request.Context(), false)
 	response.Success(c, gin.H{
-		"version": info.CurrentVersion,
+		"version":       info.CurrentVersion,
+		"build_version": info.CurrentBuildVersion,
 	})
 }
 
@@ -100,7 +101,7 @@ func (h *SystemHandler) PerformUpdate(c *gin.Context) {
 		defer cancel()
 
 		if err := h.updateSvc.PerformUpdate(updateCtx); err != nil {
-			if errors.Is(err, service.ErrNoUpdateAvailable) {
+			if errors.Is(err, customupdater.ErrNoUpdateAvailable) {
 				info, checkErr := h.updateSvc.CheckUpdate(updateCtx, false)
 				if checkErr != nil {
 					releaseReason = "SYSTEM_UPDATE_FAILED"
@@ -141,27 +142,23 @@ func (h *SystemHandler) GetRollbackVersions(c *gin.Context) {
 	})
 }
 
-// Rollback restores a previous version.
-// Without a body (or with an empty version) it restores the local .backup binary
-// left by the last in-place update. With {"version": "x.y.z"} it downloads and
-// installs that specific release (must be one of the recent rollback versions).
+// Rollback installs a specific private custom release from the allowed list.
 // POST /api/v1/admin/system/rollback
 func (h *SystemHandler) Rollback(c *gin.Context) {
 	var req struct {
 		Version string `json:"version"`
 	}
-	if c.Request.Body != nil && c.Request.ContentLength > 0 {
-		if err := c.ShouldBindJSON(&req); err != nil {
-			response.Error(c, http.StatusBadRequest, "invalid request body")
-			return
-		}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid request body")
+		return
 	}
 	targetVersion := strings.TrimSpace(req.Version)
-
-	operation := "rollback"
-	if targetVersion != "" {
-		operation = "rollback:" + targetVersion
+	if targetVersion == "" {
+		response.Error(c, http.StatusBadRequest, "version is required")
+		return
 	}
+
+	operation := "rollback:" + targetVersion
 	operationID := buildSystemOperationID(c, operation)
 	payload := gin.H{"operation_id": operationID, "version": targetVersion}
 	executeAdminIdempotentJSON(c, "admin.system.rollback", payload, service.DefaultSystemOperationIdempotencyTTL(), func(ctx context.Context) (any, error) {
@@ -175,14 +172,10 @@ func (h *SystemHandler) Rollback(c *gin.Context) {
 			release(releaseReason, succeeded)
 		}()
 
-		if targetVersion != "" {
-			// 指定版本回退同样要下载完整二进制，与更新一样和请求生命周期解耦。
-			rollbackCtx, cancel := systemUpdateContext(ctx)
-			defer cancel()
-			err = h.updateSvc.RollbackToVersion(rollbackCtx, targetVersion)
-		} else {
-			err = h.updateSvc.Rollback()
-		}
+		// 指定版本回退同样要下载完整二进制，与更新一样和请求生命周期解耦。
+		rollbackCtx, cancel := systemUpdateContext(ctx)
+		defer cancel()
+		err = h.updateSvc.RollbackToVersion(rollbackCtx, targetVersion)
 		if err != nil {
 			releaseReason = "SYSTEM_ROLLBACK_FAILED"
 			return nil, err

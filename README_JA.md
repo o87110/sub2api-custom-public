@@ -4,7 +4,7 @@
 
 # Sub2API
 
-[![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
+[![Go](https://img.shields.io/badge/Go-1.26.5-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
@@ -18,6 +18,13 @@
 
 </div>
 
+> [!NOTE]
+> このリポジトリは [`Wei-Shaw/sub2api`](https://github.com/Wei-Shaw/sub2api)
+> を基に公開メンテナンスされる派生版
+> [`o87110/sub2api-custom-public`](https://github.com/o87110/sub2api-custom-public)
+> です。カスタム機能、リリース方針、保守境界、アップグレード手順は
+> [`docs/CUSTOM_DEVELOPMENT_CN.md`](docs/CUSTOM_DEVELOPMENT_CN.md) を参照してください。
+
 ## ⚠️ 重要なお知らせ
 
 本プロジェクトをご利用になる前に、以下の内容を必ずよくお読みください：
@@ -27,7 +34,7 @@
 - **📖 免責事項**：本プロジェクトは技術的な学習および研究の目的でのみ提供されます。本プロジェクトの使用により生じたアカウントの停止、サービスの中断、データの損失、その他一切の直接的または間接的な損害について、作者は一切の責任を負いません。
 - **🚫 商用利用の非許諾**：本プロジェクトの開発者は、いかなる個人または組織に対しても、本プロジェクトを利用したいかなる形態の商業運営も一切許諾していません。本プロジェクトの名義で、または本プロジェクトに基づいて行われる商業行為はすべて本プロジェクトおよびその開発者とは無関係であり、それにより生じる一切の紛争、損失、法的責任は行為者自身が負うものとします。
 
-## ❤️ スポンサー
+## ❤️ アップストリームスポンサー
 
 > [こちらに掲載しませんか？](mailto:support@sub2api.org)
 
@@ -247,7 +254,7 @@ GitHub Releases からビルド済みバイナリをダウンロードするワ�
 #### インストール手順
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/o87110/sub2api-custom-public/main/deploy/install.sh | sudo bash
 ```
 
 スクリプトは以下を実行します:
@@ -297,7 +304,7 @@ sudo journalctl -u sub2api -f
 sudo systemctl restart sub2api
 
 # アンインストール
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash -s -- uninstall -y
+curl -sSL https://raw.githubusercontent.com/o87110/sub2api-custom-public/main/deploy/install.sh | sudo bash -s -- uninstall -y
 ```
 
 ---
@@ -320,7 +327,11 @@ PostgreSQL と Redis のコンテナを含む Docker Compose でデプロイし�
 mkdir -p sub2api-deploy && cd sub2api-deploy
 
 # デプロイ準備スクリプトをダウンロードして実行
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/docker-deploy.sh | bash
+curl -sSL https://raw.githubusercontent.com/o87110/sub2api-custom-public/main/deploy/docker-deploy.sh | bash
+
+# 公開 Release ページに記載された正確なイメージタグを SUB2API_IMAGE に設定
+# SUB2API_IMAGE=ghcr.io/o87110/sub2api-custom-public:vX.Y.Z-custom.N
+nano .env
 
 # サービスを起動
 docker compose up -d
@@ -333,6 +344,7 @@ docker compose logs -f sub2api
 - `docker-compose.local.yml`（`docker-compose.yml` として保存）と `.env.example` をダウンロード
 - セキュアな認証情報（JWT_SECRET、TOTP_ENCRYPTION_KEY、POSTGRES_PASSWORD）を自動生成
 - 自動生成されたシークレットで `.env` ファイルを作成
+- `SUB2API_IMAGE` を公開カスタム Release の正確なタグまたは Digest に固定する必要があります
 - データディレクトリを作成（バックアップ・移行が容易なローカルディレクトリを使用）
 - 生成された認証情報を参照用に表示
 
@@ -342,7 +354,7 @@ docker compose logs -f sub2api
 
 ```bash
 # 1. リポジトリをクローン
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/o87110/sub2api-custom-public.git sub2api
 cd sub2api/deploy
 
 # 2. 環境設定ファイルをコピー
@@ -472,7 +484,7 @@ rm -rf data/ postgres_data/ redis_data/
 Apple シリコン搭載 Mac と macOS 26 では、Apple `container` 1.1.0 以降を使用して Sub2API、PostgreSQL、Redis の完全なスタックを実行できます:
 
 ```bash
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/o87110/sub2api-custom-public.git sub2api
 cd sub2api/deploy
 ./apple-container.sh init
 ./apple-container.sh up
@@ -498,7 +510,7 @@ cd sub2api/deploy
 
 ```bash
 # 1. リポジトリをクローン
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/o87110/sub2api-custom-public.git sub2api
 cd sub2api
 
 # 2. pnpm をインストール（未インストールの場合）
@@ -735,7 +747,7 @@ sub2api/
     └── install.sh            # ワンクリックインストールスクリプト
 ```
 
-## スター履歴
+## アップストリームのスター履歴
 
 <a href="https://star-history.com/#Wei-Shaw/sub2api&Date">
  <picture>

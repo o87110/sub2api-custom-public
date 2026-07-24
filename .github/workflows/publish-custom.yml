@@ -1,0 +1,307 @@
+name: Publish Custom Build
+
+# Automatic publication requires AUTO_PUBLISH_ENABLED=true. Manual dispatch
+# remains available for the first public release, retries, and controlled recovery.
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: 'Optional notes included in the public Release'
+        required: false
+        type: string
+
+concurrency:
+  group: publish-custom-build
+  cancel-in-progress: false
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        vars.AUTO_PUBLISH_ENABLED == 'true' &&
+        (
+          github.event.workflow_run.event == 'push' ||
+          github.event.workflow_run.event == 'workflow_dispatch'
+        ) &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.conclusion == 'success'
+      )
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
+      TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Checkout custom production branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Create the next custom tag and start Release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/Wei-Shaw/sub2api.git 2>/dev/null || \
+            git remote set-url upstream https://github.com/Wei-Shaw/sub2api.git
+          git fetch upstream \
+            --no-tags \
+            '+refs/tags/v*:refs/upstream-tags/v*' \
+            --force
+          git fetch origin \
+            --no-tags \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/tags/*:refs/origin-tags/*' \
+            --force
+
+          target_sha="$(git rev-parse origin/main)"
+          fail_required_check() {
+            local message="$1"
+            if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
+              echo "$message; not publishing."
+              exit 0
+            fi
+            echo "$message" >&2
+            exit 1
+          }
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
+            if [[ "$target_sha" != "$TRIGGER_SHA" ]]; then
+              echo "Skipping stale checked commit ${TRIGGER_SHA}; main is now ${target_sha}."
+              exit 0
+            fi
+          fi
+
+          workflow=backend-ci.yml
+          run_state="$(
+            gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow "$workflow" \
+              --commit "$target_sha" \
+              --limit 20 \
+              --json databaseId,status,conclusion,headSha,headBranch,event \
+              --jq 'map(select((.event == "push" or .event == "workflow_dispatch") and .headBranch == "main")) | if length == 0 then "" else .[0] | [.databaseId, .status, .conclusion, .headSha, .headBranch, .event] | @tsv end'
+          )"
+          if [[ -z "$run_state" ]]; then
+            fail_required_check "Required workflow ${workflow} has no accepted run for ${target_sha}"
+          fi
+          IFS=$'\t' read -r run_id status conclusion head_sha head_branch event_type <<<"$run_state"
+          if [[ "$status" != "completed" || "$conclusion" != "success" ||
+                "$head_sha" != "$target_sha" || "$head_branch" != "main" ]]; then
+            fail_required_check "Required workflow ${workflow} (${event_type}) is ${status}/${conclusion} for ${head_branch}@${head_sha}; expected success for main@${target_sha}"
+          fi
+          boundary_state="$(
+            gh run view "$run_id" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json jobs \
+              --jq '.jobs | map(select(.name == "boundaries")) | if length == 1 then [.[0].status, .[0].conclusion] | @tsv else "" end'
+          )"
+          IFS=$'\t' read -r boundary_status boundary_conclusion <<<"$boundary_state"
+          if [[ "$boundary_status" != "completed" || "$boundary_conclusion" != "success" ]]; then
+            fail_required_check "Required boundaries job is ${boundary_status:-missing}/${boundary_conclusion:-missing} in CI run ${run_id}"
+          fi
+          echo "CI passed for ${target_sha}; continuing publication."
+
+          current_vendor_ref=""
+          while IFS= read -r candidate_ref; do
+            if git merge-base --is-ancestor "${candidate_ref}^{commit}" origin/main; then
+              current_vendor_ref="$candidate_ref"
+              break
+            fi
+          done < <(
+            git for-each-ref \
+              --sort=-version:refname \
+              --format='%(refname)' \
+              'refs/origin-tags/vendor-*'
+          )
+          if [[ -z "$current_vendor_ref" ]]; then
+            echo "No trusted vendor-* baseline is reachable from main." >&2
+            exit 1
+          fi
+
+          vendor_tag="${current_vendor_ref#refs/origin-tags/}"
+          source .github/custom-upstream-baseline.env
+          if [[ ! "${CUSTOM_UPSTREAM_BASE_REF:-}" =~ ^(vendor-[0-9]+\.[0-9]+\.[0-9]+)\^\{commit\}$ ]]; then
+            echo "Committed custom baseline ref is invalid or implicit." >&2
+            exit 1
+          fi
+          declared_vendor_tag="${BASH_REMATCH[1]}"
+          if [[ "$vendor_tag" != "$declared_vendor_tag" ]]; then
+            echo "Reachable vendor baseline ${vendor_tag} does not match committed ${declared_vendor_tag}." >&2
+            exit 1
+          fi
+          if [[ ! "${CUSTOM_UPSTREAM_BASE_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Committed custom baseline peeled commit is invalid." >&2
+            exit 1
+          fi
+
+          version="${vendor_tag#vendor-}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid current vendor baseline: $vendor_tag" >&2
+            exit 1
+          fi
+          official_tag="v${version}"
+          official_ref="refs/upstream-tags/${official_tag}"
+          git rev-parse --verify "${official_ref}^{commit}" >/dev/null
+          official_commit="$(git rev-parse "${official_ref}^{commit}")"
+          official_ref_oid="$(git rev-parse "$official_ref")"
+          vendor_commit="$(git rev-parse "${current_vendor_ref}^{commit}")"
+          vendor_ref_oid="$(git rev-parse "$current_vendor_ref")"
+          if [[ "$vendor_commit" != "$CUSTOM_UPSTREAM_BASE_COMMIT" ]]; then
+            echo "${vendor_tag} points to ${vendor_commit}, expected committed baseline ${CUSTOM_UPSTREAM_BASE_COMMIT}." >&2
+            exit 1
+          fi
+          if [[ "$vendor_commit" != "$official_commit" ]]; then
+            echo "${vendor_tag} points to ${vendor_commit}, expected official ${official_tag} at ${official_commit}." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${official_ref}^{commit}" origin/main; then
+            echo "main is not based on ${official_tag}; refusing to publish a misleading build version." >&2
+            exit 1
+          fi
+
+          latest_official_ref=""
+          while IFS= read -r candidate_ref; do
+            candidate_tag="${candidate_ref#refs/upstream-tags/}"
+            [[ "$candidate_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+            if git merge-base --is-ancestor "${candidate_ref}^{commit}" origin/main; then
+              latest_official_ref="$candidate_ref"
+              break
+            fi
+          done < <(
+            git for-each-ref \
+              --sort=-version:refname \
+              --format='%(refname)' \
+              'refs/upstream-tags/v*'
+          )
+          if [[ -z "$latest_official_ref" ]]; then
+            echo "No official vX.Y.Z tag is reachable from main." >&2
+            exit 1
+          fi
+          latest_official_tag="${latest_official_ref#refs/upstream-tags/}"
+          if [[ "$latest_official_tag" != "$official_tag" ]]; then
+            echo "main contains ${latest_official_tag}, but the latest vendor baseline is ${vendor_tag}." >&2
+            echo "Finalize the matching vendor baseline before publishing a custom build." >&2
+            exit 1
+          fi
+
+          queue_release() {
+            local tag="$1"
+            gh workflow run release.yml \
+              --repo "$GITHUB_REPOSITORY" \
+              --ref main \
+              -f tag="$tag"
+          }
+
+          existing="$(
+            git for-each-ref \
+              --points-at origin/main \
+              --format='%(refname:strip=2)' \
+              "refs/origin-tags/v${version}-custom.*" |
+              sort -V |
+              tail -n 1
+          )"
+          if [[ -n "$existing" ]]; then
+            release_is_draft="$(
+              gh release view "$existing" \
+                --repo "$GITHUB_REPOSITORY" \
+                --json isDraft \
+                --jq '.isDraft' 2>/dev/null || true
+            )"
+            if [[ "$release_is_draft" == "false" ]]; then
+              echo "Current main commit is already tagged as ${existing} and has a published Release."
+              exit 0
+            fi
+
+            echo "Re-dispatching Release for existing immutable tag ${existing}."
+            queue_release "$existing"
+            exit 0
+          fi
+
+          latest_custom="$(
+            git for-each-ref \
+              --format='%(refname:strip=2)' \
+              "refs/origin-tags/v${version}-custom.*" |
+              sort -V |
+              tail -n 1
+          )"
+          max_custom=0
+          if [[ -n "$latest_custom" ]]; then
+            if [[ ! "$latest_custom" =~ ^v${version//./\\.}-custom\.([0-9]+)$ ]]; then
+              echo "Latest custom Tag has an invalid format: ${latest_custom}" >&2
+              exit 1
+            fi
+            max_custom="${BASH_REMATCH[1]}"
+            latest_tag_ref="refs/origin-tags/${latest_custom}"
+            latest_release_is_draft="$(
+              gh release view "$latest_custom" \
+                --repo "$GITHUB_REPOSITORY" \
+                --json isDraft \
+                --jq '.isDraft' 2>/dev/null || true
+            )"
+            if [[ "$latest_release_is_draft" != "false" ]]; then
+              if ! git merge-base --is-ancestor "${latest_tag_ref}^{commit}" origin/main; then
+                echo "Unpublished immutable Tag ${latest_custom} is not an ancestor of main." >&2
+                exit 1
+              fi
+              echo "Latest immutable Tag ${latest_custom} has no published Release; retrying it before creating a new Tag."
+              queue_release "$latest_custom"
+              exit 0
+            fi
+          fi
+
+          next_custom=$((max_custom + 1))
+          custom_tag="v${version}-custom.${next_custom}"
+
+          git fetch origin \
+            --no-tags \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/tags/${vendor_tag}:${current_vendor_ref}" \
+            --force
+          git fetch upstream \
+            --no-tags \
+            "+refs/tags/${official_tag}:${official_ref}" \
+            --force
+          latest_target_sha="$(git rev-parse origin/main)"
+          if [[ "$latest_target_sha" != "$target_sha" ]]; then
+            fail_required_check "main changed from ${target_sha} to ${latest_target_sha} before Tag creation"
+          fi
+          if [[ "$(git rev-parse "$current_vendor_ref")" != "$vendor_ref_oid" ||
+                "$(git rev-parse "${current_vendor_ref}^{commit}")" != "$vendor_commit" ]]; then
+            echo "${vendor_tag} changed before custom Tag creation." >&2
+            exit 1
+          fi
+          if [[ "$(git rev-parse "$official_ref")" != "$official_ref_oid" ||
+                "$(git rev-parse "${official_ref}^{commit}")" != "$official_commit" ]]; then
+            echo "${official_tag} changed before custom Tag creation." >&2
+            exit 1
+          fi
+
+          {
+            echo "Sub2API ${custom_tag}"
+            echo
+            echo "Based on official ${official_tag}."
+            echo "Source commit: ${target_sha}"
+            if [[ -n "$INPUT_RELEASE_NOTES" ]]; then
+              echo
+              echo "$INPUT_RELEASE_NOTES"
+            fi
+          } | git tag -a "$custom_tag" "$target_sha" -F -
+
+          git push origin "$custom_tag"
+          queue_release "$custom_tag"
+
+          echo "Published ${custom_tag}; the Release workflow has been queued."

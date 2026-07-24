@@ -4,7 +4,7 @@
 
 # Sub2API
 
-[![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
+[![Go](https://img.shields.io/badge/Go-1.26.5-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
@@ -18,6 +18,13 @@ English | [中文](README_CN.md) | [日本語](README_JA.md)
 
 </div>
 
+> [!NOTE]
+> This is the public community-maintained derivative
+> [`o87110/sub2api-custom-public`](https://github.com/o87110/sub2api-custom-public),
+> based on [`Wei-Shaw/sub2api`](https://github.com/Wei-Shaw/sub2api). Custom
+> features, release policy, maintenance boundaries, and upgrade notes are
+> documented in [`docs/CUSTOM_DEVELOPMENT_CN.md`](docs/CUSTOM_DEVELOPMENT_CN.md).
+
 ## ⚠️ Important Notice
 
 Please read the following carefully before using this project:
@@ -27,7 +34,7 @@ Please read the following carefully before using this project:
 - **📖 Disclaimer**: This project is provided for technical learning and research purposes only. The authors assume no liability for account bans, service interruptions, data loss, or any other direct or indirect damages resulting from the use of this project.
 - **🚫 No Commercial Authorization**: The developers of this project have never authorized any individual or organization to conduct any form of commercial operation based on this project. Any commercial activity conducted in the name of or based on this project is unrelated to this project and its developers, and all resulting disputes, losses, and legal liabilities shall be borne solely by the party conducting such activity.
 
-## ❤️ Sponsors
+## ❤️ Upstream Sponsors
 
 > [Want to appear here?](mailto:support@sub2api.org)
 
@@ -249,7 +256,7 @@ One-click installation script that downloads pre-built binaries from GitHub Rele
 #### Installation Steps
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/o87110/sub2api-custom-public/main/deploy/install.sh | sudo bash
 ```
 
 The script will:
@@ -299,7 +306,7 @@ sudo journalctl -u sub2api -f
 sudo systemctl restart sub2api
 
 # Uninstall
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash -s -- uninstall -y
+curl -sSL https://raw.githubusercontent.com/o87110/sub2api-custom-public/main/deploy/install.sh | sudo bash -s -- uninstall -y
 ```
 
 ---
@@ -322,7 +329,11 @@ Use the automated deployment script for easy setup:
 mkdir -p sub2api-deploy && cd sub2api-deploy
 
 # Download and run deployment preparation script
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/docker-deploy.sh | bash
+curl -sSL https://raw.githubusercontent.com/o87110/sub2api-custom-public/main/deploy/docker-deploy.sh | bash
+
+# Pin the exact image shown on the selected public Release page
+# SUB2API_IMAGE=ghcr.io/o87110/sub2api-custom-public:vX.Y.Z-custom.N
+nano .env
 
 # Start services
 docker compose up -d
@@ -335,6 +346,7 @@ docker compose logs -f sub2api
 - Downloads `docker-compose.local.yml` (saved as `docker-compose.yml`) and `.env.example`
 - Generates secure credentials (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Creates `.env` file with auto-generated secrets
+- Requires you to pin `SUB2API_IMAGE` to an exact public custom Release tag or digest
 - Creates data directories (uses local directories for easy backup/migration)
 - Displays generated credentials for your reference
 
@@ -344,7 +356,7 @@ If you prefer manual setup:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/o87110/sub2api-custom-public.git sub2api
 cd sub2api/deploy
 
 # 2. Copy environment configuration
@@ -474,7 +486,7 @@ rm -rf data/ postgres_data/ redis_data/
 Apple-silicon Macs running macOS 26 can run the full Sub2API, PostgreSQL, and Redis stack with Apple `container` 1.1.0 or newer:
 
 ```bash
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/o87110/sub2api-custom-public.git sub2api
 cd sub2api/deploy
 ./apple-container.sh init
 ./apple-container.sh up
@@ -500,7 +512,7 @@ Build and run from source code for development or customization.
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/o87110/sub2api-custom-public.git sub2api
 cd sub2api
 
 # 2. Install pnpm (if not already installed)
@@ -871,7 +883,7 @@ sub2api/
     └── install.sh            # One-click installation script
 ```
 
-## Star History
+## Upstream Star History
 
 <a href="https://star-history.com/#Wei-Shaw/sub2api&Date">
  <picture>

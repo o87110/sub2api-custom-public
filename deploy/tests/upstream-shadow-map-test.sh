@@ -1,0 +1,342 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-25}"
+
+fail() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+[[ -s "$shadow_map" ]] || fail "shadow source map is missing or empty: $shadow_map"
+
+base_ref="${UPSTREAM_SHADOW_BASE_REF:-}"
+if [[ -z "$base_ref" ]]; then
+  base_ref="$(git -C "$repo_root" tag --merged HEAD --list 'vendor-*' --sort=-version:refname | sed -n '1p')"
+fi
+[[ -n "$base_ref" ]] || fail "no vendor-* baseline tag is available"
+git -C "$repo_root" rev-parse --verify "${base_ref}^{commit}" >/dev/null
+next_ref="${UPSTREAM_SHADOW_NEXT_REF:-}"
+if [[ -n "$next_ref" ]]; then
+  git -C "$repo_root" rev-parse --verify "${next_ref}^{commit}" >/dev/null
+fi
+
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+rows="$tmp_dir/rows.tsv"
+sources="$tmp_dir/sources.txt"
+: > "$sources"
+
+awk -F '\t' '
+  /^[[:space:]]*$/ || /^#/ { next }
+  NF != 2 || $1 == "" || $2 == "" {
+    printf "invalid mapping at line %d: expected exactly two non-empty TSV fields\n", NR > "/dev/stderr"
+    failed = 1
+    next
+  }
+  { print $1 "\t" $2 }
+  END { exit failed }
+' "$shadow_map" > "$rows"
+
+row_count="$(wc -l < "$rows" | tr -d ' ')"
+[[ "$row_count" -eq "$expected_count" ]] ||
+  fail "expected $expected_count effective mappings, found $row_count"
+
+assert_mapping() {
+  grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
+}
+
+if [[ "$expected_count" -eq 25 ]]; then
+  assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
+  assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
+  assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
+  assert_mapping $'backend/internal/service/content_moderation_cyber_test.go\tbackend/internal/custom/moderation/cyber_policy_test.go|backend/internal/service/custom_moderation_bridge_test.go'
+  assert_mapping $'backend/internal/service/content_moderation_test.go\tbackend/internal/custom/moderation/excerpt_test.go|backend/internal/service/custom_moderation_bridge_test.go'
+fi
+
+validate_relative_path() {
+  local kind="$1"
+  local path="$2"
+  [[ -n "$path" ]] || fail "$kind path must not be empty"
+  case "$path" in
+    . | .. | /* | [A-Za-z]:* | *\\* | ./* | */./* | ../* | */../* | */.. | *//*)
+      fail "$kind path must be a normalized repository-relative path: $path"
+      ;;
+  esac
+}
+
+while IFS=$'\t' read -r source_field target_field; do
+  case "$source_field" in
+    \|* | *\| | *\|\|*)
+      fail "source alternatives must be non-empty repository paths: $source_field"
+      ;;
+  esac
+  case "$target_field" in
+    \|* | *\| | *\|\|*)
+      fail "target alternatives must be non-empty repository paths: $target_field"
+      ;;
+  esac
+  IFS='|' read -r -a target_paths <<< "$target_field"
+  for target in "${target_paths[@]}"; do
+    validate_relative_path target "$target"
+    case "$target" in
+      backend/internal/custom/* | frontend/src/custom/* | \
+        backend/internal/handler/openai_gateway_custom_test.go | \
+        backend/internal/service/custom_moderation_bridge_test.go) ;;
+      *) fail "target is outside an allowed custom directory: $target" ;;
+    esac
+    [[ -f "$repo_root/$target" ]] || fail "target file does not exist: $target"
+  done
+
+  source_in_base=false
+  source_in_next=false
+  source_removed=false
+  real_source_count=0
+  IFS='|' read -r -a source_paths <<< "$source_field"
+  for source in "${source_paths[@]}"; do
+    if [[ "$source" == "@removed" ]]; then
+      source_removed=true
+      continue
+    fi
+    validate_relative_path source "$source"
+    real_source_count=$((real_source_count + 1))
+    printf '%s\n' "$source" >> "$sources"
+    if git -C "$repo_root" cat-file -e "${base_ref}:${source}" 2>/dev/null; then
+      source_in_base=true
+    fi
+    if [[ -n "$next_ref" ]]; then
+      if git -C "$repo_root" cat-file -e "${next_ref}:${source}" 2>/dev/null; then
+        source_in_next=true
+      fi
+    fi
+  done
+  [[ "$real_source_count" -gt 0 ]] || fail "mapping must contain at least one real source path: $source_field"
+  if [[ -n "$next_ref" ]]; then
+    if [[ "$source_removed" != "true" && "$source_in_next" != "true" ]]; then
+      fail "no source alternative exists in target ref $next_ref; declare its replacement or append |@removed"
+    fi
+  elif [[ "$source_in_base" != "true" && "$source_removed" != "true" ]]; then
+    fail "no source alternative exists in $base_ref: $source_field"
+  fi
+done < "$rows"
+
+duplicate_sources="$(sort "$sources" | uniq -d)"
+[[ -z "$duplicate_sources" ]] || fail "duplicate source paths detected: $duplicate_sources"
+
+duplicate_pairs="$(sort "$rows" | uniq -d)"
+[[ -z "$duplicate_pairs" ]] || fail "duplicate mapping rows detected: $duplicate_pairs"
+
+if [[ "${UPSTREAM_SHADOW_SKIP_BOUNDARY_TEST:-false}" != "true" ]]; then
+  boundary_root="${UPSTREAM_SHADOW_BOUNDARY_ROOT:-$repo_root}"
+  boundary_violations="$tmp_dir/shadow-boundary-violations.txt"
+  : > "$boundary_violations"
+
+is_compatibility_test() {
+  case "$1" in
+    */__tests__/* | *.spec.ts | *.test.ts | *_test.go) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_shadowed_source() {
+  grep -Fqx -- "$1" "$sources"
+}
+
+if [[ -d "$boundary_root/frontend/src" ]]; then
+  while IFS= read -r match; do
+    file="${match%%:*}"
+    relative="${file#"$boundary_root"/}"
+    is_compatibility_test "$relative" && continue
+    case "$relative" in
+      frontend/src/custom/* | frontend/src/components/common/VersionBadge.vue | frontend/src/components/layout/AppSidebar.vue) ;;
+      *) echo "$match" >> "$boundary_violations" ;;
+    esac
+  done < <(grep -RInE --include='*.ts' --include='*.tsx' --include='*.vue' 'VersionBadge' "$boundary_root/frontend/src" || true)
+
+  while IFS= read -r match; do
+    file="${match%%:*}"
+    relative="${file#"$boundary_root"/}"
+    is_compatibility_test "$relative" && continue
+    case "$relative" in
+      frontend/src/custom/* | frontend/src/views/admin/RiskControlView.vue | frontend/src/router/index.ts) ;;
+      *) echo "$match" >> "$boundary_violations" ;;
+    esac
+  done < <(grep -RInE --include='*.ts' --include='*.tsx' --include='*.vue' 'RiskControlView' "$boundary_root/frontend/src" || true)
+
+  while IFS= read -r match; do
+    file="${match%%:*}"
+    relative="${file#"$boundary_root"/}"
+    is_compatibility_test "$relative" && continue
+    case "$relative" in
+      frontend/src/custom/* | frontend/src/stores/app.ts | frontend/src/components/common/VersionBadge.vue) ;;
+      *) echo "$match" >> "$boundary_violations" ;;
+    esac
+  done < <(grep -RInE --include='*.ts' --include='*.tsx' --include='*.vue' 'api/admin/system' "$boundary_root/frontend/src" || true)
+
+  while IFS= read -r match; do
+    file="${match%%:*}"
+    relative="${file#"$boundary_root"/}"
+    is_compatibility_test "$relative" && continue
+    case "$relative" in
+      frontend/src/custom/* | frontend/src/components/layout/AppSidebar.vue | frontend/src/router/index.ts) ;;
+      *) echo "$match" >> "$boundary_violations" ;;
+    esac
+  done < <(
+    grep -RInE \
+      --include='*.ts' \
+      --include='*.tsx' \
+      --include='*.vue' \
+      '@/custom/(updater|moderation)(/|[^[:alnum:]_]|$)|useCustomUpdaterStore' \
+      "$boundary_root/frontend/src" || true
+  )
+
+  while IFS= read -r match; do
+    file="${match%%:*}"
+    relative="${file#"$boundary_root"/}"
+    is_compatibility_test "$relative" && continue
+    is_shadowed_source "$relative" && continue
+    case "$relative" in
+      frontend/src/custom/*) ;;
+      *) echo "$match" >> "$boundary_violations" ;;
+    esac
+  done < <(
+    grep -RInE \
+      --include='*.ts' \
+      --include='*.tsx' \
+      --include='*.vue' \
+      '(^|[^[:alnum:]_])(fetchVersion|clearVersionCache|versionLoading|officialLatestVersion|hasOfficialUpdate|officialReleaseInfo|officialReleaseWarning|updateRepository)([^[:alnum:]_]|$)' \
+      "$boundary_root/frontend/src" || true
+  )
+fi
+
+if [[ -d "$boundary_root/backend" ]]; then
+  while IFS= read -r match; do
+    file="${match%%:*}"
+    relative="${file#"$boundary_root"/}"
+    is_shadowed_source "$relative" && continue
+    case "$relative" in
+      backend/internal/custom/*) ;;
+      *) echo "$match" >> "$boundary_violations" ;;
+    esac
+  done < <(
+    grep -RInE \
+      --include='*.go' \
+      '(^|[^[:alnum:]_])(NewUpdateService|ProvideUpdateService|NewGitHubReleaseClient|ProvideGitHubReleaseClient)([^[:alnum:]_]|$)' \
+      "$boundary_root/backend" || true
+  )
+
+  while IFS= read -r match; do
+    file="${match%%:*}"
+    relative="${file#"$boundary_root"/}"
+    case "$relative" in
+      backend/internal/custom/* | \
+        backend/cmd/server/wire.go | backend/cmd/server/wire_gen.go | \
+        backend/internal/handler/wire.go | backend/internal/handler/admin/system_handler.go | \
+        backend/internal/handler/admin/system_handler_test.go | \
+        backend/internal/service/custom_moderation_bridge.go | \
+        backend/internal/service/custom_moderation_bridge_test.go) ;;
+      *) echo "$match" >> "$boundary_violations" ;;
+    esac
+  done < <(
+    grep -RInE \
+      --include='*.go' \
+      'github\.com/Wei-Shaw/sub2api/internal/custom/(updater|moderation)(/|[^[:alnum:]_]|$)' \
+      "$boundary_root/backend" || true
+  )
+fi
+
+  if [[ -s "$boundary_violations" ]]; then
+    echo "Shadowed official runtime references are not allowed outside compatibility sources/tests:" >&2
+    sed 's/^/  /' "$boundary_violations" >&2
+    exit 1
+  fi
+fi
+
+sort -u "$sources" > "$tmp_dir/shadowed-source-paths.txt"
+if [[ "${UPSTREAM_SHADOW_SKIP_DETECTOR_TEST:-false}" != "true" ]]; then
+  official_files="${UPSTREAM_SHADOW_OFFICIAL_FILES:-}"
+  detector_output="${UPSTREAM_SHADOW_DETECTED_OUTPUT:-$tmp_dir/shadowed-source-changes.txt}"
+  if [[ -n "$official_files" ]]; then
+    [[ -f "$official_files" ]] || fail "official changed-files input does not exist: $official_files"
+    sort -u "$official_files" > "$tmp_dir/official-files.txt"
+  else
+    cat > "$tmp_dir/official-files.txt" <<'EOF'
+backend/internal/repository/github_release_service.go
+backend/internal/repository/github_release_service_test.go
+backend/internal/repository/content_moderation_repo.go
+backend/internal/repository/content_moderation_repo_test.go
+backend/internal/repository/wire.go
+backend/internal/handler/openai_gateway_cyber_test.go
+backend/internal/service/content_moderation.go
+backend/internal/service/content_moderation_companion.go
+backend/internal/service/content_moderation_cyber_test.go
+backend/internal/service/content_moderation_test.go
+backend/internal/service/update_service.go
+backend/internal/service/update_service_test.go
+backend/internal/service/wire.go
+frontend/src/api/__tests__/admin.system.rollback.spec.ts
+frontend/src/api/admin/system.ts
+frontend/src/components/common/VersionBadge.vue
+frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts
+frontend/src/i18n/locales/en/admin/channels.ts
+frontend/src/i18n/locales/en/misc.ts
+frontend/src/i18n/locales/zh/admin/channels.ts
+frontend/src/i18n/locales/zh/misc.ts
+frontend/src/stores/app.ts
+frontend/src/utils/__tests__/releaseNotes.spec.ts
+frontend/src/utils/releaseNotes.ts
+frontend/src/views/admin/RiskControlView.vue
+frontend/src/views/admin/__tests__/RiskControlView.spec.ts
+backend/internal/service/not_content_moderation_companion.go
+unmapped/fixture-must-not-match.txt
+EOF
+    sort -u -o "$tmp_dir/official-files.txt" "$tmp_dir/official-files.txt"
+  fi
+
+  : > "$detector_output"
+  while IFS= read -r official_path; do
+    if grep -Fqx -- "$official_path" "$tmp_dir/shadowed-source-paths.txt"; then
+      printf '%s\n' "$official_path" >> "$detector_output"
+      continue
+    fi
+    while IFS= read -r source_path; do
+      source_dir="${source_path%/*}"
+      source_name="${source_path##*/}"
+      case "$source_name" in
+        *.*)
+          source_stem="${source_name%.*}"
+          source_extension=".${source_name##*.}"
+          ;;
+        *) continue ;;
+      esac
+      case "$official_path" in
+        "$source_dir/$source_stem"_*"$source_extension")
+          printf '%s\n' "$official_path" >> "$detector_output"
+          break
+          ;;
+      esac
+    done < "$tmp_dir/shadowed-source-paths.txt"
+  done < "$tmp_dir/official-files.txt"
+  sort -u -o "$detector_output" "$detector_output"
+
+  if [[ -z "$official_files" ]]; then
+    source_count="$(wc -l < "$tmp_dir/shadowed-source-paths.txt" | tr -d ' ')"
+    detected_count="$(wc -l < "$detector_output" | tr -d ' ')"
+    [[ "$detected_count" -eq $((source_count + 1)) ]] ||
+      fail "expected every exact source and one companion match; detected $detected_count paths for $source_count sources"
+    grep -Fqx 'backend/internal/service/content_moderation_companion.go' "$detector_output" ||
+      fail "the detector missed a same-family companion file"
+    if grep -Fqx 'backend/internal/service/not_content_moderation_companion.go' "$detector_output"; then
+      fail "the detector matched a path whose basename only contains the mapped stem"
+    fi
+    if grep -Fqx 'unmapped/fixture-must-not-match.txt' "$detector_output"; then
+      fail "the detector matched an unmapped official path"
+    fi
+  fi
+fi
+
+source_count="$(wc -l < "$tmp_dir/shadowed-source-paths.txt" | tr -d ' ')"
+
+echo "upstream shadow map and runtime-boundary checks passed ($expected_count mappings, $source_count source paths, baseline $base_ref)"

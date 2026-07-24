@@ -577,7 +577,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/admin/risk-control',
     name: 'AdminRiskControl',
-    component: () => import('@/views/admin/RiskControlView.vue'),
+    component: () => import('@/custom/moderation/views/RiskControlView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: true,

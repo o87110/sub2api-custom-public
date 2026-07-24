@@ -1,0 +1,995 @@
+name: Validate Official Upgrade PR
+
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch' &&
+    format('Official upgrade PR #{0} @ {1}', inputs.pr_number, inputs.expected_head_sha) ||
+    github.event.pull_request.title
+  }}
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+      - unlabeled
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Upgrade pull request number'
+        required: true
+        type: number
+      expected_head_sha:
+        description: 'Exact upgrade pull request Head SHA that must be checked'
+        required: true
+        type: string
+      approve_database_changes:
+        description: 'Approve this PR after database-copy, backup, and rollback review'
+        required: false
+        type: boolean
+        default: false
+      approve_protected_changes:
+        description: 'Confirm AI or maintainer review of protected custom-development paths'
+        required: false
+        type: boolean
+        default: false
+      approved_official_tag:
+        description: 'Exact official tag being approved, for example v0.1.162'
+        required: false
+        type: string
+      approved_database_base_commit:
+        description: 'Exact peeled custom baseline commit shown by the failed database gate'
+        required: false
+        type: string
+      approved_database_fingerprint:
+        description: 'Exact normalized database diff SHA-256 shown by the failed gate'
+        required: false
+        type: string
+
+concurrency:
+  group: upstream-upgrade-gate
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  context:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    outputs:
+      pr_number: ${{ steps.resolve.outputs.pr_number }}
+      head_ref: ${{ steps.resolve.outputs.head_ref }}
+      head_sha: ${{ steps.resolve.outputs.head_sha }}
+      official_tag: ${{ steps.resolve.outputs.official_tag }}
+      version: ${{ steps.resolve.outputs.version }}
+      vendor_tag: ${{ steps.resolve.outputs.vendor_tag }}
+      is_upgrade: ${{ steps.resolve.outputs.is_upgrade }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+      INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+      INPUT_APPROVE_DATABASE_CHANGES: ${{ inputs.approve_database_changes || false }}
+      INPUT_APPROVE_PROTECTED_CHANGES: ${{ inputs.approve_protected_changes || false }}
+      INPUT_APPROVED_OFFICIAL_TAG: ${{ inputs.approved_official_tag }}
+      INPUT_APPROVED_DATABASE_BASE_COMMIT: ${{ inputs.approved_database_base_commit }}
+      INPUT_APPROVED_DATABASE_FINGERPRINT: ${{ inputs.approved_database_fingerprint }}
+    steps:
+      - name: Resolve and validate upgrade pull request
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request_target" ]]; then
+            pr_number="$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")"
+            details="$(
+              jq -r \
+                '[.pull_request.base.ref, .pull_request.head.ref, .pull_request.head.sha, .pull_request.head.repo.full_name, .pull_request.state] | @tsv' \
+                "$GITHUB_EVENT_PATH"
+            )"
+          else
+            if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+              echo "Trusted upgrade dispatch must run from refs/heads/main." >&2
+              exit 1
+            fi
+            if [[ ! "$INPUT_EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "expected_head_sha must be a full 40-character commit SHA." >&2
+              exit 1
+            fi
+            pr_number="$INPUT_PR_NUMBER"
+            details="$(
+              gh api \
+                "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" \
+                --jq '[.base.ref, .head.ref, .head.sha, .head.repo.full_name, .state] | @tsv'
+            )"
+          fi
+
+          IFS=$'\t' read -r base_ref head_ref head_sha head_repo state <<<"$details"
+          if [[ "$state" != "open" ]]; then
+            echo "Upgrade PR #${pr_number} is not open." >&2
+            exit 1
+          fi
+          if [[ "$base_ref" != "main" ]]; then
+            echo "Upgrade PR #${pr_number} must target main." >&2
+            exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" &&
+                "$head_sha" != "$INPUT_EXPECTED_HEAD_SHA" ]]; then
+            echo "Upgrade PR #${pr_number} is now at ${head_sha}, expected ${INPUT_EXPECTED_HEAD_SHA}." >&2
+            exit 1
+          fi
+          is_upgrade=false
+          official_tag=""
+          version=""
+          vendor_tag=""
+          if [[ "$head_repo" == "$GITHUB_REPOSITORY" && "$head_ref" =~ ^upgrade/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            is_upgrade=true
+            official_tag="${head_ref#upgrade/}"
+            version="${official_tag#v}"
+            vendor_tag="vendor-${version}"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "Upgrade PR #${pr_number} must use a same-repository upgrade/vX.Y.Z branch." >&2
+            exit 1
+          fi
+          if [[ "$INPUT_APPROVE_DATABASE_CHANGES" == "true" ||
+                "$INPUT_APPROVE_PROTECTED_CHANGES" == "true" ]]; then
+            if [[ ! "$INPUT_APPROVED_OFFICIAL_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Approval tag must use the exact vX.Y.Z format." >&2
+              exit 1
+            fi
+            if [[ "$INPUT_APPROVED_OFFICIAL_TAG" != "$official_tag" ]]; then
+              echo "Approval tag must exactly match ${official_tag}." >&2
+              exit 1
+            fi
+          fi
+          if [[ "$INPUT_APPROVE_DATABASE_CHANGES" == "true" ]]; then
+            if [[ ! "$INPUT_APPROVED_DATABASE_BASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Database approval baseline must be a full commit SHA." >&2
+              exit 1
+            fi
+            if [[ ! "$INPUT_APPROVED_DATABASE_FINGERPRINT" =~ ^[0-9a-f]{64}$ ]]; then
+              echo "Database approval fingerprint must be a SHA-256 value." >&2
+              exit 1
+            fi
+          fi
+
+          {
+            echo "pr_number=$pr_number"
+            echo "head_ref=$head_ref"
+            echo "head_sha=$head_sha"
+            echo "official_tag=$official_tag"
+            echo "version=$version"
+            echo "vendor_tag=$vendor_tag"
+            echo "is_upgrade=$is_upgrade"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout non-upgrade pull request revision
+        if: github.event_name == 'pull_request_target' && steps.resolve.outputs.is_upgrade != 'true'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ steps.resolve.outputs.head_sha }}
+          fetch-depth: 0
+
+      - name: Reject official upgrades on non-standard branches
+        if: github.event_name == 'pull_request_target' && steps.resolve.outputs.is_upgrade != 'true'
+        env:
+          HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git remote add upstream https://github.com/Wei-Shaw/sub2api.git 2>/dev/null || \
+            git remote set-url upstream https://github.com/Wei-Shaw/sub2api.git
+          git fetch origin \
+            --no-tags \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            --force
+          git fetch upstream \
+            --no-tags \
+            '+refs/tags/v*:refs/upstream-tags/v*' \
+            --force
+
+          : > /tmp/introduced-official-tags.txt
+          while IFS= read -r tag_ref; do
+            tag="${tag_ref#refs/upstream-tags/}"
+            [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+            if git merge-base --is-ancestor "${tag_ref}^{commit}" "$HEAD_SHA" &&
+               ! git merge-base --is-ancestor "${tag_ref}^{commit}" origin/main; then
+              echo "$tag" >> /tmp/introduced-official-tags.txt
+            fi
+          done < <(git for-each-ref --format='%(refname)' refs/upstream-tags/)
+
+          git diff --name-only --no-renames origin/main "$HEAD_SHA" -- \
+            '.github/upgrades/*.md' > /tmp/nonstandard-upgrade-reports.txt
+          if [[ -s /tmp/introduced-official-tags.txt || -s /tmp/nonstandard-upgrade-reports.txt ]]; then
+            echo "Official upgrades must use a same-repository upgrade/vX.Y.Z branch." >&2
+            if [[ -s /tmp/introduced-official-tags.txt ]]; then
+              echo "New official tags introduced by this PR:" >&2
+              sed 's/^/  - /' /tmp/introduced-official-tags.txt >&2
+            fi
+            if [[ -s /tmp/nonstandard-upgrade-reports.txt ]]; then
+              echo "Upgrade reports changed by this PR:" >&2
+              sed 's/^/  - /' /tmp/nonstandard-upgrade-reports.txt >&2
+            fi
+            exit 1
+          fi
+
+          echo "No new official version was introduced by this non-upgrade PR."
+
+      - name: Record exact-revision approvals
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          labels=()
+          markers=()
+          approval_tag="${{ steps.resolve.outputs.official_tag }}"
+          approval_head="${{ steps.resolve.outputs.head_sha }}"
+          if [[ "$INPUT_APPROVE_DATABASE_CHANGES" == "true" ]]; then
+            gh label create "upgrade:database-approved" \
+              --repo "$GITHUB_REPOSITORY" \
+              --color "0E8A16" \
+              --description "Exact-revision database review completed" \
+              --force
+            labels+=("upgrade:database-approved")
+            markers+=("<!-- sub2api-upgrade-approval database tag=${approval_tag} head=${approval_head} base=${INPUT_APPROVED_DATABASE_BASE_COMMIT} fingerprint=${INPUT_APPROVED_DATABASE_FINGERPRINT} -->")
+          fi
+          if [[ "$INPUT_APPROVE_PROTECTED_CHANGES" == "true" ]]; then
+            gh label create "upgrade:protected-reviewed" \
+              --repo "$GITHUB_REPOSITORY" \
+              --color "1D76DB" \
+              --description "Exact-revision protected paths review completed" \
+              --force
+            labels+=("upgrade:protected-reviewed")
+            markers+=("<!-- sub2api-upgrade-approval protected tag=${approval_tag} head=${approval_head} -->")
+          fi
+
+          for label in "${labels[@]}"; do
+            gh pr edit "${{ steps.resolve.outputs.pr_number }}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --add-label "$label"
+          done
+          if (( ${#labels[@]} > 0 )); then
+            approval_body="Recorded exact-revision approval for \`${approval_tag}\` at \`${approval_head}\`: ${labels[*]}.
+
+          Approval workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            for marker in "${markers[@]}"; do
+              approval_body+=$'\n'"$marker"
+            done
+            gh pr comment "${{ steps.resolve.outputs.pr_number }}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --body "$approval_body"
+          fi
+
+  gate:
+    needs: context
+    if: needs.context.outputs.is_upgrade == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      base_ref: ${{ steps.inspect.outputs.base_ref }}
+      database_changed: ${{ steps.inspect.outputs.database_changed }}
+      protected_overlap: ${{ steps.inspect.outputs.protected_overlap }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ needs.context.outputs.pr_number }}
+      HEAD_SHA: ${{ needs.context.outputs.head_sha }}
+      OFFICIAL_TAG: ${{ needs.context.outputs.official_tag }}
+      VERSION: ${{ needs.context.outputs.version }}
+      VENDOR_TAG: ${{ needs.context.outputs.vendor_tag }}
+    steps:
+      - name: Checkout exact upgrade revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.context.outputs.head_sha }}
+          fetch-depth: 0
+
+      - name: Set up exact Go toolchain for database semantics
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache-dependency-path: backend/go.sum
+
+      - name: Validate official ancestry and manual gates
+        id: inspect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git remote add upstream https://github.com/Wei-Shaw/sub2api.git 2>/dev/null || \
+            git remote set-url upstream https://github.com/Wei-Shaw/sub2api.git
+          git fetch upstream \
+            --no-tags \
+            '+refs/tags/v*:refs/upstream-tags/v*' \
+            --force
+          git fetch origin \
+            --no-tags \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/tags/*:refs/origin-tags/*' \
+            --force
+
+          if [[ ! "$OFFICIAL_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid official tag derived from upgrade branch: $OFFICIAL_TAG" >&2
+            exit 1
+          fi
+          official_ref="refs/upstream-tags/${OFFICIAL_TAG}"
+          vendor_ref="refs/origin-tags/${VENDOR_TAG}"
+          git rev-parse --verify "${official_ref}^{commit}" >/dev/null
+          if git show-ref --verify --quiet "$vendor_ref"; then
+            echo "${VENDOR_TAG} already exists; this upgrade PR is stale." >&2
+            exit 1
+          fi
+
+          base_ref=""
+          while IFS= read -r candidate_ref; do
+            if git merge-base --is-ancestor "${candidate_ref}^{commit}" origin/main; then
+              base_ref="$candidate_ref"
+              break
+            fi
+          done < <(
+            git for-each-ref \
+              --sort=-version:refname \
+              --format='%(refname)' \
+              'refs/origin-tags/vendor-*'
+          )
+          if [[ -z "$base_ref" ]]; then
+            while IFS= read -r candidate_ref; do
+              if git merge-base --is-ancestor "${candidate_ref}^{commit}" origin/main; then
+                base_ref="$candidate_ref"
+                break
+              fi
+            done < <(
+              git for-each-ref \
+                --sort=-version:refname \
+                --format='%(refname)' \
+                'refs/upstream-tags/v*'
+            )
+          fi
+          [[ -n "$base_ref" ]] || { echo "No trusted official baseline is reachable from main." >&2; exit 1; }
+          base_label="${base_ref#refs/origin-tags/}"
+          base_label="${base_label#refs/upstream-tags/}"
+          git rev-parse --verify "${base_ref}^{commit}" >/dev/null
+          if [[ "$base_ref" == refs/origin-tags/vendor-* ]]; then
+            base_version="${base_label#vendor-}"
+            base_official_ref="refs/upstream-tags/v${base_version}"
+            git rev-parse --verify "${base_official_ref}^{commit}" >/dev/null
+            if [[ "$(git rev-parse "${base_ref}^{commit}")" != "$(git rev-parse "${base_official_ref}^{commit}")" ]]; then
+              echo "${base_label} does not match official v${base_version}; refusing an untrusted baseline." >&2
+              exit 1
+            fi
+          fi
+          if ! git merge-base "${base_ref}^{commit}" "${official_ref}^{commit}" >/dev/null; then
+            echo "${base_label} and ${OFFICIAL_TAG} have no common history." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${base_ref}^{commit}" "${official_ref}^{commit}"; then
+            echo "${OFFICIAL_TAG} is not a forward upgrade from ${base_label}; refusing downgrade or divergent publication." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${official_ref}^{commit}" "$HEAD_SHA"; then
+            echo "Upgrade PR does not contain ${OFFICIAL_TAG}. Resolve the merge conflict on the persistent branch first." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor origin/main "$HEAD_SHA"; then
+            echo "Upgrade PR is behind main. Merge the latest main before validation." >&2
+            exit 1
+          fi
+
+          report=".github/upgrades/${VERSION}.md"
+          if [[ ! -f "$report" ]]; then
+            echo "Upgrade report is missing: $report" >&2
+            exit 1
+          fi
+          if ! grep -Fq -- "- Target: \`${OFFICIAL_TAG}\`" "$report"; then
+            echo "Upgrade report target does not match ${OFFICIAL_TAG}." >&2
+            exit 1
+          fi
+
+          git diff --name-only --no-renames "${base_ref}^{commit}" "${official_ref}^{commit}" |
+            sort -u > /tmp/official-files.txt
+          git diff --name-only --no-renames "${base_ref}^{commit}" origin/main |
+            sort -u > /tmp/custom-files.txt
+          git diff --name-only --no-renames origin/main "$HEAD_SHA" |
+            sort -u > /tmp/upgrade-head-files.txt
+          comm -12 /tmp/official-files.txt /tmp/custom-files.txt > /tmp/overlap-files.txt
+
+          : > /tmp/unexpected-upgrade-tree-files.txt
+          set +e
+          git merge-tree --write-tree origin/main "${official_ref}^{commit}" \
+            > /tmp/expected-merge-tree.txt \
+            2> /tmp/expected-merge-tree-errors.txt
+          merge_tree_status=$?
+          set -e
+          if [[ "$merge_tree_status" -gt 1 ]]; then
+            cat /tmp/expected-merge-tree-errors.txt >&2
+            echo "Unable to calculate the trusted official merge tree." >&2
+            exit 1
+          fi
+          expected_tree="$(sed -n '1p' /tmp/expected-merge-tree.txt)"
+          if [[ ! "$expected_tree" =~ ^[0-9a-f]{40,64}$ ]] ||
+             ! git cat-file -e "${expected_tree}^{tree}"; then
+            echo "Trusted official merge calculation did not return a valid tree." >&2
+            exit 1
+          fi
+          git diff --name-only --no-renames "$expected_tree" "$HEAD_SHA" -- \
+            . ":(exclude)${report}" |
+            sort -u > /tmp/unexpected-upgrade-tree-files.txt
+          deterministic_tree_match=true
+          if [[ -s /tmp/unexpected-upgrade-tree-files.txt ]]; then
+            deterministic_tree_match=false
+          fi
+
+          grep -E \
+            '^(\.github/(CODEOWNERS|custom-|upstream-shadowed-sources\.tsv)|\.github/workflows/|backend/cmd/custom-database-boundary/|backend/internal/custom/databaseboundary/|deploy/release/|deploy/tests/|tools/(validate_pnpm_audit|test_validate_pnpm_audit)\.py)' \
+            /tmp/upgrade-head-files.txt > /tmp/control-plane-files.txt || true
+          if [[ -s /tmp/control-plane-files.txt ]]; then
+            echo "Upgrade PRs must not modify trusted upgrade control-plane files." >&2
+            echo "Land these changes on main first, then update the upgrade branch." >&2
+            sed 's/^/  - /' /tmp/control-plane-files.txt >&2
+            exit 1
+          fi
+
+          shadow_map="/tmp/upstream-shadowed-sources.tsv"
+          git show origin/main:.github/upstream-shadowed-sources.tsv > "$shadow_map"
+          if [[ ! -s "$shadow_map" ]]; then
+            echo "Shadowed upstream source map is missing or empty: $shadow_map" >&2
+            exit 1
+          fi
+          UPSTREAM_SHADOW_MAP="$shadow_map" \
+            UPSTREAM_SHADOW_BASE_REF="$base_ref" \
+            UPSTREAM_SHADOW_NEXT_REF="$official_ref" \
+            UPSTREAM_SHADOW_OFFICIAL_FILES=/tmp/official-files.txt \
+            UPSTREAM_SHADOW_DETECTED_OUTPUT=/tmp/shadowed-source-changes.txt \
+            /bin/bash deploy/tests/upstream-shadow-map-test.sh
+          protected_pattern='^(backend/internal/custom/|backend/cmd/custom-database-boundary/|frontend/src/custom/|backend/cmd/server/wire(_gen)?\.go|backend/internal/config/(config|custom_artifacts_test)\.go|backend/internal/handler/(wire\.go|openai_gateway_(handler|cyber_test|custom_test)\.go|admin/(system_handler|system_handler_test)\.go)|backend/internal/service/(content_moderation|custom_moderation_bridge(_test)?|content_moderation_test|content_moderation_cyber_test)\.go|backend/internal/repository/(content_moderation_repo|content_moderation_repo_test)\.go|frontend/src/api/__tests__/admin\.system\.rollback\.spec\.ts|frontend/src/components/layout/AppSidebar\.vue|frontend/src/router/index\.ts|Dockerfile|Dockerfile\.goreleaser|deploy/docker-entrypoint\.sh|deploy/release/|deploy/tests/|tools/(validate_pnpm_audit|test_validate_pnpm_audit)\.py|\.goreleaser.*|\.github/CODEOWNERS|\.github/custom-|\.github/upstream-shadowed-sources\.tsv|\.github/workflows/)'
+
+          base_tree="$(git rev-parse "${base_ref}^{tree}")"
+          official_tree="$(git rev-parse "${official_ref}^{tree}")"
+          custom_tree="$(git rev-parse "origin/main^{tree}")"
+          candidate_tree="$(git rev-parse "${HEAD_SHA}^{tree}")"
+          database_report="$(
+            /bin/bash deploy/tests/custom-database-boundary-test.sh \
+              --mode upgrade \
+              --base-tree "$base_tree" \
+              --official-tree "$official_tree" \
+              --custom-tree "$custom_tree" \
+              --candidate-tree "$candidate_tree" \
+              --official-tag "$OFFICIAL_TAG" \
+              --head-sha "$HEAD_SHA" \
+              --report-only
+          )"
+          database_changed="$(
+            sed -n 's/^database_changed=//p' <<<"$database_report"
+          )"
+          database_fingerprint="$(
+            sed -n 's/^database_fingerprint=//p' <<<"$database_report"
+          )"
+          [[ "$database_changed" == "true" || "$database_changed" == "false" ]]
+          [[ "$database_fingerprint" =~ ^[0-9a-f]{64}$ ]]
+
+          grep -E "$protected_pattern" /tmp/overlap-files.txt > /tmp/protected-overlap.txt || true
+          grep -E "$protected_pattern" /tmp/upgrade-head-files.txt > /tmp/upgrade-protected-files.txt || true
+          cat \
+            /tmp/protected-overlap.txt \
+            /tmp/shadowed-source-changes.txt \
+            /tmp/upgrade-protected-files.txt \
+            /tmp/unexpected-upgrade-tree-files.txt |
+            sort -u > /tmp/protected-review-files.txt
+          mv /tmp/protected-review-files.txt /tmp/protected-overlap.txt
+
+          approval_comments="$(
+            gh api \
+              --paginate \
+              "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              --jq '.[] | select(.user.login == "github-actions[bot]") | .body'
+          )"
+          source .github/custom-upstream-baseline.env
+          database_marker="<!-- sub2api-upgrade-approval database tag=${OFFICIAL_TAG} head=${HEAD_SHA} base=${CUSTOM_UPSTREAM_BASE_COMMIT} fingerprint=${database_fingerprint} -->"
+          protected_marker="<!-- sub2api-upgrade-approval protected tag=${OFFICIAL_TAG} head=${HEAD_SHA} -->"
+          protected_overlap=false
+          if [[ "$database_changed" == "true" ]]; then
+            if ! grep -Fq "$database_marker" <<<"$approval_comments"; then
+              echo "Database semantics changed. Exact tag, Head, baseline, and fingerprint approval is required." >&2
+              echo "Required fingerprint: $database_fingerprint" >&2
+              exit 1
+            fi
+            /bin/bash deploy/tests/custom-database-boundary-test.sh \
+              --mode upgrade \
+              --base-tree "$base_tree" \
+              --official-tree "$official_tree" \
+              --custom-tree "$custom_tree" \
+              --candidate-tree "$candidate_tree" \
+              --official-tag "$OFFICIAL_TAG" \
+              --head-sha "$HEAD_SHA" \
+              --approved-base-commit "$CUSTOM_UPSTREAM_BASE_COMMIT" \
+              --approved-official-tag "$OFFICIAL_TAG" \
+              --approved-head-sha "$HEAD_SHA" \
+              --approved-fingerprint "$database_fingerprint"
+          fi
+          if [[ -s /tmp/protected-overlap.txt ]]; then
+            protected_overlap=true
+            if ! grep -Fq "$protected_marker" <<<"$approval_comments"; then
+              echo "Protected custom paths overlap or shadowed upstream sources changed. Exact-tag and exact-head review approval is required." >&2
+              sed 's/^/  - /' /tmp/protected-overlap.txt >&2
+              exit 1
+            fi
+          fi
+
+          git diff --check
+          {
+            echo "base_ref=$base_label"
+            echo "database_changed=$database_changed"
+            echo "database_fingerprint=$database_fingerprint"
+            echo "protected_overlap=$protected_overlap"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Official upgrade gate"
+            echo
+            echo "- Base: \`${base_label}\`"
+            echo "- Target: \`${OFFICIAL_TAG}\`"
+            echo "- Head: \`${HEAD_SHA}\`"
+            echo "- Matches deterministic official merge tree: \`${deterministic_tree_match}\`"
+            echo "- Database paths changed: \`${database_changed}\`"
+            echo "- Protected custom overlap: \`${protected_overlap}\`"
+            echo
+            echo "#### Upgrade branch additional protected changes"
+            if [[ -s /tmp/upgrade-protected-files.txt ]]; then
+              sed 's/^/- `/' /tmp/upgrade-protected-files.txt | sed 's/$/`/'
+            else
+              echo "- None"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  backend:
+    needs:
+      - context
+      - gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.context.outputs.head_sha }}
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Test persistent runtime version selection
+        run: /bin/bash deploy/tests/docker-entrypoint-runtime-test.sh
+      - name: Backend tests
+        working-directory: backend
+        run: |
+          make test-unit
+          make test-integration
+      - name: Verify generated Wire graph
+        working-directory: backend
+        run: |
+          go generate ./cmd/server
+          git diff --exit-code -- cmd/server/wire_gen.go
+      - name: Install checksum-pinned golangci-lint
+        env:
+          CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-tools
+        run: /bin/bash deploy/tests/install-custom-tools.sh golangci-lint
+      - name: golangci-lint
+        working-directory: backend
+        run: golangci-lint run --timeout=30m
+
+  frontend:
+    needs:
+      - context
+      - gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.context.outputs.head_sha }}
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '20.20.2'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Frontend checks
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          make -C .. test-frontend test-frontend-custom
+          pnpm run build
+      - name: Preserve frontend build for Release preflight
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: upgrade-frontend-dist-${{ github.run_id }}
+          path: backend/internal/web/dist/
+          retention-days: 1
+
+  release-preflight:
+    needs:
+      - context
+      - gate
+      - frontend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.context.outputs.head_sha }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: upgrade-frontend-dist-${{ github.run_id }}
+          path: backend/internal/web/dist/
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Install checksum-pinned GoReleaser
+        env:
+          CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-tools
+        run: /bin/bash deploy/tests/install-custom-tools.sh goreleaser
+      - name: Build complete Release assets without publishing
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAG_MESSAGE: Release preflight
+          GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          goreleaser check
+          goreleaser release --snapshot --clean --skip=publish
+      - name: Ensure preflight did not rewrite dependencies
+        run: git diff --exit-code -- backend/go.mod backend/go.sum
+
+  required_validation:
+    name: Internal upgrade validation aggregate
+    if: ${{ always() }}
+    needs:
+      - context
+      - gate
+      - backend
+      - frontend
+      - release-preflight
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Require every applicable validation job to succeed
+        shell: bash
+        env:
+          CONTEXT_RESULT: ${{ needs.context.result }}
+          IS_UPGRADE: ${{ needs.context.outputs.is_upgrade }}
+          GATE_RESULT: ${{ needs.gate.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          RELEASE_PREFLIGHT_RESULT: ${{ needs.release-preflight.result }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$CONTEXT_RESULT" != "success" ]]; then
+            echo "Context classification did not succeed: ${CONTEXT_RESULT}." >&2
+            exit 1
+          fi
+
+          case "$IS_UPGRADE" in
+            false)
+              echo "Non-upgrade pull request classification passed."
+              exit 0
+              ;;
+            true)
+              ;;
+            *)
+              echo "Unexpected upgrade classification: ${IS_UPGRADE:-<empty>}." >&2
+              exit 1
+              ;;
+          esac
+
+          required_results=(
+            "gate=${GATE_RESULT}"
+            "backend=${BACKEND_RESULT}"
+            "frontend=${FRONTEND_RESULT}"
+            "release-preflight=${RELEASE_PREFLIGHT_RESULT}"
+          )
+          for check in "${required_results[@]}"; do
+            name="${check%%=*}"
+            result="${check#*=}"
+            if [[ "$result" != "success" ]]; then
+              echo "Required upgrade validation ${name} did not succeed: ${result}." >&2
+              exit 1
+            fi
+          done
+
+          echo "All required upgrade validations succeeded."
+
+  publish_validation_status:
+    name: Publish exact-head validation status
+    if: >-
+      ${{
+        always() &&
+        (
+          (github.event_name == 'pull_request_target' &&
+            needs.context.outputs.is_upgrade != 'true') ||
+          (github.event_name == 'workflow_dispatch' &&
+            github.ref == 'refs/heads/main')
+        )
+      }}
+    needs:
+      - context
+      - required_validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_SHA: ${{ needs.context.outputs.head_sha || inputs.expected_head_sha || github.event.pull_request.head.sha }}
+      CONTEXT_RESULT: ${{ needs.context.result }}
+      IS_UPGRADE: ${{ needs.context.outputs.is_upgrade }}
+      VALIDATION_RESULT: ${{ needs.required_validation.result }}
+    steps:
+      - name: Publish trusted result for the exact pull request revision
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Cannot publish validation status without an exact pull request Head SHA." >&2
+            exit 1
+          fi
+          state=error
+          description='Trusted official upgrade context could not be resolved.'
+          if [[ "$CONTEXT_RESULT" == "success" ]]; then
+            state=failure
+            description='Trusted official upgrade validation failed.'
+            if [[ "$VALIDATION_RESULT" == "success" ]]; then
+              state=success
+              description='Trusted official upgrade validation passed.'
+            fi
+          fi
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+            -f state="$state" \
+            -f context='Required upgrade validation' \
+            -f description="$description" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            >/dev/null
+
+  report-failure:
+    if: >-
+      ${{
+        always() &&
+        needs.context.result == 'success' &&
+        needs.context.outputs.is_upgrade == 'true' &&
+        needs.required_validation.result != 'success'
+      }}
+    needs:
+      - context
+      - required_validation
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Preserve AI handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          title="Official ${{ needs.context.outputs.official_tag }} upgrade blocked: pr_gate"
+          body="Upgrade PR #${{ needs.context.outputs.pr_number }} did not pass the trusted official-upgrade gate. The persistent branch was not reset or force-pushed.
+
+          Workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          existing="$(
+            gh issue list \
+              --repo "$GITHUB_REPOSITORY" \
+              --state open \
+              --search "$title in:title" \
+              --json number \
+              --jq '.[0].number'
+          )"
+          if [[ -z "$existing" ]]; then
+            gh issue create \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$title" \
+              --body "$body"
+          fi
+          gh pr comment "${{ needs.context.outputs.pr_number }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "$body"
+
+  finalize:
+    if: >-
+      ${{
+        always() &&
+        github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/main' &&
+        needs.context.outputs.is_upgrade == 'true' &&
+        needs.required_validation.result == 'success' &&
+        needs.publish_validation_status.result == 'success'
+      }}
+    needs:
+      - context
+      - publish_validation_status
+      - required_validation
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ needs.context.outputs.pr_number }}
+      HEAD_REF: ${{ needs.context.outputs.head_ref }}
+      HEAD_SHA: ${{ needs.context.outputs.head_sha }}
+      OFFICIAL_TAG: ${{ needs.context.outputs.official_tag }}
+      VERSION: ${{ needs.context.outputs.version }}
+      VENDOR_TAG: ${{ needs.context.outputs.vendor_tag }}
+    steps:
+      - name: Checkout custom production branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge exact checked revision and establish vendor baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/Wei-Shaw/sub2api.git 2>/dev/null || \
+            git remote set-url upstream https://github.com/Wei-Shaw/sub2api.git
+          git fetch upstream \
+            --no-tags \
+            '+refs/tags/v*:refs/upstream-tags/v*' \
+            --force
+          git fetch origin \
+            --no-tags \
+            '+refs/heads/upstream/main:refs/remotes/origin/upstream/main' \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/tags/*:refs/origin-tags/*' \
+            --force
+          git fetch origin \
+            --no-tags \
+            "+refs/heads/${HEAD_REF}:refs/remotes/origin/${HEAD_REF}"
+
+          official_ref="refs/upstream-tags/${OFFICIAL_TAG}"
+          vendor_ref="refs/origin-tags/${VENDOR_TAG}"
+          git rev-parse --verify "${official_ref}^{commit}" >/dev/null
+
+          current="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
+              --jq '[.state, .head.sha, .base.ref] | @tsv'
+          )"
+          IFS=$'\t' read -r state current_head base_ref <<<"$current"
+          if [[ "$state" != "open" || "$current_head" != "$HEAD_SHA" || "$base_ref" != "main" ]]; then
+            echo "Upgrade PR changed after validation; refusing stale finalization." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${official_ref}^{commit}" "origin/${HEAD_REF}"; then
+            echo "Checked upgrade revision no longer contains ${OFFICIAL_TAG}." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor origin/main "origin/${HEAD_REF}"; then
+            echo "main changed after validation; update the upgrade PR and rerun all gates." >&2
+            exit 1
+          fi
+          if git show-ref --verify --quiet "$vendor_ref"; then
+            echo "${VENDOR_TAG} already exists; refusing to overwrite or move it." >&2
+            exit 1
+          fi
+
+          gh pr merge "$PR_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" \
+            --merge \
+            --delete-branch \
+            --match-head-commit "$HEAD_SHA"
+
+          git fetch origin \
+            --no-tags \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/tags/*:refs/origin-tags/*' \
+            --force
+          if ! git merge-base --is-ancestor "${official_ref}^{commit}" origin/main; then
+            echo "Merged main does not contain ${OFFICIAL_TAG}; refusing baseline publication." >&2
+            exit 1
+          fi
+
+          official_commit="$(git rev-parse "${official_ref}^{commit}")"
+          if ! git merge-base --is-ancestor origin/upstream/main "$official_commit"; then
+            echo "Official mirror main cannot fast-forward to ${OFFICIAL_TAG}; refusing downgrade or history rewrite." >&2
+            exit 1
+          fi
+          git tag -a "$VENDOR_TAG" "$official_commit" -m "$VENDOR_TAG"
+          git push --atomic origin \
+            "${official_commit}:refs/heads/upstream/main" \
+            "refs/tags/${VENDOR_TAG}:refs/tags/${VENDOR_TAG}"
+
+          merged_sha="$(git rev-parse origin/main)"
+          for workflow in backend-ci.yml security-scan.yml; do
+            gh workflow run "$workflow" \
+              --repo "$GITHUB_REPOSITORY" \
+              --ref main \
+              -f expected_sha="$merged_sha"
+          done
+
+          {
+            echo "### Upgrade finalized"
+            echo
+            echo "- PR: #${PR_NUMBER}"
+            echo "- Official baseline: \`${OFFICIAL_TAG}\`"
+            echo "- Vendor tag: \`${VENDOR_TAG}\`"
+            echo "- main: \`$(git rev-parse origin/main)\`"
+            echo
+            echo "CI and Security Scan were dispatched from trusted main for the exact merged SHA; Publish Custom Build waits for CI while Security Scan reports independently."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  report-finalize-failure:
+    if: >-
+      ${{
+        always() &&
+        needs.context.result == 'success' &&
+        (
+          needs.publish_validation_status.result == 'failure' ||
+          needs.finalize.result == 'failure'
+        )
+      }}
+    needs:
+      - context
+      - finalize
+      - publish_validation_status
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Preserve partial-finalization evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          title="Official ${{ needs.context.outputs.official_tag }} upgrade blocked: finalize"
+          body="All source gates passed, but exact-head status publication, PR merge, atomic main/vendor baseline update, or Publish Custom Build dispatch failed. Do not overwrite or move any existing tag; inspect remote PR, branch, main, vendor, and custom tag state before retrying.
+
+          Workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          existing="$(
+            gh issue list \
+              --repo "$GITHUB_REPOSITORY" \
+              --state open \
+              --search "$title in:title" \
+              --json number \
+              --jq '.[0].number'
+          )"
+          if [[ -z "$existing" ]]; then
+            gh issue create \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$title" \
+              --body "$body"
+          fi
+          gh pr comment "${{ needs.context.outputs.pr_number }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "$body"

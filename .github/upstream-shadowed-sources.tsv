@@ -1,0 +1,26 @@
+# Official source path(s; use | for renames, |@removed for a tracked tombstone)	Active custom runtime/test path(s; use | for one-to-many migrations)
+backend/internal/service/update_service.go	backend/internal/custom/updater/service.go
+backend/internal/service/update_service_test.go	backend/internal/custom/updater/service_test.go
+backend/internal/service/wire.go	backend/internal/custom/updater/wire.go
+backend/internal/repository/github_release_service.go	backend/internal/custom/updater/github_release_client.go
+backend/internal/repository/github_release_service_test.go	backend/internal/custom/updater/github_release_client_test.go
+backend/internal/repository/wire.go	backend/internal/custom/updater/wire.go
+backend/internal/repository/content_moderation_repo.go	backend/internal/custom/moderation/violation_counter.go
+backend/internal/handler/openai_gateway_cyber_test.go	backend/internal/handler/openai_gateway_custom_test.go
+backend/internal/repository/content_moderation_repo_test.go	backend/internal/custom/moderation/violation_counter_test.go
+backend/internal/service/content_moderation.go	backend/internal/custom/moderation/cyber_policy.go|backend/internal/custom/moderation/excerpt.go
+backend/internal/service/content_moderation_cyber_test.go	backend/internal/custom/moderation/cyber_policy_test.go|backend/internal/service/custom_moderation_bridge_test.go
+backend/internal/service/content_moderation_test.go	backend/internal/custom/moderation/excerpt_test.go|backend/internal/service/custom_moderation_bridge_test.go
+frontend/src/components/common/VersionBadge.vue	frontend/src/custom/updater/components/VersionBadge.vue
+frontend/src/api/admin/system.ts	frontend/src/custom/updater/api.ts
+frontend/src/api/__tests__/admin.system.rollback.spec.ts	frontend/src/custom/updater/__tests__/api.rollback.spec.ts
+frontend/src/views/admin/RiskControlView.vue	frontend/src/custom/moderation/views/RiskControlView.vue
+frontend/src/views/admin/__tests__/RiskControlView.spec.ts	frontend/src/custom/moderation/views/__tests__/RiskControlView.spec.ts
+frontend/src/stores/app.ts	frontend/src/custom/updater/store.ts
+frontend/src/i18n/locales/en/misc.ts	frontend/src/custom/updater/i18n.ts
+frontend/src/i18n/locales/zh/misc.ts	frontend/src/custom/updater/i18n.ts
+frontend/src/i18n/locales/en/admin/channels.ts	frontend/src/custom/moderation/i18n.ts
+frontend/src/i18n/locales/zh/admin/channels.ts	frontend/src/custom/moderation/i18n.ts
+frontend/src/utils/releaseNotes.ts|@removed	frontend/src/custom/updater/releaseNotes.ts
+frontend/src/utils/__tests__/releaseNotes.spec.ts|@removed	frontend/src/custom/updater/__tests__/releaseNotes.spec.ts
+frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts|@removed	frontend/src/custom/updater/components/__tests__/VersionBadge.rollback.spec.ts

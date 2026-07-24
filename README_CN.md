@@ -4,7 +4,7 @@
 
 # Sub2API
 
-[![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
+[![Go](https://img.shields.io/badge/Go-1.26.5-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
@@ -18,6 +18,13 @@
 
 </div>
 
+> [!NOTE]
+> 当前仓库是基于 [`Wei-Shaw/sub2api`](https://github.com/Wei-Shaw/sub2api)
+> 维护的公开二改版本
+> [`o87110/sub2api-custom-public`](https://github.com/o87110/sub2api-custom-public)。
+> 二改功能、发布规则、维护边界和升级说明见
+> [`docs/CUSTOM_DEVELOPMENT_CN.md`](docs/CUSTOM_DEVELOPMENT_CN.md)。
+
 
 ## ⚠️ 重要提醒
 
@@ -28,7 +35,7 @@
 - **📖 免责声明**：本项目仅供技术学习与研究使用，作者不对因使用本项目导致的账户封禁、服务中断、数据丢失或其他任何直接或间接损失承担责任。
 - **🚫 无商业授权**：本项目从未授权任何个人或组织基于本项目开展任何形式的商业化运营。任何以本项目名义或基于本项目从事的商业行为均与本项目及其开发者无关，由此产生的一切纠纷、损失和法律责任由行为主体自行承担。
 
-## ❤️ 赞助商
+## ❤️ 上游项目赞助商
 
 > [想出现在这里？](mailto:support@sub2api.org)
 
@@ -252,7 +259,7 @@ Nginx 默认会丢弃名称中含下划线的请求头（如 `session_id`），�
 #### 安装步骤
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/o87110/sub2api-custom-public/main/deploy/install.sh | sudo bash
 ```
 
 脚本会自动：
@@ -302,7 +309,7 @@ sudo journalctl -u sub2api -f
 sudo systemctl restart sub2api
 
 # 卸载
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash -s -- uninstall -y
+curl -sSL https://raw.githubusercontent.com/o87110/sub2api-custom-public/main/deploy/install.sh | sudo bash -s -- uninstall -y
 ```
 
 ---
@@ -325,7 +332,11 @@ curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install
 mkdir -p sub2api-deploy && cd sub2api-deploy
 
 # 下载并运行部署准备脚本
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/docker-deploy.sh | bash
+curl -sSL https://raw.githubusercontent.com/o87110/sub2api-custom-public/main/deploy/docker-deploy.sh | bash
+
+# 将公开 Release 页面中的准确镜像标签写入 SUB2API_IMAGE
+# SUB2API_IMAGE=ghcr.io/o87110/sub2api-custom-public:vX.Y.Z-custom.N
+nano .env
 
 # 启动服务
 docker compose up -d
@@ -338,6 +349,7 @@ docker compose logs -f sub2api
 - 下载 `docker-compose.local.yml`（本地保存为 `docker-compose.yml`）和 `.env.example`
 - 自动生成安全凭证（JWT_SECRET、TOTP_ENCRYPTION_KEY、POSTGRES_PASSWORD）
 - 创建 `.env` 文件并填充自动生成的密钥
+- 要求将 `SUB2API_IMAGE` 固定为公开二改 Release 的准确标签或 Digest
 - 创建数据目录（使用本地目录，便于备份和迁移）
 - 显示生成的凭证供你记录
 
@@ -347,7 +359,7 @@ docker compose logs -f sub2api
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/o87110/sub2api-custom-public.git sub2api
 cd sub2api/deploy
 
 # 2. 复制环境配置文件
@@ -489,7 +501,7 @@ rm -rf data/ postgres_data/ redis_data/
 Apple 芯片 Mac 在 macOS 26 上可使用 Apple `container` 1.1.0 或更高版本运行完整的 Sub2API、PostgreSQL 和 Redis：
 
 ```bash
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/o87110/sub2api-custom-public.git sub2api
 cd sub2api/deploy
 ./apple-container.sh init
 ./apple-container.sh up
@@ -515,7 +527,7 @@ cd sub2api/deploy
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/o87110/sub2api-custom-public.git sub2api
 cd sub2api
 
 # 2. 安装 pnpm（如果还没有安装）
@@ -804,7 +816,7 @@ sub2api/
     └── install.sh            # 一键安装脚本
 ```
 
-## Star History
+## 上游项目 Star History
 
 <a href="https://star-history.com/#Wei-Shaw/sub2api&Date">
  <picture>

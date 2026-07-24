@@ -1,0 +1,132 @@
+# 二改功能清单
+
+本文档描述相对官方基线 `vendor-0.1.162` 的有效二改需求。文件级实现范围以
+`.github/custom-upstream-delta.tsv` 为准。
+
+## 1. cyber_policy 审计范围隔离
+
+### 目标
+
+官方 `cyber_policy` 处罚仅对管理员配置的审计分组生效。范围外请求仍保留必要
+的安全审计记录，但不得通知、累计违规次数、封号或写入会话屏蔽。
+
+### 行为约束
+
+- 范围内保持官方处罚语义。
+- 范围外记录 `action=cyber_policy_out_of_scope`。
+- 范围变化必须在下一次请求生效。
+- 关键词命中摘要必须脱敏，不记录 Token、密钥、完整 URL 或完整请求体。
+- 管理页面必须明确显示审计范围和当前状态。
+
+### 主要实现
+
+```text
+backend/internal/custom/moderation/
+backend/internal/service/custom_moderation_bridge.go
+frontend/src/custom/moderation/
+```
+
+## 2. 固定公开 Release 更新源
+
+### 目标
+
+在线更新、版本查询和回退固定使用：
+
+```text
+o87110/sub2api-custom-public
+```
+
+调用方不能通过环境变量、请求参数或缓存内容切换仓库。官方仓库只用于显示官方
+版本信息，不能作为自定义构建的安装回退源。
+
+### 公开访问
+
+公开 Release 元数据和资产默认匿名读取。`UPDATE_GITHUB_TOKEN` 与
+`UPDATE_GITHUB_TOKEN_FILE` 仅用于提高 GitHub API 限额或兼容受控部署；未配置
+Token 不应导致公开更新失败。
+
+配置 Token 时仍必须满足：
+
+- 只发送到精确 HTTPS `api.github.com`；
+- 重定向到资产存储主机前删除 Authorization；
+- Token 文件优先于环境变量；
+- Token 文件配置错误时明确失败，不能静默改用环境变量；
+- 日志、错误和浏览器响应不得出现 Token。
+
+### 下载约束
+
+- 资产 URL 必须属于固定仓库和受信任 GitHub 主机。
+- 标签必须符合 `vX.Y.Z-custom.N`。
+- 二进制与 `checksums.txt` 必须同时存在。
+- 下载大小受限并校验 SHA256。
+- 解压目标必须防止路径穿越和符号链接攻击。
+- 新二进制必须通过 `--version` 验证后才允许替换。
+
+## 3. 基础版本与构建版本分离
+
+版本面板同时展示：
+
+- 基础版本：`X.Y.Z`，用于与官方正式版本比较；
+- 构建版本：`X.Y.Z-custom.N`，用于自定义更新和回退；
+- 官方最新版本及独立查询警告。
+
+自定义版本比较必须使用完整构建版本。官方查询失败不能覆盖已经取得的自定义
+Release 信息；自定义源失败也不能回退安装官方资产。
+
+缓存必须包含仓库标识和完整构建版本，拒绝跨仓库、旧格式或受污染缓存。
+
+## 4. 在线更新二进制持久化
+
+容器镜像中的 `/app/image/sub2api` 是只读基线，运行二进制保存在：
+
+```text
+/app/runtime/sub2api
+```
+
+首次启动从镜像初始化 runtime；后续容器重建继续使用已验证的 runtime 文件。
+更新使用原子替换，保留一个可回退备份，失败时恢复原可执行文件。入口脚本必须
+在降权前完成权限和文件类型检查。
+
+## 5. 可验证 Release 与 GHCR
+
+发布标签格式为 `vX.Y.Z-custom.N`。正式发布必须：
+
+- 绑定准确 Tag、提交和已通过的 CI；
+- 一次构建生成 Linux `amd64`、`arm64` 归档及 OCI Layout；
+- 生成 `checksums.txt` 和不可变 Release Manifest；
+- 校验 Artifact ID、Digest、文件清单和 OCI Manifest；
+- 使用完整版本 GHCR 标签，不发布可漂移的 `latest`；
+- 不覆盖已发布资产，不移动已有 Tag；
+- Release 和 GHCR 任一不完整时视为不可部署。
+
+公开仓库的 GitHub Release 默认公开。GHCR 包可见性独立配置，发布后应明确设置
+为 Public 或在文档中说明拉取鉴权要求。
+
+## 6. 官方升级隔离
+
+- `main` 保存二改主线。
+- `upstream/main` 保存官方镜像提交。
+- `vendor-X.Y.Z` 标记已审查并合入的官方基线。
+- `upgrade/vX.Y.Z` 保存可复现的升级现场。
+
+升级必须检查冲突、二改保护路径、影子来源、数据库语义、后端测试、前端测试和
+Release 预构建。失败分支不得重置或强推，以便继续修复和审查。
+
+## 7. 数据库与差异门禁
+
+`.github/custom-upstream-delta.tsv` 固定当前二改文件集合、Blob 和验证方法；
+`.github/custom-database-exceptions.tsv` 只允许经过说明的数据库边界例外。
+
+普通变更和官方升级都必须阻止：
+
+- 未登记的 Migration 或 Schema 变化；
+- 保护路径被官方升级静默覆盖；
+- 影子来源重新进入运行时而绕过 Custom 实现；
+- 生成代码未更新；
+- 台账与候选 Tree 不一致。
+
+## 8. 明确没有改变的行为
+
+除本文档列出的边界外，认证、计费、调度、协议兼容、支付和官方功能应保持当前
+源码既有行为。新增需求必须先更新本清单和对应测试，不能用“二改”名义扩大隐式
+行为范围。

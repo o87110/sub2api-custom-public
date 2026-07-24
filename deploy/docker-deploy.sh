@@ -8,7 +8,8 @@
 #   - Creates necessary data directories
 #
 # After running this script, you can start services with:
-#   docker-compose up -d
+#   1. Set SUB2API_IMAGE in .env to an exact public custom Release tag or digest
+#   2. docker compose up -d
 # =============================================================================
 
 set -e
@@ -21,7 +22,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # GitHub raw content base URL
-GITHUB_RAW_URL="https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/o87110/sub2api-custom-public/main/deploy"
 
 # Print colored message
 print_info() {
@@ -142,6 +143,7 @@ main() {
     echo ""
     print_warning "These credentials have been saved to .env file."
     print_warning "Please keep them secure and do not share publicly!"
+    print_warning "Set SUB2API_IMAGE in .env to an exact public custom Release tag or digest before starting."
     echo ""
     echo "Directory structure:"
     echo "  docker-compose.yml        - Docker Compose configuration"
@@ -152,14 +154,15 @@ main() {
     echo "  redis_data/               - Redis data"
     echo ""
     echo "Next steps:"
-    echo "  1. (Optional) Edit .env to customize configuration"
-    echo "  2. Start services:"
-    echo "     docker-compose up -d"
+    echo "  1. Set SUB2API_IMAGE in .env to an exact custom Release tag or digest"
+    echo "  2. (Optional) Edit the remaining .env settings"
+    echo "  3. Start services:"
+    echo "     docker compose up -d"
     echo ""
-    echo "  3. View logs:"
-    echo "     docker-compose logs -f sub2api"
+    echo "  4. View logs:"
+    echo "     docker compose logs -f sub2api"
     echo ""
-    echo "  4. Access Web UI:"
+    echo "  5. Access Web UI:"
     echo "     http://localhost:8080"
     echo ""
     print_info "If admin password is not set in .env, it will be auto-generated."

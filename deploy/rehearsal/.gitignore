@@ -1,0 +1,5 @@
+.env
+data/
+runtime/
+secrets/
+!.env.example

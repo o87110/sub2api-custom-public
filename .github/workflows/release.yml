@@ -3,304 +3,375 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]*-custom.[0-9]*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g., v1.0.0)'
+        description: 'Existing immutable custom Tag to release or retry'
         required: true
         type: string
-      simple_release:
-        description: 'Simple release: only x86_64 GHCR image, skip other artifacts'
-        required: false
-        type: boolean
-        default: false
 
-# 环境变量：合并 workflow_dispatch 输入和 repository variable
-# tag push 触发时读取 vars.SIMPLE_RELEASE，workflow_dispatch 时使用输入参数
 env:
-  SIMPLE_RELEASE: ${{ github.event.inputs.simple_release == 'true' || vars.SIMPLE_RELEASE == 'true' }}
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
-permissions:
-  contents: write
-  packages: write
+concurrency:
+  group: release-exact-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions: {}
 
 jobs:
-  # Update VERSION file with tag version
-  update-version:
+  context:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    outputs:
+      tag: ${{ steps.preflight.outputs.tag }}
+      tag_ref_oid: ${{ steps.preflight.outputs.tag_ref_oid }}
+      target_commit: ${{ steps.preflight.outputs.target_commit }}
+      ci_run_id: ${{ steps.preflight.outputs.ci_run_id }}
+      control_ci_run_id: ${{ steps.preflight.outputs.control_ci_run_id }}
+      release_state: ${{ steps.preflight.outputs.release_state }}
+      release_id: ${{ steps.preflight.outputs.release_id }}
+      manifest_asset_id: ${{ steps.preflight.outputs.manifest_asset_id }}
+      candidate_tree: ${{ steps.candidate.outputs.tree }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Update VERSION file
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION=${{ github.event.inputs.tag }}
-            VERSION=${VERSION#v}
-          else
-            VERSION=${GITHUB_REF#refs/tags/v}
-          fi
-          echo "$VERSION" > backend/cmd/server/VERSION
-          echo "Updated VERSION file to: $VERSION"
-
-      - name: Upload VERSION artifact
-        uses: actions/upload-artifact@v7
+      - name: Checkout exact custom Tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          name: version-file
-          path: backend/cmd/server/VERSION
-          retention-days: 1
-
-  build-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: frontend
-
-      - name: Build frontend
-        run: pnpm run build
-        working-directory: frontend
-
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: frontend-dist
-          path: backend/internal/web/dist/
-          retention-days: 1
-
-  release:
-    needs: [update-version, build-frontend]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
+          ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
-          ref: ${{ github.event.inputs.tag || github.ref }}
-
-      - name: Download VERSION artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: version-file
-          path: backend/cmd/server/
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: frontend-dist
-          path: backend/internal/web/dist/
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
+          fetch-tags: true
+          persist-credentials: false
+      - name: Set up exact Go toolchain
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: backend/go.mod
           check-latest: false
           cache-dependency-path: backend/go.sum
-
-      - name: Verify Go version
-        run: |
-          go version | grep -q 'go1.26.5'
-
-      # Docker setup for GoReleaser
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to DockerHub
-        if: ${{ env.DOCKERHUB_USERNAME != '' }}
-        uses: docker/login-action@v3
+      - name: Materialize trusted Release preflight
         env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Fetch tags with annotations
+          CONTROL_COMMIT: ${{ github.sha }}
         run: |
-          # 确保获取完整的 annotated tag 信息
-          git fetch --tags --force
-
-      - name: Get tag message
-        id: tag_message
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG_NAME=${{ github.event.inputs.tag }}
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$GITHUB_REF" == "refs/heads/main" ]]
+            control_ref="refs/remotes/origin/main"
+            git show-ref --verify --quiet "$control_ref"
+            git merge-base --is-ancestor "$CONTROL_COMMIT" "$control_ref"
           else
-            TAG_NAME=${GITHUB_REF#refs/tags/}
+            [[ "$GITHUB_EVENT_NAME" == "push" ]]
+            [[ "$GITHUB_REF" == "refs/tags/$RELEASE_TAG" ]]
           fi
-          echo "Processing tag: $TAG_NAME"
-
-          # 获取完整的 tag message（跳过第一行标题）
-          TAG_MESSAGE=$(git tag -l --format='%(contents:body)' "$TAG_NAME")
-
-          # 调试输出
-          echo "Tag message length: ${#TAG_MESSAGE}"
-          echo "Tag message preview:"
-          echo "$TAG_MESSAGE" | head -10
-
-          # 使用 EOF 分隔符处理多行内容
-          echo "message<<EOF" >> $GITHUB_OUTPUT
-          echo "$TAG_MESSAGE" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Set lowercase owner for GHCR
-        id: lowercase
-        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v7
-        with:
-          version: '~> v2'
-          args: release --clean --skip=validate ${{ env.SIMPLE_RELEASE == 'true' && '--config=.goreleaser.simple.yaml' || '' }}
+          control_dir="$RUNNER_TEMP/release-control"
+          mkdir -p "$control_dir"
+          git show "${CONTROL_COMMIT}:deploy/release/custom-release-preflight.sh" \
+            > "$control_dir/custom-release-preflight.sh"
+          chmod 0700 "$control_dir/custom-release-preflight.sh"
+      - name: Verify Tag, commit, CI, and existing Release state
+        id: preflight
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_MESSAGE: ${{ steps.tag_message.outputs.message }}
-          GITHUB_REPO_OWNER: ${{ github.repository_owner }}
-          GITHUB_REPO_OWNER_LOWER: ${{ steps.lowercase.outputs.owner }}
-          GITHUB_REPO_NAME: ${{ github.event.repository.name }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || 'skip' }}
-
-      # Update DockerHub description
-      - name: Update DockerHub description
-        if: ${{ env.SIMPLE_RELEASE != 'true' && env.DOCKERHUB_USERNAME != '' }}
-        uses: peter-evans/dockerhub-description@v5
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ secrets.DOCKERHUB_USERNAME }}/sub2api
-          short-description: "Sub2API - AI API Gateway Platform"
-          readme-filepath: ./deploy/DOCKER.md
-
-      # Send Telegram notification
-      - name: Send Telegram Notification
-        if: ${{ env.SIMPLE_RELEASE != 'true' }}
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        continue-on-error: true
+          CONTROL_COMMIT: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # 检查必要的环境变量
-          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "Telegram credentials not configured, skipping notification"
-            exit 0
-          fi
+          /bin/bash "$RUNNER_TEMP/release-control/custom-release-preflight.sh" \
+            --tag "$RELEASE_TAG" \
+            --control-commit "$CONTROL_COMMIT" \
+            --output "$GITHUB_OUTPUT"
+      - name: Resolve exact candidate tree
+        id: candidate
+        env:
+          TARGET_COMMIT: ${{ steps.preflight.outputs.target_commit }}
+        run: |
+          candidate_tree="$(
+            /bin/bash deploy/tests/custom-candidate-tree.sh \
+              --commit "$TARGET_COMMIT"
+          )"
+          echo "tree=$candidate_tree" >> "$GITHUB_OUTPUT"
+      - name: Re-run upstream delta ledger gate
+        env:
+          CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
+        run: |
+          /bin/bash deploy/tests/custom-upstream-delta-test.sh \
+            --candidate-tree "$CANDIDATE_TREE"
+      - name: Re-run database semantic boundary gate
+        env:
+          CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
+        run: |
+          /bin/bash deploy/tests/custom-database-boundary-test.sh \
+            --mode final \
+            --candidate-tree "$CANDIDATE_TREE"
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG_NAME=${{ github.event.inputs.tag }}
-          else
-            TAG_NAME=${GITHUB_REF#refs/tags/}
-          fi
-          VERSION=${TAG_NAME#v}
-          REPO="${{ github.repository }}"
-          GHCR_IMAGE="ghcr.io/${REPO,,}"  # ${,,} converts to lowercase
-
-          # 获取 tag message 内容并转义 Markdown 特殊字符
-          TAG_MESSAGE='${{ steps.tag_message.outputs.message }}'
-          TAG_MESSAGE=$(echo "$TAG_MESSAGE" | sed 's/\([_*`\[]\)/\\\1/g')
-
-          # 限制消息长度（Telegram 消息限制 4096 字符，预留空间给头尾固定内容）
-          if [ ${#TAG_MESSAGE} -gt 3500 ]; then
-            TAG_MESSAGE="${TAG_MESSAGE:0:3500}..."
-          fi
-
-          # 构建消息内容
-          MESSAGE="🚀 *Sub2API 新版本发布！*"$'\n'$'\n'
-          MESSAGE+="📦 版本号: \`${VERSION}\`"$'\n'$'\n'
-
-          # 添加更新内容
-          if [ -n "$TAG_MESSAGE" ]; then
-            MESSAGE+="${TAG_MESSAGE}"$'\n'$'\n'
-          fi
-
-          MESSAGE+="🐳 *Docker 部署:*"$'\n'
-          MESSAGE+="\`\`\`bash"$'\n'
-          # 根据是否配置 DockerHub 动态生成
-          if [ -n "$DOCKERHUB_USERNAME" ]; then
-            DOCKER_IMAGE="${DOCKERHUB_USERNAME}/sub2api"
-            MESSAGE+="# Docker Hub"$'\n'
-            MESSAGE+="docker pull ${DOCKER_IMAGE}:${VERSION}"$'\n'
-            MESSAGE+="# GitHub Container Registry"$'\n'
-          fi
-          MESSAGE+="docker pull ${GHCR_IMAGE}:${VERSION}"$'\n'
-          MESSAGE+="\`\`\`"$'\n'$'\n'
-          MESSAGE+="🔗 *相关链接:*"$'\n'
-          MESSAGE+="• [GitHub Release](https://github.com/${REPO}/releases/tag/${TAG_NAME})"$'\n'
-          if [ -n "$DOCKERHUB_USERNAME" ]; then
-            MESSAGE+="• [Docker Hub](https://hub.docker.com/r/${DOCKER_IMAGE})"$'\n'
-          fi
-          MESSAGE+="• [GitHub Packages](https://github.com/${REPO}/pkgs/container/sub2api)"$'\n'$'\n'
-          MESSAGE+="#Sub2API #Release #${TAG_NAME//./_}"
-
-          # 发送消息
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg chat_id "${TELEGRAM_CHAT_ID}" \
-              --arg text "${MESSAGE}" \
-              '{
-                chat_id: $chat_id,
-                text: $text,
-                parse_mode: "Markdown",
-                disable_web_page_preview: true
-              }')"
-
-  sync-version-file:
-    needs: [release]
-    if: ${{ needs.release.result == 'success' }}
+  build:
+    needs: context
+    if: needs.context.outputs.release_state == 'none'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      payload_artifact_id: ${{ steps.payload.outputs.artifact-id }}
+      payload_artifact_digest: ${{ steps.payload-metadata.outputs.digest }}
+      manifest_artifact_id: ${{ steps.manifest.outputs.artifact-id }}
+      manifest_artifact_digest: ${{ steps.manifest-metadata.outputs.digest }}
     steps:
-      - name: Checkout default branch
-        uses: actions/checkout@v6
+      - name: Checkout exact Tag commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: ${{ github.event.repository.default_branch }}
-
-      - name: Sync VERSION file to released tag
+          ref: ${{ needs.context.outputs.target_commit }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Set up exact Go toolchain
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache-dependency-path: backend/go.sum
+      - name: Install checksum-pinned build tools
+        env:
+          CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-release-tools
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION=${{ github.event.inputs.tag }}
-            VERSION=${VERSION#v}
+          /bin/bash deploy/tests/install-custom-tools.sh \
+            node,pnpm,goreleaser,oras,buildx
+      - name: Install frontend dependencies
+        run: pnpm --dir frontend install --frozen-lockfile
+      - name: Build production frontend
+        run: make build-frontend
+      - name: Build archives, checksums, and OCI layout once
+        env:
+          CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-release-tools
+        run: |
+          set -euo pipefail
+          compatibility_files=(
+            backend/cmd/server/VERSION
+            backend/go.sum
+          )
+          version_file="${compatibility_files[0]}"
+          go_sum_file="${compatibility_files[1]}"
+          version_blob="$(git hash-object --path "$version_file" "$version_file")"
+          go_sum_blob="$(git hash-object --path "$go_sum_file" "$go_sum_file")"
+          restore_build_inputs() {
+            git update-index --no-assume-unchanged -- "${compatibility_files[@]}" >/dev/null 2>&1 || true
+            git restore --source=HEAD --worktree -- "${compatibility_files[@]}" >/dev/null 2>&1 || true
+          }
+          trap restore_build_inputs EXIT
+          git update-index --assume-unchanged -- "${compatibility_files[@]}"
+          /bin/bash deploy/release/build-release-payload.sh \
+            --tag "${{ needs.context.outputs.tag }}" \
+            --commit "${{ needs.context.outputs.target_commit }}" \
+            --output "$RUNNER_TEMP/release-payload"
+          restore_build_inputs
+          trap - EXIT
+          [[ "$(git hash-object --path "$version_file" "$version_file")" == "$version_blob" ]]
+          [[ "$(git hash-object --path "$go_sum_file" "$go_sum_file")" == "$go_sum_blob" ]]
+          git diff --exit-code
+      - name: Upload non-production payload artifact
+        id: payload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-payload-${{ needs.context.outputs.tag }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-payload/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Normalize payload artifact metadata
+        id: payload-metadata
+        env:
+          RAW_DIGEST: ${{ steps.payload.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          digest="$RAW_DIGEST"
+          if [[ "$digest" =~ ^[0-9a-f]{64}$ ]]; then
+            digest="sha256:${digest}"
+          fi
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Create immutable release manifest
+        env:
+          CONTROL_COMMIT: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          PAYLOAD_ARTIFACT_ID: ${{ steps.payload.outputs.artifact-id }}
+          PAYLOAD_ARTIFACT_DIGEST: ${{ steps.payload-metadata.outputs.digest }}
+          PAYLOAD_ARTIFACT_NAME: release-payload-${{ needs.context.outputs.tag }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          control_ref="refs/custom-release-control/${GITHUB_RUN_ID}"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$GITHUB_REF" == "refs/heads/main" ]]
+            remote_control_commit="$(
+              gh api \
+                "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" \
+                --jq '.object.sha | select(test("^[0-9a-f]{40}$"))'
+            )"
+            git update-ref "$control_ref" "$remote_control_commit"
+            git merge-base --is-ancestor "$CONTROL_COMMIT" "$control_ref"
           else
-            VERSION=${GITHUB_REF#refs/tags/v}
+            [[ "$GITHUB_EVENT_NAME" == "push" ]]
+            [[ "$GITHUB_REF" == "refs/tags/${{ needs.context.outputs.tag }}" ]]
+            [[ "$CONTROL_COMMIT" == "${{ needs.context.outputs.target_commit }}" ]]
           fi
-
-          CURRENT_VERSION=$(tr -d '\r\n' < backend/cmd/server/VERSION || true)
-          if [ "$CURRENT_VERSION" = "$VERSION" ]; then
-            echo "VERSION file already matches $VERSION"
-            exit 0
+          control_dir="$RUNNER_TEMP/release-control"
+          mkdir -p "$control_dir"
+          git show "${CONTROL_COMMIT}:deploy/release/create-release-manifest.sh" \
+            > "$control_dir/create-release-manifest.sh"
+          chmod 0700 "$control_dir/create-release-manifest.sh"
+          mkdir -p "$RUNNER_TEMP/release-manifest"
+          /bin/bash "$control_dir/create-release-manifest.sh" \
+            --payload "$RUNNER_TEMP/release-payload" \
+            --output "$RUNNER_TEMP/release-manifest/release-manifest.json" \
+            --tag-ref-oid "${{ needs.context.outputs.tag_ref_oid }}" \
+            --artifact-id "$PAYLOAD_ARTIFACT_ID" \
+            --artifact-digest "$PAYLOAD_ARTIFACT_DIGEST" \
+            --artifact-name "$PAYLOAD_ARTIFACT_NAME"
+      - name: Upload release manifest artifact
+        id: manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-manifest-${{ needs.context.outputs.tag }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-manifest/release-manifest.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Normalize manifest artifact metadata
+        id: manifest-metadata
+        env:
+          RAW_DIGEST: ${{ steps.manifest.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          digest="$RAW_DIGEST"
+          if [[ "$digest" =~ ^[0-9a-f]{64}$ ]]; then
+            digest="sha256:${digest}"
           fi
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Release manifest producer"
+            echo
+            echo "- Tag: \`${{ needs.context.outputs.tag }}\`"
+            echo "- Commit: \`${{ needs.context.outputs.target_commit }}\`"
+            echo "- Payload artifact ID: \`${{ steps.payload.outputs.artifact-id }}\`"
+            echo "- Payload artifact digest: \`${{ steps.payload-metadata.outputs.digest }}\`"
+            echo "- Manifest artifact ID: \`${{ steps.manifest.outputs.artifact-id }}\`"
+            echo "- Manifest artifact digest: \`${digest}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-          echo "$VERSION" > backend/cmd/server/VERSION
+  publish:
+    needs: [context, build]
+    if: >-
+      ${{
+        always() &&
+        needs.context.result == 'success' &&
+        (
+          needs.build.result == 'success' ||
+          needs.build.result == 'skipped'
+        )
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout exact Tag commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.context.outputs.target_commit }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Install checksum-pinned ORAS
+        env:
+          CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-release-tools
+        run: /bin/bash deploy/tests/install-custom-tools.sh oras
+      - name: Verify immutable state and publish
+        env:
+          CONTROL_COMMIT: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          GHCR_TOKEN: ${{ github.token }}
+          CURRENT_PAYLOAD_ARTIFACT_ID: ${{ needs.build.outputs.payload_artifact_id }}
+          CURRENT_PAYLOAD_ARTIFACT_DIGEST: ${{ needs.build.outputs.payload_artifact_digest }}
+          CURRENT_MANIFEST_ARTIFACT_ID: ${{ needs.build.outputs.manifest_artifact_id }}
+          CURRENT_MANIFEST_ARTIFACT_DIGEST: ${{ needs.build.outputs.manifest_artifact_digest }}
+        run: |
+          set -euo pipefail
+          control_ref="refs/custom-release-control/${GITHUB_RUN_ID}"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$GITHUB_REF" == "refs/heads/main" ]]
+            remote_control_commit="$(
+              gh api \
+                "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" \
+                --jq '.object.sha | select(test("^[0-9a-f]{40}$"))'
+            )"
+            git update-ref "$control_ref" "$remote_control_commit"
+            git merge-base --is-ancestor "$CONTROL_COMMIT" "$control_ref"
+          else
+            [[ "$GITHUB_EVENT_NAME" == "push" ]]
+            [[ "$GITHUB_REF" == "refs/tags/${{ needs.context.outputs.tag }}" ]]
+            [[ "$CONTROL_COMMIT" == "${{ needs.context.outputs.target_commit }}" ]]
+          fi
+          control_dir="$RUNNER_TEMP/release-control"
+          mkdir -p "$control_dir"
+          for control_path in \
+            deploy/release/publish-release.sh \
+            deploy/release/release-state-policy.sh; do
+            git show "${CONTROL_COMMIT}:${control_path}" \
+              > "$control_dir/${control_path##*/}"
+          done
+          chmod 0700 \
+            "$control_dir/publish-release.sh" \
+            "$control_dir/release-state-policy.sh"
+          args=(
+            --tag "${{ needs.context.outputs.tag }}"
+            --tag-ref-oid "${{ needs.context.outputs.tag_ref_oid }}"
+            --commit "${{ needs.context.outputs.target_commit }}"
+          )
+          if [[ "${{ needs.build.result }}" == "success" ]]; then
+            args+=(
+              --current-manifest-artifact-id "$CURRENT_MANIFEST_ARTIFACT_ID"
+              --current-manifest-artifact-digest "$CURRENT_MANIFEST_ARTIFACT_DIGEST"
+              --current-payload-artifact-id "$CURRENT_PAYLOAD_ARTIFACT_ID"
+              --current-payload-artifact-digest "$CURRENT_PAYLOAD_ARTIFACT_DIGEST"
+            )
+          fi
+          /bin/bash "$control_dir/publish-release.sh" "${args[@]}"
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/cmd/server/VERSION
-          git commit -m "chore: sync VERSION to ${VERSION} [skip ci]"
-          git push origin HEAD:${{ github.event.repository.default_branch }}
+  report-release-failure:
+    needs: [context, build, publish]
+    if: >-
+      ${{
+        always() &&
+        (
+          needs.context.result != 'success' ||
+          (
+            needs.build.result != 'success' &&
+            needs.build.result != 'skipped'
+          ) ||
+          needs.publish.result != 'success'
+        )
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Create or reuse Release failure issue
+        run: |
+          set -euo pipefail
+          tag="$RELEASE_TAG"
+          title="Custom ${tag} Release blocked"
+          existing="$(
+            gh issue list \
+              --repo "$GITHUB_REPOSITORY" \
+              --state open \
+              --search "$title in:title" \
+              --json number \
+              --jq '.[0].number'
+          )"
+          if [[ -z "$existing" ]]; then
+            gh issue create \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$title" \
+              --body "Release preflight, payload verification, or immutable publication failed. The workflow did not mark an unverified Draft as published.
+
+          Workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          fi

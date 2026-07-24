@@ -2707,6 +2707,11 @@ func (h *OpenAIGatewayHandler) rejectIfCyberSessionBlocked(c *gin.Context, apiKe
 	if h == nil || h.gatewayService == nil || apiKey == nil {
 		return false
 	}
+	// 审计范围外分组必须忽略历史会话屏蔽记录，避免本地 403。
+	if h.contentModerationService == nil ||
+		!h.contentModerationService.CyberPolicyGroupInScope(c.Request.Context(), apiKey.GroupID) {
+		return false
+	}
 	// 开关默认关：先走 ~ns 级缓存开关检查，再付出 key 派生(gjson+sha256)成本。
 	if enabled, _ := h.gatewayService.CyberSessionBlockRuntime(c.Request.Context()); !enabled {
 		return false
@@ -2820,6 +2825,7 @@ func (h *OpenAIGatewayHandler) recordCyberPolicyIfMarked(c *gin.Context, apiKey 
 		}
 	}
 	cmSvc := h.contentModerationService
+	cyberPolicyInScope := cmSvc != nil && cmSvc.CyberPolicyGroupInScope(c.Request.Context(), groupID)
 	gwSvc := h.gatewayService
 	opsSvc := h.opsService
 	apiKeySvc := h.apiKeyService
@@ -2895,7 +2901,7 @@ func (h *OpenAIGatewayHandler) recordCyberPolicyIfMarked(c *gin.Context, apiKey 
 				ChannelUsageFields: channelFields,
 			})
 		}
-		if gwSvc != nil && cyberBlockKey != "" {
+		if cyberPolicyInScope && gwSvc != nil && cyberBlockKey != "" {
 			gwSvc.MarkCyberSessionBlocked(ctx, cyberBlockKey)
 		}
 		if opsSvc != nil {

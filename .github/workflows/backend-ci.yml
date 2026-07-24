@@ -1,27 +1,126 @@
 name: CI
 
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('CI target @ {0}', inputs.expected_sha) || github.ref_name }}
+
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Exact main SHA that must be checked'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
+  verify-target:
+    runs-on: ubuntu-latest
+    outputs:
+      checkout_sha: ${{ steps.resolve.outputs.checkout_sha }}
+    steps:
+      - name: Verify dispatched revision
+        id: resolve
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          checkout_sha="$GITHUB_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+              echo "Manual CI dispatch must use refs/heads/main." >&2
+              exit 1
+            fi
+            if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "expected_sha must be a full 40-character commit SHA." >&2
+              exit 1
+            fi
+            if [[ "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
+              echo "main resolved to ${GITHUB_SHA}, expected ${EXPECTED_SHA}." >&2
+              exit 1
+            fi
+            checkout_sha="$EXPECTED_SHA"
+          fi
+          echo "checkout_sha=$checkout_sha" >> "$GITHUB_OUTPUT"
+
+  boundaries:
+    needs: verify-target
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Resolve the exact candidate tree
+        id: candidate
+        env:
+          CHECKOUT_SHA: ${{ needs.verify-target.outputs.checkout_sha }}
+        run: |
+          set -euo pipefail
+          candidate_tree="$(
+            /bin/bash deploy/tests/custom-candidate-tree.sh --commit "$CHECKOUT_SHA"
+          )"
+          echo "tree=$candidate_tree" >> "$GITHUB_OUTPUT"
+      - name: Enforce upstream delta ledger
+        env:
+          CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
+        run: |
+          /bin/bash deploy/tests/custom-upstream-delta-test.sh \
+            --candidate-tree "$CANDIDATE_TREE"
+      - name: Enforce database semantic boundary
+        env:
+          CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
+        run: |
+          /bin/bash deploy/tests/custom-database-boundary-test.sh \
+            --mode final \
+            --candidate-tree "$CANDIDATE_TREE"
+      - name: Install checksum-pinned actionlint
+        env:
+          CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-tools
+        run: /bin/bash deploy/tests/install-custom-tools.sh actionlint
+      - name: Validate custom Actions semantics and supply chain
+        env:
+          CUSTOM_ACTIONS_REQUIRE_ACTIONLINT: 'true'
+        run: /bin/bash deploy/tests/custom-actions-supply-chain-test.sh
+      - name: Test pnpm audit report validation
+        run: python -m unittest discover -s tools -p 'test_validate_pnpm_audit.py' -v
+
   shell:
+    needs: [verify-target, boundaries]
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
+          fetch-depth: 0
       - name: Check deployment scripts
         run: |
           /bin/bash -n deploy/apple-container.sh
+          /bin/sh -n deploy/docker-entrypoint.sh
+          /bin/bash -n deploy/rehearsal/preflight.sh
           /bin/bash deploy/tests/apple-container-test.sh
+          /bin/bash deploy/tests/custom-release-safety-test.sh
+          /bin/bash deploy/tests/rehearsal-compose-safety-test.sh
+          /bin/bash deploy/tests/upstream-sync-safety-test.sh
 
   test:
+    needs: [verify-target, boundaries]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: backend/go.mod
           check-latest: false
@@ -30,38 +129,56 @@ jobs:
       - name: Verify Go version
         run: |
           go version | grep -q 'go1.26.5'
+      - name: Test persistent runtime version selection
+        run: /bin/bash deploy/tests/docker-entrypoint-runtime-test.sh
       - name: Unit tests
         working-directory: backend
         run: make test-unit
       - name: Integration tests
         working-directory: backend
         run: make test-integration
+      - name: Verify generated Wire graph
+        working-directory: backend
+        run: |
+          go generate ./cmd/server
+          git diff --exit-code -- cmd/server/wire_gen.go
+      - name: Build production backend target
+        run: make build-backend
 
   frontend:
+    needs: [verify-target, boundaries]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
         with:
-          version: 9
+          version: 9.15.9
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '20'
+          node-version: '20.20.2'
           cache: 'pnpm'
           cache-dependency-path: frontend/pnpm-lock.yaml
       - name: Install frontend dependencies
         working-directory: frontend
         run: pnpm install --frozen-lockfile
-      - name: Frontend typecheck and critical vitest
-        run: make test-frontend
+      - name: Frontend typecheck and critical/custom vitest
+        run: make test-frontend test-frontend-custom
+      - name: Build production frontend target
+        run: make build-frontend
 
   golangci-lint:
+    needs: [verify-target, boundaries]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: backend/go.mod
           check-latest: false
@@ -70,9 +187,15 @@ jobs:
       - name: Verify Go version
         run: |
           go version | grep -q 'go1.26.5'
+      - name: Install checksum-pinned golangci-lint
+        env:
+          CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-tools
+        run: /bin/bash deploy/tests/install-custom-tools.sh golangci-lint
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.9
-          args: --timeout=30m
-          working-directory: backend
+        working-directory: backend
+        run: |
+          source ../.github/custom-upstream-baseline.env
+          git merge-base --is-ancestor "$CUSTOM_UPSTREAM_BASE_COMMIT" HEAD
+          golangci-lint run \
+            --timeout=30m \
+            --new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"

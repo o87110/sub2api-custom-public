@@ -12,6 +12,8 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	custommoderation "github.com/Wei-Shaw/sub2api/internal/custom/moderation"
+	customupdater "github.com/Wei-Shaw/sub2api/internal/custom/updater"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/repository"
@@ -38,6 +40,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		// Business layer ProviderSets
 		repository.ProviderSet,
 		service.ProviderSet,
+		custommoderation.ProviderSet,
+		customupdater.ProviderSet,
 		securityaudit.ProviderSet,
 		payment.ProviderSet,
 		middleware.ProviderSet,
@@ -55,10 +59,25 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		// Cleanup function provider
 		provideCleanup,
 
-		// Application struct
-		wire.Struct(new(Application), "Server", "PromptAudit", "Cleanup"),
+		// Application struct and final custom port attachment
+		provideApplication,
 	)
 	return nil, nil
+}
+
+func provideApplication(
+	httpServer *http.Server,
+	promptAudit *securityaudit.PromptService,
+	cleanup func(),
+	moderationService *service.ContentModerationService,
+	violationCounter custommoderation.ViolationCounter,
+) *Application {
+	service.AttachCustomViolationCounter(moderationService, violationCounter)
+	return &Application{
+		Server:      httpServer,
+		PromptAudit: promptAudit,
+		Cleanup:     cleanup,
+	}
 }
 
 func providePrivacyClientFactory() service.PrivacyClientFactory {
