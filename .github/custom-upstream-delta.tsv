@@ -1,5 +1,5 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	5121b9868764631dd6e27c8fad032e5a39792374	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	6fc951737c2777067706220bbc85e1dd4ebf3a81	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	6696f69e0bd178834ab7b53aa6fd609085531a56	-	-	database-boundary-unit+candidate-tree-test	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	5c62b4ce4e04c11d4980bc74697b4ef25b3741ac	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异

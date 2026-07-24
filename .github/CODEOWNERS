@@ -38,6 +38,7 @@
 /deploy/tests/custom-release-safety-test.sh @o87110
 /deploy/tests/docker-entrypoint-runtime-test.sh @o87110
 /deploy/tests/rehearsal-compose-safety-test.sh @o87110
+/frontend/src/api/__tests__/admin.system.rollback.spec.ts @o87110
 /frontend/src/custom/** @o87110
 /frontend/src/components/layout/AppSidebar.vue @o87110
 /frontend/src/router/index.ts @o87110
