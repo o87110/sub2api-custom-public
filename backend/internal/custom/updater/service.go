@@ -84,7 +84,7 @@ type UpdateService struct {
 	repository     string
 }
 
-// NewUpdateService creates a service using the private custom Release repository.
+// NewUpdateService creates a service using the trusted public custom Release repository.
 func NewUpdateService(cache UpdateCache, githubClient GitHubReleaseClient, version, buildType string) *UpdateService {
 	return NewUpdateServiceForRepository(cache, githubClient, version, buildType, customGitHubRepo)
 }

@@ -27,7 +27,7 @@ done
 [[ "$control_commit" =~ ^[0-9a-f]{40}$ ]] || usage
 [[ -n "$output" ]] || usage
 [[ "${GITHUB_REPOSITORY:-}" == "o87110/sub2api-custom-public" ]] ||
-  fail "Release preflight only permits the private custom repository"
+  fail "Release preflight only permits the trusted public custom repository"
 command -v gh >/dev/null 2>&1 || fail "gh is required"
 command -v jq >/dev/null 2>&1 || fail "jq is required"
 

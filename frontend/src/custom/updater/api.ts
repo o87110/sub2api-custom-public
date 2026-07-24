@@ -93,7 +93,7 @@ export async function performUpdate(): Promise<UpdateResult> {
 
 /**
  * Rollback to a previous version
- * @param version - Required private custom target version (e.g. "0.1.146-custom.1")
+ * @param version - Required trusted custom target version (e.g. "0.1.146-custom.1")
  */
 export async function rollback(version: string): Promise<UpdateResult> {
   const { data } = await apiClient.post<UpdateResult>(

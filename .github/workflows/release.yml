@@ -266,6 +266,7 @@ jobs:
         )
       }}
     runs-on: ubuntu-latest
+    environment: custom-release-publish
     permissions:
       actions: read
       contents: write

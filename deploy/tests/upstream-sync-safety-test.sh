@@ -14,6 +14,15 @@ fail() {
 }
 trap 'fail "unexpected command failure at line $LINENO"' ERR
 
+# Historical official v0.1.161 commit used by fixed transition fixtures. The
+# public bootstrap intentionally carries only the current vendor tag.
+previous_vendor_commit="19149ca196eeae4a4482e5299dc6fa4ba0b06c8c"
+git -C "$repo_root" rev-parse --verify "${previous_vendor_commit}^{commit}" >/dev/null ||
+  fail "historical v0.1.161 fixture commit is unavailable"
+git -C "$repo_root" merge-base --is-ancestor \
+  "$previous_vendor_commit" "vendor-0.1.162^{commit}" ||
+  fail "historical v0.1.161 fixture is not an ancestor of vendor-0.1.162"
+
 fail_if_present() {
   local description="$1"
   local pattern="$2"
@@ -299,7 +308,7 @@ expect_map_success \
   env \
     UPSTREAM_SHADOW_MAP="$tmp_dir/rename-transition.tsv" \
     UPSTREAM_SHADOW_EXPECTED_COUNT=1 \
-    UPSTREAM_SHADOW_BASE_REF=vendor-0.1.161 \
+    UPSTREAM_SHADOW_BASE_REF="$previous_vendor_commit" \
     UPSTREAM_SHADOW_NEXT_REF=vendor-0.1.162 \
     UPSTREAM_SHADOW_SKIP_DETECTOR_TEST=true \
     UPSTREAM_SHADOW_SKIP_BOUNDARY_TEST=true \
@@ -320,7 +329,7 @@ printf '%s\n%s\t%s\n' \
   "$transition_target" > "$tmp_dir/unresolved-transition.tsv"
 if UPSTREAM_SHADOW_MAP="$tmp_dir/unresolved-transition.tsv" \
    UPSTREAM_SHADOW_EXPECTED_COUNT=1 \
-   UPSTREAM_SHADOW_BASE_REF=vendor-0.1.161 \
+   UPSTREAM_SHADOW_BASE_REF="$previous_vendor_commit" \
    UPSTREAM_SHADOW_NEXT_REF=vendor-0.1.162 \
    UPSTREAM_SHADOW_SKIP_BOUNDARY_TEST=true \
    /bin/bash "$shadow_map_test" >/dev/null 2>&1; then
@@ -337,7 +346,7 @@ expect_map_success \
   env \
     UPSTREAM_SHADOW_MAP="$tmp_dir/source-deletion.tsv" \
     UPSTREAM_SHADOW_EXPECTED_COUNT=1 \
-    UPSTREAM_SHADOW_BASE_REF=vendor-0.1.161 \
+    UPSTREAM_SHADOW_BASE_REF="$previous_vendor_commit" \
     UPSTREAM_SHADOW_NEXT_REF=vendor-0.1.162 \
     UPSTREAM_SHADOW_SKIP_DETECTOR_TEST=true \
     UPSTREAM_SHADOW_SKIP_BOUNDARY_TEST=true \
@@ -358,7 +367,7 @@ printf '%s\n%s\t%s\n' \
   "$transition_target" > "$tmp_dir/unacknowledged-deletion.tsv"
 if UPSTREAM_SHADOW_MAP="$tmp_dir/unacknowledged-deletion.tsv" \
    UPSTREAM_SHADOW_EXPECTED_COUNT=1 \
-   UPSTREAM_SHADOW_BASE_REF=vendor-0.1.161 \
+   UPSTREAM_SHADOW_BASE_REF="$previous_vendor_commit" \
    UPSTREAM_SHADOW_NEXT_REF=vendor-0.1.162 \
    UPSTREAM_SHADOW_SKIP_BOUNDARY_TEST=true \
    /bin/bash "$shadow_map_test" >/dev/null 2>&1; then
@@ -375,7 +384,7 @@ expect_map_success \
   env \
     UPSTREAM_SHADOW_MAP="$tmp_dir/reintroduced-source.tsv" \
     UPSTREAM_SHADOW_EXPECTED_COUNT=1 \
-    UPSTREAM_SHADOW_BASE_REF=vendor-0.1.161 \
+    UPSTREAM_SHADOW_BASE_REF="$previous_vendor_commit" \
     UPSTREAM_SHADOW_NEXT_REF=vendor-0.1.162 \
     UPSTREAM_SHADOW_SKIP_DETECTOR_TEST=true \
     UPSTREAM_SHADOW_SKIP_BOUNDARY_TEST=true \

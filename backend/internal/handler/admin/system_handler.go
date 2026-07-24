@@ -142,7 +142,7 @@ func (h *SystemHandler) GetRollbackVersions(c *gin.Context) {
 	})
 }
 
-// Rollback installs a specific private custom release from the allowed list.
+// Rollback installs a specific trusted custom release from the allowed list.
 // POST /api/v1/admin/system/rollback
 func (h *SystemHandler) Rollback(c *gin.Context) {
 	var req struct {
