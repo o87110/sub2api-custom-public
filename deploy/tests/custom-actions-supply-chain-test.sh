@@ -69,6 +69,25 @@ grep -Fq -- '--new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"' \
   "$repo_root/.github/workflows/backend-ci.yml" ||
   fail "golangci-lint is not scoped to changes from the explicit custom baseline"
 
+backend_ci="$repo_root/.github/workflows/backend-ci.yml"
+upgrade_gate="$repo_root/.github/workflows/upstream-upgrade-gate.yml"
+grep -Fq 'is_official_upgrade: ${{ steps.resolve.outputs.is_official_upgrade }}' \
+  "$backend_ci" ||
+  fail "CI does not expose exact official-upgrade classification"
+grep -Fq 'CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}' \
+  "$backend_ci" ||
+  fail "CI does not classify the exact pull request or pushed branch"
+grep -Fq 'if [[ "$CANDIDATE_REF" =~ ^upgrade/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then' \
+  "$backend_ci" ||
+  fail "CI official-upgrade branch classification is not exact"
+[[ "$(grep -Fc "if: needs.verify-target.outputs.is_official_upgrade != 'true'" "$backend_ci")" -eq 2 ]] ||
+  fail "CI must defer exactly the final delta and database checks for official upgrades"
+grep -Fq "if: needs.verify-target.outputs.is_official_upgrade == 'true'" \
+  "$backend_ci" ||
+  fail "CI does not record delegation to the trusted official-upgrade gate"
+grep -Fq "context='Required upgrade validation'" "$upgrade_gate" ||
+  fail "trusted official-upgrade validation does not publish the required exact-head status"
+
 for workflow in \
   "$repo_root/.github/workflows/backend-ci.yml" \
   "$repo_root/.github/workflows/security-scan.yml" \

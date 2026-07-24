@@ -95,6 +95,18 @@ UPSTREAM_SYNC_ENABLED=true
 - GoReleaser 校验和 Release 预构建；
 - Action Pin、权限和 Actionlint。
 
+普通 CI 与升级专用门禁分工如下：
+
+- 只有名称精确匹配 `upgrade/vX.Y.Z` 的分支才把最终态差异台账和数据库边界检查
+  交给受信任升级门禁；普通分支仍按当前 `vendor-*` 基线执行这两项检查。
+- 升级分支的普通 CI 仍必须继续执行供应链、Shell、后端、前端、Lint 和构建检查，
+  不能因为处于升级流程而跳过。
+- Branch Protection 除普通 CI 检查外，还必须要求
+  `Required upgrade validation`。该状态由受信任 `main` Workflow 绑定准确 PR Head
+  SHA 发布，升级所需的差异台账、影子来源、保护路径和数据库批准均成功后才为
+  `success`。
+- Security Scan 保持独立报告，不配置为 Required Check。
+
 ## 9. 合并与收尾
 
 门禁通过并完成必要人工批准后：
