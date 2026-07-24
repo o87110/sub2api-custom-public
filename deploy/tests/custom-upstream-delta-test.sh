@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-baseline_file="$repo_root/.github/custom-upstream-baseline.env"
+baseline_file="${CUSTOM_UPSTREAM_BASELINE_FILE:-$repo_root/.github/custom-upstream-baseline.env}"
 ledger="$repo_root/.github/custom-upstream-delta.tsv"
 shadow_map="$repo_root/.github/upstream-shadowed-sources.tsv"
 
@@ -36,10 +36,19 @@ git -C "$repo_root" cat-file -e "${candidate_tree}^{tree}" ||
 [[ -s "$ledger" ]] || fail "custom upstream delta ledger is missing"
 [[ -s "$shadow_map" ]] || fail "upstream shadow map is missing"
 
-# shellcheck disable=SC1090
-source "$baseline_file"
-[[ "${CUSTOM_UPSTREAM_BASE_REF:-}" == "vendor-0.1.162^{commit}" ]] ||
-  fail "baseline ref must remain explicit"
+mapfile -t baseline_lines < "$baseline_file"
+[[ "${#baseline_lines[@]}" -eq 2 ]] ||
+  fail "baseline file must contain exactly two assignments"
+baseline_ref_line="${baseline_lines[0]%$'\r'}"
+baseline_commit_line="${baseline_lines[1]%$'\r'}"
+[[ "$baseline_ref_line" == CUSTOM_UPSTREAM_BASE_REF=* ]] ||
+  fail "baseline ref assignment is missing"
+[[ "$baseline_commit_line" == CUSTOM_UPSTREAM_BASE_COMMIT=* ]] ||
+  fail "baseline commit assignment is missing"
+CUSTOM_UPSTREAM_BASE_REF="${baseline_ref_line#CUSTOM_UPSTREAM_BASE_REF=}"
+CUSTOM_UPSTREAM_BASE_COMMIT="${baseline_commit_line#CUSTOM_UPSTREAM_BASE_COMMIT=}"
+[[ "${CUSTOM_UPSTREAM_BASE_REF:-}" =~ ^vendor-[0-9]+\.[0-9]+\.[0-9]+\^\{commit\}$ ]] ||
+  fail "baseline ref must be an explicit vendor-X.Y.Z commit"
 [[ "${CUSTOM_UPSTREAM_BASE_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] ||
   fail "baseline commit is invalid"
 resolved_base="$(git -C "$repo_root" rev-parse --verify "$CUSTOM_UPSTREAM_BASE_REF")"
