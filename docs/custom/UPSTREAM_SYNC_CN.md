@@ -108,10 +108,11 @@ UPSTREAM_SYNC_ENABLED=true
 - 后端 Unit、Integration、Wire 生成一致性、前端完整检查和 Release 预构建仍是
   全量硬门禁，不受增量 Lint 范围影响。
 - 升级 PR 必须把 `.github/custom-upstream-baseline.env` 精确滚动到目标
-  `vendor-X.Y.Z^{commit}`，并同步重建 `.github/custom-upstream-delta.tsv`。
-  受信任升级门禁只允许这两个基线文件作为控制面例外，验证目标 Tag、官方 Commit、
-  Candidate Tree 和每个 Blob 后才允许合并；其他工作流、发布脚本和控制面修改仍须
-  先独立合入 `main`。
+  `vendor-X.Y.Z^{commit}`，同步重建 `.github/custom-upstream-delta.tsv`，并按新
+  基线更新 `.github/custom-database-exceptions.tsv` 的只读语义指纹。受信任升级
+  门禁只允许这三个滚动文件作为控制面例外，验证目标 Tag、官方 Commit、Candidate
+  Tree、每个 Blob 和最终数据库边界后才允许合并；其他工作流、发布脚本和控制面
+  修改仍须先独立合入 `main`。
 - 数据库审批始终绑定升级前 `main` 中的受信任基线。候选分支的新基线只用于验证
   合并后状态，不能缩小本次官方数据库差异或复用旧 Head 的审批。
 - Branch Protection 除普通 CI 检查外，还必须要求
