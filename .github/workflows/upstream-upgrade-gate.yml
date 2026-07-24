@@ -467,16 +467,22 @@ jobs:
           candidate_tree="$(git rev-parse "${HEAD_SHA}^{tree}")"
           official_commit="$(git rev-parse "${official_ref}^{commit}")"
           expected_candidate_baseline_ref="${VENDOR_TAG}^{commit}"
-          candidate_baseline="$(
-            set -euo pipefail
-            # shellcheck disable=SC1091
-            source .github/custom-upstream-baseline.env
-            printf '%s\t%s\n' \
-              "${CUSTOM_UPSTREAM_BASE_REF:-}" \
-              "${CUSTOM_UPSTREAM_BASE_COMMIT:-}"
+          mapfile -t candidate_baseline_lines \
+            < .github/custom-upstream-baseline.env
+          if [[ "${#candidate_baseline_lines[@]}" -ne 2 ||
+                "${candidate_baseline_lines[0]}" != CUSTOM_UPSTREAM_BASE_REF=* ||
+                "${candidate_baseline_lines[1]}" != CUSTOM_UPSTREAM_BASE_COMMIT=* ]]; then
+            echo "Upgrade candidate baseline must contain exactly two assignments." >&2
+            exit 1
+          fi
+          candidate_baseline_ref="$(
+            printf '%s' \
+              "${candidate_baseline_lines[0]#CUSTOM_UPSTREAM_BASE_REF=}"
           )"
-          IFS=$'\t' read -r candidate_baseline_ref candidate_baseline_commit \
-            <<<"$candidate_baseline"
+          candidate_baseline_commit="$(
+            printf '%s' \
+              "${candidate_baseline_lines[1]#CUSTOM_UPSTREAM_BASE_COMMIT=}"
+          )"
           if [[ "$candidate_baseline_ref" != "$expected_candidate_baseline_ref" ||
                 "$candidate_baseline_commit" != "$official_commit" ]]; then
             echo "Upgrade candidate baseline must bind ${expected_candidate_baseline_ref} to ${official_commit}." >&2

@@ -55,8 +55,17 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -s "$baseline_file" ]] || fail "explicit custom baseline file is missing"
-# shellcheck disable=SC1090
-source "$baseline_file"
+mapfile -t baseline_lines < "$baseline_file"
+[[ "${#baseline_lines[@]}" -eq 2 ]] ||
+  fail "baseline file must contain exactly two assignments"
+baseline_ref_line="${baseline_lines[0]%$'\r'}"
+baseline_commit_line="${baseline_lines[1]%$'\r'}"
+[[ "$baseline_ref_line" == CUSTOM_UPSTREAM_BASE_REF=* ]] ||
+  fail "baseline ref assignment is missing"
+[[ "$baseline_commit_line" == CUSTOM_UPSTREAM_BASE_COMMIT=* ]] ||
+  fail "baseline commit assignment is missing"
+CUSTOM_UPSTREAM_BASE_REF="${baseline_ref_line#CUSTOM_UPSTREAM_BASE_REF=}"
+CUSTOM_UPSTREAM_BASE_COMMIT="${baseline_commit_line#CUSTOM_UPSTREAM_BASE_COMMIT=}"
 [[ "${CUSTOM_UPSTREAM_BASE_REF:-}" =~ ^vendor-[0-9]+\.[0-9]+\.[0-9]+\^\{commit\}$ ]] ||
   fail "custom baseline ref must be an explicit vendor-X.Y.Z commit"
 [[ "${CUSTOM_UPSTREAM_BASE_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] ||

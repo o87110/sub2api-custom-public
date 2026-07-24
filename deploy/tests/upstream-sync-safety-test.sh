@@ -847,7 +847,13 @@ for baseline_test in "$delta_test" "$database_test"; do
     'baseline_file="${CUSTOM_UPSTREAM_BASELINE_FILE:-$repo_root/.github/custom-upstream-baseline.env}"' \
     "$baseline_test"
   grep -Fq \
-    '[[ "${CUSTOM_UPSTREAM_BASE_REF:-}" =~ ^vendor-[0-9]+\.[0-9]+\.[0-9]+\^\{commit\}$ ]]' \
+    'mapfile -t baseline_lines < "$baseline_file"' \
+    "$baseline_test"
+  grep -Fq \
+    '[[ "${#baseline_lines[@]}" -eq 2 ]]' \
+    "$baseline_test"
+  grep -Fq \
+    'CUSTOM_UPSTREAM_BASE_REF="${baseline_ref_line#CUSTOM_UPSTREAM_BASE_REF=}"' \
     "$baseline_test"
 done
 grep -Fq \
