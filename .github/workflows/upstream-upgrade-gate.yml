@@ -425,7 +425,10 @@ jobs:
             exit 1
           fi
           git diff --name-only --no-renames "$expected_tree" "$HEAD_SHA" -- \
-            . ":(exclude)${report}" |
+            . \
+            ":(exclude)${report}" \
+            ":(exclude).github/custom-upstream-baseline.env" \
+            ":(exclude).github/custom-upstream-delta.tsv" |
             sort -u > /tmp/unexpected-upgrade-tree-files.txt
           deterministic_tree_match=true
           if [[ -s /tmp/unexpected-upgrade-tree-files.txt ]]; then
@@ -434,7 +437,9 @@ jobs:
 
           grep -E \
             '^(\.github/(CODEOWNERS|custom-|upstream-shadowed-sources\.tsv)|\.github/workflows/|backend/cmd/custom-database-boundary/|backend/internal/custom/databaseboundary/|deploy/release/|deploy/tests/|tools/(validate_pnpm_audit|test_validate_pnpm_audit)\.py)' \
-            /tmp/upgrade-head-files.txt > /tmp/control-plane-files.txt || true
+            /tmp/upgrade-head-files.txt |
+            grep -Ev '^\.github/custom-upstream-(baseline\.env|delta\.tsv)$' \
+              > /tmp/control-plane-files.txt || true
           if [[ -s /tmp/control-plane-files.txt ]]; then
             echo "Upgrade PRs must not modify trusted upgrade control-plane files." >&2
             echo "Land these changes on main first, then update the upgrade branch." >&2
@@ -460,8 +465,33 @@ jobs:
           official_tree="$(git rev-parse "${official_ref}^{tree}")"
           custom_tree="$(git rev-parse "origin/main^{tree}")"
           candidate_tree="$(git rev-parse "${HEAD_SHA}^{tree}")"
+          official_commit="$(git rev-parse "${official_ref}^{commit}")"
+          expected_candidate_baseline_ref="${VENDOR_TAG}^{commit}"
+          candidate_baseline="$(
+            set -euo pipefail
+            # shellcheck disable=SC1091
+            source .github/custom-upstream-baseline.env
+            printf '%s\t%s\n' \
+              "${CUSTOM_UPSTREAM_BASE_REF:-}" \
+              "${CUSTOM_UPSTREAM_BASE_COMMIT:-}"
+          )"
+          IFS=$'\t' read -r candidate_baseline_ref candidate_baseline_commit \
+            <<<"$candidate_baseline"
+          if [[ "$candidate_baseline_ref" != "$expected_candidate_baseline_ref" ||
+                "$candidate_baseline_commit" != "$official_commit" ]]; then
+            echo "Upgrade candidate baseline must bind ${expected_candidate_baseline_ref} to ${official_commit}." >&2
+            exit 1
+          fi
+          git update-ref "refs/tags/${VENDOR_TAG}" "$official_commit"
+          /bin/bash deploy/tests/custom-upstream-delta-test.sh \
+            --candidate-tree "$candidate_tree"
+
+          trusted_baseline_file="/tmp/custom-upstream-baseline.env"
+          git show origin/main:.github/custom-upstream-baseline.env \
+            > "$trusted_baseline_file"
           database_report="$(
-            /bin/bash deploy/tests/custom-database-boundary-test.sh \
+            CUSTOM_UPSTREAM_BASELINE_FILE="$trusted_baseline_file" \
+              /bin/bash deploy/tests/custom-database-boundary-test.sh \
               --mode upgrade \
               --base-tree "$base_tree" \
               --official-tree "$official_tree" \
@@ -496,7 +526,10 @@ jobs:
               "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
               --jq '.[] | select(.user.login == "github-actions[bot]") | .body'
           )"
-          source .github/custom-upstream-baseline.env
+          # Database approval remains bound to the current trusted main
+          # baseline while the candidate rolls forward to the new vendor tag.
+          # shellcheck disable=SC1090
+          source "$trusted_baseline_file"
           database_marker="<!-- sub2api-upgrade-approval database tag=${OFFICIAL_TAG} head=${HEAD_SHA} base=${CUSTOM_UPSTREAM_BASE_COMMIT} fingerprint=${database_fingerprint} -->"
           protected_marker="<!-- sub2api-upgrade-approval protected tag=${OFFICIAL_TAG} head=${HEAD_SHA} -->"
           protected_overlap=false
@@ -506,7 +539,8 @@ jobs:
               echo "Required fingerprint: $database_fingerprint" >&2
               exit 1
             fi
-            /bin/bash deploy/tests/custom-database-boundary-test.sh \
+            CUSTOM_UPSTREAM_BASELINE_FILE="$trusted_baseline_file" \
+              /bin/bash deploy/tests/custom-database-boundary-test.sh \
               --mode upgrade \
               --base-tree "$base_tree" \
               --official-tree "$official_tree" \

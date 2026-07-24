@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-baseline_file="$repo_root/.github/custom-upstream-baseline.env"
+baseline_file="${CUSTOM_UPSTREAM_BASELINE_FILE:-$repo_root/.github/custom-upstream-baseline.env}"
 exceptions="$repo_root/.github/custom-database-exceptions.tsv"
 
 fail() {
@@ -57,8 +57,8 @@ done
 [[ -s "$baseline_file" ]] || fail "explicit custom baseline file is missing"
 # shellcheck disable=SC1090
 source "$baseline_file"
-[[ "${CUSTOM_UPSTREAM_BASE_REF:-}" == "vendor-0.1.162^{commit}" ]] ||
-  fail "unexpected or implicit custom baseline ref"
+[[ "${CUSTOM_UPSTREAM_BASE_REF:-}" =~ ^vendor-[0-9]+\.[0-9]+\.[0-9]+\^\{commit\}$ ]] ||
+  fail "custom baseline ref must be an explicit vendor-X.Y.Z commit"
 [[ "${CUSTOM_UPSTREAM_BASE_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] ||
   fail "custom baseline commit is invalid"
 resolved_base="$(git -C "$repo_root" rev-parse --verify "$CUSTOM_UPSTREAM_BASE_REF")"

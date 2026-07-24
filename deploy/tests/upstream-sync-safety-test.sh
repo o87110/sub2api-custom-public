@@ -6,6 +6,8 @@ sync_workflow="$repo_root/.github/workflows/upstream-sync.yml"
 gate_workflow="$repo_root/.github/workflows/upstream-upgrade-gate.yml"
 shadow_map="$repo_root/.github/upstream-shadowed-sources.tsv"
 shadow_map_test="$repo_root/deploy/tests/upstream-shadow-map-test.sh"
+delta_test="$repo_root/deploy/tests/custom-upstream-delta-test.sh"
+database_test="$repo_root/deploy/tests/custom-database-boundary-test.sh"
 codeowners="$repo_root/.github/CODEOWNERS"
 
 fail() {
@@ -821,6 +823,33 @@ grep -Fq \
 grep -Fq \
   'Upgrade PRs must not modify trusted upgrade control-plane files.' \
   "$gate_workflow"
+grep -Fq \
+  "grep -Ev '^\\.github/custom-upstream-(baseline\\.env|delta\\.tsv)$'" \
+  "$gate_workflow"
+grep -Fq \
+  'expected_candidate_baseline_ref="${VENDOR_TAG}^{commit}"' \
+  "$gate_workflow"
+grep -Fq \
+  'git update-ref "refs/tags/${VENDOR_TAG}" "$official_commit"' \
+  "$gate_workflow"
+grep -Fq \
+  '/bin/bash deploy/tests/custom-upstream-delta-test.sh \' \
+  "$gate_workflow"
+grep -Fq \
+  'CUSTOM_UPSTREAM_BASELINE_FILE="$trusted_baseline_file" \' \
+  "$gate_workflow"
+test "$(
+  grep -Fc 'CUSTOM_UPSTREAM_BASELINE_FILE="$trusted_baseline_file" \' \
+    "$gate_workflow"
+)" -eq 2
+for baseline_test in "$delta_test" "$database_test"; do
+  grep -Fq \
+    'baseline_file="${CUSTOM_UPSTREAM_BASELINE_FILE:-$repo_root/.github/custom-upstream-baseline.env}"' \
+    "$baseline_test"
+  grep -Fq \
+    '[[ "${CUSTOM_UPSTREAM_BASE_REF:-}" =~ ^vendor-[0-9]+\.[0-9]+\.[0-9]+\^\{commit\}$ ]]' \
+    "$baseline_test"
+done
 grep -Fq \
   '\.github/workflows/' \
   "$gate_workflow"
