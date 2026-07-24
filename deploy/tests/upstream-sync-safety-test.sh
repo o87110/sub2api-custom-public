@@ -824,7 +824,7 @@ grep -Fq \
   'Upgrade PRs must not modify trusted upgrade control-plane files.' \
   "$gate_workflow"
 grep -Fq \
-  "grep -Ev '^\\.github/custom-upstream-(baseline\\.env|delta\\.tsv)$'" \
+  "grep -Ev '^\\.github/(custom-database-exceptions\\.tsv|custom-upstream-(baseline\\.env|delta\\.tsv))$'" \
   "$gate_workflow"
 grep -Fq \
   'expected_candidate_baseline_ref="${VENDOR_TAG}^{commit}"' \
@@ -834,6 +834,12 @@ grep -Fq \
   "$gate_workflow"
 grep -Fq \
   '/bin/bash deploy/tests/custom-upstream-delta-test.sh \' \
+  "$gate_workflow"
+grep -Fq \
+  '/bin/bash deploy/tests/custom-database-boundary-test.sh \' \
+  "$gate_workflow"
+grep -Fq -- \
+  '--mode final \' \
   "$gate_workflow"
 grep -Fq \
   'CUSTOM_UPSTREAM_BASELINE_FILE="$trusted_baseline_file" \' \
