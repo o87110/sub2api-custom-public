@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 baseline_file="${CUSTOM_UPSTREAM_BASELINE_FILE:-$repo_root/.github/custom-upstream-baseline.env}"
-ledger="$repo_root/.github/custom-upstream-delta.tsv"
+ledger="${CUSTOM_UPSTREAM_DELTA_LEDGER:-$repo_root/.github/custom-upstream-delta.tsv}"
 shadow_map="$repo_root/.github/upstream-shadowed-sources.tsv"
 
 fail() {
@@ -64,9 +64,11 @@ seen_actual="$tmp_dir/seen-actual.txt"
 
 expected_header=$'path\tinitial_status\tdecision\texpected_status\tcategory\tbase_blob\tfinal_blob\tshadow_source\tshadow_target\tverification\treason'
 IFS= read -r actual_header < "$ledger"
+actual_header="${actual_header%$'\r'}"
 [[ "$actual_header" == "$expected_header" ]] || fail "delta ledger header is invalid"
 
 awk -F '\t' '
+  { sub(/\r$/, "") }
   NR == 1 { next }
   /^[[:space:]]*$/ { next }
   NF != 11 {

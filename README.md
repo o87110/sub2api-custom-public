@@ -353,7 +353,7 @@ docker compose logs -f sub2api
 - Generates secure credentials (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Creates `.env` file with auto-generated secrets
 - Requires you to pin `SUB2API_IMAGE` to an exact public custom Release tag or digest
-- Creates data directories (uses local directories for easy backup/migration)
+- Creates persistent directories (`data/`, `runtime/`, `postgres_data/`, `redis_data/`)
 - Displays generated credentials for your reference
 
 #### Manual Deployment
@@ -406,8 +406,8 @@ openssl rand -hex 32
 ```
 
 ```bash
-# 4. Create data directories (for local version)
-mkdir -p data postgres_data redis_data
+# 4. Create persistent directories (for local version)
+mkdir -p data runtime postgres_data redis_data
 
 # 5. Start all services
 # Option A: Local directory version (recommended - easy migration)
@@ -427,7 +427,7 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 | Version | Data Storage | Migration | Best For |
 |---------|-------------|-----------|----------|
-| **docker-compose.local.yml** | Local directories | ✅ Easy (tar entire directory) | Production, frequent backups |
+| **docker-compose.local.yml** | Local directories (`data/`, `runtime/`, `postgres_data/`, `redis_data/`) | ✅ Easy (tar entire directory) | Production, frequent backups |
 | **docker-compose.yml** | Named volumes | ⚠️ Requires docker commands | Simple setup |
 
 **Recommendation:** Use `docker-compose.local.yml` (deployed by script) for easier data management.
@@ -443,8 +443,67 @@ docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
 
 #### Upgrade
 
+Back up the database and configuration before every upgrade. If the running
+container was created from an older Compose file that did not mount
+`/app/runtime`, run the following one-time preservation block before the first
+`up -d`. It leaves the old container available until its runtime has been
+copied and verified. Deployments that already mount
+`./runtime:/app/runtime` skip the export automatically.
+
 ```bash
-# Pull latest image and recreate container
+set -eu
+container_id="$(docker compose -f docker-compose.local.yml ps -q sub2api)"
+test -n "$container_id"
+
+if ! docker inspect "$container_id" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -qx '/app/runtime'; then
+  docker exec "$container_id" test ! -L /app/runtime/sub2api
+  docker exec "$container_id" test -f /app/runtime/sub2api
+  docker exec "$container_id" test -x /app/runtime/sub2api
+  docker exec --user sub2api "$container_id" /app/runtime/sub2api --version
+  backup_present=0
+  if docker exec "$container_id" test -L /app/runtime/sub2api.backup; then
+    echo "Refusing to export a symbolic-link runtime backup" >&2
+    exit 1
+  elif docker exec "$container_id" test -f /app/runtime/sub2api.backup; then
+    backup_present=1
+  elif docker exec "$container_id" test -e /app/runtime/sub2api.backup; then
+    echo "Refusing to export a non-regular runtime backup" >&2
+    exit 1
+  fi
+  if [ "$backup_present" -eq 1 ]; then
+    docker exec "$container_id" test -x /app/runtime/sub2api.backup
+    docker exec --user sub2api "$container_id" /app/runtime/sub2api.backup --version
+  fi
+
+  docker compose -f docker-compose.local.yml stop sub2api
+  test ! -L ./runtime
+  mkdir -p runtime
+  test -d ./runtime
+  test ! -e ./runtime/sub2api
+  test ! -L ./runtime/sub2api
+  test ! -e ./runtime/sub2api.backup
+  test ! -L ./runtime/sub2api.backup
+  docker cp "$container_id:/app/runtime/sub2api" ./runtime/sub2api
+  if [ "$backup_present" -eq 1 ]; then
+    docker cp "$container_id:/app/runtime/sub2api.backup" ./runtime/sub2api.backup
+  fi
+
+  test ! -L ./runtime/sub2api
+  test -f ./runtime/sub2api
+  test -s ./runtime/sub2api
+  sha256sum ./runtime/sub2api
+  if [ -e ./runtime/sub2api.backup ] || [ -L ./runtime/sub2api.backup ]; then
+    test ! -L ./runtime/sub2api.backup
+    test -f ./runtime/sub2api.backup
+    test -s ./runtime/sub2api.backup
+    sha256sum ./runtime/sub2api.backup
+  fi
+fi
+
+# Do not execute either exported binary on the host. Compare each SHA256 value
+# with the checksum of the corresponding public Release, back up runtime/ with
+# the other persistent data, and replace
+# docker-compose.local.yml with the current repository version before pull/up.
 docker compose -f docker-compose.local.yml pull
 docker compose -f docker-compose.local.yml up -d
 ```
@@ -453,8 +512,20 @@ docker compose -f docker-compose.local.yml up -d
 
 When using `docker-compose.local.yml`, migrate to a new server easily:
 
+The archive must include `data/`, `runtime/`, `postgres_data/`, `redis_data/`,
+`.env`, and configuration files. Before recreating an older deployment whose
+Compose file did not mount `/app/runtime`, stop it and copy
+`/app/runtime/sub2api` plus `/app/runtime/sub2api.backup` (when present) from
+the old container. This recovery is unnecessary when
+`./runtime:/app/runtime` is already mounted.
+
 ```bash
-# On source server
+# On source server: stop the application but keep the old container.
+# For an older Compose file without /app/runtime, complete the one-time export
+# in the Upgrade section before running down.
+docker compose -f docker-compose.local.yml stop sub2api
+
+# Only remove the old container after runtime/ is present and verified.
 docker compose -f docker-compose.local.yml down
 cd ..
 tar czf sub2api-complete.tar.gz sub2api-deploy/
@@ -482,7 +553,7 @@ docker compose -f docker-compose.local.yml logs -f
 
 # Remove all data (caution!)
 docker compose -f docker-compose.local.yml down
-rm -rf data/ postgres_data/ redis_data/
+rm -rf data/ runtime/ postgres_data/ redis_data/
 ```
 
 ---

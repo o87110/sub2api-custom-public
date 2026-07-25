@@ -46,7 +46,7 @@ func TestUpdateServiceClientInitializationFailurePrecedesCache(t *testing.T) {
 
 	_, err := service.CheckUpdate(context.Background(), false)
 
-	require.ErrorContains(t, err, "initialize private update client")
+	require.ErrorContains(t, err, "initialize fixed public Release source client (optional GitHub Token)")
 	require.ErrorContains(t, err, "token file is unreadable")
 	require.Empty(t, client.latestRepos)
 }
@@ -67,11 +67,11 @@ func TestUpdateServiceClientInitializationFailureBlocksRollbackLookup(t *testing
 
 	_, err := service.ListRollbackVersions(context.Background())
 
-	require.ErrorContains(t, err, "initialize private update client")
+	require.ErrorContains(t, err, "initialize fixed public Release source client (optional GitHub Token)")
 	require.Empty(t, client.recentRepos)
 }
 
-func TestUpdateServiceRejectsAnyNonPrivateInstallRepository(t *testing.T) {
+func TestUpdateServiceRejectsAnyRepositoryOtherThanFixedPublicReleaseSource(t *testing.T) {
 	for _, repository := range []string{
 		"Wei-Shaw/sub2api",
 		"someone/other-custom",

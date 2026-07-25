@@ -254,7 +254,7 @@ func TestBaseUpdateVersion(t *testing.T) {
 	require.Equal(t, "0.1.161", baseUpdateVersion("0.1.161"))
 }
 
-func TestUpdateServiceDefaultsToPrivateCustomRepository(t *testing.T) {
+func TestUpdateServiceDefaultsToFixedPublicReleaseRepository(t *testing.T) {
 	svc := NewUpdateService(
 		&updateServiceCacheStub{},
 		&updateServiceGitHubClientStub{},
@@ -378,7 +378,7 @@ func TestValidateDownloadURLRequiresConfiguredRepositoryAssetAPI(t *testing.T) {
 	))
 }
 
-func TestUpdateServicePrivateSourceFailureIsExplicitAndCacheIsRepositoryScoped(t *testing.T) {
+func TestUpdateServiceFixedPublicReleaseSourceFailureIsExplicitAndCacheIsRepositoryScoped(t *testing.T) {
 	cache := &updateServiceCacheStub{
 		data: fmt.Sprintf(
 			`{"repository":"Wei-Shaw/sub2api","latest":"9.9.9","timestamp":%d}`,
@@ -397,7 +397,7 @@ func TestUpdateServicePrivateSourceFailureIsExplicitAndCacheIsRepositoryScoped(t
 	require.ErrorContains(t, cacheErr, "repository mismatch")
 
 	info, err := svc.CheckUpdate(context.Background(), false)
-	require.ErrorContains(t, err, `configured update source "o87110/sub2api-custom-public" is unavailable`)
+	require.ErrorContains(t, err, `fixed public Release source "o87110/sub2api-custom-public" is unavailable`)
 	require.NotNil(t, info)
 	require.Equal(t, "0.1.160", info.CurrentVersion)
 	require.Equal(t, "0.1.160-custom.1", info.CurrentBuildVersion)

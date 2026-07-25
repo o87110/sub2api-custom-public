@@ -7,7 +7,7 @@
 #
 # Quick Start:
 #   1. Copy .env.example to .env and configure
-#   2. mkdir -p data postgres_data redis_data
+#   2. mkdir -p data runtime postgres_data redis_data
 #   3. docker-compose -f docker-compose.local.yml up -d
 #   4. Check logs: docker-compose -f docker-compose.local.yml logs -f sub2api
 #   5. Access: http://localhost:8080
@@ -36,6 +36,7 @@ services:
     volumes:
       # Local directory mapping for easy migration
       - ./data:/app/data:Z
+      - ./runtime:/app/runtime:Z
       # Optional: Mount custom config.yaml (uncomment and create the file first)
       # Copy config.example.yaml to config.yaml, modify it, then uncomment:
       # - ./config.yaml:/app/data/config.yaml

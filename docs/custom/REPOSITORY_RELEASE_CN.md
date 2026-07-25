@@ -20,9 +20,9 @@ upstream  = https://github.com/Wei-Shaw/sub2api.git
 
 | 类型 | 示例 | 含义 |
 | --- | --- | --- |
-| 官方 Tag | `v0.1.162` | 官方项目正式版本 |
-| Vendor Tag | `vendor-0.1.162` | 已审查并合入二改主线的官方基线 |
-| 自定义 Tag | `v0.1.162-custom.1` | 本仓库不可变发布版本 |
+| 官方 Tag | `v0.1.164` | 官方项目正式版本 |
+| Vendor Tag | `vendor-0.1.164` | 已审查并合入二改主线的官方基线 |
+| 自定义 Tag | `v0.1.164-custom.1` | 本仓库不可变发布版本 |
 
 同一官方基线下，每个有效二改发布递增 `custom.N`。Tag 必须为 Annotated Tag，
 并指向已通过 CI 的 `main` 提交。

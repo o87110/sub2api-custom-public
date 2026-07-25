@@ -10,7 +10,25 @@ RUNTIME_UPDATE_TOKEN=$RUNTIME_SECRET_DIR/update-token
 BINARY_VERSION_TIMEOUT_SECONDS=${BINARY_VERSION_TIMEOUT_SECONDS:-5}
 BINARY_VERSION_MAX_OUTPUT_BYTES=${BINARY_VERSION_MAX_OUTPUT_BYTES:-8192}
 
+reject_symlink() {
+    managed_path=$1
+    managed_kind=$2
+    if [ -L "$managed_path" ]; then
+        echo "ERROR: $managed_kind path must not be a symbolic link: $managed_path" >&2
+        return 1
+    fi
+}
+
+reject_managed_binary_symlinks() {
+    reject_symlink "$IMAGE_BINARY" "image binary" || return 1
+    reject_symlink "$LEGACY_IMAGE_BINARY" "legacy image binary" || return 1
+    reject_symlink "$RUNTIME_BINARY" "runtime binary" || return 1
+    reject_symlink "$RUNTIME_BINARY.backup" "runtime backup" || return 1
+}
+
 resolve_image_binary() {
+    reject_symlink "$IMAGE_BINARY" "image binary" || return 1
+    reject_symlink "$LEGACY_IMAGE_BINARY" "legacy image binary" || return 1
     if [ "$IMAGE_BINARY" = "/app/image/sub2api" ] &&
         [ ! -e "$IMAGE_BINARY" ] &&
         [ -e "$LEGACY_IMAGE_BINARY" ]; then
@@ -22,6 +40,7 @@ resolve_image_binary() {
 validate_binary() {
     binary_path=$1
     binary_kind=$2
+    reject_symlink "$binary_path" "$binary_kind binary" || return 1
     if [ ! -f "$binary_path" ]; then
         echo "ERROR: $binary_kind binary is not a regular file: $binary_path" >&2
         return 1
@@ -124,12 +143,17 @@ install_image_binary() {
     temp_backup="$RUNTIME_BINARY.backup.$$"
     backup_binary="$RUNTIME_BINARY.backup"
     previous_backup="$RUNTIME_BINARY.backup.previous.$$"
+    reject_managed_binary_symlinks || return 1
+    reject_symlink "$temp_binary" "staged image binary" || return 1
+    reject_symlink "$temp_backup" "staged runtime backup" || return 1
+    reject_symlink "$previous_backup" "previous runtime backup" || return 1
     rm -f "$temp_binary" "$temp_backup"
-    if [ -e "$previous_backup" ]; then
+    if [ -e "$previous_backup" ] || [ -L "$previous_backup" ]; then
         echo "ERROR: previous backup staging path already exists: $previous_backup" >&2
         return 1
     fi
 
+    reject_symlink "$IMAGE_BINARY" "image binary" || return 1
     if ! cp "$IMAGE_BINARY" "$temp_binary" ||
         ! chmod 0755 "$temp_binary" ||
         [ "$(binary_version "$temp_binary" "staged image")" != "$image_version" ]; then
@@ -139,21 +163,30 @@ install_image_binary() {
     fi
 
     if [ "$keep_backup" = "true" ]; then
+        reject_symlink "$RUNTIME_BINARY" "runtime binary" || return 1
+        reject_symlink "$backup_binary" "runtime backup" || return 1
         if ! cp "$RUNTIME_BINARY" "$temp_backup" ||
             ! chmod 0755 "$temp_backup"; then
             rm -f "$temp_binary" "$temp_backup"
             echo "ERROR: failed to preserve the previous runtime binary" >&2
             return 1
         fi
+        reject_symlink "$backup_binary" "runtime backup" || return 1
+        reject_symlink "$previous_backup" "previous runtime backup" || return 1
         if [ -e "$backup_binary" ] && ! mv "$backup_binary" "$previous_backup"; then
             rm -f "$temp_binary" "$temp_backup"
             echo "ERROR: failed to preserve the existing runtime backup" >&2
             return 1
         fi
+        reject_symlink "$temp_backup" "staged runtime backup" || return 1
+        reject_symlink "$backup_binary" "runtime backup" || return 1
         if ! mv "$temp_backup" "$backup_binary"; then
             restore_error=
-            if [ -e "$previous_backup" ] && ! mv "$previous_backup" "$backup_binary"; then
-                restore_error="; previous backup remains at $previous_backup"
+            if [ -e "$previous_backup" ] || [ -L "$previous_backup" ]; then
+                reject_symlink "$previous_backup" "previous runtime backup" || return 1
+                if ! mv "$previous_backup" "$backup_binary"; then
+                    restore_error="; previous backup remains at $previous_backup"
+                fi
             fi
             rm -f "$temp_binary" "$temp_backup"
             echo "ERROR: failed to promote the current runtime backup$restore_error" >&2
@@ -161,12 +194,18 @@ install_image_binary() {
         fi
     fi
 
+    reject_symlink "$temp_binary" "staged image binary" || return 1
+    reject_symlink "$RUNTIME_BINARY" "runtime binary" || return 1
     if ! mv "$temp_binary" "$RUNTIME_BINARY"; then
         restore_error=
         if [ "$keep_backup" = "true" ]; then
+            reject_symlink "$backup_binary" "runtime backup" || return 1
             rm -f "$backup_binary"
-            if [ -e "$previous_backup" ] && ! mv "$previous_backup" "$backup_binary"; then
-                restore_error="; previous backup remains at $previous_backup"
+            if [ -e "$previous_backup" ] || [ -L "$previous_backup" ]; then
+                reject_symlink "$previous_backup" "previous runtime backup" || return 1
+                if ! mv "$previous_backup" "$backup_binary"; then
+                    restore_error="; previous backup remains at $previous_backup"
+                fi
             fi
         fi
         rm -f "$temp_binary" "$temp_backup"
@@ -175,14 +214,19 @@ install_image_binary() {
     fi
 
     if [ "$keep_backup" = "true" ]; then
+        reject_symlink "$previous_backup" "previous runtime backup" || return 1
         rm -f "$previous_backup"
-    elif ! rm -f "$backup_binary"; then
+    else
+        reject_symlink "$backup_binary" "runtime backup" || return 1
+    fi
+    if [ "$keep_backup" != "true" ] && ! rm -f "$backup_binary"; then
         echo "ERROR: installed trusted image binary but failed to remove stale runtime backup" >&2
         return 1
     fi
 }
 
 reconcile_runtime_binary() {
+    reject_managed_binary_symlinks || return 1
     image_version="$(binary_version "$IMAGE_BINARY" "image")" || return 1
     if [ ! -e "$RUNTIME_BINARY" ]; then
         install_image_binary "$image_version" false
@@ -234,7 +278,7 @@ prepare_update_token_file() {
         ! chmod 0400 "$temp_token" ||
         ! mv "$temp_token" "$RUNTIME_UPDATE_TOKEN"; then
         rm -f "$temp_token" "$RUNTIME_UPDATE_TOKEN" || true
-        echo "WARNING: failed to prepare the private update token file" >&2
+        echo "WARNING: failed to prepare the optional GitHub Token file" >&2
         return
     fi
 
@@ -269,6 +313,9 @@ main() {
         set -- "$RUNTIME_BINARY" "$@"
     fi
 
+    if [ "$1" = "$RUNTIME_BINARY" ]; then
+        reject_symlink "$RUNTIME_BINARY" "runtime binary" || return 1
+    fi
     exec "$@"
 }
 

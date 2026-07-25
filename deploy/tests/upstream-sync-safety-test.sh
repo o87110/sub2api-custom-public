@@ -8,6 +8,7 @@ shadow_map="$repo_root/.github/upstream-shadowed-sources.tsv"
 shadow_map_test="$repo_root/deploy/tests/upstream-shadow-map-test.sh"
 delta_test="$repo_root/deploy/tests/custom-upstream-delta-test.sh"
 database_test="$repo_root/deploy/tests/custom-database-boundary-test.sh"
+candidate_tree_script="$repo_root/deploy/tests/custom-candidate-tree.sh"
 codeowners="$repo_root/.github/CODEOWNERS"
 
 fail() {
@@ -862,6 +863,12 @@ for baseline_test in "$delta_test" "$database_test"; do
     'CUSTOM_UPSTREAM_BASE_REF="${baseline_ref_line#CUSTOM_UPSTREAM_BASE_REF=}"' \
     "$baseline_test"
 done
+candidate_tree="$(/bin/bash "$candidate_tree_script" --worktree)"
+awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }' \
+  "$repo_root/.github/custom-upstream-delta.tsv" \
+  > "$tmp_dir/custom-upstream-delta-crlf.tsv"
+CUSTOM_UPSTREAM_DELTA_LEDGER="$tmp_dir/custom-upstream-delta-crlf.tsv" \
+  /bin/bash "$delta_test" --candidate-tree "$candidate_tree" >/dev/null
 grep -Fq \
   '\.github/workflows/' \
   "$gate_workflow"

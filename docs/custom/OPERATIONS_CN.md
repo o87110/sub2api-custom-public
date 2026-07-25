@@ -56,14 +56,21 @@ Credential Store 配置 `read:packages` 凭据，不得把 GHCR Token 传入应�
 
 ## 4. runtime 持久化
 
-生产容器必须挂载：
+生产容器必须挂载持久化 runtime。local Compose 使用：
 
 ```text
 ./runtime:/app/runtime
 ```
 
-入口脚本会验证 `/app/runtime/sub2api` 是普通文件、权限正确并可执行。首次启动从
-镜像基线初始化；在线更新后容器重建仍使用已验证的 runtime 文件。
+standalone Compose 使用 `sub2api_runtime:/app/runtime` 命名卷。入口脚本会验证
+runtime、镜像、旧镜像和 `.backup` 路径本身不是符号链接（包括悬空链接），并
+确认运行二进制是权限正确的普通 ELF 文件。首次启动从镜像基线初始化；在线更新后
+容器重建仍使用已验证的 runtime 文件。
+
+从未挂载 `/app/runtime` 的旧版 local/standalone Compose 迁移时，必须在重建或
+删除旧容器前停服，并从旧容器可写层复制 `/app/runtime/sub2api` 和存在的
+`/app/runtime/sub2api.backup` 到新宿主机目录或命名卷。已使用
+`./runtime:/app/runtime` 的部署无需执行这一步。
 
 验证：
 
@@ -84,6 +91,11 @@ sha256sum runtime/sub2api
 - 当前 Release Manifest 和校验和。
 
 备份文件不得提交到仓库或上传为公开 Artifact。
+
+迁移 local Compose 时，完整归档必须包含 `data/`、`runtime/`、
+`postgres_data/`、`redis_data/`、`.env` 和配置文件；恢复后先核验 runtime
+文件类型、版本与 SHA256，再启动服务。standalone Compose 的
+`sub2api_runtime` 命名卷必须单独导出和恢复。
 
 ## 6. 在线更新
 
