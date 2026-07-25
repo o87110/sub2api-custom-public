@@ -482,6 +482,23 @@ func TestSelectCreateOrderInstanceUsesExplicitProviderKey(t *testing.T) {
 	}
 }
 
+func TestRevalidateSelectedCreateOrderInstanceFailsClosed(t *testing.T) {
+	loadBalancer := &createOrderCaptureLoadBalancer{revalidateValid: false}
+	svc := &PaymentService{loadBalancer: loadBalancer}
+	err := svc.revalidateSelectedCreateOrderInstance(
+		context.Background(),
+		CreateOrderRequest{
+			PaymentType: payment.TypeAlipay,
+			ProviderKey: payment.TypeEasyPay,
+		},
+		50,
+		&payment.InstanceSelection{ProviderKey: payment.TypeEasyPay},
+	)
+	if infraerrors.Reason(err) != "NO_AVAILABLE_INSTANCE" {
+		t.Fatalf("reason = %q, want NO_AVAILABLE_INSTANCE", infraerrors.Reason(err))
+	}
+}
+
 func TestValidateCreateOrderProviderSelectionRejectsInvalidCombination(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -511,6 +528,7 @@ func TestValidateCreateOrderProviderSelectionRejectsInvalidCombination(t *testin
 
 type createOrderCaptureLoadBalancer struct {
 	lastProviderKey string
+	revalidateValid bool
 }
 
 func (c *createOrderCaptureLoadBalancer) GetInstanceConfig(context.Context, int64) (map[string]string, error) {
@@ -523,6 +541,10 @@ func (c *createOrderCaptureLoadBalancer) SelectInstance(_ context.Context, provi
 		ProviderKey:    providerKey,
 		SupportedTypes: paymentType,
 	}, nil
+}
+
+func (c *createOrderCaptureLoadBalancer) RevalidateSelection(context.Context, *payment.InstanceSelection, payment.PaymentType, float64) (bool, error) {
+	return c.revalidateValid, nil
 }
 
 func TestMaybeBuildWeChatOAuthRequiredResponseRequiresMPConfigInWeChat(t *testing.T) {

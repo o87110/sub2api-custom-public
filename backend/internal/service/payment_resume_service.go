@@ -195,6 +195,10 @@ func (lb *visibleMethodLoadBalancer) GetInstanceConfig(ctx context.Context, inst
 	return lb.inner.GetInstanceConfig(ctx, instanceID)
 }
 
+func (lb *visibleMethodLoadBalancer) RevalidateSelection(ctx context.Context, selection *payment.InstanceSelection, paymentType payment.PaymentType, orderAmount float64) (bool, error) {
+	return lb.inner.RevalidateSelection(ctx, selection, paymentType, orderAmount)
+}
+
 func (lb *visibleMethodLoadBalancer) SelectInstance(ctx context.Context, providerKey string, paymentType payment.PaymentType, strategy payment.Strategy, orderAmount float64) (*payment.InstanceSelection, error) {
 	visibleMethod := NormalizeVisibleMethod(paymentType)
 	if providerKey != "" || (visibleMethod != payment.TypeAlipay && visibleMethod != payment.TypeWxpay) {

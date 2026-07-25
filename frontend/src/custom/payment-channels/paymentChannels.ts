@@ -13,6 +13,10 @@ export interface PaymentChannelOption {
   daily_limit: number
   single_min: number
   single_max: number
+  amount_ranges?: Array<{
+    single_min: number
+    single_max: number
+  }>
   available: boolean
   capabilities?: string[]
   legacy?: boolean
@@ -142,11 +146,26 @@ function normalizeApiOption(raw: PaymentMethodOption): PaymentChannelOption | nu
     daily_limit: finiteNumber(raw.daily_limit),
     single_min: finiteNumber(raw.single_min),
     single_max: finiteNumber(raw.single_max),
+    amount_ranges: normalizeAmountRanges(raw.amount_ranges),
     available: raw.available !== false,
     capabilities: Array.isArray(raw.capabilities)
       ? raw.capabilities.filter((capability): capability is string => typeof capability === 'string')
       : undefined,
   }
+}
+
+function normalizeAmountRanges(
+  ranges: PaymentMethodOption['amount_ranges'],
+): PaymentChannelOption['amount_ranges'] {
+  if (!Array.isArray(ranges) || ranges.length === 0) return undefined
+  const normalized = ranges
+    .filter(range => !!range && typeof range === 'object')
+    .map(range => ({
+      single_min: finiteNumber(range.single_min),
+      single_max: finiteNumber(range.single_max),
+    }))
+    .filter(range => range.single_max <= 0 || range.single_min <= range.single_max)
+  return normalized.length > 0 ? normalized : undefined
 }
 
 function buildLegacyOption(

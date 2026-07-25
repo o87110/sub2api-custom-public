@@ -170,7 +170,7 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 
 type checkoutInfoResponse struct {
 	Methods                       map[string]service.MethodLimits `json:"methods"`
-	MethodOptions                 []paymentchannels.MethodOption `json:"method_options"`
+	MethodOptions                 []paymentchannels.MethodOption  `json:"method_options"`
 	GlobalMin                     float64                         `json:"global_min"`
 	GlobalMax                     float64                         `json:"global_max"`
 	Plans                         []checkoutPlan                  `json:"plans"`

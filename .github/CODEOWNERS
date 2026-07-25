@@ -25,6 +25,7 @@
 /backend/internal/repository/content_moderation_repo.go @o87110
 /backend/internal/repository/content_moderation_repo_test.go @o87110
 /backend/internal/payment/load_balancer.go @o87110
+/backend/internal/payment/types.go @o87110
 /backend/internal/service/content_moderation.go @o87110
 /backend/internal/service/custom_moderation_bridge.go @o87110
 /backend/internal/service/custom_moderation_bridge_test.go @o87110
@@ -35,6 +36,7 @@
 /backend/internal/service/payment_order.go @o87110
 /backend/internal/service/payment_order_result_test.go @o87110
 /backend/internal/service/payment_resume_service.go @o87110
+/backend/internal/service/payment_resume_service_test.go @o87110
 /backend/internal/service/payment_service.go @o87110
 /deploy/docker-compose.custom.yml @o87110
 /deploy/docker-entrypoint.sh @o87110
@@ -52,6 +54,7 @@
 /frontend/src/api/__tests__/admin.system.rollback.spec.ts @o87110
 /frontend/src/custom/** @o87110
 /frontend/src/components/layout/AppSidebar.vue @o87110
+/frontend/src/components/payment/AmountInput.vue @o87110
 /frontend/src/components/payment/paymentFlow.ts @o87110
 /frontend/src/components/payment/__tests__/paymentFlow.spec.ts @o87110
 /frontend/src/i18n/locales/en/misc.ts @o87110

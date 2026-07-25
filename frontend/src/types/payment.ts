@@ -63,6 +63,11 @@ export interface PaymentMethodOption {
   daily_limit: number
   single_min: number
   single_max: number
+  /** Contiguous gateway amount intervals; absent on legacy backends. Zero means unbounded. */
+  amount_ranges?: Array<{
+    single_min: number
+    single_max: number
+  }>
   available: boolean
   capabilities?: string[]
 }

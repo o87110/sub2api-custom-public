@@ -162,6 +162,31 @@ describe('normalizePaymentChannelOptions', () => {
       'easypay_ldc',
     ])
   })
+
+  it('preserves disjoint amount ranges from the provider group', () => {
+    const options = normalizePaymentChannelOptions(checkout({
+      method_options: [{
+        id: 'easypay_alipay',
+        payment_type: 'alipay',
+        provider_key: 'easypay',
+        currency: 'CNY',
+        fee_rate: 0,
+        daily_limit: 0,
+        single_min: 1,
+        single_max: 100,
+        amount_ranges: [
+          { single_min: 1, single_max: 10 },
+          { single_min: 20, single_max: 100 },
+        ],
+        available: true,
+      }],
+    }))
+
+    expect(options[0].amount_ranges).toEqual([
+      { single_min: 1, single_max: 10 },
+      { single_min: 20, single_max: 100 },
+    ])
+  })
 })
 
 describe('isGatewayChannelFailureCode', () => {

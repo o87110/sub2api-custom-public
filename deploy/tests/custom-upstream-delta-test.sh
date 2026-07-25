@@ -183,13 +183,16 @@ thin_bridge_allowed() {
       backend/internal/handler/payment_handler_resume_test.go | \
       backend/internal/handler/wire.go | \
       backend/internal/payment/load_balancer.go | \
+      backend/internal/payment/types.go | \
       backend/internal/service/content_moderation.go | \
       backend/internal/service/payment_config_limits.go | \
       backend/internal/service/payment_config_limits_test.go | \
       backend/internal/service/payment_order.go | \
       backend/internal/service/payment_order_result_test.go | \
       backend/internal/service/payment_resume_service.go | \
+      backend/internal/service/payment_resume_service_test.go | \
       backend/internal/service/payment_service.go | \
+      frontend/src/components/payment/AmountInput.vue | \
       frontend/src/components/payment/paymentFlow.ts | \
       frontend/src/components/payment/__tests__/paymentFlow.spec.ts | \
       frontend/src/components/layout/AppSidebar.vue | \

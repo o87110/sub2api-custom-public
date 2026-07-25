@@ -118,6 +118,38 @@ func TestBuildMethodOptionsAggregatesWithinProviderOnly(t *testing.T) {
 	}
 }
 
+func TestBuildMethodOptionsPreservesDisjointInstanceRanges(t *testing.T) {
+	options := BuildMethodOptions([]Instance{
+		{
+			ID:           1,
+			ProviderKey:  ProviderEasyPay,
+			PaymentTypes: []string{MethodAlipay},
+			Currency:     "CNY",
+			Limits:       map[string]Limits{MethodAlipay: {SingleMin: 1, SingleMax: 10}},
+		},
+		{
+			ID:           2,
+			ProviderKey:  ProviderEasyPay,
+			PaymentTypes: []string{MethodAlipay},
+			Currency:     "CNY",
+			Limits:       map[string]Limits{MethodAlipay: {SingleMin: 20, SingleMax: 100}},
+		},
+	}, 0, false)
+
+	if len(options) != 1 {
+		t.Fatalf("options len = %d, want 1", len(options))
+	}
+	if got, want := options[0].AmountRanges, []AmountRange{
+		{SingleMin: 1, SingleMax: 10},
+		{SingleMin: 20, SingleMax: 100},
+	}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("amount ranges = %+v, want %+v", got, want)
+	}
+	if options[0].SingleMin != 1 || options[0].SingleMax != 10 {
+		t.Fatalf("legacy safe range = %v-%v, want 1-10", options[0].SingleMin, options[0].SingleMax)
+	}
+}
+
 func TestBuildMethodOptionsOmitsOnlyMixedCurrencyChannel(t *testing.T) {
 	instances := []Instance{
 		{ID: 1, ProviderKey: ProviderEasyPay, PaymentTypes: []string{MethodAlipay}, Currency: "CNY"},

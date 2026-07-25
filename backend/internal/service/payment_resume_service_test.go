@@ -809,6 +809,10 @@ func (c *captureLoadBalancer) SelectInstance(_ context.Context, providerKey stri
 	return &payment.InstanceSelection{ProviderKey: providerKey, SupportedTypes: paymentType}, nil
 }
 
+func (c *captureLoadBalancer) RevalidateSelection(context.Context, *payment.InstanceSelection, payment.PaymentType, float64) (bool, error) {
+	return true, nil
+}
+
 func mustCreateFallbackSignedToken(t *testing.T, claims any) string {
 	t.Helper()
 

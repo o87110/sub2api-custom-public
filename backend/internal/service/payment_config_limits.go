@@ -223,24 +223,7 @@ func (s *PaymentConfigService) pcPaymentChannelInstances(instances []*dbent.Paym
 		if instance == nil {
 			continue
 		}
-		paymentTypes := make([]string, 0)
-		seenPaymentTypes := make(map[string]struct{})
-		if instance.ProviderKey == payment.TypeStripe {
-			paymentTypes = append(paymentTypes, payment.TypeStripe)
-			seenPaymentTypes[payment.TypeStripe] = struct{}{}
-		} else {
-			for _, supportedType := range splitTypes(instance.SupportedTypes) {
-				normalized := NormalizeVisibleMethod(supportedType)
-				if normalized == "" {
-					continue
-				}
-				if _, exists := seenPaymentTypes[normalized]; exists {
-					continue
-				}
-				seenPaymentTypes[normalized] = struct{}{}
-				paymentTypes = append(paymentTypes, normalized)
-			}
-		}
+		paymentTypes := pcInstancePaymentTypes(instance)
 
 		limits := make(map[string]paymentchannels.Limits)
 		displayNames := make(map[string]string)
@@ -282,15 +265,38 @@ func pcInstancePaymentChannelLimits(instance *dbent.PaymentProviderInstance, pay
 	}
 }
 
-func pcInstanceSupportsPaymentType(instance *dbent.PaymentProviderInstance, paymentType string) bool {
+func pcInstancePaymentTypes(instance *dbent.PaymentProviderInstance) []string {
 	if instance == nil {
-		return false
+		return nil
 	}
-	if instance.ProviderKey == payment.TypeStripe && paymentType == payment.TypeStripe {
-		return true
+	if instance.ProviderKey == payment.TypeStripe {
+		return []string{payment.TypeStripe}
 	}
+	if instance.ProviderKey == payment.TypeAlipay ||
+		instance.ProviderKey == payment.TypeWxpay ||
+		instance.ProviderKey == payment.TypeEasyPay {
+		return enabledVisibleMethodsForProvider(instance.ProviderKey, instance.SupportedTypes)
+	}
+
+	paymentTypes := make([]string, 0)
+	seenPaymentTypes := make(map[string]struct{})
 	for _, supportedType := range splitTypes(instance.SupportedTypes) {
-		if NormalizeVisibleMethod(supportedType) == paymentType {
+		normalized := NormalizeVisibleMethod(supportedType)
+		if normalized == "" {
+			continue
+		}
+		if _, exists := seenPaymentTypes[normalized]; exists {
+			continue
+		}
+		seenPaymentTypes[normalized] = struct{}{}
+		paymentTypes = append(paymentTypes, normalized)
+	}
+	return paymentTypes
+}
+
+func pcInstanceSupportsPaymentType(instance *dbent.PaymentProviderInstance, paymentType string) bool {
+	for _, supportedType := range pcInstancePaymentTypes(instance) {
+		if supportedType == paymentType {
 			return true
 		}
 	}

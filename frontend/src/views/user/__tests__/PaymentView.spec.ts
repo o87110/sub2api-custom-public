@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, shallowMount } from '@vue/test-utils'
+import { flushPromises, mount, shallowMount } from '@vue/test-utils'
 import PaymentView from '../PaymentView.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
@@ -43,7 +43,16 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key,
+      t: (key: string, params?: string | Record<string, unknown>) => {
+        if (
+          key === 'payment.errors.switchChannelHint'
+          && params
+          && typeof params === 'object'
+        ) {
+          return `${key}:${String(params.channel || '')}`
+        }
+        return key
+      },
     }),
   }
 })
@@ -361,6 +370,23 @@ describe('PaymentView subscription confirmation amounts', () => {
     expect(text).toContain(total)
     expect(wrapper.findAll('button').some(button => button.text().includes(total))).toBe(true)
   })
+
+  it('rounds subscription conversion with decimal half-up semantics', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: {
+        subscription_usd_to_cny_rate: 7.25,
+      },
+      method: {
+        currency: 'CNY',
+      },
+      plan: {
+        price: 1.14,
+      },
+    })
+
+    expect(wrapper.text()).toContain(formatPaymentAmount(8.27, 'CNY'))
+    expect(wrapper.text()).not.toContain(formatPaymentAmount(8.26, 'CNY'))
+  })
 })
 
 describe('PaymentView provider channel selection', () => {
@@ -563,6 +589,146 @@ describe('PaymentView provider channel selection', () => {
     const amountInput = wrapper.findComponent(AmountInput)
     expect(amountInput.props('min')).toBe(9.75)
     expect(amountInput.props('max')).toBe(97.56)
+  })
+
+  it('calculates fee boundaries without binary floating-point overcharge', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [
+        { ...alipayChannels[0], fee_rate: 7, single_max: 1.07 },
+      ],
+    })
+
+    const amountInput = wrapper.findComponent(AmountInput)
+    amountInput.vm.$emit('update:modelValue', 1)
+    await flushPromises()
+
+    expect(amountInput.props('max')).toBe(1)
+    expect(wrapper.text()).toContain(formatPaymentAmount(0.07, 'CNY'))
+    expect(wrapper.text()).toContain(formatPaymentAmount(1.07, 'CNY'))
+  })
+
+  it('disables recharge for a fractional amount in a zero-decimal currency', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [
+        { ...alipayChannels[0], currency: 'JPY' },
+      ],
+    })
+
+    wrapper.findComponent(AmountInput).vm.$emit('update:modelValue', 10.5)
+    await flushPromises()
+
+    const selector = wrapper.findComponent(PaymentChannelSelector)
+    expect(selector.props('methods')).toEqual([
+      expect.objectContaining({ id: 'easypay_alipay', available: false }),
+    ])
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit?.attributes('disabled')).toBeDefined()
+    expect(createOrder).not.toHaveBeenCalled()
+  })
+
+  it('disables subscriptions whose price is fractional in a zero-decimal currency', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: {
+        method_options: [
+          { ...alipayChannels[0], currency: 'JPY' },
+        ],
+      },
+      plan: { price: 10.5 },
+    })
+
+    const selector = wrapper.findComponent(PaymentChannelSelector)
+    expect(selector.props('methods')).toEqual([
+      expect.objectContaining({ id: 'easypay_alipay', available: false }),
+    ])
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit?.attributes('disabled')).toBeDefined()
+    expect(createOrder).not.toHaveBeenCalled()
+  })
+
+  it('suggests a backup relative to the channel that actually made the request', async () => {
+    let rejectRequest: (reason?: unknown) => void = () => {}
+    const wrapper = await mountRecharge({ method_options: alipayChannels })
+    createOrder.mockImplementation(() => new Promise((_, reject) => {
+      rejectRequest = reject
+    }))
+    wrapper.findComponent(AmountInput).vm.$emit('update:modelValue', 10)
+    await flushPromises()
+
+    const selector = wrapper.findComponent(PaymentChannelSelector)
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(selector.props('selected')).toBe('easypay_alipay')
+    await submit!.trigger('click')
+    await Promise.resolve()
+    expect(createOrder).toHaveBeenCalledTimes(1)
+
+    selector.vm.$emit('select', 'official_alipay')
+    await flushPromises()
+    rejectRequest({ reason: 'NO_AVAILABLE_INSTANCE' })
+    await flushPromises()
+
+    const message = String(showError.mock.calls.at(-1)?.[0] || '')
+    expect(message).toContain('payment.channels.officialAlipay')
+    expect(message).not.toContain('payment.channels.easypayAlipay')
+  })
+
+  it('does not expose a false amount inside a gap between provider instances', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [{
+        ...alipayChannels[0],
+        single_min: 1,
+        single_max: 10,
+        amount_ranges: [
+          { single_min: 1, single_max: 10 },
+          { single_min: 20, single_max: 100 },
+        ],
+      }],
+    })
+
+    wrapper.findComponent(AmountInput).vm.$emit('update:modelValue', 15)
+    await flushPromises()
+
+    expect(wrapper.findComponent(PaymentChannelSelector).props('methods')).toEqual([
+      expect.objectContaining({ id: 'easypay_alipay', available: false }),
+    ])
+    expect(wrapper.findComponent(AmountInput).props('max')).toBe(100)
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit?.attributes('disabled')).toBeDefined()
+    expect(createOrder).not.toHaveBeenCalled()
+  })
+
+  it('uses three-decimal principal limits for KWD', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [{
+        ...alipayChannels[0],
+        currency: 'KWD',
+        single_min: 1.001,
+        single_max: 1.009,
+      }],
+    })
+
+    const amountInput = wrapper.findComponent(AmountInput)
+    expect(amountInput.props('min')).toBe(1.001)
+    expect(amountInput.props('max')).toBe(1.009)
+  })
+})
+
+describe('AmountInput currency symbol', () => {
+  it('renders the selected currency symbol and keeps legacy USD as the default', async () => {
+    const wrapper = mount(AmountInput, {
+      props: { modelValue: 10 },
+    })
+    expect(wrapper.get('[data-test="amount-currency-symbol"]').text()).toBe('$')
+
+    await wrapper.setProps({ currency: 'CNY' })
+    expect(wrapper.get('[data-test="amount-currency-symbol"]').text()).toBe('¥')
+
+    await wrapper.setProps({ currency: 'HKD' })
+    expect(wrapper.get('[data-test="amount-currency-symbol"]').text()).toBe('HK$')
+    expect(wrapper.get('input').classes()).toContain('pl-14')
+
+    await wrapper.setProps({ currency: 'KWD' })
+    await wrapper.get('input').setValue('1.001')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([1.001])
   })
 })
 

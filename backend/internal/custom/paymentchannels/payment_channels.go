@@ -41,18 +41,25 @@ type Instance struct {
 // MethodOption is the stable public representation of a selectable payment
 // channel. Multiple instances with the same payment type and provider key are
 // folded into one option.
+// AmountRange is one contiguous gateway amount interval. Zero means unbounded.
+type AmountRange struct {
+	SingleMin float64 `json:"single_min"`
+	SingleMax float64 `json:"single_max"`
+}
+
 type MethodOption struct {
-	ID           string   `json:"id"`
-	PaymentType  string   `json:"payment_type"`
-	ProviderKey  string   `json:"provider_key"`
-	DisplayName  string   `json:"display_name,omitempty"`
-	Currency     string   `json:"currency"`
-	FeeRate      float64  `json:"fee_rate"`
-	DailyLimit   float64  `json:"daily_limit"`
-	SingleMin    float64  `json:"single_min"`
-	SingleMax    float64  `json:"single_max"`
-	Available    bool     `json:"available"`
-	Capabilities []string `json:"capabilities,omitempty"`
+	ID           string        `json:"id"`
+	PaymentType  string        `json:"payment_type"`
+	ProviderKey  string        `json:"provider_key"`
+	DisplayName  string        `json:"display_name,omitempty"`
+	Currency     string        `json:"currency"`
+	FeeRate      float64       `json:"fee_rate"`
+	DailyLimit   float64       `json:"daily_limit"`
+	SingleMin    float64       `json:"single_min"`
+	SingleMax    float64       `json:"single_max"`
+	AmountRanges []AmountRange `json:"amount_ranges,omitempty"`
+	Available    bool          `json:"available"`
+	Capabilities []string      `json:"capabilities,omitempty"`
 }
 
 type channelKey struct {
@@ -96,17 +103,19 @@ func BuildMethodOptions(instances []Instance, feeRate float64, alipayMobilePrecr
 			continue
 		}
 		limits := aggregateLimits(key.paymentType, groupedInstances)
+		amountRanges := aggregateAmountRanges(key.paymentType, groupedInstances)
 		option := MethodOption{
-			ID:          StableID(key.paymentType, key.providerKey),
-			PaymentType: key.paymentType,
-			ProviderKey: key.providerKey,
-			DisplayName: aggregateDisplayName(key.paymentType, groupedInstances),
-			Currency:    currency,
-			FeeRate:     feeRate,
-			DailyLimit:  limits.DailyLimit,
-			SingleMin:   limits.SingleMin,
-			SingleMax:   limits.SingleMax,
-			Available:   true,
+			ID:           StableID(key.paymentType, key.providerKey),
+			PaymentType:  key.paymentType,
+			ProviderKey:  key.providerKey,
+			DisplayName:  aggregateDisplayName(key.paymentType, groupedInstances),
+			Currency:     currency,
+			FeeRate:      feeRate,
+			DailyLimit:   limits.DailyLimit,
+			SingleMin:    limits.SingleMin,
+			SingleMax:    limits.SingleMax,
+			AmountRanges: amountRanges,
+			Available:    len(amountRanges) > 0,
 		}
 		if alipayMobilePrecreateDeepLink &&
 			key.paymentType == MethodAlipay &&
@@ -221,26 +230,79 @@ func aggregateDisplayName(paymentType string, instances []Instance) string {
 	return displayName
 }
 
-func aggregateLimits(paymentType string, instances []Instance) Limits {
-	limits := Limits{}
-	minLimited, maxLimited, dailyLimited := true, true, true
+func aggregateAmountRanges(paymentType string, instances []Instance) []AmountRange {
+	ranges := make([]AmountRange, 0, len(instances))
 	for _, instance := range instances {
 		channelLimits, ok := instance.Limits[paymentType]
 		if !ok {
-			return Limits{}
+			channelLimits = Limits{}
 		}
-		limits.SingleMin, minLimited = unionFloat(limits.SingleMin, minLimited, channelLimits.SingleMin, true)
-		limits.SingleMax, maxLimited = unionFloat(limits.SingleMax, maxLimited, channelLimits.SingleMax, false)
+		if channelLimits.SingleMin > 0 && channelLimits.SingleMax > 0 &&
+			channelLimits.SingleMin > channelLimits.SingleMax {
+			continue
+		}
+		ranges = append(ranges, AmountRange{
+			SingleMin: channelLimits.SingleMin,
+			SingleMax: channelLimits.SingleMax,
+		})
+	}
+	if len(ranges) < 2 {
+		return ranges
+	}
+
+	sort.Slice(ranges, func(i, j int) bool {
+		if ranges[i].SingleMin != ranges[j].SingleMin {
+			return ranges[i].SingleMin < ranges[j].SingleMin
+		}
+		if ranges[i].SingleMax == 0 {
+			return false
+		}
+		if ranges[j].SingleMax == 0 {
+			return true
+		}
+		return ranges[i].SingleMax < ranges[j].SingleMax
+	})
+
+	merged := make([]AmountRange, 0, len(ranges))
+	for _, next := range ranges {
+		if len(merged) == 0 {
+			merged = append(merged, next)
+			continue
+		}
+		current := &merged[len(merged)-1]
+		if current.SingleMax != 0 && next.SingleMin > current.SingleMax {
+			merged = append(merged, next)
+			continue
+		}
+		if current.SingleMax == 0 || next.SingleMax == 0 {
+			current.SingleMax = 0
+		} else if next.SingleMax > current.SingleMax {
+			current.SingleMax = next.SingleMax
+		}
+	}
+	return merged
+}
+
+func aggregateLimits(paymentType string, instances []Instance) Limits {
+	limits := Limits{}
+	dailyLimited := true
+	for _, instance := range instances {
+		channelLimits, ok := instance.Limits[paymentType]
+		if !ok {
+			channelLimits = Limits{}
+		}
 		limits.DailyLimit, dailyLimited = unionFloat(limits.DailyLimit, dailyLimited, channelLimits.DailyLimit, false)
-	}
-	if !minLimited {
-		limits.SingleMin = 0
-	}
-	if !maxLimited {
-		limits.SingleMax = 0
 	}
 	if !dailyLimited {
 		limits.DailyLimit = 0
+	}
+
+	ranges := aggregateAmountRanges(paymentType, instances)
+	if len(ranges) > 0 {
+		// Legacy clients can express only one interval. Expose the first safe
+		// contiguous range instead of a hull that would admit gap amounts.
+		limits.SingleMin = ranges[0].SingleMin
+		limits.SingleMax = ranges[0].SingleMax
 	}
 	return limits
 }

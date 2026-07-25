@@ -583,6 +583,136 @@ func TestGetAvailableMethodOptionsSeparatesVisibleMethodProviders(t *testing.T) 
 	require.Equal(t, []string{"alipay_mobile_precreate_deep_link"}, options[1].Capabilities)
 }
 
+func TestGetAvailableMethodOptionsIncludesLegacyOfficialEmptySupportedTypes(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	for _, instance := range []struct {
+		providerKey   string
+		name          string
+		supportedType string
+	}{
+		{payment.TypeAlipay, "Legacy Official Alipay", ""},
+		{payment.TypeEasyPay, "EasyPay", "alipay,wxpay"},
+		{payment.TypeWxpay, "Legacy Official WeChat", ""},
+		{payment.TypeAirwallex, "Airwallex", payment.TypeAirwallex},
+	} {
+		_, err := client.PaymentProviderInstance.Create().
+			SetProviderKey(instance.providerKey).
+			SetName(instance.name).
+			SetConfig("{}").
+			SetSupportedTypes(instance.supportedType).
+			SetLimits("{}").
+			SetEnabled(true).
+			Save(ctx)
+		require.NoError(t, err)
+	}
+
+	svc := &PaymentConfigService{
+		entClient:   client,
+		settingRepo: &paymentConfigSettingRepoStub{values: map[string]string{}},
+	}
+	options, err := svc.GetAvailableMethodOptions(ctx, 0, false)
+	require.NoError(t, err)
+	require.Len(t, options, 5)
+	require.Equal(t, []string{
+		"easypay_alipay",
+		"official_alipay",
+		"easypay_wxpay",
+		"official_wxpay",
+		"airwallex",
+	}, []string{options[0].ID, options[1].ID, options[2].ID, options[3].ID, options[4].ID})
+
+	valid, err := svc.HasConfiguredProviderPaymentType(ctx, payment.TypeAlipay, payment.TypeAlipay)
+	require.NoError(t, err)
+	require.True(t, valid)
+	valid, err = svc.HasConfiguredProviderPaymentType(ctx, payment.TypeWxpay, payment.TypeWxpay)
+	require.NoError(t, err)
+	require.True(t, valid)
+}
+
+func TestDefaultLoadBalancerRevalidatesSelectedInstanceState(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	instance, err := client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeEasyPay).
+		SetName("EasyPay").
+		SetConfig("{}").
+		SetSupportedTypes(payment.TypeAlipay).
+		SetLimits(`{"alipay":{"singleMin":1,"singleMax":100}}`).
+		SetEnabled(true).
+		Save(ctx)
+	require.NoError(t, err)
+
+	loadBalancer := payment.NewDefaultLoadBalancer(client, nil)
+	selection, err := loadBalancer.SelectInstance(
+		ctx,
+		payment.TypeEasyPay,
+		payment.TypeAlipay,
+		payment.StrategyRoundRobin,
+		10,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	valid, err := loadBalancer.RevalidateSelection(ctx, selection, payment.TypeAlipay, 10)
+	require.NoError(t, err)
+	require.True(t, valid)
+
+	_, err = client.PaymentProviderInstance.UpdateOneID(instance.ID).
+		SetEnabled(false).
+		Save(ctx)
+	require.NoError(t, err)
+	valid, err = loadBalancer.RevalidateSelection(ctx, selection, payment.TypeAlipay, 10)
+	require.NoError(t, err)
+	require.False(t, valid)
+
+	_, err = client.PaymentProviderInstance.UpdateOneID(instance.ID).
+		SetEnabled(true).
+		SetLimits(`{"alipay":{"singleMin":1,"singleMax":100}}`).
+		Save(ctx)
+	require.NoError(t, err)
+	selection, err = loadBalancer.SelectInstance(
+		ctx,
+		payment.TypeEasyPay,
+		payment.TypeAlipay,
+		payment.StrategyRoundRobin,
+		10,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+
+	_, err = client.PaymentProviderInstance.UpdateOneID(instance.ID).
+		SetConfig(`{"merchantId":"changed"}`).
+		Save(ctx)
+	require.NoError(t, err)
+	valid, err = loadBalancer.RevalidateSelection(ctx, selection, payment.TypeAlipay, 10)
+	require.NoError(t, err)
+	require.False(t, valid)
+
+	selection, err = loadBalancer.SelectInstance(
+		ctx,
+		payment.TypeEasyPay,
+		payment.TypeAlipay,
+		payment.StrategyRoundRobin,
+		10,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	_, err = client.PaymentProviderInstance.UpdateOneID(instance.ID).
+		SetLimits(`{"alipay":{"singleMin":20,"singleMax":100}}`).
+		Save(ctx)
+	require.NoError(t, err)
+	valid, err = loadBalancer.RevalidateSelection(ctx, selection, payment.TypeAlipay, 10)
+	require.NoError(t, err)
+	require.False(t, valid)
+
+	canceledCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	valid, err = loadBalancer.RevalidateSelection(canceledCtx, selection, payment.TypeAlipay, 10)
+	require.Error(t, err)
+	require.False(t, valid)
+}
+
 func TestValidateMethodProviderCurrencyConsistencyDoesNotMixProviders(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)

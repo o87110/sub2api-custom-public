@@ -84,6 +84,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if err != nil {
 		return nil, err
 	}
+	if err := s.revalidateSelectedCreateOrderInstance(ctx, req, payAmount, sel); err != nil {
+		return nil, err
+	}
 	if err := s.validateSelectedCreateOrderInstance(ctx, req, sel); err != nil {
 		return nil, err
 	}
@@ -432,6 +435,9 @@ func (s *PaymentService) usesOfficialWxpayVisibleMethod(ctx context.Context) boo
 }
 
 func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.PaymentOrder, req CreateOrderRequest, cfg *PaymentConfig, limitAmount float64, payAmountStr string, payAmount float64, plan *dbent.SubscriptionPlan, sel *payment.InstanceSelection) (*CreateOrderResponse, error) {
+	if err := s.revalidateSelectedCreateOrderInstance(ctx, req, 0, sel); err != nil {
+		return nil, err
+	}
 	prov, err := provider.CreateProvider(sel.ProviderKey, sel.InstanceID, sel.Config)
 	if err != nil {
 		slog.Error("[PaymentService] CreateProvider failed", "provider", sel.ProviderKey, "instance", sel.InstanceID, "error", err)
@@ -647,6 +653,21 @@ func (s *PaymentService) buildWeChatOAuthRequiredResponse(ctx context.Context, r
 			RedirectURL:  "/auth/wechat/payment/callback",
 		},
 	}, nil
+}
+
+func (s *PaymentService) revalidateSelectedCreateOrderInstance(ctx context.Context, req CreateOrderRequest, payAmount float64, sel *payment.InstanceSelection) error {
+	valid, err := s.loadBalancer.RevalidateSelection(ctx, sel, req.PaymentType, payAmount)
+	if err != nil {
+		return infraerrors.ServiceUnavailable("PAYMENT_GATEWAY_ERROR", "payment_instance_revalidation_failed").
+			WithMetadata(map[string]string{
+				"payment_type": req.PaymentType,
+				"provider_key": req.ProviderKey,
+			})
+	}
+	if !valid {
+		return infraerrors.TooManyRequests("NO_AVAILABLE_INSTANCE", "no_available_instance")
+	}
+	return nil
 }
 
 func (s *PaymentService) validateSelectedCreateOrderInstance(ctx context.Context, req CreateOrderRequest, sel *payment.InstanceSelection) error {

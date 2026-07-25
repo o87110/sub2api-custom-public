@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-50}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-52}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 50 ]]; then
+if [[ "$expected_count" -eq 52 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -61,7 +61,10 @@ if [[ "$expected_count" -eq 50 ]]; then
   assert_mapping $'backend/internal/service/payment_order.go\tbackend/internal/custom/paymentchannels/payment_channels.go'
   assert_mapping $'backend/internal/handler/payment_handler.go\tbackend/internal/custom/paymentchannels/payment_channels.go'
   assert_mapping $'backend/internal/payment/load_balancer.go\tbackend/internal/custom/paymentchannels/payment_channels.go'
-  assert_mapping $'frontend/src/views/user/PaymentView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts'
+  assert_mapping $'backend/internal/service/payment_resume_service_test.go\tbackend/internal/custom/paymentchannels/payment_channels_test.go'
+  assert_mapping $'frontend/src/components/payment/AmountInput.vue\tfrontend/src/custom/payment-channels/paymentMoney.ts'
+  assert_mapping $'frontend/src/views/user/PaymentView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/paymentMoney.ts'
+  assert_mapping $'frontend/src/views/user/__tests__/PaymentView.spec.ts\tfrontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/paymentMoney.spec.ts'
   assert_mapping $'frontend/src/views/admin/SettingsView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts'
   assert_mapping $'frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts\tfrontend/src/custom/payment-channels/paymentChannels.spec.ts'
   assert_mapping $'frontend/src/views/user/__tests__/paymentWechatResume.spec.ts\tfrontend/src/custom/payment-channels/paymentChannels.spec.ts'
@@ -295,6 +298,7 @@ backend/internal/service/payment_config_limits_test.go
 backend/internal/service/payment_order.go
 backend/internal/service/payment_order_result_test.go
 backend/internal/service/payment_resume_service.go
+backend/internal/service/payment_resume_service_test.go
 backend/internal/service/payment_service.go
 backend/internal/service/update_service.go
 backend/internal/service/update_service_test.go
@@ -303,6 +307,7 @@ frontend/src/api/__tests__/admin.system.rollback.spec.ts
 frontend/src/api/admin/system.ts
 frontend/src/components/common/VersionBadge.vue
 frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts
+frontend/src/components/payment/AmountInput.vue
 frontend/src/components/payment/paymentFlow.ts
 frontend/src/components/payment/__tests__/paymentFlow.spec.ts
 frontend/src/i18n/locales/en/dashboard.ts
