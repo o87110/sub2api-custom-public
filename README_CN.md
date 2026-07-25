@@ -355,7 +355,7 @@ docker compose logs -f sub2api
 - 自动生成安全凭证（JWT_SECRET、TOTP_ENCRYPTION_KEY、POSTGRES_PASSWORD）
 - 创建 `.env` 文件并填充自动生成的密钥
 - 要求将 `SUB2API_IMAGE` 固定为公开二改 Release 的准确标签或 Digest
-- 创建数据目录（使用本地目录，便于备份和迁移）
+- 创建持久化目录（`data/`、`runtime/`、`postgres_data/`、`redis_data/`）
 - 显示生成的凭证供你记录
 
 #### 手动部署
@@ -408,8 +408,8 @@ openssl rand -hex 32
 ```
 
 ```bash
-# 4. 创建数据目录（本地版）
-mkdir -p data postgres_data redis_data
+# 4. 创建持久化目录（本地版）
+mkdir -p data runtime postgres_data redis_data
 
 # 5. 启动所有服务
 # 选项 A：本地目录版（推荐 - 易于迁移）
@@ -429,7 +429,7 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 | 版本 | 数据存储 | 迁移便利性 | 适用场景 |
 |------|---------|-----------|---------|
-| **docker-compose.local.yml** | 本地目录 | ✅ 简单（打包整个目录） | 生产环境、频繁备份 |
+| **docker-compose.local.yml** | 本地目录（`data/`、`runtime/`、`postgres_data/`、`redis_data/`） | ✅ 简单（打包整个目录） | 生产环境、频繁备份 |
 | **docker-compose.yml** | 命名卷 | ⚠️ 需要 docker 命令 | 简单设置 |
 
 **推荐：** 使用 `docker-compose.local.yml`（脚本部署）以便更轻松地管理数据。
@@ -457,8 +457,64 @@ docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
 
 #### 升级
 
+每次升级前都要备份数据库和配置。如果当前容器由未挂载 `/app/runtime` 的旧版
+Compose 创建，首次执行 `up -d` 前必须运行下面的一次性保全步骤。旧容器会一直
+保留到 runtime 完成导出和核验；已经挂载 `./runtime:/app/runtime` 的部署会自动
+跳过导出。
+
 ```bash
-# 拉取最新镜像并重建容器
+set -eu
+container_id="$(docker compose -f docker-compose.local.yml ps -q sub2api)"
+test -n "$container_id"
+
+if ! docker inspect "$container_id" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -qx '/app/runtime'; then
+  docker exec "$container_id" test ! -L /app/runtime/sub2api
+  docker exec "$container_id" test -f /app/runtime/sub2api
+  docker exec "$container_id" test -x /app/runtime/sub2api
+  docker exec --user sub2api "$container_id" /app/runtime/sub2api --version
+  backup_present=0
+  if docker exec "$container_id" test -L /app/runtime/sub2api.backup; then
+    echo "拒绝导出符号链接形式的 runtime 备份" >&2
+    exit 1
+  elif docker exec "$container_id" test -f /app/runtime/sub2api.backup; then
+    backup_present=1
+  elif docker exec "$container_id" test -e /app/runtime/sub2api.backup; then
+    echo "拒绝导出非普通文件形式的 runtime 备份" >&2
+    exit 1
+  fi
+  if [ "$backup_present" -eq 1 ]; then
+    docker exec "$container_id" test -x /app/runtime/sub2api.backup
+    docker exec --user sub2api "$container_id" /app/runtime/sub2api.backup --version
+  fi
+
+  docker compose -f docker-compose.local.yml stop sub2api
+  test ! -L ./runtime
+  mkdir -p runtime
+  test -d ./runtime
+  test ! -e ./runtime/sub2api
+  test ! -L ./runtime/sub2api
+  test ! -e ./runtime/sub2api.backup
+  test ! -L ./runtime/sub2api.backup
+  docker cp "$container_id:/app/runtime/sub2api" ./runtime/sub2api
+  if [ "$backup_present" -eq 1 ]; then
+    docker cp "$container_id:/app/runtime/sub2api.backup" ./runtime/sub2api.backup
+  fi
+
+  test ! -L ./runtime/sub2api
+  test -f ./runtime/sub2api
+  test -s ./runtime/sub2api
+  sha256sum ./runtime/sub2api
+  if [ -e ./runtime/sub2api.backup ] || [ -L ./runtime/sub2api.backup ]; then
+    test ! -L ./runtime/sub2api.backup
+    test -f ./runtime/sub2api.backup
+    test -s ./runtime/sub2api.backup
+    sha256sum ./runtime/sub2api.backup
+  fi
+fi
+
+# 不要在宿主机执行任何导出的二进制。将各 SHA256 与对应公开 Release 的
+# checksum 核对，随其他持久化数据备份 runtime/，并把
+# docker-compose.local.yml 替换为仓库当前版本后，再拉取镜像和重建容器。
 docker compose -f docker-compose.local.yml pull
 docker compose -f docker-compose.local.yml up -d
 ```
@@ -467,8 +523,18 @@ docker compose -f docker-compose.local.yml up -d
 
 使用 `docker-compose.local.yml` 时，可以轻松迁移到新服务器：
 
+归档必须包含 `data/`、`runtime/`、`postgres_data/`、`redis_data/`、`.env`
+及配置文件。若旧版 Compose 未挂载 `/app/runtime`，必须在重建或删除旧容器前
+停服，并从旧容器复制 `/app/runtime/sub2api` 和存在的
+`/app/runtime/sub2api.backup`；已经挂载 `./runtime:/app/runtime` 的部署无需
+执行此恢复步骤。
+
 ```bash
-# 源服务器
+# 源服务器：只停止应用，先保留旧容器。
+# 旧版 Compose 未挂载 /app/runtime 时，必须先完成“升级”章节的一次性导出。
+docker compose -f docker-compose.local.yml stop sub2api
+
+# 确认宿主机 runtime/ 已存在且核验通过后，才能删除旧容器。
 docker compose -f docker-compose.local.yml down
 cd ..
 tar czf sub2api-complete.tar.gz sub2api-deploy/
@@ -496,7 +562,7 @@ docker compose -f docker-compose.local.yml logs -f
 
 # 删除所有数据（谨慎！）
 docker compose -f docker-compose.local.yml down
-rm -rf data/ postgres_data/ redis_data/
+rm -rf data/ runtime/ postgres_data/ redis_data/
 ```
 
 ---

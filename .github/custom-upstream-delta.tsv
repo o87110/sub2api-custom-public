@@ -19,9 +19,9 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 Dockerfile	M	keep	M	fixed-path	b2dfd7034f769abd7e8640090282e6b05a2af4a1	8c825c3ea188b048f6187fd688974bebba966c05	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 Dockerfile.goreleaser	M	keep	M	fixed-path	f251d154c68ce547cbcdf9444010e8f5c0edf6ec	b8e0369070cb520e902b4986bdd8ce81ac5d21aa	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 Makefile	M	keep	M	fixed-path	c878526f969e97ec88faddd63bb96bddbea4f3be	9afe4b15906c9e9af88dd700b1353cc8f63e0c86	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
-README.md	M	keep	M	custom-docs-ops	0e87f7599729b14a389613b89e9b3a58b45e3119	3f0ad5dd0c26a2038eb6ed00db5b61b709d41941	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型
-README_CN.md	M	keep	M	custom-docs-ops	b03ba9311f54aaadbf08a63e680496751c07e79a	dee3f503b592831dc997db0d8a91bc6d876a89fb	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型
-README_JA.md	M	keep	M	custom-docs-ops	53546c0f2b4ee0d9c889ee1c048604f542586b24	412dfb35b5b75319e8237d420c5827bacc5f433b	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型
+README.md	M	keep	M	custom-docs-ops	0e87f7599729b14a389613b89e9b3a58b45e3119	53d945b78d987d37cb518ba081830025abea984b	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
+README_CN.md	M	keep	M	custom-docs-ops	b03ba9311f54aaadbf08a63e680496751c07e79a	2078c2fd149b9e2d9815a167db9e33cb83f3da18	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
+README_JA.md	M	keep	M	custom-docs-ops	53546c0f2b4ee0d9c889ee1c048604f542586b24	5719d29e311aef26e6d2b4a909491256608bcabc	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
 backend/cmd/custom-database-boundary/main.go	A	keep	A	custom-backend	@absent	cfeb46d66d8607181261fb40405f0c71ad23808d	-	-	database-boundary-unit+candidate-tree-test	二改后端业务或边界实现
 backend/cmd/custom-database-boundary/main_test.go	A	keep	A	custom-test	@absent	cb0503e2aba3c6978372f934b540b6b9730f3640	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
 backend/cmd/server/wire.go	M	keep	M	official-thin-bridge	47d3b9ec3389dccd3e69e5e8808ac08a2fed2a59	0db2eb93c3d971f20fb34d8fdf69898d37d0257a	-	-	thin-bridge-review+go-test+wire-check	保留连接官方入口与二改实现的最薄适配
@@ -41,9 +41,9 @@ backend/internal/custom/updater/cache.go	A	keep	A	custom-backend	@absent	2de851c
 backend/internal/custom/updater/github_release_client.go	A	keep	A	custom-backend	@absent	e2b1211898ca40e38b98424a11b73314c203ba68	backend/internal/repository/github_release_service.go	backend/internal/custom/updater/github_release_client.go	updater-unit+security-tests	二改后端业务或边界实现
 backend/internal/custom/updater/github_release_client_test.go	A	keep	A	custom-test	@absent	17dd6db3cbec42cc3b206f1d6f41d906a1cd5953	backend/internal/repository/github_release_service_test.go	backend/internal/custom/updater/github_release_client_test.go	updater-unit+security-tests	验证二改行为和发布边界
 backend/internal/custom/updater/inprocess_transport_test.go	A	keep	A	custom-test	@absent	caf4b0ca461fea15646544b83b603eaca1fe1bbc	-	-	updater-unit+security-tests	验证二改行为和发布边界
-backend/internal/custom/updater/service.go	A	keep	A	custom-backend	@absent	70a43e3b4abf45884f04e53ae3fbfa6729f09487	backend/internal/service/update_service.go	backend/internal/custom/updater/service.go	updater-unit+security-tests	二改后端业务或边界实现
-backend/internal/custom/updater/service_security_test.go	A	keep	A	custom-test	@absent	04f0ba971c6b4461f92973fec806e44a21bf730e	-	-	updater-unit+security-tests	验证二改行为和发布边界
-backend/internal/custom/updater/service_test.go	A	keep	A	custom-test	@absent	d4bbcdf58f563d0971d3d57c419faa1b369029d3	backend/internal/service/update_service_test.go	backend/internal/custom/updater/service_test.go	updater-unit+security-tests	验证二改行为和发布边界
+backend/internal/custom/updater/service.go	A	keep	A	custom-backend	@absent	2c9e4f69b4b16ae1b42312841700648a189474a9	backend/internal/service/update_service.go	backend/internal/custom/updater/service.go	updater-unit+security-tests	二改后端业务或边界实现
+backend/internal/custom/updater/service_security_test.go	A	keep	A	custom-test	@absent	862fa690a29826e902ba33f07ced956a3681d009	-	-	updater-unit+security-tests	验证二改行为和发布边界
+backend/internal/custom/updater/service_test.go	A	keep	A	custom-test	@absent	8aea748d1c479a6a2c9ed7b7fe50d68c247696e0	backend/internal/service/update_service_test.go	backend/internal/custom/updater/service_test.go	updater-unit+security-tests	验证二改行为和发布边界
 backend/internal/custom/updater/version_command_unix.go	A	keep	A	custom-backend	@absent	fc686f3a9dd701384197d86d902b6e2623ccb3b5	-	-	updater-unit+security-tests	二改后端业务或边界实现
 backend/internal/custom/updater/version_command_unix_test.go	A	keep	A	custom-test	@absent	79793a8b741ba2c1d1dcf9268545be9e6c7fa0ba	-	-	updater-unit+security-tests	验证二改行为和发布边界
 backend/internal/custom/updater/version_command_windows.go	A	keep	A	custom-backend	@absent	f7c9a661142692625fbb6efd2c8334359a75bcd5	-	-	updater-unit+security-tests	二改后端业务或边界实现
@@ -65,12 +65,12 @@ backend/internal/service/custom_moderation_bridge_test.go	A	keep	A	custom-test	@
 backend/internal/service/wire.go	M	restore	RESTORED	whole-file-restore	e1210208cbd7378b119ad429a57bd9a10222b5e8	e1210208cbd7378b119ad429a57bd9a10222b5e8	backend/internal/service/wire.go	backend/internal/custom/updater/wire.go	baseline-blob-equality	非二改需求，整文件恢复官方基线
 deploy/.env.example	M	keep	M	fixed-path	6beca88308572880c2ffdad0ff051c571ac223ff	5a56b9058d672344122d22daf5fb3bc593ae878f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/CUSTOM_UPGRADE_CN.md	A	keep	A	custom-docs-ops	@absent	ae8da2590530f2c84e96a04fc8450ea27c1b6ec4	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-deploy/README.md	M	keep	M	custom-docs-ops	e87f33fa252c01ea95ee864f5b95cde3b9a2adae	8637bb9631146c388f602369ccdc6e9a23734546	-	-	documentation-consistency-review	公开二改部署文档需要固定准确镜像并匹配公开仓库
+deploy/README.md	M	keep	M	custom-docs-ops	e87f33fa252c01ea95ee864f5b95cde3b9a2adae	a319ce4da00568e50d103b93998533cbc0da3f91	-	-	documentation-consistency-review	公开二改部署文档需要固定准确镜像、匹配公开仓库并记录旧部署 runtime 的隔离保全顺序
 deploy/docker-compose.custom.yml	A	keep	A	fixed-path	@absent	f0a74a10c339a23bb53fd31f28e4440e8fc59b61	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
-deploy/docker-compose.local.yml	M	keep	M	fixed-path	364fcc2ecca4349f8ee0d0590c571c84916fe04a	3f187b726f91f5d84a7110d72c9c230599ad8a8d	-	-	compose-config+documentation-consistency-review	公开二改预构建部署必须显式固定准确镜像标签或 Digest
-deploy/docker-compose.standalone.yml	M	keep	M	fixed-path	04a46a8dd5c672c084894e0c0d377d49e9b62db6	6bc81d8a10c73426ac914eec6a9164650417f168	-	-	compose-config+documentation-consistency-review	公开二改预构建部署必须显式固定准确镜像标签或 Digest
-deploy/docker-deploy.sh	M	keep	M	fixed-path	a07f4f417a45c7f7e58a2e8285db885b2325f5cf	cab71852062589b5da127b76b63a1147249b76e5	-	-	bash-syntax+documentation-consistency-review	一键部署必须使用公开仓库并要求固定准确二改镜像
-deploy/docker-entrypoint.sh	M	keep	M	fixed-path	47ab6bf1bc17b8cb6d95d4e3cff66004a859fed0	b835327b942209893e494e47ede0941d860564fa	-	-	bash-syntax+runtime-selection-tests	固定工具路径中的二改构建发布或控制面最小差异
+deploy/docker-compose.local.yml	M	keep	M	fixed-path	364fcc2ecca4349f8ee0d0590c571c84916fe04a	06ad7dbd64ef48ba39250d088f8429fb5b54e5fd	-	-	compose-config+runtime-persistence-test	公开二改预构建部署必须固定准确镜像并持久化 runtime
+deploy/docker-compose.standalone.yml	M	keep	M	fixed-path	04a46a8dd5c672c084894e0c0d377d49e9b62db6	c75aa9c3d8475b564452b7eaf4e636cf59a98e66	-	-	compose-config+runtime-persistence-test	公开二改预构建部署必须固定准确镜像并持久化 runtime
+deploy/docker-deploy.sh	M	keep	M	fixed-path	a07f4f417a45c7f7e58a2e8285db885b2325f5cf	847551610cf5ab35f8941ffce9325bbb41031bf5	-	-	bash-syntax+runtime-persistence-test	一键部署必须固定准确公开二改镜像并创建 runtime 持久化目录
+deploy/docker-entrypoint.sh	M	keep	M	fixed-path	47ab6bf1bc17b8cb6d95d4e3cff66004a859fed0	914f4673b76a0365a266e3fe02ede4d290d1df1b	-	-	bash-syntax+runtime-selection-tests	容器启动必须校验并隔离持久化二改 runtime
 deploy/install.sh	M	keep	M	fixed-path	246347c624a452f68d6108a944663885f07b4419	db1bbb023a219d8c2ef10483298086a577431063	-	-	bash-syntax+installer-tests	二进制安装器必须从公开二改 Release 获取版本与资产
 deploy/rehearsal/.env.example	A	keep	A	fixed-path	@absent	a4c969fa71a8d797fe4431e662f1037c41b910a4	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/rehearsal/.gitignore	A	keep	A	fixed-path	@absent	e46568eee6d42e476a6a34aa0561afad2e392f93	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -87,17 +87,17 @@ deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	16
 deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad7233c21340ce3dd1969db55ed51	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
 deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	569db1d95d2a5799e8cf43400ced2389c113d827	-	-	goreleaser-check+release-safety	验证二改行为和发布边界
-deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	babf8095abb292f5de6e730d5633d8124f033a35	-	-	test-executed-in-CI	验证二改行为和发布边界
-deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	f947f15d5d88259237591b446a3497dccc88796b	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
+deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	6894261c5366888b3acdf7e8589aff970ee033c6	-	-	candidate-tree+crlf-ledger-test	验证二改行为、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
+deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
-deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	e99bc9abbf948be821adc9e13a53da052a860942	-	-	test-executed-in-CI	验证二改行为和发布边界
+deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	0b0cb8815a6f10cf63c98bed4b38564383eec711	-	-	test-executed-in-CI	验证二改行为和发布边界
-deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	32188ff2700e4680733c6599f1d802aebffbb3f1	-	-	test-executed-in-CI	验证二改行为和发布边界
-docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	de13b3f2f7471878a3cfd81320f000b1f6bc5185	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	f6cc217675002a4a2ba22d4a5a3b3ebfcd367f23	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	dcc8e093d2eb90fe427c4f1a85f33833ac11e476	-	-	upstream-sync+crlf-ledger-test	验证上游同步、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
+docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	97ffb0ca2dca2d9c84f7b406586d249e810da8b7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	b7d2990d9a26e03fb257c5a8a13acd43c1e95ecc	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	848a7c335ab8503c6d3f1457ec47d4a0d5f06a2d	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	dcc7a3856711ad5131c8dc29e3f656d5dc2a7f88	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	4f6de228c9c72c2166e617afbc1047a4d9ef86d4	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	0a71eaf6fc210dfaafd511d04f6f7a48afabcf3c	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	348e1b2c7ebdacfe6774fc52bfaa2b83545dd79d	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	f6cd437fc6910d9bd565f90fd90a0b86d7b1c30f	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	516ddea0c6fe2bb131c3c158093c767b6e10ada7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	715c0546596a4f6561f1c5888343c2d8c5367312	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束

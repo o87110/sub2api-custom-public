@@ -16,6 +16,7 @@ This directory contains files for deploying Sub2API on Linux servers and Apple-s
 |------|-------------|
 | `docker-compose.yml` | Docker Compose configuration (named volumes) |
 | `docker-compose.local.yml` | Docker Compose configuration (local directories, easy migration) |
+| `docker-compose.standalone.yml` | Application-only Compose with persistent data and runtime named volumes |
 | `docker-compose.custom.yml` | Public custom image/runtime overlay for the named-volume configuration |
 | `docker-deploy.sh` | **One-click Docker deployment script (recommended)** |
 | `apple-container.sh` | Native Apple `container` lifecycle script |
@@ -69,7 +70,7 @@ chmod +x docker-deploy.sh
 - Downloads `docker-compose.local.yml` and `.env.example`
 - Automatically generates secure secrets (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Creates `.env` file with generated secrets
-- Creates necessary data directories (data/, postgres_data/, redis_data/)
+- Creates necessary persistent directories (data/, runtime/, postgres_data/, redis_data/)
 - **Displays generated credentials** (POSTGRES_PASSWORD, JWT_SECRET, etc.)
 
 **After running the script:**
@@ -111,8 +112,8 @@ TOTP_ENCRYPTION_KEY=$(openssl rand -hex 32)
 echo "JWT_SECRET=${JWT_SECRET}" >> .env
 echo "TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY}" >> .env
 
-# Create data directories
-mkdir -p data postgres_data redis_data
+# Create persistent directories
+mkdir -p data runtime postgres_data redis_data
 
 # Start all services using local directory version
 docker compose -f docker-compose.local.yml up -d
@@ -128,7 +129,8 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 | Version | Data Storage | Migration | Best For |
 |---------|-------------|-----------|----------|
-| **docker-compose.local.yml** | Local directories (./data, ./postgres_data, ./redis_data) | ✅ Easy (tar entire directory) | Production, need frequent backups/migration |
+| **docker-compose.local.yml** | Local directories (./data, ./runtime, ./postgres_data, ./redis_data) | ✅ Easy (tar entire directory) | Production, need frequent backups/migration |
+| **docker-compose.standalone.yml** | Named volumes (`sub2api_data`, `sub2api_runtime`) | ⚠️ Export both volumes | External PostgreSQL and Redis |
 | **docker-compose.yml** | Named volumes (/var/lib/docker/volumes/) | ⚠️ Requires docker commands | Simple setup, don't need migration |
 
 **Recommendation:** Use `docker-compose.local.yml` (deployed by `docker-deploy.sh`) for easier data management and migration.
@@ -187,6 +189,13 @@ SELECT
 
 For **local directory version** (docker-compose.local.yml):
 
+Back up the database and configuration before every update. If the running
+container was created from an older Compose file that did not mount
+`/app/runtime`, the update block below stops the application, exports the
+runtime and verifies it before allowing the old container to be recreated.
+Deployments that already mount `./runtime:/app/runtime` skip the export
+automatically.
+
 ```bash
 # Start services
 docker compose -f docker-compose.local.yml up -d
@@ -200,13 +209,66 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 # Restart Sub2API only
 docker compose -f docker-compose.local.yml restart sub2api
 
-# Update to latest version
+# Update to the selected public custom Release
+set -eu
+container_id="$(docker compose -f docker-compose.local.yml ps -q sub2api)"
+test -n "$container_id"
+
+if ! docker inspect "$container_id" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -qx '/app/runtime'; then
+  docker exec "$container_id" test ! -L /app/runtime/sub2api
+  docker exec "$container_id" test -f /app/runtime/sub2api
+  docker exec "$container_id" test -x /app/runtime/sub2api
+  docker exec --user sub2api "$container_id" /app/runtime/sub2api --version
+  backup_present=0
+  if docker exec "$container_id" test -L /app/runtime/sub2api.backup; then
+    echo "Refusing to export a symbolic-link runtime backup" >&2
+    exit 1
+  elif docker exec "$container_id" test -f /app/runtime/sub2api.backup; then
+    backup_present=1
+  elif docker exec "$container_id" test -e /app/runtime/sub2api.backup; then
+    echo "Refusing to export a non-regular runtime backup" >&2
+    exit 1
+  fi
+  if [ "$backup_present" -eq 1 ]; then
+    docker exec "$container_id" test -x /app/runtime/sub2api.backup
+    docker exec --user sub2api "$container_id" /app/runtime/sub2api.backup --version
+  fi
+
+  docker compose -f docker-compose.local.yml stop sub2api
+  test ! -L ./runtime
+  mkdir -p runtime
+  test -d ./runtime
+  test ! -e ./runtime/sub2api
+  test ! -L ./runtime/sub2api
+  test ! -e ./runtime/sub2api.backup
+  test ! -L ./runtime/sub2api.backup
+  docker cp "$container_id:/app/runtime/sub2api" ./runtime/sub2api
+  if [ "$backup_present" -eq 1 ]; then
+    docker cp "$container_id:/app/runtime/sub2api.backup" ./runtime/sub2api.backup
+  fi
+
+  test ! -L ./runtime/sub2api
+  test -f ./runtime/sub2api
+  test -s ./runtime/sub2api
+  sha256sum ./runtime/sub2api
+  if [ -e ./runtime/sub2api.backup ] || [ -L ./runtime/sub2api.backup ]; then
+    test ! -L ./runtime/sub2api.backup
+    test -f ./runtime/sub2api.backup
+    test -s ./runtime/sub2api.backup
+    sha256sum ./runtime/sub2api.backup
+  fi
+fi
+
+# Do not execute either exported binary on the host. Compare each SHA256 value
+# with the checksum of the corresponding public Release, back up runtime/ with
+# the other persistent data, and replace
+# docker-compose.local.yml with the current repository version before pull/up.
 docker compose -f docker-compose.local.yml pull
 docker compose -f docker-compose.local.yml up -d
 
 # Remove all data (caution!)
 docker compose -f docker-compose.local.yml down
-rm -rf data/ postgres_data/ redis_data/
+rm -rf data/ runtime/ postgres_data/ redis_data/
 ```
 
 For **named volumes version** (docker-compose.yml):
@@ -257,9 +319,22 @@ See `.env.example` for all available options.
 
 When using `docker-compose.local.yml`, all data is stored in local directories, making migration simple:
 
+The archive must include `data/`, `runtime/`, `postgres_data/`, `redis_data/`,
+`.env`, and configuration files. Before recreating a deployment made with an
+older Compose file that did not mount `/app/runtime`, stop the service and copy
+`/app/runtime/sub2api` plus `/app/runtime/sub2api.backup` (when present) out of
+the old container. Deployments that already mount `./runtime:/app/runtime` do
+not need this recovery step. For standalone deployments, export and restore
+both `sub2api_data` and `sub2api_runtime`.
+
 ```bash
-# On source server: Stop services and create archive
+# On source server: stop the application but keep the old container.
 cd /path/to/deployment
+docker compose -f docker-compose.local.yml stop sub2api
+
+# For an older Compose file without /app/runtime, complete the one-time export
+# in the update block above. Only remove the old container after runtime/ is
+# present and verified.
 docker compose -f docker-compose.local.yml down
 cd ..
 tar czf sub2api-complete.tar.gz deployment/
@@ -534,8 +609,8 @@ docker compose -f docker-compose.local.yml exec redis redis-cli ping
 # Restart all services
 docker compose -f docker-compose.local.yml restart
 
-# Check data directories
-ls -la data/ postgres_data/ redis_data/
+# Check persistent directories
+ls -la data/ runtime/ postgres_data/ redis_data/
 ```
 
 For **named volumes version**:

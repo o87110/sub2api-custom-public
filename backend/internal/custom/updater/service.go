@@ -195,7 +195,7 @@ func (s *UpdateService) CheckUpdate(ctx context.Context, force bool) (*UpdateInf
 			BuildType:           s.buildType,
 			UpdateRepository:    s.repository,
 			OfficialRepository:  githubRepo,
-		}, fmt.Errorf("initialize private update client: %w", s.clientInitErr)
+		}, fmt.Errorf("initialize fixed public Release source client (optional GitHub Token): %w", s.clientInitErr)
 	}
 
 	// Try cache first.
@@ -217,9 +217,10 @@ func (s *UpdateService) CheckUpdate(ctx context.Context, force bool) (*UpdateInf
 			OfficialRepository:  githubRepo,
 		}
 
-		// The private source is authoritative. Never hide an auth/source failure
-		// behind the public upstream or stale cached data.
-		return current, fmt.Errorf("configured update source %q is unavailable: %w", s.repository, err)
+		// The fixed public Release source is authoritative for installation,
+		// update, and rollback. Never hide its source or optional GitHub Token
+		// failure behind the official upstream or stale cached data.
+		return current, fmt.Errorf("fixed public Release source %q is unavailable: %w", s.repository, err)
 	}
 
 	s.attachOfficialRelease(ctx, info)
@@ -404,7 +405,7 @@ func (s *UpdateService) fetchRollbackCandidates(ctx context.Context) ([]*GitHubR
 		return nil, err
 	}
 	if s.clientInitErr != nil {
-		return nil, fmt.Errorf("initialize private update client: %w", s.clientInitErr)
+		return nil, fmt.Errorf("initialize fixed public Release source client (optional GitHub Token): %w", s.clientInitErr)
 	}
 	releases, err := s.githubClient.FetchRecentReleases(ctx, s.repository, rollbackFetchPageSize)
 	if err != nil {

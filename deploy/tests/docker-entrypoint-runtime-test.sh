@@ -153,9 +153,88 @@ IMAGE_BINARY="$tmp_dir/official-v163"
 reconcile_runtime_binary >/dev/null
 assert_same "$RUNTIME_BINARY" "$tmp_dir/official-v163"
 
+cp "$tmp_dir/v6" "$tmp_dir/runtime-symlink-target"
+cp "$tmp_dir/runtime-symlink-target" "$tmp_dir/runtime-symlink-target.before"
+rm -f "$RUNTIME_BINARY" "$RUNTIME_BINARY.backup"
+ln -s "$tmp_dir/runtime-symlink-target" "$RUNTIME_BINARY"
+IMAGE_BINARY="$tmp_dir/v7"
+LEGACY_IMAGE_BINARY="$tmp_dir/legacy"
+if reconcile_runtime_binary >/dev/null 2>&1; then
+  fail "runtime symbolic link was accepted"
+fi
+[[ -L "$RUNTIME_BINARY" ]] || fail "runtime symbolic link was replaced"
+assert_same "$tmp_dir/runtime-symlink-target" "$tmp_dir/runtime-symlink-target.before"
+
+rm -f "$RUNTIME_BINARY"
+ln -s "$tmp_dir/missing-runtime-target" "$RUNTIME_BINARY"
+if reconcile_runtime_binary >/dev/null 2>&1; then
+  fail "dangling runtime symbolic link was accepted"
+fi
+[[ -L "$RUNTIME_BINARY" ]] || fail "dangling runtime symbolic link was replaced"
+
+rm -f "$RUNTIME_BINARY"
+cp "$tmp_dir/v6" "$RUNTIME_BINARY"
+cp "$tmp_dir/v7" "$tmp_dir/image-symlink-target"
+cp "$tmp_dir/image-symlink-target" "$tmp_dir/image-symlink-target.before"
+ln -s "$tmp_dir/image-symlink-target" "$tmp_dir/image-link"
+IMAGE_BINARY="$tmp_dir/image-link"
+if reconcile_runtime_binary >/dev/null 2>&1; then
+  fail "image symbolic link was accepted"
+fi
+[[ -L "$IMAGE_BINARY" ]] || fail "image symbolic link was replaced"
+assert_same "$tmp_dir/image-symlink-target" "$tmp_dir/image-symlink-target.before"
+assert_same "$RUNTIME_BINARY" "$tmp_dir/v6"
+
+rm -f "$tmp_dir/image-link"
+ln -s "$tmp_dir/missing-image-target" "$tmp_dir/image-link"
+if reconcile_runtime_binary >/dev/null 2>&1; then
+  fail "dangling image symbolic link was accepted"
+fi
+[[ -L "$IMAGE_BINARY" ]] || fail "dangling image symbolic link was replaced"
+assert_same "$RUNTIME_BINARY" "$tmp_dir/v6"
+
+cp "$tmp_dir/v8" "$tmp_dir/backup-symlink-target"
+cp "$tmp_dir/backup-symlink-target" "$tmp_dir/backup-symlink-target.before"
+rm -f "$RUNTIME_BINARY.backup"
+ln -s "$tmp_dir/backup-symlink-target" "$RUNTIME_BINARY.backup"
+IMAGE_BINARY="$tmp_dir/v7"
+if reconcile_runtime_binary >/dev/null 2>&1; then
+  fail "runtime backup symbolic link was accepted"
+fi
+[[ -L "$RUNTIME_BINARY.backup" ]] || fail "runtime backup symbolic link was replaced"
+assert_same "$tmp_dir/backup-symlink-target" "$tmp_dir/backup-symlink-target.before"
+assert_same "$RUNTIME_BINARY" "$tmp_dir/v6"
+
+rm -f "$RUNTIME_BINARY.backup"
+ln -s "$tmp_dir/missing-backup-target" "$RUNTIME_BINARY.backup"
+if reconcile_runtime_binary >/dev/null 2>&1; then
+  fail "dangling runtime backup symbolic link was accepted"
+fi
+[[ -L "$RUNTIME_BINARY.backup" ]] || fail "dangling runtime backup symbolic link was replaced"
+assert_same "$RUNTIME_BINARY" "$tmp_dir/v6"
+
+rm -f "$RUNTIME_BINARY.backup"
+cp "$tmp_dir/v7" "$tmp_dir/legacy-symlink-target"
+cp "$tmp_dir/legacy-symlink-target" "$tmp_dir/legacy-symlink-target.before"
+ln -s "$tmp_dir/legacy-symlink-target" "$LEGACY_IMAGE_BINARY"
+IMAGE_BINARY=/app/image/sub2api
+if resolve_image_binary >/dev/null 2>&1; then
+  fail "legacy image symbolic link was accepted"
+fi
+[[ -L "$LEGACY_IMAGE_BINARY" ]] || fail "legacy image symbolic link was replaced"
+assert_same "$tmp_dir/legacy-symlink-target" "$tmp_dir/legacy-symlink-target.before"
+
+rm -f "$LEGACY_IMAGE_BINARY"
+ln -s "$tmp_dir/missing-legacy-target" "$LEGACY_IMAGE_BINARY"
+if resolve_image_binary >/dev/null 2>&1; then
+  fail "dangling legacy image symbolic link was accepted"
+fi
+[[ -L "$LEGACY_IMAGE_BINARY" ]] || fail "dangling legacy image symbolic link was replaced"
+
+rm -f "$LEGACY_IMAGE_BINARY"
 cp "$tmp_dir/v7" "$LEGACY_IMAGE_BINARY"
 IMAGE_BINARY=/app/image/sub2api
 resolve_image_binary
 [[ "$IMAGE_BINARY" == "$LEGACY_IMAGE_BINARY" ]] || fail "legacy /app/sub2api layout was not selected"
 
-echo "docker entrypoint runtime version-selection tests passed"
+echo "docker entrypoint runtime version-selection and symbolic-link tests passed"

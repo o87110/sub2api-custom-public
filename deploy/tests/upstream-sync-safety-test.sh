@@ -8,6 +8,7 @@ shadow_map="$repo_root/.github/upstream-shadowed-sources.tsv"
 shadow_map_test="$repo_root/deploy/tests/upstream-shadow-map-test.sh"
 delta_test="$repo_root/deploy/tests/custom-upstream-delta-test.sh"
 database_test="$repo_root/deploy/tests/custom-database-boundary-test.sh"
+candidate_tree_script="$repo_root/deploy/tests/custom-candidate-tree.sh"
 codeowners="$repo_root/.github/CODEOWNERS"
 
 fail() {
@@ -853,15 +854,25 @@ for baseline_test in "$delta_test" "$database_test"; do
     'baseline_file="${CUSTOM_UPSTREAM_BASELINE_FILE:-$repo_root/.github/custom-upstream-baseline.env}"' \
     "$baseline_test"
   grep -Fq \
-    'mapfile -t baseline_lines < "$baseline_file"' \
-    "$baseline_test"
-  grep -Fq \
     '[[ "${#baseline_lines[@]}" -eq 2 ]]' \
     "$baseline_test"
   grep -Fq \
     'CUSTOM_UPSTREAM_BASE_REF="${baseline_ref_line#CUSTOM_UPSTREAM_BASE_REF=}"' \
     "$baseline_test"
 done
+grep -Fq \
+  'while IFS= read -r baseline_line || [[ -n "$baseline_line" ]]; do' \
+  "$delta_test"
+if grep -nE '(^|[[:space:]])(mapfile|readarray|declare[[:space:]]+-A)([[:space:]]|$)' \
+  "$delta_test"; then
+  fail "custom upstream delta test must remain compatible with macOS Bash 3.2"
+fi
+candidate_tree="$(/bin/bash "$candidate_tree_script" --worktree)"
+awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }' \
+  "$repo_root/.github/custom-upstream-delta.tsv" \
+  > "$tmp_dir/custom-upstream-delta-crlf.tsv"
+CUSTOM_UPSTREAM_DELTA_LEDGER="$tmp_dir/custom-upstream-delta-crlf.tsv" \
+  /bin/bash "$delta_test" --candidate-tree "$candidate_tree" >/dev/null
 grep -Fq \
   '\.github/workflows/' \
   "$gate_workflow"

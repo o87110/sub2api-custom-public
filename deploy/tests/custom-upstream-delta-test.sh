@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 baseline_file="${CUSTOM_UPSTREAM_BASELINE_FILE:-$repo_root/.github/custom-upstream-baseline.env}"
-ledger="$repo_root/.github/custom-upstream-delta.tsv"
+ledger="${CUSTOM_UPSTREAM_DELTA_LEDGER:-$repo_root/.github/custom-upstream-delta.tsv}"
 shadow_map="$repo_root/.github/upstream-shadowed-sources.tsv"
 
 fail() {
@@ -36,7 +36,11 @@ git -C "$repo_root" cat-file -e "${candidate_tree}^{tree}" ||
 [[ -s "$ledger" ]] || fail "custom upstream delta ledger is missing"
 [[ -s "$shadow_map" ]] || fail "upstream shadow map is missing"
 
-mapfile -t baseline_lines < "$baseline_file"
+baseline_lines=()
+baseline_line=""
+while IFS= read -r baseline_line || [[ -n "$baseline_line" ]]; do
+  baseline_lines[${#baseline_lines[@]}]="$baseline_line"
+done < "$baseline_file"
 [[ "${#baseline_lines[@]}" -eq 2 ]] ||
   fail "baseline file must contain exactly two assignments"
 baseline_ref_line="${baseline_lines[0]%$'\r'}"
@@ -64,9 +68,11 @@ seen_actual="$tmp_dir/seen-actual.txt"
 
 expected_header=$'path\tinitial_status\tdecision\texpected_status\tcategory\tbase_blob\tfinal_blob\tshadow_source\tshadow_target\tverification\treason'
 IFS= read -r actual_header < "$ledger"
+actual_header="${actual_header%$'\r'}"
 [[ "$actual_header" == "$expected_header" ]] || fail "delta ledger header is invalid"
 
 awk -F '\t' '
+  { sub(/\r$/, "") }
   NR == 1 { next }
   /^[[:space:]]*$/ { next }
   NF != 11 {
@@ -118,29 +124,49 @@ actual_status() {
   awk -F '\t' -v path="$1" '$2 == path { print $1 }' "$actual"
 }
 
-declare -A base_blobs=()
-declare -A candidate_blobs=()
+base_blob_paths=()
+base_blob_values=()
+candidate_blob_paths=()
+candidate_blob_values=()
 while IFS= read -r -d '' record; do
   metadata="${record%%$'\t'*}"
   path="${record#*$'\t'}"
-  base_blobs["$path"]="${metadata##* }"
+  blob_index="${#base_blob_paths[@]}"
+  base_blob_paths[$blob_index]="$path"
+  base_blob_values[$blob_index]="${metadata##* }"
 done < <(git -C "$repo_root" ls-tree -rz "$CUSTOM_UPSTREAM_BASE_COMMIT")
 while IFS= read -r -d '' record; do
   metadata="${record%%$'\t'*}"
   path="${record#*$'\t'}"
-  candidate_blobs["$path"]="${metadata##* }"
+  blob_index="${#candidate_blob_paths[@]}"
+  candidate_blob_paths[$blob_index]="$path"
+  candidate_blob_values[$blob_index]="${metadata##* }"
 done < <(git -C "$repo_root" ls-tree -rz "$candidate_tree")
 
 blob_at() {
-  case "$1" in
+  local object="$1"
+  local requested_path="$2"
+  local blob_index
+
+  case "$object" in
     "$CUSTOM_UPSTREAM_BASE_COMMIT")
-      printf '%s' "${base_blobs[$2]:-}"
+      for ((blob_index = 0; blob_index < ${#base_blob_paths[@]}; blob_index++)); do
+        if [[ "${base_blob_paths[$blob_index]}" == "$requested_path" ]]; then
+          printf '%s' "${base_blob_values[$blob_index]}"
+          return
+        fi
+      done
       ;;
     "$candidate_tree")
-      printf '%s' "${candidate_blobs[$2]:-}"
+      for ((blob_index = 0; blob_index < ${#candidate_blob_paths[@]}; blob_index++)); do
+        if [[ "${candidate_blob_paths[$blob_index]}" == "$requested_path" ]]; then
+          printf '%s' "${candidate_blob_values[$blob_index]}"
+          return
+        fi
+      done
       ;;
     *)
-      fail "unexpected Blob lookup object: $1"
+      fail "unexpected Blob lookup object: $object"
       ;;
   esac
 }

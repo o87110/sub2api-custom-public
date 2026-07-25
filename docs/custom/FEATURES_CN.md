@@ -1,6 +1,6 @@
 # 二改功能清单
 
-本文档描述相对官方基线 `vendor-0.1.162` 的有效二改需求。文件级实现范围以
+本文档描述相对官方基线 `vendor-0.1.164` 的有效二改需求。文件级实现范围以
 `.github/custom-upstream-delta.tsv` 为准。
 
 ## 1. cyber_policy 审计范围隔离
@@ -83,9 +83,11 @@ Release 信息；自定义源失败也不能回退安装官方资产。
 /app/runtime/sub2api
 ```
 
-首次启动从镜像初始化 runtime；后续容器重建继续使用已验证的 runtime 文件。
-更新使用原子替换，保留一个可回退备份，失败时恢复原可执行文件。入口脚本必须
-在降权前完成权限和文件类型检查。
+首次启动从镜像初始化 runtime；local Compose 使用宿主机 `./runtime`，
+standalone Compose 使用 `sub2api_runtime` 命名卷，容器重建继续使用已验证的
+runtime 文件。更新使用原子替换，保留一个可回退备份，失败时恢复原可执行文件。
+入口脚本必须拒绝 runtime、镜像、旧镜像和备份路径（包括悬空链接）本身为符号
+链接，并在版本探测、复制、替换和执行前再次检查。
 
 ## 5. 可验证 Release 与 GHCR
 

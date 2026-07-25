@@ -350,7 +350,7 @@ docker compose logs -f sub2api
 - セキュアな認証情報（JWT_SECRET、TOTP_ENCRYPTION_KEY、POSTGRES_PASSWORD）を自動生成
 - 自動生成されたシークレットで `.env` ファイルを作成
 - `SUB2API_IMAGE` を公開カスタム Release の正確なタグまたは Digest に固定する必要があります
-- データディレクトリを作成（バックアップ・移行が容易なローカルディレクトリを使用）
+- 永続化ディレクトリ（`data/`、`runtime/`、`postgres_data/`、`redis_data/`）を作成
 - 生成された認証情報を参照用に表示
 
 #### 手動デプロイ
@@ -403,8 +403,8 @@ openssl rand -hex 32
 ```
 
 ```bash
-# 4. データディレクトリを作成（ローカルバージョンの場合）
-mkdir -p data postgres_data redis_data
+# 4. 永続化ディレクトリを作成（ローカルバージョンの場合）
+mkdir -p data runtime postgres_data redis_data
 
 # 5. すべてのサービスを起動
 # オプション A: ローカルディレクトリバージョン（推奨 - 移行が容易）
@@ -424,7 +424,7 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 | バージョン | データストレージ | 移行 | 推奨用途 |
 |---------|-------------|-----------|----------|
-| **docker-compose.local.yml** | ローカルディレクトリ | ✅ 容易（ディレクトリ全体を tar） | 本番環境、頻繁なバックアップ |
+| **docker-compose.local.yml** | ローカルディレクトリ（`data/`、`runtime/`、`postgres_data/`、`redis_data/`） | ✅ 容易（ディレクトリ全体を tar） | 本番環境、頻繁なバックアップ |
 | **docker-compose.yml** | 名前付きボリューム | ⚠️ docker コマンドが必要 | シンプルなセットアップ |
 
 **推奨:** データ管理が容易な `docker-compose.local.yml`（スクリプトによるデプロイ）を使用してください。
@@ -440,8 +440,67 @@ docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
 
 #### アップグレード
 
+アップグレードのたびにデータベースと設定をバックアップしてください。現在の
+コンテナが `/app/runtime` をマウントしない旧 Compose で作成されている場合、
+最初の `up -d` の前に、次の一回限りの保全手順を実行します。runtime のコピー
+と検証が完了するまで旧コンテナは保持されます。
+`./runtime:/app/runtime` が既にマウントされている環境では、エクスポートは
+自動的にスキップされます。
+
 ```bash
-# 最新イメージをプルしてコンテナを再作成
+set -eu
+container_id="$(docker compose -f docker-compose.local.yml ps -q sub2api)"
+test -n "$container_id"
+
+if ! docker inspect "$container_id" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -qx '/app/runtime'; then
+  docker exec "$container_id" test ! -L /app/runtime/sub2api
+  docker exec "$container_id" test -f /app/runtime/sub2api
+  docker exec "$container_id" test -x /app/runtime/sub2api
+  docker exec --user sub2api "$container_id" /app/runtime/sub2api --version
+  backup_present=0
+  if docker exec "$container_id" test -L /app/runtime/sub2api.backup; then
+    echo "シンボリックリンク形式の runtime バックアップはエクスポートしません" >&2
+    exit 1
+  elif docker exec "$container_id" test -f /app/runtime/sub2api.backup; then
+    backup_present=1
+  elif docker exec "$container_id" test -e /app/runtime/sub2api.backup; then
+    echo "通常ファイルではない runtime バックアップはエクスポートしません" >&2
+    exit 1
+  fi
+  if [ "$backup_present" -eq 1 ]; then
+    docker exec "$container_id" test -x /app/runtime/sub2api.backup
+    docker exec --user sub2api "$container_id" /app/runtime/sub2api.backup --version
+  fi
+
+  docker compose -f docker-compose.local.yml stop sub2api
+  test ! -L ./runtime
+  mkdir -p runtime
+  test -d ./runtime
+  test ! -e ./runtime/sub2api
+  test ! -L ./runtime/sub2api
+  test ! -e ./runtime/sub2api.backup
+  test ! -L ./runtime/sub2api.backup
+  docker cp "$container_id:/app/runtime/sub2api" ./runtime/sub2api
+  if [ "$backup_present" -eq 1 ]; then
+    docker cp "$container_id:/app/runtime/sub2api.backup" ./runtime/sub2api.backup
+  fi
+
+  test ! -L ./runtime/sub2api
+  test -f ./runtime/sub2api
+  test -s ./runtime/sub2api
+  sha256sum ./runtime/sub2api
+  if [ -e ./runtime/sub2api.backup ] || [ -L ./runtime/sub2api.backup ]; then
+    test ! -L ./runtime/sub2api.backup
+    test -f ./runtime/sub2api.backup
+    test -s ./runtime/sub2api.backup
+    sha256sum ./runtime/sub2api.backup
+  fi
+fi
+
+# エクスポートしたバイナリをホスト上で実行しないでください。各 SHA256 を
+# 対応する公開 Release の checksum と照合し、runtime/ を他の永続化データと
+# 一緒にバックアップして、docker-compose.local.yml を
+# リポジトリの現行版に置き換えてからイメージを更新します。
 docker compose -f docker-compose.local.yml pull
 docker compose -f docker-compose.local.yml up -d
 ```
@@ -450,8 +509,20 @@ docker compose -f docker-compose.local.yml up -d
 
 `docker-compose.local.yml` を使用している場合、新しいサーバーへの移行が簡単です:
 
+アーカイブには `data/`、`runtime/`、`postgres_data/`、`redis_data/`、`.env`
+および設定ファイルを含めてください。旧 Compose が `/app/runtime` をマウント
+していない場合は、旧コンテナを再作成または削除する前に停止し、
+`/app/runtime/sub2api` と、存在する `/app/runtime/sub2api.backup` をコピー
+してください。`./runtime:/app/runtime` が既にマウントされている環境では
+この復旧手順は不要です。
+
 ```bash
-# 移行元サーバーにて
+# 移行元サーバー: アプリのみ停止し、旧コンテナは保持します。
+# 旧 Compose が /app/runtime をマウントしていない場合は、「アップグレード」
+# の一回限りのエクスポートを先に完了してください。
+docker compose -f docker-compose.local.yml stop sub2api
+
+# ホストの runtime/ が存在し、検証済みの場合に限り旧コンテナを削除します。
 docker compose -f docker-compose.local.yml down
 cd ..
 tar czf sub2api-complete.tar.gz sub2api-deploy/
@@ -479,7 +550,7 @@ docker compose -f docker-compose.local.yml logs -f
 
 # すべてのデータを削除（注意！）
 docker compose -f docker-compose.local.yml down
-rm -rf data/ postgres_data/ redis_data/
+rm -rf data/ runtime/ postgres_data/ redis_data/
 ```
 
 ---
