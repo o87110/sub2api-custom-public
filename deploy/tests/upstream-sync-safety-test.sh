@@ -178,6 +178,17 @@ while IFS= read -r test_path; do
     fail "CODEOWNERS misses custom-development test: $test_path"
 done < "$tmp_dir/non-custom-development-tests.txt"
 
+while IFS= read -r protected_path; do
+  if ! grep -Eq "$sync_protected_pattern" <<<"$protected_path"; then
+    fail "sync protected path pattern misses custom runtime entry point: $protected_path"
+  fi
+  if ! grep -Eq "$gate_protected_pattern" <<<"$protected_path"; then
+    fail "upgrade gate protected path pattern misses custom runtime entry point: $protected_path"
+  fi
+done <<'EOF'
+frontend/src/views/user/KeysView.vue
+EOF
+
 /bin/bash "$shadow_map_test"
 grep -Fqx '/.github/upstream-shadowed-sources.tsv @o87110' "$codeowners"
 grep -Fqx '/.github/workflows/** @o87110' "$codeowners"
@@ -208,6 +219,7 @@ done <<'EOF'
 /deploy/docker-entrypoint.sh
 /frontend/src/components/layout/AppSidebar.vue
 /frontend/src/router/index.ts
+/frontend/src/views/user/KeysView.vue
 EOF
 
 awk 'BEGIN { FS=OFS="\t" } NR == 2 { print $1, $2, "extra"; next } { print }' \

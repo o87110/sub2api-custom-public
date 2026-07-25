@@ -16,8 +16,12 @@ frontend/src/api/admin/system.ts	frontend/src/custom/updater/api.ts
 frontend/src/api/__tests__/admin.system.rollback.spec.ts	frontend/src/custom/updater/__tests__/api.rollback.spec.ts
 frontend/src/views/admin/RiskControlView.vue	frontend/src/custom/moderation/views/RiskControlView.vue
 frontend/src/views/admin/__tests__/RiskControlView.spec.ts	frontend/src/custom/moderation/views/__tests__/RiskControlView.spec.ts
+frontend/src/views/user/KeysView.vue	frontend/src/custom/api-keys/ApiKeyBulkActions.vue|frontend/src/custom/api-keys/bulkActions.ts
+frontend/src/views/user/__tests__/KeysView.spec.ts	frontend/src/custom/api-keys/__tests__/ApiKeyBulkActions.spec.ts|frontend/src/custom/api-keys/__tests__/bulkActions.spec.ts
 frontend/src/stores/app.ts	frontend/src/custom/updater/store.ts
+frontend/src/i18n/locales/en/dashboard.ts	frontend/src/custom/api-keys/i18n.ts
 frontend/src/i18n/locales/en/misc.ts	frontend/src/custom/updater/i18n.ts
+frontend/src/i18n/locales/zh/dashboard.ts	frontend/src/custom/api-keys/i18n.ts
 frontend/src/i18n/locales/zh/misc.ts	frontend/src/custom/updater/i18n.ts
 frontend/src/i18n/locales/en/admin/channels.ts	frontend/src/custom/moderation/i18n.ts
 frontend/src/i18n/locales/zh/admin/channels.ts	frontend/src/custom/moderation/i18n.ts

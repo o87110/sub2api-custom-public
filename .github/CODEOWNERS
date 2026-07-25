@@ -42,5 +42,7 @@
 /frontend/src/custom/** @o87110
 /frontend/src/components/layout/AppSidebar.vue @o87110
 /frontend/src/router/index.ts @o87110
+/frontend/src/views/user/KeysView.vue @o87110
+/frontend/src/views/user/__tests__/KeysView.spec.ts @o87110
 /tools/validate_pnpm_audit.py @o87110
 /tools/test_validate_pnpm_audit.py @o87110

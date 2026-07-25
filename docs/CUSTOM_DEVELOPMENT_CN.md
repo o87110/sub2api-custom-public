@@ -47,6 +47,7 @@ backend/internal/custom/
 └── updater/                自定义 Release、更新与回退
 
 frontend/src/custom/
+├── api-keys/               API 密钥当前页批量操作
 ├── moderation/             风控二改页面与文案
 └── updater/                版本、更新与回退界面
 ```

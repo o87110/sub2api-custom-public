@@ -2,7 +2,11 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <div class="flex flex-col gap-3">
+        <div
+          class="flex flex-col gap-3"
+          :class="{ 'pointer-events-none opacity-60': bulkActionBusy }"
+          :aria-disabled="bulkActionBusy"
+        >
           <div class="flex flex-wrap items-center gap-3">
             <SearchInput
               v-model="filterSearch"
@@ -32,10 +36,14 @@
       </template>
 
       <template #actions>
-        <div class="flex justify-end gap-3">
+        <div
+          class="flex justify-end gap-3"
+          :class="{ 'pointer-events-none opacity-60': bulkActionBusy }"
+          :aria-disabled="bulkActionBusy"
+        >
           <button
-            @click="loadApiKeys"
-            :disabled="loading"
+            @click="refreshApiKeys"
+            :disabled="loading || bulkActionBusy"
             class="btn btn-secondary"
             :title="t('common.refresh')"
           >
@@ -44,6 +52,7 @@
           <div class="relative" ref="columnDropdownRef">
             <button
               @click="showColumnDropdown = !showColumnDropdown"
+              :disabled="bulkActionBusy"
               class="btn btn-secondary px-2 md:px-3"
               :title="t('keys.columnSettings')"
             >
@@ -73,7 +82,12 @@
               </button>
             </div>
           </div>
-          <button @click="showCreateModal = true" class="btn btn-primary" data-tour="keys-create-btn">
+          <button
+            @click="showCreateModal = true"
+            :disabled="bulkActionBusy"
+            class="btn btn-primary"
+            data-tour="keys-create-btn"
+          >
             <Icon name="plus" size="md" class="mr-2" />
             {{ t('keys.createKey') }}
           </button>
@@ -81,15 +95,33 @@
       </template>
 
       <template #table>
-        <DataTable
-          :columns="columns"
-          :data="apiKeys"
-          :loading="loading"
-          :server-side-sort="true"
-          default-sort-key="created_at"
-          default-sort-order="desc"
-          @sort="handleSort"
+        <ApiKeyBulkActions
+          :rows="apiKeys"
+          :selected-ids="selectedKeyIds"
+          :groups="groups"
+          :user-group-rates="userGroupRates"
+          @update:selected-ids="selectedKeyIds = $event"
+          @busy-change="bulkActionBusy = $event"
+          @completed="handleBulkCompleted"
+        />
+        <div
+          :class="{ 'pointer-events-none opacity-75': bulkActionBusy }"
+          :aria-busy="bulkActionBusy"
         >
+          <DataTable
+            :columns="columns"
+            :data="apiKeys"
+            :loading="loading"
+            :server-side-sort="true"
+            :selectable="true"
+            row-key="id"
+            :selected-keys="selectedKeyIds"
+            :selection-label="apiKeySelectionLabel"
+            default-sort-key="created_at"
+            default-sort-order="desc"
+            @update:selected-keys="handleTableSelectionChange"
+            @sort="handleSort"
+          >
           <template #cell-id="{ value }">
             <span class="font-mono text-xs text-gray-500 dark:text-gray-400">#{{ value }}</span>
           </template>
@@ -421,21 +453,24 @@
             </div>
           </template>
 
-          <template #empty>
-            <EmptyState
-              :title="t('keys.noKeysYet')"
-              :description="t('keys.createFirstKey')"
-              :action-text="t('keys.createKey')"
-              @action="showCreateModal = true"
-            />
-          </template>
-        </DataTable>
+            <template #empty>
+              <EmptyState
+                :title="t('keys.noKeysYet')"
+                :description="t('keys.createFirstKey')"
+                :action-text="t('keys.createKey')"
+                @action="showCreateModal = true"
+              />
+            </template>
+          </DataTable>
+        </div>
       </template>
 
       <template #pagination>
         <Pagination
           v-if="pagination.total > 0"
           :page="pagination.page"
+          :class="{ 'pointer-events-none opacity-60': bulkActionBusy }"
+          :aria-disabled="bulkActionBusy"
           :total="pagination.total"
           :page-size="pagination.page_size"
           @update:page="handlePageChange"
@@ -1124,7 +1159,7 @@
 	import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 import { keysAPI, authAPI, usageAPI, userGroupsAPI } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -1138,11 +1173,14 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 	import Icon from '@/components/icons/Icon.vue'
 	import UseKeyModal from '@/components/keys/UseKeyModal.vue'
 	import EndpointPopover from '@/components/keys/EndpointPopover.vue'
+	import ApiKeyBulkActions from '@/custom/api-keys/ApiKeyBulkActions.vue'
 	import GroupBadge from '@/components/common/GroupBadge.vue'
 	import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
+import type { ApiKeyBulkCompletedResult } from '@/custom/api-keys/bulkActions'
+import { customApiKeyBulkText } from '@/custom/api-keys/i18n'
 import { formatDateTime } from '@/utils/format'
 import { maskApiKey } from '@/utils/maskApiKey'
 import {
@@ -1270,6 +1308,8 @@ const columns = computed<Column[]>(() =>
 )
 
 const apiKeys = ref<ApiKey[]>([])
+const selectedKeyIds = ref<number[]>([])
+const bulkActionBusy = ref(false)
 const groups = ref<Group[]>([])
 const loading = ref(false)
 const submitting = ref(false)
@@ -1393,6 +1433,7 @@ const statusFilterOptions = computed(() => [
 ])
 
 const onFilterChange = () => {
+  if (bulkActionBusy.value) return
   pagination.value.page = 1
   loadApiKeys()
 }
@@ -1451,7 +1492,10 @@ const isAbortError = (error: unknown) => {
   return name === 'AbortError' || code === 'ERR_CANCELED'
 }
 
-const loadApiKeys = async () => {
+const loadApiKeys = async (options: { preserveSelection?: boolean } = {}) => {
+  if (!options.preserveSelection) {
+    selectedKeyIds.value = []
+  }
   abortController?.abort()
   const controller = new AbortController()
   abortController = controller
@@ -1477,6 +1521,8 @@ const loadApiKeys = async () => {
     })
     if (signal.aborted) return
     apiKeys.value = response.items
+    const visibleKeyIds = new Set(response.items.map((key) => key.id))
+    selectedKeyIds.value = selectedKeyIds.value.filter((id) => visibleKeyIds.has(id))
     pagination.value.total = response.total
     pagination.value.pages = response.pages
 
@@ -1503,6 +1549,35 @@ const loadApiKeys = async () => {
       loading.value = false
     }
   }
+}
+
+const refreshApiKeys = () => {
+  if (bulkActionBusy.value) return
+  loadApiKeys()
+}
+
+const apiKeySelectionLabel = (key: ApiKey) =>
+  customApiKeyBulkText(locale.value, 'selectionLabel', { name: key.name })
+
+const handleTableSelectionChange = (keys: Array<string | number>) => {
+  if (bulkActionBusy.value) return
+  const visibleKeyIds = new Set(apiKeys.value.map((key) => key.id))
+  selectedKeyIds.value = keys.filter(
+    (id): id is number => typeof id === 'number' && visibleKeyIds.has(id)
+  )
+}
+
+const handleBulkCompleted = async (result: ApiKeyBulkCompletedResult) => {
+  if (
+    result.action === 'delete' &&
+    result.failedIds.length === 0 &&
+    result.succeededIds.length === apiKeys.value.length &&
+    pagination.value.page > 1
+  ) {
+    pagination.value.page -= 1
+  }
+  selectedKeyIds.value = result.failedIds
+  await loadApiKeys({ preserveSelection: true })
 }
 
 const loadGroups = async () => {
@@ -1540,17 +1615,20 @@ const closeUseKeyModal = () => {
 }
 
 const handlePageChange = (page: number) => {
+  if (bulkActionBusy.value) return
   pagination.value.page = page
   loadApiKeys()
 }
 
 const handlePageSizeChange = (pageSize: number) => {
+  if (bulkActionBusy.value) return
   pagination.value.page_size = pageSize
   pagination.value.page = 1
   loadApiKeys()
 }
 
 const handleSort = (key: string, order: 'asc' | 'desc') => {
+  if (bulkActionBusy.value) return
   sortState.value.sort_by = key
   sortState.value.sort_order = order
   pagination.value.page = 1

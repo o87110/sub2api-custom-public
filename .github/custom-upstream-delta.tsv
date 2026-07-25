@@ -1,18 +1,18 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	6fc951737c2777067706220bbc85e1dd4ebf3a81	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	b6423cf53353538e1e3c82945523078cc5e41e7a	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	6696f69e0bd178834ab7b53aa6fd609085531a56	-	-	database-boundary-unit+candidate-tree-test	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	5c62b4ce4e04c11d4980bc74697b4ef25b3741ac	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/upgrades/0.1.162.md	A	keep	A	custom-docs-ops	@absent	a873781565b70fa65a9ed5e2f88ddb762faeb81b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 .github/upgrades/0.1.164.md	A	keep	A	custom-docs-ops	@absent	81ea0d2f32358597dc9a4c91f487d3b74760dac7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-.github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	c98473fa89a0b945cdaa2b11bab4f860462a04c7	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+.github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	0743dedc1c084d3bc0ca7f5a7756569211cd0245	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/backend-ci.yml	M	keep	M	fixed-path	85994652548841a65c3c7c5ff87531f31398154b	52e07f116eadaadb83c492c0ecee70977d3225d8	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	72fb782ec9bca71b0661ba92cc25031f5ca97c7e	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/release.yml	M	keep	M	fixed-path	2ba01833c112a2653155953314fc7b8a3fbf3def	c29408f7b0431b378304e098d3a1cb4326e2e4be	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	96a7ae4edd5873207a013aa827a6ea09f6f18821	d8c92e440f35ff2300370bcf5f57d13963a875e7	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	8be02f318205f362f4ec913f836c4d9dc565dd5d	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	4d2cc35b7975a3d939dea18af63ee3feb4722b5e	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
+.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	216c22ac27a4d485dd9ced16e3f8c168e322f876	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	7f94785598c98f0f45dd395622b753ff7ecde332	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .gitignore	M	keep	M	fixed-path	8c7e67f7e2592a5a42b45964c8ab6574d4cd6256	a9144e101b1aaedbcf2a2c63941ee5967a21e1b9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .goreleaser.simple.yaml	M	restore	RESTORED	whole-file-restore	14f67fd1cb7bdee6508cf1bbd3147173e0e1aefb	14f67fd1cb7bdee6508cf1bbd3147173e0e1aefb	-	-	baseline-blob-equality	非二改需求，整文件恢复官方基线
 .goreleaser.yaml	M	keep	M	fixed-path	41f9a5559bc79b244d008e37b039a293dcf02c76	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
@@ -87,22 +87,27 @@ deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	16
 deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad7233c21340ce3dd1969db55ed51	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
 deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	569db1d95d2a5799e8cf43400ced2389c113d827	-	-	goreleaser-check+release-safety	验证二改行为和发布边界
-deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	6894261c5366888b3acdf7e8589aff970ee033c6	-	-	candidate-tree+crlf-ledger-test	验证二改行为、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
+deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	ec401cb4d213ec8c8b845085dbea867ee550ca00	-	-	candidate-tree+crlf-ledger-test	验证二改行为、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
 deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
-deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	0b0cb8815a6f10cf63c98bed4b38564383eec711	-	-	test-executed-in-CI	验证二改行为和发布边界
-deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	dcc8e093d2eb90fe427c4f1a85f33833ac11e476	-	-	upstream-sync+crlf-ledger-test	验证上游同步、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
-docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	0bff169e9ed4f4c758c85083ad37d25ac9623dd2	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	b7d2990d9a26e03fb257c5a8a13acd43c1e95ecc	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	bd258f19015be217f2c5614c31533e2cd29e5f2e	-	-	test-executed-in-CI	验证二改行为和发布边界
+deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	3765666d6b749d9b3ab903e9bc725174a505b311	-	-	upstream-sync+crlf-ledger-test	验证上游同步、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
+docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	6d0dc070609e8c80641600d0d839164b18147efe	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	20f356d5158414d4c47d44c2172e54c334e378fa	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	848a7c335ab8503c6d3f1457ec47d4a0d5f06a2d	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	ef68f177ad48f661d5eb25b99942b8bb2184a50b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	3a7f0c6333e6be944fd4f3eb7efa8243e904c06f	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	b16228ad8d61e9b10c93aa09b2b183f8e0ca17f5	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	516ddea0c6fe2bb131c3c158093c767b6e10ada7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	9531934e78c3c14e260c7c3da0fdf0c2cc2883e9	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	715c0546596a4f6561f1c5888343c2d8c5367312	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 frontend/src/api/__tests__/admin.system.rollback.spec.ts	M	keep	M	custom-test	15d0989ffbbe3bb4fbc2a1fc10b9d27ca0f56012	bccdbe696e22d0ea67657a08deaca23328525a82	frontend/src/api/__tests__/admin.system.rollback.spec.ts	frontend/src/custom/updater/__tests__/api.rollback.spec.ts	updater-unit+security-tests	验证二改回退超时边界
 frontend/src/components/layout/AppSidebar.vue	M	keep	M	official-thin-bridge	2b519e37c9dc1f6518d7e2599838d87fe8bcdc20	63e4252e359fb48db3b290a2fc40d2d434e7bbc9	-	-	thin-bridge-review+go-test+wire-check	保留连接官方入口与二改实现的最薄适配
+frontend/src/custom/api-keys/ApiKeyBulkActions.vue	A	keep	A	custom-frontend	@absent	6fe8e1e737b8c618b8581a5f8b550cdc587cedc5	frontend/src/views/user/KeysView.vue	frontend/src/custom/api-keys/ApiKeyBulkActions.vue	api-key-bulk-unit+bridge-tests	二改前端功能实现
+frontend/src/custom/api-keys/__tests__/ApiKeyBulkActions.spec.ts	A	keep	A	custom-test	@absent	e6f037dfe0b207f01f0018cb91c37351c6bac45a	frontend/src/views/user/__tests__/KeysView.spec.ts	frontend/src/custom/api-keys/__tests__/ApiKeyBulkActions.spec.ts	api-key-bulk-unit+bridge-tests	验证二改行为和发布边界
+frontend/src/custom/api-keys/__tests__/bulkActions.spec.ts	A	keep	A	custom-test	@absent	4d4cd8be9b019d07361d0fd7704df81272310207	frontend/src/views/user/__tests__/KeysView.spec.ts	frontend/src/custom/api-keys/__tests__/bulkActions.spec.ts	api-key-bulk-unit+bridge-tests	验证二改行为和发布边界
+frontend/src/custom/api-keys/bulkActions.ts	A	keep	A	custom-frontend	@absent	84c31a1df99c0baabbc12b53860c64885261dd89	frontend/src/views/user/KeysView.vue	frontend/src/custom/api-keys/bulkActions.ts	api-key-bulk-unit+bridge-tests	二改前端功能实现
+frontend/src/custom/api-keys/i18n.ts	A	keep	A	custom-frontend	@absent	004e0304024e1382a9c2a3e53b0bf2480104bfb1	frontend/src/i18n/locales/en/dashboard.ts	frontend/src/custom/api-keys/i18n.ts	api-key-bulk-unit+bridge-tests	二改前端功能实现
 frontend/src/custom/moderation/i18n.ts	A	keep	A	custom-frontend	@absent	f296147195127c8dfe32da1ffeff7a9edd0cf63b	frontend/src/i18n/locales/en/admin/channels.ts	frontend/src/custom/moderation/i18n.ts	moderation-unit+bridge-tests	二改前端功能实现
 frontend/src/custom/moderation/views/RiskControlView.vue	A	keep	A	custom-frontend	@absent	a9037953974ad96a10e5065aec83a47925e59df1	frontend/src/views/admin/RiskControlView.vue	frontend/src/custom/moderation/views/RiskControlView.vue	moderation-unit+bridge-tests	二改前端功能实现
 frontend/src/custom/moderation/views/__tests__/RiskControlView.spec.ts	A	keep	A	custom-test	@absent	32672a3d9b49001a7b4ca2f3c062ae5eadf2e0b3	frontend/src/views/admin/__tests__/RiskControlView.spec.ts	frontend/src/custom/moderation/views/__tests__/RiskControlView.spec.ts	moderation-unit+bridge-tests	验证二改行为和发布边界
@@ -117,5 +122,7 @@ frontend/src/custom/updater/i18n.ts	A	keep	A	custom-frontend	@absent	fc27609ba99
 frontend/src/custom/updater/releaseNotes.ts	A	keep	A	custom-frontend	@absent	24053f83282fe35042b742a194b87cf978103d7f	frontend/src/utils/releaseNotes.ts	frontend/src/custom/updater/releaseNotes.ts	updater-unit+security-tests	二改前端功能实现
 frontend/src/custom/updater/store.ts	A	keep	A	custom-frontend	@absent	10e10a231922cd8ad5448adabba6f037e7bf4b81	frontend/src/stores/app.ts	frontend/src/custom/updater/store.ts	updater-unit+security-tests	二改前端功能实现
 frontend/src/router/index.ts	M	keep	M	official-thin-bridge	259ea55596b4766d204aca7d39ef4b95eee122ec	6b0b1b3fbbac11c138761cd11066284ef9043b5c	-	-	thin-bridge-review+go-test+wire-check	保留连接官方入口与二改实现的最薄适配
+frontend/src/views/user/KeysView.vue	M	keep	M	official-thin-bridge	023757650ad1801cdb84bf95368ee681e8aa16a4	3fed2e1ae2f6a21bb235dbd0b7d51e7119f00f2a	-	-	api-key-bulk-unit+bridge-tests	保留连接官方 API 密钥页与二改批量操作的最薄适配
+frontend/src/views/user/__tests__/KeysView.spec.ts	M	keep	M	custom-test	b66072e94f280fd1e942ba5b6baaac2b8cce4794	25102b194134b4eb6290e1678f6e194f0c53b66b	frontend/src/views/user/__tests__/KeysView.spec.ts	frontend/src/custom/api-keys/__tests__/ApiKeyBulkActions.spec.ts|frontend/src/custom/api-keys/__tests__/bulkActions.spec.ts	api-key-bulk-unit+bridge-tests	验证二改行为和发布边界
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异

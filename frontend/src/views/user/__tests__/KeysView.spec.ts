@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { nextTick, ref } from 'vue'
 
 import type { ApiKey } from '@/types'
 import KeysView from '../KeysView.vue'
@@ -100,6 +100,7 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
+      locale: ref('en'),
       t: (key: string) => messages[key] ?? key,
     }),
   }
@@ -153,11 +154,19 @@ const TablePageLayoutStub = {
 
 const DataTableStub = {
   name: 'DataTable',
-  props: ['columns', 'data'],
-  emits: ['sort'],
+  props: ['columns', 'data', 'selectable', 'rowKey', 'selectedKeys', 'selectionLabel'],
+  emits: ['sort', 'update:selectedKeys'],
   template: `
     <div>
       <div data-test="columns">{{ columns.map((col) => col.key).join(',') }}</div>
+      <div data-test="selection-config">{{ String(selectable) }}|{{ rowKey }}|{{ selectedKeys.join(',') }}</div>
+      <button
+        v-if="data.length > 0"
+        data-test="select-first-key"
+        @click="$emit('update:selectedKeys', [data[0].id])"
+      >
+        Select first
+      </button>
       <div data-test="columns-meta">{{ JSON.stringify(columns.map((col) => ({ key: col.key, sortable: !!col.sortable }))) }}</div>
       <button data-test="sort-current-concurrency" @click="$emit('sort', 'current_concurrency', 'asc')">
         Sort Current Concurrency
@@ -205,7 +214,20 @@ const PaginationStub = {
   emits: ['update:page', 'update:pageSize'],
   template: `
     <div>
+      <button data-test="page-2" @click="$emit('update:page', 2)">2</button>
       <button data-test="page-size-50" @click="$emit('update:pageSize', 50)">50</button>
+    </div>
+  `,
+}
+
+const ApiKeyBulkActionsStub = {
+  name: 'ApiKeyBulkActions',
+  props: ['rows', 'selectedIds', 'groups', 'userGroupRates'],
+  emits: ['update:selectedIds', 'busy-change', 'completed'],
+  template: `
+    <div v-if="selectedIds.length > 0" data-test="bulk-actions-stub">
+      <span data-test="bulk-selected-ids">{{ selectedIds.join(',') }}</span>
+      <button data-test="bulk-clear-stub" @click="$emit('update:selectedIds', [])">Clear</button>
     </div>
   `,
 }
@@ -222,6 +244,7 @@ const mountView = async () => {
         AppLayout: AppLayoutStub,
         TablePageLayout: TablePageLayoutStub,
         DataTable: DataTableStub,
+        ApiKeyBulkActions: ApiKeyBulkActionsStub,
         Pagination: PaginationStub,
         BaseDialog: true,
         ConfirmDialog: true,
@@ -437,5 +460,132 @@ describe('user KeysView column settings', () => {
       },
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     )
+  })
+
+  it('wires current-page row selection into the custom bulk actions bridge', async () => {
+    const wrapper = await mountView()
+    const table = wrapper.findComponent({ name: 'DataTable' })
+
+    expect(table.props('selectable')).toBe(true)
+    expect(table.props('rowKey')).toBe('id')
+    expect(table.props('selectedKeys')).toEqual([])
+    expect(table.props('selectionLabel')(createApiKey())).toBe('Select API key test-key')
+
+    table.vm.$emit('update:selectedKeys', [1])
+    await nextTick()
+
+    expect(wrapper.get('[data-test="bulk-selected-ids"]').text()).toBe('1')
+    await wrapper.get('[data-test="bulk-clear-stub"]').trigger('click')
+    expect(table.props('selectedKeys')).toEqual([])
+  })
+
+  it('clears current-page selection when the table query changes or refreshes', async () => {
+    const wrapper = await mountView()
+    const table = wrapper.findComponent({ name: 'DataTable' })
+
+    table.vm.$emit('update:selectedKeys', [1])
+    await nextTick()
+    await wrapper.get('[data-test="page-size-50"]').trigger('click')
+    await flushPromises()
+    expect(table.props('selectedKeys')).toEqual([])
+
+    table.vm.$emit('update:selectedKeys', [1])
+    await nextTick()
+    await wrapper.findComponent({ name: 'SearchInput' }).vm.$emit('search')
+    await flushPromises()
+    expect(table.props('selectedKeys')).toEqual([])
+
+    table.vm.$emit('update:selectedKeys', [1])
+    await nextTick()
+    await wrapper.get('[data-test="sort-current-concurrency"]').trigger('click')
+    await flushPromises()
+    expect(table.props('selectedKeys')).toEqual([])
+
+    table.vm.$emit('update:selectedKeys', [1])
+    await nextTick()
+    await wrapper.get('button[title="Refresh"]').trigger('click')
+    await flushPromises()
+    expect(table.props('selectedKeys')).toEqual([])
+  })
+
+  it('reloads after a partial bulk action and keeps failed current-page ids selected', async () => {
+    listKeys.mockResolvedValue({
+      items: [createApiKey(), { ...createApiKey(), id: 2, key: 'sk-test-key-2', name: 'test-key-2' }],
+      total: 2,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+    const wrapper = await mountView()
+    const table = wrapper.findComponent({ name: 'DataTable' })
+
+    table.vm.$emit('update:selectedKeys', [1, 2])
+    await nextTick()
+    wrapper.findComponent({ name: 'ApiKeyBulkActions' }).vm.$emit('completed', {
+      action: 'group',
+      succeededIds: [1],
+      failedIds: [2],
+      skippedIds: [],
+    })
+    await flushPromises()
+
+    expect(table.props('selectedKeys')).toEqual([2])
+    expect(listKeys).toHaveBeenLastCalledWith(
+      1,
+      20,
+      expect.any(Object),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+  })
+
+  it('moves to the previous page after deleting every row on a non-first page', async () => {
+    const wrapper = await mountView()
+
+    await wrapper.get('[data-test="page-2"]').trigger('click')
+    await flushPromises()
+    const table = wrapper.findComponent({ name: 'DataTable' })
+    table.vm.$emit('update:selectedKeys', [1])
+    await nextTick()
+
+    wrapper.findComponent({ name: 'ApiKeyBulkActions' }).vm.$emit('completed', {
+      action: 'delete',
+      succeededIds: [1],
+      failedIds: [],
+      skippedIds: [],
+    })
+    await flushPromises()
+
+    expect(listKeys).toHaveBeenLastCalledWith(
+      1,
+      20,
+      expect.any(Object),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+  })
+
+  it('stays on the current page when a bulk deletion partially fails', async () => {
+    const wrapper = await mountView()
+
+    await wrapper.get('[data-test="page-2"]').trigger('click')
+    await flushPromises()
+    const table = wrapper.findComponent({ name: 'DataTable' })
+    table.vm.$emit('update:selectedKeys', [1])
+    await nextTick()
+
+    wrapper.findComponent({ name: 'ApiKeyBulkActions' }).vm.$emit('completed', {
+      action: 'delete',
+      succeededIds: [],
+      failedIds: [1],
+      skippedIds: [],
+    })
+    await flushPromises()
+
+    expect(listKeys).toHaveBeenLastCalledWith(
+      2,
+      20,
+      expect.any(Object),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+    expect(table.props('selectedKeys')).toEqual([1])
   })
 })

@@ -180,7 +180,8 @@ thin_bridge_allowed() {
       backend/internal/handler/wire.go | \
       backend/internal/service/content_moderation.go | \
       frontend/src/components/layout/AppSidebar.vue | \
-      frontend/src/router/index.ts)
+      frontend/src/router/index.ts | \
+      frontend/src/views/user/KeysView.vue)
       return 0
       ;;
     *)

@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-25}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-29}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,12 +48,16 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 25 ]]; then
+if [[ "$expected_count" -eq 29 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
   assert_mapping $'backend/internal/service/content_moderation_cyber_test.go\tbackend/internal/custom/moderation/cyber_policy_test.go|backend/internal/service/custom_moderation_bridge_test.go'
   assert_mapping $'backend/internal/service/content_moderation_test.go\tbackend/internal/custom/moderation/excerpt_test.go|backend/internal/service/custom_moderation_bridge_test.go'
+  assert_mapping $'frontend/src/views/user/KeysView.vue\tfrontend/src/custom/api-keys/ApiKeyBulkActions.vue|frontend/src/custom/api-keys/bulkActions.ts'
+  assert_mapping $'frontend/src/views/user/__tests__/KeysView.spec.ts\tfrontend/src/custom/api-keys/__tests__/ApiKeyBulkActions.spec.ts|frontend/src/custom/api-keys/__tests__/bulkActions.spec.ts'
+  assert_mapping $'frontend/src/i18n/locales/en/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
+  assert_mapping $'frontend/src/i18n/locales/zh/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
 fi
 
 validate_relative_path() {
@@ -280,8 +284,10 @@ frontend/src/api/__tests__/admin.system.rollback.spec.ts
 frontend/src/api/admin/system.ts
 frontend/src/components/common/VersionBadge.vue
 frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts
+frontend/src/i18n/locales/en/dashboard.ts
 frontend/src/i18n/locales/en/admin/channels.ts
 frontend/src/i18n/locales/en/misc.ts
+frontend/src/i18n/locales/zh/dashboard.ts
 frontend/src/i18n/locales/zh/admin/channels.ts
 frontend/src/i18n/locales/zh/misc.ts
 frontend/src/stores/app.ts
@@ -289,6 +295,8 @@ frontend/src/utils/__tests__/releaseNotes.spec.ts
 frontend/src/utils/releaseNotes.ts
 frontend/src/views/admin/RiskControlView.vue
 frontend/src/views/admin/__tests__/RiskControlView.spec.ts
+frontend/src/views/user/KeysView.vue
+frontend/src/views/user/__tests__/KeysView.spec.ts
 backend/internal/service/not_content_moderation_companion.go
 unmapped/fixture-must-not-match.txt
 EOF
