@@ -12,6 +12,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 )
 
 // Strategy represents a load balancing strategy for provider instance selection.
@@ -103,6 +104,12 @@ func (lb *DefaultLoadBalancer) SelectInstance(
 	// Step 3: filter by limits.
 	available := filterByLimits(candidates, paymentType, orderAmount)
 	if len(available) == 0 {
+		if paymentchannels.ShouldFailClosedOnNoAvailableInstance(providerKey) {
+			slog.Warn("all explicitly selected provider instances exceeded limits",
+				"provider", providerKey, "payment_type", paymentType,
+				"order_amount", orderAmount, "count", len(candidates))
+			return nil, nil
+		}
 		slog.Warn("all instances exceeded limits, using full candidate list",
 			"provider", providerKey, "payment_type", paymentType,
 			"order_amount", orderAmount, "count", len(candidates))

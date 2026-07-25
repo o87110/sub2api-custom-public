@@ -64,7 +64,8 @@ describe('WechatPaymentCallbackView', () => {
   })
 
   it('redirects back to purchase with an opaque resume token from hash fragment', async () => {
-    locationState.current.hash = '#wechat_resume_token=resume-token-123&redirect=%2Fpurchase%3Ffrom%3Dwechat'
+    locationState.current.hash =
+      '#wechat_resume_token=resume-token-123&redirect=%2Fpurchase%3Ffrom%3Dwechat%26provider_key%3Dwxpay'
 
     mount(WechatPaymentCallbackView)
     await flushPromises()
@@ -73,6 +74,7 @@ describe('WechatPaymentCallbackView', () => {
       path: '/purchase',
       query: {
         from: 'wechat',
+        provider_key: 'wxpay',
         wechat_resume: '1',
         wechat_resume_token: 'resume-token-123',
       },

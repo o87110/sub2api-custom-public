@@ -186,7 +186,21 @@ while IFS= read -r protected_path; do
     fail "upgrade gate protected path pattern misses custom runtime entry point: $protected_path"
   fi
 done <<'EOF'
+backend/internal/handler/auth_wechat_oauth.go
+backend/internal/handler/payment_handler.go
+backend/internal/payment/load_balancer.go
+backend/internal/service/payment_config_limits.go
+backend/internal/service/payment_order.go
+backend/internal/service/payment_resume_service.go
+backend/internal/service/payment_service.go
+frontend/src/components/payment/paymentFlow.ts
+frontend/src/types/payment.ts
+frontend/src/views/admin/SettingsView.vue
+frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts
 frontend/src/views/user/KeysView.vue
+frontend/src/views/user/PaymentView.vue
+frontend/src/views/user/__tests__/paymentWechatResume.spec.ts
+frontend/src/views/user/paymentWechatResume.ts
 EOF
 
 /bin/bash "$shadow_map_test"
@@ -211,15 +225,29 @@ done <<'EOF'
 /backend/internal/config/config.go
 /backend/internal/handler/wire.go
 /backend/internal/handler/admin/system_handler.go
+/backend/internal/handler/auth_wechat_oauth.go
 /backend/internal/handler/openai_gateway_handler.go
+/backend/internal/handler/payment_handler.go
+/backend/internal/payment/load_balancer.go
 /backend/internal/repository/content_moderation_repo.go
 /backend/internal/service/content_moderation.go
 /backend/internal/service/custom_moderation_bridge.go
+/backend/internal/service/payment_config_limits.go
+/backend/internal/service/payment_order.go
+/backend/internal/service/payment_resume_service.go
+/backend/internal/service/payment_service.go
 /deploy/docker-compose.custom.yml
 /deploy/docker-entrypoint.sh
 /frontend/src/components/layout/AppSidebar.vue
+/frontend/src/components/payment/paymentFlow.ts
 /frontend/src/router/index.ts
+/frontend/src/types/payment.ts
+/frontend/src/views/admin/SettingsView.vue
+/frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts
 /frontend/src/views/user/KeysView.vue
+/frontend/src/views/user/PaymentView.vue
+/frontend/src/views/user/__tests__/paymentWechatResume.spec.ts
+/frontend/src/views/user/paymentWechatResume.ts
 EOF
 
 awk 'BEGIN { FS=OFS="\t" } NR == 2 { print $1, $2, "extra"; next } { print }' \

@@ -68,22 +68,10 @@ openssl rand -hex 32
 API 请求触发 GitHub 限流，可以在受控环境中通过 `UPDATE_GITHUB_TOKEN` 提高
 限额，但不得把 Token 写入仓库、截图或日志。
 
-GHCR 可见性与仓库可见性独立。如果镜像包设置为 Public，可以匿名拉取；如果
-暂时仍是 Private，需要 Personal Access Token (classic) 且只授予
-`read:packages`，该凭据只供宿主机 Docker 使用，不得挂载进应用容器：
-
-```bash
-read -rsp 'GHCR read token: ' GHCR_TOKEN
-echo
-printf '%s' "$GHCR_TOKEN" |
-  docker login ghcr.io -u o87110 --password-stdin
-unset GHCR_TOKEN
-chmod 700 /root/.docker
-chmod 600 /root/.docker/config.json
-```
-
-应看到 `Login Succeeded`。如果 `docker compose pull` 返回 GHCR
-`unauthorized`，先核对包可见性和宿主机登录状态。
+当前 GHCR Package 为 Public，可以匿名拉取，演练流程不执行 `docker login`。
+如果 `docker compose pull` 返回 `unauthorized`，先核对 Package 可见性和仓库
+关联；只有未来明确改为 Private 时，才按运维文档在宿主机配置最小
+`read:packages` 凭据，该凭据不得挂载进应用容器。
 
 ## 4. 启动前检查
 

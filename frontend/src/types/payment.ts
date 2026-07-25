@@ -53,6 +53,20 @@ export interface MethodLimit {
   available: boolean
 }
 
+export interface PaymentMethodOption {
+  id: string
+  payment_type: string
+  provider_key: string
+  display_name?: string
+  currency?: string
+  fee_rate: number
+  daily_limit: number
+  single_min: number
+  single_max: number
+  available: boolean
+  capabilities?: string[]
+}
+
 /** Response from /payment/limits API */
 export interface MethodLimitsResponse {
   methods: Record<string, MethodLimit>
@@ -63,6 +77,8 @@ export interface MethodLimitsResponse {
 /** Response from /payment/checkout-info API — single call for the payment page */
 export interface CheckoutInfoResponse {
   methods: Record<string, MethodLimit>
+  /** Provider-specific choices. Missing on legacy backends. */
+  method_options?: PaymentMethodOption[]
   global_min: number
   global_max: number
   plans: SubscriptionPlan[]
@@ -169,6 +185,7 @@ export interface ProviderInstance {
 export interface CreateOrderRequest {
   amount: number
   payment_type: string
+  provider_key?: string
   order_type: string
   plan_id?: number
   return_url?: string
@@ -213,6 +230,7 @@ export interface CreateOrderResult {
   expires_at: string
   result_type?: CreateOrderResultType
   payment_type?: string
+  provider_key?: string
   out_trade_no?: string
   payment_mode?: string
   resume_token?: string

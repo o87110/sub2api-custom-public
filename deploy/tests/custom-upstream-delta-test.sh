@@ -174,13 +174,36 @@ blob_at() {
 thin_bridge_allowed() {
   case "$1" in
     backend/cmd/server/wire.go | \
+      backend/internal/handler/auth_wechat_oauth.go | \
+      backend/internal/handler/auth_wechat_oauth_test.go | \
       backend/internal/handler/admin/system_handler.go | \
       backend/internal/handler/admin/system_handler_test.go | \
       backend/internal/handler/openai_gateway_handler.go | \
+      backend/internal/handler/payment_handler.go | \
+      backend/internal/handler/payment_handler_resume_test.go | \
       backend/internal/handler/wire.go | \
+      backend/internal/payment/load_balancer.go | \
       backend/internal/service/content_moderation.go | \
+      backend/internal/service/payment_config_limits.go | \
+      backend/internal/service/payment_config_limits_test.go | \
+      backend/internal/service/payment_order.go | \
+      backend/internal/service/payment_order_result_test.go | \
+      backend/internal/service/payment_resume_service.go | \
+      backend/internal/service/payment_service.go | \
+      frontend/src/components/payment/paymentFlow.ts | \
+      frontend/src/components/payment/__tests__/paymentFlow.spec.ts | \
       frontend/src/components/layout/AppSidebar.vue | \
+      frontend/src/i18n/locales/en/misc.ts | \
+      frontend/src/i18n/locales/zh/misc.ts | \
       frontend/src/router/index.ts | \
+      frontend/src/types/payment.ts | \
+      frontend/src/views/admin/SettingsView.vue | \
+      frontend/src/views/admin/__tests__/SettingsView.spec.ts | \
+      frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts | \
+      frontend/src/views/user/PaymentView.vue | \
+      frontend/src/views/user/__tests__/PaymentView.spec.ts | \
+      frontend/src/views/user/__tests__/paymentWechatResume.spec.ts | \
+      frontend/src/views/user/paymentWechatResume.ts | \
       frontend/src/views/user/KeysView.vue)
       return 0
       ;;

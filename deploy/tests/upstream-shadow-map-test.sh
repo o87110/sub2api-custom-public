@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-29}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-50}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 29 ]]; then
+if [[ "$expected_count" -eq 50 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -58,6 +58,14 @@ if [[ "$expected_count" -eq 29 ]]; then
   assert_mapping $'frontend/src/views/user/__tests__/KeysView.spec.ts\tfrontend/src/custom/api-keys/__tests__/ApiKeyBulkActions.spec.ts|frontend/src/custom/api-keys/__tests__/bulkActions.spec.ts'
   assert_mapping $'frontend/src/i18n/locales/en/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
   assert_mapping $'frontend/src/i18n/locales/zh/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
+  assert_mapping $'backend/internal/service/payment_order.go\tbackend/internal/custom/paymentchannels/payment_channels.go'
+  assert_mapping $'backend/internal/handler/payment_handler.go\tbackend/internal/custom/paymentchannels/payment_channels.go'
+  assert_mapping $'backend/internal/payment/load_balancer.go\tbackend/internal/custom/paymentchannels/payment_channels.go'
+  assert_mapping $'frontend/src/views/user/PaymentView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts'
+  assert_mapping $'frontend/src/views/admin/SettingsView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts'
+  assert_mapping $'frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts\tfrontend/src/custom/payment-channels/paymentChannels.spec.ts'
+  assert_mapping $'frontend/src/views/user/__tests__/paymentWechatResume.spec.ts\tfrontend/src/custom/payment-channels/paymentChannels.spec.ts'
+  assert_mapping $'frontend/src/views/user/paymentWechatResume.ts\tfrontend/src/custom/payment-channels/paymentChannels.ts'
 fi
 
 validate_relative_path() {
@@ -272,11 +280,22 @@ backend/internal/repository/github_release_service_test.go
 backend/internal/repository/content_moderation_repo.go
 backend/internal/repository/content_moderation_repo_test.go
 backend/internal/repository/wire.go
+backend/internal/handler/auth_wechat_oauth.go
+backend/internal/handler/auth_wechat_oauth_test.go
+backend/internal/handler/payment_handler.go
+backend/internal/handler/payment_handler_resume_test.go
 backend/internal/handler/openai_gateway_cyber_test.go
+backend/internal/payment/load_balancer.go
 backend/internal/service/content_moderation.go
 backend/internal/service/content_moderation_companion.go
 backend/internal/service/content_moderation_cyber_test.go
 backend/internal/service/content_moderation_test.go
+backend/internal/service/payment_config_limits.go
+backend/internal/service/payment_config_limits_test.go
+backend/internal/service/payment_order.go
+backend/internal/service/payment_order_result_test.go
+backend/internal/service/payment_resume_service.go
+backend/internal/service/payment_service.go
 backend/internal/service/update_service.go
 backend/internal/service/update_service_test.go
 backend/internal/service/wire.go
@@ -284,6 +303,8 @@ frontend/src/api/__tests__/admin.system.rollback.spec.ts
 frontend/src/api/admin/system.ts
 frontend/src/components/common/VersionBadge.vue
 frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts
+frontend/src/components/payment/paymentFlow.ts
+frontend/src/components/payment/__tests__/paymentFlow.spec.ts
 frontend/src/i18n/locales/en/dashboard.ts
 frontend/src/i18n/locales/en/admin/channels.ts
 frontend/src/i18n/locales/en/misc.ts
@@ -291,12 +312,20 @@ frontend/src/i18n/locales/zh/dashboard.ts
 frontend/src/i18n/locales/zh/admin/channels.ts
 frontend/src/i18n/locales/zh/misc.ts
 frontend/src/stores/app.ts
+frontend/src/types/payment.ts
 frontend/src/utils/__tests__/releaseNotes.spec.ts
 frontend/src/utils/releaseNotes.ts
 frontend/src/views/admin/RiskControlView.vue
 frontend/src/views/admin/__tests__/RiskControlView.spec.ts
+frontend/src/views/admin/SettingsView.vue
+frontend/src/views/admin/__tests__/SettingsView.spec.ts
+frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts
 frontend/src/views/user/KeysView.vue
 frontend/src/views/user/__tests__/KeysView.spec.ts
+frontend/src/views/user/PaymentView.vue
+frontend/src/views/user/__tests__/PaymentView.spec.ts
+frontend/src/views/user/__tests__/paymentWechatResume.spec.ts
+frontend/src/views/user/paymentWechatResume.ts
 backend/internal/service/not_content_moderation_companion.go
 unmapped/fixture-must-not-match.txt
 EOF

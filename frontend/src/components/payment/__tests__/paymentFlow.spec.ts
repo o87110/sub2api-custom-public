@@ -331,6 +331,20 @@ describe('buildCreateOrderPayload', () => {
     })
   })
 
+  it('includes an explicit provider key without changing the normalized payment type', () => {
+    expect(buildCreateOrderPayload({
+      amount: 88,
+      paymentType: 'alipay_direct',
+      providerKey: 'easypay',
+      orderType: 'balance',
+      isMobile: false,
+      isWechatBrowser: false,
+    })).toMatchObject({
+      payment_type: 'alipay',
+      provider_key: 'easypay',
+    })
+  })
+
   it('passes is_mobile: false when forceQRCode is enabled for alipay', () => {
     expect(buildCreateOrderPayload({
       amount: 50,
@@ -383,6 +397,8 @@ describe('readPaymentRecoverySnapshot', () => {
       qrCode: '',
       expiresAt: '2099-01-01T00:10:00.000Z',
       paymentType: 'alipay',
+      paymentChannelId: 'official_alipay',
+      providerKey: 'alipay',
       payUrl: 'https://pay.example.com/session/33',
       outTradeNo: 'sub2_33',
       clientSecret: '',
@@ -403,6 +419,8 @@ describe('readPaymentRecoverySnapshot', () => {
     })
 
     expect(restored?.orderId).toBe(33)
+    expect(restored?.paymentChannelId).toBe('official_alipay')
+    expect(restored?.providerKey).toBe('alipay')
   })
 
   it('drops expired or mismatched recovery snapshots', () => {

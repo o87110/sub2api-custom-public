@@ -10,7 +10,7 @@ upstream  = https://github.com/Wei-Shaw/sub2api.git
 | 分支 | 责任 |
 | --- | --- |
 | `main` | 二改源码、文档和可信工作流 |
-| `upstream/main` | 官方镜像提交，不作为默认分支 |
+| `refs/heads/upstream/main` | 本仓库已审核官方镜像，本地查看为 `origin/upstream/main` |
 | `upgrade/vX.Y.Z` | 官方升级冲突和审查现场 |
 | 功能分支 | 通过 PR 合入 `main` |
 
@@ -120,9 +120,11 @@ vX.Y.Z-custom.N-arm64
 - 必须通过 PR；
 - 必须通过 CI；Security Scan 独立报告且不得配置为 Required Check；
 - 禁止 Force Push 和删除；
-- Workflow、发布脚本和差异台账要求 Code Owner Review；
+- `CODEOWNERS` 标识 Workflow、发布脚本和差异台账的责任人，但当前不要求人工审批
+  或 Code Owner Review；
 - 合并前分支必须是最新状态；
-- 管理员是否允许绕过应显式决定，默认不绕过。
+- 必须解决全部 Review Conversation；
+- 分支保护同样约束管理员，不允许绕过。
 
 ## 9. 发布失败
 

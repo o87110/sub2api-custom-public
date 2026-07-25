@@ -101,13 +101,15 @@ runtime 文件。更新使用原子替换，保留一个可回退备份，失败
 - 不覆盖已发布资产，不移动已有 Tag；
 - Release 和 GHCR 任一不完整时视为不可部署。
 
-公开仓库的 GitHub Release 默认公开。GHCR 包可见性独立配置，发布后应明确设置
-为 Public 或在文档中说明拉取鉴权要求。
+公开仓库的 GitHub Release 与当前 GHCR Package 均支持匿名访问。GHCR 可见性独立
+于仓库可见性，发布后必须确认 Package 仍为 Public；只有未来明确改为 Private 时
+才启用文档中的条件拉取鉴权。
 
 ## 6. 官方升级隔离
 
 - `main` 保存二改主线。
-- `upstream/main` 保存官方镜像提交。
+- `upstream/main` 表示官方远程尚未审核的最新主线，不作为当前基线。
+- `origin/upstream/main` 保存本仓库已经审核的官方镜像提交。
 - `vendor-X.Y.Z` 标记已审查并合入的官方基线。
 - `upgrade/vX.Y.Z` 保存可复现的升级现场。
 
@@ -149,8 +151,34 @@ frontend/src/custom/api-keys/
 frontend/src/views/user/KeysView.vue
 ```
 
-## 9. 明确没有改变的行为
+## 9. 支付宝/微信多渠道用户选择
 
-除本文档列出的边界外，认证、计费、调度、协议兼容、支付和官方功能应保持当前
+管理员可以同时启用易支付与官方支付宝/微信实例。充值和订阅页按服务商聚合并
+展示以下稳定渠道：`easypay_alipay`、`official_alipay`、`easypay_wxpay`、
+`official_wxpay`；同一渠道的多个实例继续由现有负载均衡策略分配。
+
+- 默认顺序固定为易支付支付宝、官方支付宝、易支付微信、官方微信，再到 Stripe、
+  Airwallex 和自定义方式；
+- 新前端通过 `payment_type + provider_key` 精确选源，旧客户端不传
+  `provider_key` 时保留后台默认来源逻辑；
+- 币种、费率、单笔限额和每日限额只在同一渠道内聚合，单笔限额按本金加手续费后的
+  网关实付金额判断，混合币种只隐藏受影响渠道；
+- 显式渠道的全部实例均超过限额时失败关闭，不回退到超限实例；旧客户端不传
+  `provider_key` 时继续保留原路由兼容行为；
+- 网关失败只提示用户手动切换可见备用渠道，不自动跨渠道创建第二个订单；
+- 移动端同一渠道转二维码、微信 OAuth/JSAPI 和恢复令牌保持原 `provider_key`；
+- 旧后端没有 `method_options`、旧恢复快照或旧微信令牌没有渠道字段时继续兼容；
+- 本功能不新增 Migration、Schema、实体字段或 SQL。
+
+主要实现：
+
+```text
+backend/internal/custom/paymentchannels/
+frontend/src/custom/payment-channels/
+```
+
+## 10. 明确没有改变的行为
+
+除本文档列出的边界外，认证、计费、调度、协议兼容和官方功能应保持当前
 源码既有行为。新增需求必须先更新本清单和对应测试，不能用“二改”名义扩大隐式
 行为范围。

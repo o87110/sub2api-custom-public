@@ -88,6 +88,7 @@ type wechatOAuthUserInfoResponse struct {
 
 type wechatPaymentOAuthContext struct {
 	PaymentType string `json:"payment_type"`
+	ProviderKey string `json:"provider_key,omitempty"`
 	Amount      string `json:"amount,omitempty"`
 	OrderType   string `json:"order_type,omitempty"`
 	PlanID      int64  `json:"plan_id,omitempty"`
@@ -341,6 +342,11 @@ func (h *AuthHandler) WeChatPaymentOAuthStart(c *gin.Context) {
 		response.BadRequest(c, "Invalid payment type")
 		return
 	}
+	providerKey := strings.ToLower(strings.TrimSpace(c.Query("provider_key")))
+	if providerKey != "" && providerKey != payment.TypeWxpay {
+		response.BadRequest(c, "Invalid payment provider")
+		return
+	}
 
 	state, err := oauth.GenerateState()
 	if err != nil {
@@ -354,6 +360,7 @@ func (h *AuthHandler) WeChatPaymentOAuthStart(c *gin.Context) {
 	}
 	rawContext, err := encodeWeChatPaymentOAuthContext(wechatPaymentOAuthContext{
 		PaymentType: paymentType,
+		ProviderKey: providerKey,
 		Amount:      strings.TrimSpace(c.Query("amount")),
 		OrderType:   strings.TrimSpace(c.Query("order_type")),
 		PlanID:      parseWeChatPaymentPlanID(c.Query("plan_id")),
@@ -427,6 +434,11 @@ func (h *AuthHandler) WeChatPaymentOAuthCallback(c *gin.Context) {
 	if paymentContext.PaymentType == "" {
 		paymentContext.PaymentType = payment.TypeWxpay
 	}
+	paymentContext.ProviderKey = strings.ToLower(strings.TrimSpace(paymentContext.ProviderKey))
+	if paymentContext.ProviderKey != "" && paymentContext.ProviderKey != payment.TypeWxpay {
+		redirectOAuthError(c, frontendCallback, "invalid_context", "invalid payment provider context", "")
+		return
+	}
 
 	scope, _ := readCookieDecoded(c, wechatPaymentOAuthScope)
 	scope = normalizeWeChatPaymentScope(scope)
@@ -455,6 +467,7 @@ func (h *AuthHandler) WeChatPaymentOAuthCallback(c *gin.Context) {
 	resumeToken, err := h.wechatPaymentResumeService().CreateWeChatPaymentResumeToken(service.WeChatPaymentResumeClaims{
 		OpenID:      openid,
 		PaymentType: paymentContext.PaymentType,
+		ProviderKey: paymentContext.ProviderKey,
 		Amount:      paymentContext.Amount,
 		OrderType:   paymentContext.OrderType,
 		PlanID:      paymentContext.PlanID,

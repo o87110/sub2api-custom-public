@@ -948,6 +948,78 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(getProviders).toHaveBeenCalledTimes(2);
   });
 
+  it("allows official Alipay to be enabled while EasyPay Alipay is already enabled", async () => {
+    const easyPay = {
+      id: 6,
+      provider_key: "easypay",
+      name: "EasyPay",
+      config: {},
+      supported_types: ["alipay"],
+      enabled: true,
+      payment_mode: "",
+      refund_enabled: false,
+      allow_user_refund: false,
+      limits: "",
+      sort_order: 0,
+    };
+    const official = {
+      ...easyPay,
+      id: 7,
+      provider_key: "alipay",
+      name: "Official Alipay",
+      enabled: false,
+      sort_order: 1,
+    };
+    getProviders.mockReset();
+    getProviders
+      .mockResolvedValueOnce({ data: [easyPay, official] })
+      .mockResolvedValueOnce({ data: [easyPay, { ...official, enabled: true }] });
+    updateProvider.mockResolvedValue({ data: { ...official, enabled: true } });
+
+    const PaymentProviderListStub = defineComponent({
+      emits: ["toggleField"],
+      setup(_, { emit }) {
+        return () =>
+          h(
+            "button",
+            {
+              class: "provider-toggle-official-stub",
+              onClick: () => emit("toggleField", official, "enabled"),
+            },
+            "toggle official provider",
+          );
+      },
+    });
+    const wrapper = mount(SettingsView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          Select: SelectStub,
+          Toggle: ToggleStub,
+          Icon: true,
+          ConfirmDialog: true,
+          PaymentProviderList: PaymentProviderListStub,
+          PaymentProviderDialog: true,
+          GroupBadge: true,
+          GroupOptionItem: true,
+          ProxySelector: true,
+          ImageUpload: ImageUploadStub,
+          BackupSettings: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+    await wrapper.get(".provider-toggle-official-stub").trigger("click");
+    await flushPromises();
+
+    expect(updateProvider).toHaveBeenCalledWith(7, { enabled: true });
+    expect(showError).not.toHaveBeenCalledWith(
+      expect.stringContaining("enableConflict"),
+    );
+  });
+
   it("renders advanced scheduler copy as local experimental gateway policy", async () => {
     const wrapper = mountView();
 

@@ -8,6 +8,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -38,6 +39,21 @@ func (s *PaymentConfigService) GetAvailableMethodLimits(ctx context.Context) (*M
 	}
 	resp.GlobalMin, resp.GlobalMax = pcComputeGlobalRange(resp.Methods)
 	return resp, nil
+}
+
+// GetAvailableMethodOptions exposes provider-specific user choices while
+// preserving GetAvailableMethodLimits for legacy clients.
+func (s *PaymentConfigService) GetAvailableMethodOptions(ctx context.Context, feeRate float64, alipayMobilePrecreateDeepLink bool) ([]paymentchannels.MethodOption, error) {
+	instances, err := s.entClient.PaymentProviderInstance.Query().
+		Where(paymentproviderinstance.EnabledEQ(true)).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query provider instances: %w", err)
+	}
+	return paymentchannels.BuildMethodOptions(
+		s.pcPaymentChannelInstances(instances),
+		feeRate,
+		alipayMobilePrecreateDeepLink,
+	), nil
 }
 
 func (s *PaymentConfigService) pcApplyEnabledVisibleMethodInstances(ctx context.Context, typeInstances map[string][]*dbent.PaymentProviderInstance, instances []*dbent.PaymentProviderInstance) map[string][]*dbent.PaymentProviderInstance {
@@ -129,6 +145,156 @@ func (s *PaymentConfigService) ValidateMethodCurrencyConsistency(ctx context.Con
 		).WithMetadata(map[string]string{"payment_type": method})
 	}
 	return currency, nil
+}
+
+// ValidateMethodProviderCurrencyConsistency validates currency only inside the
+// explicitly selected provider channel.
+func (s *PaymentConfigService) ValidateMethodProviderCurrencyConsistency(ctx context.Context, paymentType, providerKey string) (string, error) {
+	method := NormalizeVisibleMethod(paymentType)
+	providerKey = strings.ToLower(strings.TrimSpace(providerKey))
+	if providerKey == "" {
+		return s.ValidateMethodCurrencyConsistency(ctx, method)
+	}
+	if method == "" || s == nil || s.entClient == nil {
+		return payment.DefaultPaymentCurrency, nil
+	}
+
+	instances, err := s.entClient.PaymentProviderInstance.Query().
+		Where(paymentproviderinstance.EnabledEQ(true)).All(ctx)
+	if err != nil {
+		return "", fmt.Errorf("query provider instances: %w", err)
+	}
+	matching := make([]*dbent.PaymentProviderInstance, 0)
+	for _, instance := range instances {
+		if strings.EqualFold(strings.TrimSpace(instance.ProviderKey), providerKey) &&
+			pcInstanceSupportsPaymentType(instance, method) {
+			matching = append(matching, instance)
+		}
+	}
+	if len(matching) == 0 {
+		return payment.DefaultPaymentCurrency, nil
+	}
+
+	currency, ok := s.pcAggregateMethodCurrency(matching)
+	if !ok {
+		return "", infraerrors.ServiceUnavailable(
+			"PAYMENT_METHOD_CURRENCY_CONFLICT",
+			"payment channel has enabled provider instances with mixed currencies",
+		).WithMetadata(map[string]string{
+			"payment_type": method,
+			"provider_key": providerKey,
+		})
+	}
+	return currency, nil
+}
+
+// HasConfiguredProviderPaymentType recognizes dynamic EasyPay custom methods
+// without treating a temporarily disabled channel as an invalid combination.
+func (s *PaymentConfigService) HasConfiguredProviderPaymentType(ctx context.Context, paymentType, providerKey string) (bool, error) {
+	method := NormalizeVisibleMethod(paymentType)
+	providerKey = strings.ToLower(strings.TrimSpace(providerKey))
+	if method == "" || providerKey == "" || s == nil || s.entClient == nil {
+		return false, nil
+	}
+	instances, err := s.entClient.PaymentProviderInstance.Query().All(ctx)
+	if err != nil {
+		return false, fmt.Errorf("query provider instances: %w", err)
+	}
+	for _, instance := range instances {
+		if !strings.EqualFold(strings.TrimSpace(instance.ProviderKey), providerKey) {
+			continue
+		}
+		if providerKey == payment.TypeStripe {
+			if method == payment.TypeStripe {
+				return true, nil
+			}
+			continue
+		}
+		if pcInstanceSupportsPaymentType(instance, method) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *PaymentConfigService) pcPaymentChannelInstances(instances []*dbent.PaymentProviderInstance) []paymentchannels.Instance {
+	result := make([]paymentchannels.Instance, 0, len(instances))
+	for _, instance := range instances {
+		if instance == nil {
+			continue
+		}
+		paymentTypes := make([]string, 0)
+		seenPaymentTypes := make(map[string]struct{})
+		if instance.ProviderKey == payment.TypeStripe {
+			paymentTypes = append(paymentTypes, payment.TypeStripe)
+			seenPaymentTypes[payment.TypeStripe] = struct{}{}
+		} else {
+			for _, supportedType := range splitTypes(instance.SupportedTypes) {
+				normalized := NormalizeVisibleMethod(supportedType)
+				if normalized == "" {
+					continue
+				}
+				if _, exists := seenPaymentTypes[normalized]; exists {
+					continue
+				}
+				seenPaymentTypes[normalized] = struct{}{}
+				paymentTypes = append(paymentTypes, normalized)
+			}
+		}
+
+		limits := make(map[string]paymentchannels.Limits)
+		displayNames := make(map[string]string)
+		for _, paymentType := range paymentTypes {
+			if channelLimits, ok := pcInstancePaymentChannelLimits(instance, paymentType); ok {
+				limits[paymentType] = paymentchannels.Limits{
+					DailyLimit: channelLimits.DailyLimit,
+					SingleMin:  channelLimits.SingleMin,
+					SingleMax:  channelLimits.SingleMax,
+				}
+			}
+			if displayName := s.pcInstanceEasyPayCustomMethodDisplayName(instance, paymentType); displayName != "" {
+				displayNames[paymentType] = displayName
+			}
+		}
+		result = append(result, paymentchannels.Instance{
+			ID:           int64(instance.ID),
+			ProviderKey:  instance.ProviderKey,
+			PaymentTypes: paymentTypes,
+			Currency:     s.pcInstancePaymentCurrency(instance),
+			Limits:       limits,
+			DisplayNames: displayNames,
+		})
+	}
+	return result
+}
+
+func pcInstancePaymentChannelLimits(instance *dbent.PaymentProviderInstance, paymentType string) (payment.ChannelLimits, bool) {
+	if channelLimits, ok := pcInstanceTypeLimits(instance, paymentType); ok {
+		return channelLimits, true
+	}
+	switch paymentType {
+	case payment.TypeAlipay:
+		return pcInstanceTypeLimits(instance, payment.TypeAlipayDirect)
+	case payment.TypeWxpay:
+		return pcInstanceTypeLimits(instance, payment.TypeWxpayDirect)
+	default:
+		return payment.ChannelLimits{}, false
+	}
+}
+
+func pcInstanceSupportsPaymentType(instance *dbent.PaymentProviderInstance, paymentType string) bool {
+	if instance == nil {
+		return false
+	}
+	if instance.ProviderKey == payment.TypeStripe && paymentType == payment.TypeStripe {
+		return true
+	}
+	for _, supportedType := range splitTypes(instance.SupportedTypes) {
+		if NormalizeVisibleMethod(supportedType) == paymentType {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *PaymentConfigService) pcAggregateMethodCurrency(instances []*dbent.PaymentProviderInstance) (string, bool) {
