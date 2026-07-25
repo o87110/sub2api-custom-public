@@ -128,7 +128,8 @@ sha256sum runtime/sub2api
 
 ## 9. 生产安全原则
 
-- GitHub Environment 使用人工审批；
+- GitHub Environment 保留 `main`/`v*-custom.*` 部署策略，不设置
+  `Required reviewer`，CI 通过后自动发布；
 - 构建 Job 不接触生产 Secrets；
 - 发布 Job 只获得必要的 `contents: write` 与 `packages: write`；
 - Workflow 日志不得输出 Token、服务器地址或连接字符串；

@@ -93,12 +93,12 @@ deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	0b0cb8815a6f10cf63c98bed4b38564383eec711	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	dcc8e093d2eb90fe427c4f1a85f33833ac11e476	-	-	upstream-sync+crlf-ledger-test	验证上游同步、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
-docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	97ffb0ca2dca2d9c84f7b406586d249e810da8b7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	0bff169e9ed4f4c758c85083ad37d25ac9623dd2	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	b7d2990d9a26e03fb257c5a8a13acd43c1e95ecc	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	848a7c335ab8503c6d3f1457ec47d4a0d5f06a2d	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	0a71eaf6fc210dfaafd511d04f6f7a48afabcf3c	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	348e1b2c7ebdacfe6774fc52bfaa2b83545dd79d	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	f6cd437fc6910d9bd565f90fd90a0b86d7b1c30f	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	ef68f177ad48f661d5eb25b99942b8bb2184a50b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	3a7f0c6333e6be944fd4f3eb7efa8243e904c06f	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	b16228ad8d61e9b10c93aa09b2b183f8e0ca17f5	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	516ddea0c6fe2bb131c3c158093c767b6e10ada7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	715c0546596a4f6561f1c5888343c2d8c5367312	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 frontend/src/api/__tests__/admin.system.rollback.spec.ts	M	keep	M	custom-test	15d0989ffbbe3bb4fbc2a1fc10b9d27ca0f56012	bccdbe696e22d0ea67657a08deaca23328525a82	frontend/src/api/__tests__/admin.system.rollback.spec.ts	frontend/src/custom/updater/__tests__/api.rollback.spec.ts	updater-unit+security-tests	验证二改回退超时边界

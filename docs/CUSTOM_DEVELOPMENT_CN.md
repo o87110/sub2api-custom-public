@@ -89,4 +89,5 @@ frontend/src/custom/
 - 发布前确认准确提交、标签和官方基线关系。
 
 公开迁移后的首次 Release 应使用手动工作流。完成分支保护、GHCR 可见性和
-`custom-release-publish` Environment 审批配置后，才启用自动发布变量。
+`custom-release-publish` Environment 的 `main`/`v*-custom.*` 部署策略配置，
+且不设置 `Required reviewer` 后，才启用自动发布变量。

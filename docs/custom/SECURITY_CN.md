@@ -90,7 +90,8 @@ SHA256。
 - `main` 禁止 Force Push；
 - Workflow 与发布脚本需要 Code Owner Review；
 - 自动发布默认关闭，完成保护配置后才启用；
-- GitHub Environment 设置人工审批和最小 Secrets；
+- GitHub Environment 设置最小 Secrets 和 `main`/`v*-custom.*` 部署策略，不设置
+  `Required reviewer`；
 - 官方 Tag 必须从隔离的上游 Remote 获取；
 - `vendor-*` 只能由通过门禁的收尾任务创建。
 

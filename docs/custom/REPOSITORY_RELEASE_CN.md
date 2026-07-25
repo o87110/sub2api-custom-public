@@ -45,6 +45,9 @@ GHCR 和 `custom-release-publish` Environment 设置后，再创建仓库变量�
 AUTO_PUBLISH_ENABLED=true
 ```
 
+`custom-release-publish` Environment 只保留 `main`/`v*-custom.*` 部署策略，
+不设置 `Required reviewer`；变量启用后，CI 通过即自动完成 Tag、构建和发布。
+
 官方同步由独立变量控制：
 
 ```text
@@ -70,8 +73,8 @@ Release Workflow 分为三个权限隔离阶段：
 
 1. `context`：验证 Tag、提交、CI 和现有 Release 状态。
 2. `build`：无发布权限地构建归档、校验和与 OCI Layout，并上传短期 Artifact。
-3. `publish`：通过 `custom-release-publish` Environment 审批后，验证 Artifact 和
-   Manifest，再创建 Release、上传资产并推送 GHCR。
+3. `publish`：进入受 `custom-release-publish` Environment 部署策略约束的发布
+   Job，验证 Artifact 和 Manifest，再自动创建 Release、上传资产并推送 GHCR。
 
 构建阶段不持有 `packages: write`，发布阶段不重新执行仓库业务脚本。第三方工具
 使用固定版本和 SHA256，Action 使用完整提交 SHA。
