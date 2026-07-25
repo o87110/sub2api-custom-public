@@ -16,7 +16,7 @@
 
 ## 2. 容器部署
 
-复制公开示例并填写独立凭据：
+复制公开示例，并为每个部署独立生成应用运行 Secret：
 
 ```bash
 cd deploy
@@ -39,13 +39,15 @@ docker compose ps
 curl --fail http://127.0.0.1:8080/health
 ```
 
-如果 GHCR 包为 Public，无需登录。如果包仍为 Private，只在宿主机 Docker
-Credential Store 配置 `read:packages` 凭据，不得把 GHCR Token 传入应用容器。
+当前 GHCR Package 为 Public，正常部署无需登录。只有未来明确改为 Private 时，
+才在宿主机 Docker Credential Store 配置最小 `read:packages` 凭据，不得把该凭据
+传入应用容器。
 
 ## 3. Release 查询鉴权
 
 公开 Release 默认匿名读取。`UPDATE_GITHUB_TOKEN` 和
 `UPDATE_GITHUB_TOKEN_FILE` 是可选兼容能力，用于提高 API 限额，不是部署前提。
+默认保持未配置；它们是应用运行配置，不是 GitHub Environment Secret。
 
 如确需配置：
 
@@ -72,6 +74,10 @@ runtime、镜像、旧镜像和 `.backup` 路径本身不是符号链接（包�
 `/app/runtime/sub2api.backup` 到新宿主机目录或命名卷。已使用
 `./runtime:/app/runtime` 的部署无需执行这一步。
 
+停服前只在原容器内以 `sub2api` 用户执行 runtime 或 backup 的 `--version` 检查。
+导出后不得在宿主机执行这些二进制，只检查它们是非符号链接普通文件，并计算
+SHA256 与对应公开 Release 的 `checksums.txt` 比对。
+
 验证：
 
 ```bash
@@ -94,8 +100,8 @@ sha256sum runtime/sub2api
 
 迁移 local Compose 时，完整归档必须包含 `data/`、`runtime/`、
 `postgres_data/`、`redis_data/`、`.env` 和配置文件；恢复后先核验 runtime
-文件类型、版本与 SHA256，再启动服务。standalone Compose 的
-`sub2api_runtime` 命名卷必须单独导出和恢复。
+文件类型和 SHA256，再启动服务；版本只允许在启动后的容器内以 `sub2api` 用户
+检查。standalone Compose 的 `sub2api_runtime` 命名卷必须单独导出和恢复。
 
 ## 6. 在线更新
 
@@ -116,7 +122,8 @@ sha256sum runtime/sub2api
 手工替换二进制绕过检查。
 
 若新二进制安装失败，更新器应恢复原文件；若需要人工恢复，可在停服并完成备份后
-使用已验证的 `.backup`，随后重新执行版本和 SHA256 检查。
+使用已通过 Release checksum 验证的 `.backup`。宿主机只检查文件类型和 SHA256；
+恢复启动后再在容器内以 `sub2api` 用户检查版本。
 
 数据库存在不可逆 Migration 时，二进制回退不等于数据回退，必须按对应升级评审
 记录处理。
@@ -128,9 +135,10 @@ sha256sum runtime/sub2api
 
 ## 9. 生产安全原则
 
-- GitHub Environment 使用人工审批；
-- 构建 Job 不接触生产 Secrets；
+- GitHub Environment 保留 `main`/`v*-custom.*` 部署策略，不设置
+  `Required reviewer`，CI 通过后自动发布；
+- Repository 和 Environment 不配置自定义 Secrets，构建 Job 不持有写权限；
 - 发布 Job 只获得必要的 `contents: write` 与 `packages: write`；
 - Workflow 日志不得输出 Token、服务器地址或连接字符串；
-- 公共 PR 不得直接触发生产部署；
+- 公共 PR 不得直接触发 Release 或 GHCR 发布；
 - 所有部署固定不可变版本或 Digest。

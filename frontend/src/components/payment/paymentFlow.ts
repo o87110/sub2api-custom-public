@@ -37,6 +37,8 @@ export interface PaymentRecoverySnapshot {
   qrCode: string
   expiresAt: string
   paymentType: string
+  paymentChannelId?: string
+  providerKey?: string
   payUrl: string
   outTradeNo: string
   clientSecret: string
@@ -54,6 +56,8 @@ export interface PaymentRecoverySnapshot {
 
 export interface PaymentLaunchContext {
   visibleMethod: string
+  paymentChannelId?: string
+  providerKey?: string
   orderType: OrderType
   isMobile: boolean
   isWechatBrowser?: boolean
@@ -79,6 +83,7 @@ export interface PaymentLaunchDecision {
 export interface BuildCreateOrderPayloadInput {
   amount: number
   paymentType: string
+  providerKey?: string
   orderType: OrderType
   planId?: number
   origin?: string
@@ -135,6 +140,9 @@ export function buildCreateOrderPayload(input: BuildCreateOrderPayloadInput): Cr
       ? 'wechat_in_app_resume'
       : 'hosted_redirect',
   }
+  if (input.providerKey?.trim()) {
+    payload.provider_key = input.providerKey.trim().toLowerCase()
+  }
 
   if (input.planId) {
     payload.plan_id = input.planId
@@ -157,6 +165,8 @@ export function decidePaymentLaunch(
     qrCode: result.qr_code || '',
     expiresAt: result.expires_at || '',
     paymentType: visibleMethod,
+    paymentChannelId: context.paymentChannelId || '',
+    providerKey: (result.provider_key || context.providerKey || '').trim().toLowerCase(),
     payUrl: result.pay_url || '',
     outTradeNo: result.out_trade_no || '',
     clientSecret: result.client_secret || '',
@@ -285,6 +295,8 @@ export function readPaymentRecoverySnapshot(
       || typeof parsed.qrCode !== 'string'
       || typeof parsed.expiresAt !== 'string'
       || typeof parsed.paymentType !== 'string'
+      || (parsed.paymentChannelId != null && typeof parsed.paymentChannelId !== 'string')
+      || (parsed.providerKey != null && typeof parsed.providerKey !== 'string')
       || typeof parsed.payUrl !== 'string'
       || (parsed.outTradeNo != null && typeof parsed.outTradeNo !== 'string')
       || typeof parsed.clientSecret !== 'string'
@@ -316,6 +328,8 @@ export function readPaymentRecoverySnapshot(
       qrCode: parsed.qrCode,
       expiresAt: parsed.expiresAt,
       paymentType: parsed.paymentType,
+      paymentChannelId: parsed.paymentChannelId || '',
+      providerKey: parsed.providerKey || '',
       payUrl: parsed.payUrl,
       outTradeNo: parsed.outTradeNo || '',
       clientSecret: parsed.clientSecret,

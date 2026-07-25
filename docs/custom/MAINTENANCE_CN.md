@@ -99,7 +99,8 @@ docs/custom/
 
 - 依赖漏洞和例外是否仍有效；
 - Actions Pin 和构建工具校验和是否需要升级；
-- Repository Secrets、Environment 和 Deploy Key 是否仍有用途；
+- Repository 和 Environment 自定义 Secrets 是否保持为空，Deploy Key 是否仍有
+  用途；
 - GHCR 包可见性和 Actions 访问列表是否符合预期；
 - 旧 Artifact、缓存和失败运行是否需要按公开策略处理。
 
@@ -112,8 +113,10 @@ docs/custom/
 
 ### GHCR `unauthorized`
 
-仓库公开不会自动改变 Package Visibility。核对包是否为 Public、是否连接到正确
-仓库，以及 Actions Access 是否授予 `sub2api-custom-public`。
+当前 GHCR Package 应为 Public，正常拉取无需登录。出现 `unauthorized` 时先按
+可见性漂移处理，核对 Package 是否仍为 Public、是否连接到正确仓库，以及 Actions
+Access 是否授予 `sub2api-custom-public`；只有明确改为 Private 时才配置宿主机拉取
+凭据。
 
 ### Release 工作流失败
 

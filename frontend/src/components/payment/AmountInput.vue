@@ -29,15 +29,19 @@
         {{ t('payment.customAmount') }}
       </label>
       <div class="relative">
-        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-dark-500">
-          $
+        <span
+          data-test="amount-currency-symbol"
+          class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-dark-500"
+        >
+          {{ currencySymbolText }}
         </span>
         <input
           type="text"
-          inputmode="decimal"
+          :inputmode="fractionDigits > 0 ? 'decimal' : 'numeric'"
           :value="customText"
           :placeholder="placeholderText"
-          class="input w-full py-3 pl-8 pr-4"
+          class="input w-full py-3 pr-4"
+          :class="currencySymbolText.length > 2 ? 'pl-14' : currencySymbolText.length > 1 ? 'pl-12' : 'pl-8'"
           @input="handleInput"
         />
       </div>
@@ -48,14 +52,18 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { currencySymbol, normalizePaymentCurrency } from '@/components/payment/currency'
+import { paymentCurrencyFractionDigits } from '@/custom/payment-channels/paymentMoney'
 
 const props = withDefaults(defineProps<{
   amounts?: number[]
+  currency?: string
   modelValue: number | null
   min?: number
   max?: number
 }>(), {
   amounts: () => [10, 20, 50, 100, 200, 500, 1000, 2000, 5000],
+  currency: 'USD',
   min: 0,
   max: 0,
 })
@@ -67,6 +75,15 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const customText = ref('')
+const currencySymbolText = computed(() => currencySymbol(props.currency))
+const fractionDigits = computed(() =>
+  paymentCurrencyFractionDigits(normalizePaymentCurrency(props.currency)),
+)
+const amountPattern = computed(() =>
+  fractionDigits.value > 0
+    ? new RegExp(`^\\d*(\\.\\d{0,${fractionDigits.value}})?$`)
+    : /^\d*$/,
+)
 
 // 0 = no limit
 const filteredAmounts = computed(() =>
@@ -80,8 +97,6 @@ const placeholderText = computed(() => {
   return t('payment.enterAmount')
 })
 
-const AMOUNT_PATTERN = /^\d*(\.\d{0,2})?$/
-
 function selectAmount(amt: number) {
   customText.value = String(amt)
   emit('update:modelValue', amt)
@@ -89,7 +104,7 @@ function selectAmount(amt: number) {
 
 function handleInput(e: Event) {
   const val = (e.target as HTMLInputElement).value
-  if (!AMOUNT_PATTERN.test(val)) return
+  if (!amountPattern.value.test(val)) return
   customText.value = val
   if (val === '') {
     emit('update:modelValue', null)

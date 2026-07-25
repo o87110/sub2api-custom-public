@@ -36,6 +36,7 @@ func TestApplyWeChatPaymentResumeClaims(t *testing.T) {
 	err := applyWeChatPaymentResumeClaims(&req, &service.WeChatPaymentResumeClaims{
 		OpenID:      "openid-123",
 		PaymentType: payment.TypeWxpay,
+		ProviderKey: payment.TypeWxpay,
 		Amount:      "12.50",
 		OrderType:   payment.OrderTypeSubscription,
 		PlanID:      7,
@@ -46,6 +47,9 @@ func TestApplyWeChatPaymentResumeClaims(t *testing.T) {
 	if req.OpenID != "openid-123" {
 		t.Fatalf("openid = %q, want %q", req.OpenID, "openid-123")
 	}
+	if req.ProviderKey != payment.TypeWxpay {
+		t.Fatalf("provider_key = %q, want %q", req.ProviderKey, payment.TypeWxpay)
+	}
 	if req.Amount != 12.5 {
 		t.Fatalf("amount = %v, want 12.5", req.Amount)
 	}
@@ -54,6 +58,41 @@ func TestApplyWeChatPaymentResumeClaims(t *testing.T) {
 	}
 	if req.PlanID != 7 {
 		t.Fatalf("plan_id = %d, want 7", req.PlanID)
+	}
+}
+
+func TestApplyWeChatPaymentResumeClaimsRejectsProviderMismatch(t *testing.T) {
+	t.Parallel()
+
+	req := CreateOrderRequest{
+		PaymentType: payment.TypeWxpay,
+		ProviderKey: payment.TypeEasyPay,
+	}
+	err := applyWeChatPaymentResumeClaims(&req, &service.WeChatPaymentResumeClaims{
+		OpenID:      "openid-123",
+		PaymentType: payment.TypeWxpay,
+		ProviderKey: payment.TypeWxpay,
+	})
+	if err == nil {
+		t.Fatal("applyWeChatPaymentResumeClaims should reject mismatched providers")
+	}
+}
+
+func TestApplyWeChatPaymentResumeClaimsKeepsLegacyProviderRouting(t *testing.T) {
+	t.Parallel()
+
+	req := CreateOrderRequest{
+		PaymentType: payment.TypeWxpay,
+	}
+	err := applyWeChatPaymentResumeClaims(&req, &service.WeChatPaymentResumeClaims{
+		OpenID:      "openid-123",
+		PaymentType: payment.TypeWxpay,
+	})
+	if err != nil {
+		t.Fatalf("legacy token should remain compatible: %v", err)
+	}
+	if req.ProviderKey != "" {
+		t.Fatalf("legacy token must not invent provider key: %q", req.ProviderKey)
 	}
 }
 

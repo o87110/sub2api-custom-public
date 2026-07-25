@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, shallowMount } from '@vue/test-utils'
+import { flushPromises, mount, shallowMount } from '@vue/test-utils'
 import PaymentView from '../PaymentView.vue'
+import AmountInput from '@/components/payment/AmountInput.vue'
+import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
+import PaymentChannelSelector from '@/custom/payment-channels/PaymentChannelSelector.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 import { formatPaymentAmount } from '@/components/payment/currency'
 import type { CheckoutInfoResponse, MethodLimit, SubscriptionPlan } from '@/types/payment'
@@ -40,7 +43,16 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key,
+      t: (key: string, params?: string | Record<string, unknown>) => {
+        if (
+          key === 'payment.errors.switchChannelHint'
+          && params
+          && typeof params === 'object'
+        ) {
+          return `${key}:${String(params.channel || '')}`
+        }
+        return key
+      },
     }),
   }
 })
@@ -236,6 +248,40 @@ async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoW
   return wrapper
 }
 
+async function mountRecharge(checkout: Partial<CheckoutInfoResponse> = {}) {
+  vi.useRealTimers()
+  routeState.path = '/purchase'
+  routeState.query = {}
+  routerReplace.mockReset().mockResolvedValue(undefined)
+  routerPush.mockReset().mockResolvedValue(undefined)
+  routerResolve.mockClear()
+  createOrder.mockReset()
+  refreshUser.mockReset()
+  fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+  showError.mockReset()
+  showInfo.mockReset()
+  showWarning.mockReset()
+  getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture(checkout))
+  bridgeInvoke.mockReset()
+  window.localStorage.clear()
+  ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = undefined
+
+  const wrapper = shallowMount(PaymentView, {
+    global: {
+      stubs: {
+        AppLayout: {
+          template: '<div><slot /></div>',
+        },
+        Teleport: true,
+        Transition: false,
+      },
+    },
+  })
+  await flushPromises()
+  await flushPromises()
+  return wrapper
+}
+
 describe('PaymentView subscription confirmation amounts', () => {
   it('shows converted CNY pay amount using the subscription rate, not the balance multiplier', async () => {
     const wrapper = await mountSubscriptionConfirm({
@@ -324,6 +370,366 @@ describe('PaymentView subscription confirmation amounts', () => {
     expect(text).toContain(total)
     expect(wrapper.findAll('button').some(button => button.text().includes(total))).toBe(true)
   })
+
+  it('rounds subscription conversion with decimal half-up semantics', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: {
+        subscription_usd_to_cny_rate: 7.25,
+      },
+      method: {
+        currency: 'CNY',
+      },
+      plan: {
+        price: 1.14,
+      },
+    })
+
+    expect(wrapper.text()).toContain(formatPaymentAmount(8.27, 'CNY'))
+    expect(wrapper.text()).not.toContain(formatPaymentAmount(8.26, 'CNY'))
+  })
+})
+
+describe('PaymentView provider channel selection', () => {
+  const alipayChannels = [
+    {
+      id: 'easypay_alipay',
+      payment_type: 'alipay',
+      provider_key: 'easypay',
+      currency: 'CNY',
+      fee_rate: 0,
+      daily_limit: 0,
+      single_min: 0,
+      single_max: 0,
+      available: true,
+    },
+    {
+      id: 'official_alipay',
+      payment_type: 'alipay',
+      provider_key: 'alipay',
+      currency: 'CNY',
+      fee_rate: 0,
+      daily_limit: 0,
+      single_min: 0,
+      single_max: 0,
+      available: true,
+    },
+  ]
+
+  it('defaults to EasyPay and sends the selected official provider', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: { method_options: alipayChannels },
+    })
+    createOrder.mockResolvedValue({
+      order_id: 901,
+      amount: 128,
+      pay_amount: 128,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'alipay',
+      provider_key: 'alipay',
+      qr_code: 'official-alipay-qr',
+    })
+
+    const selector = wrapper.findComponent(PaymentChannelSelector)
+    expect(selector.props('selected')).toBe('easypay_alipay')
+    selector.vm.$emit('select', 'official_alipay')
+    await flushPromises()
+
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit).toBeTruthy()
+    await submit!.trigger('click')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledTimes(1)
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({
+      payment_type: 'alipay',
+      provider_key: 'alipay',
+    }))
+  })
+
+  it('uses the selected channel fee for subscription totals', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: {
+        recharge_fee_rate: 9,
+        method_options: [
+          { ...alipayChannels[0], fee_rate: 1 },
+          { ...alipayChannels[1], fee_rate: 5 },
+        ],
+      },
+    })
+
+    expect(wrapper.text()).toContain('payment.fee (1%)')
+    const selector = wrapper.findComponent(PaymentChannelSelector)
+    selector.vm.$emit('select', 'official_alipay')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('payment.fee (5%)')
+    expect(wrapper.text()).toContain(formatPaymentAmount(134.4, 'CNY'))
+  })
+
+  it.each([
+    'NO_AVAILABLE_INSTANCE',
+    'PAYMENT_METHOD_CURRENCY_CONFLICT',
+  ])('does not retry another provider and suggests the visible backup channel for %s', async (reason) => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: { method_options: alipayChannels },
+    })
+    createOrder.mockRejectedValue({ reason })
+
+    const selector = wrapper.findComponent(PaymentChannelSelector)
+    selector.vm.$emit('select', 'official_alipay')
+    await flushPromises()
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    await submit!.trigger('click')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledTimes(1)
+    expect(showError).toHaveBeenCalledWith(expect.stringContaining('payment.errors.switchChannelHint'))
+    expect(selector.props('selected')).toBe('official_alipay')
+  })
+
+  it('uses fee-inclusive balance totals when selecting an available channel', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [
+        { ...alipayChannels[0], fee_rate: 2.5, single_max: 100 },
+        { ...alipayChannels[1], fee_rate: 0, single_max: 100 },
+      ],
+    })
+    createOrder.mockResolvedValue({
+      order_id: 902,
+      amount: 99,
+      pay_amount: 99,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'alipay',
+      provider_key: 'alipay',
+      qr_code: 'official-alipay-qr',
+    })
+
+    wrapper.findComponent(AmountInput).vm.$emit('update:modelValue', 99)
+    await flushPromises()
+
+    const selector = wrapper.findComponent(PaymentChannelSelector)
+    expect(selector.props('selected')).toBe('official_alipay')
+    expect(selector.props('methods')).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'easypay_alipay', available: false }),
+      expect.objectContaining({ id: 'official_alipay', available: true }),
+    ]))
+
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit).toBeTruthy()
+    await submit!.trigger('click')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledTimes(1)
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 99,
+      payment_type: 'alipay',
+      provider_key: 'alipay',
+    }))
+  })
+
+  it('does not suggest a backup channel whose fee-inclusive total exceeds its limit', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [
+        { ...alipayChannels[0], fee_rate: 2.5, single_max: 100 },
+        { ...alipayChannels[1], fee_rate: 0, single_max: 100 },
+      ],
+    })
+    createOrder.mockRejectedValue({ reason: 'NO_AVAILABLE_INSTANCE' })
+
+    wrapper.findComponent(AmountInput).vm.$emit('update:modelValue', 99)
+    await flushPromises()
+
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit).toBeTruthy()
+    await submit!.trigger('click')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledTimes(1)
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({
+      provider_key: 'alipay',
+    }))
+    expect(showError).toHaveBeenCalled()
+    expect(showError.mock.calls.at(-1)?.[0]).not.toContain('payment.errors.switchChannelHint')
+  })
+
+  it('keeps recharge and subscription auto-selection isolated by the active tab', async () => {
+    const plan = checkoutInfoWithPlansFixture({ plan: { price: 120 } }).data.plans[0]
+    const wrapper = await mountRecharge({
+      plans: [plan],
+      method_options: [
+        { ...alipayChannels[0], single_max: 60 },
+        { ...alipayChannels[1], single_min: 100, single_max: 200 },
+      ],
+    })
+
+    wrapper.findComponent(AmountInput).vm.$emit('update:modelValue', 50)
+    await flushPromises()
+    expect(wrapper.findComponent(PaymentChannelSelector).props('selected')).toBe('easypay_alipay')
+
+    const subscriptionTab = wrapper.findAll('button')
+      .find(button => button.text().includes('payment.tabSubscribe'))
+    expect(subscriptionTab).toBeTruthy()
+    await subscriptionTab!.trigger('click')
+    wrapper.findComponent(SubscriptionPlanCard).vm.$emit('select', plan)
+    await flushPromises()
+    await flushPromises()
+
+    expect(wrapper.findComponent(PaymentChannelSelector).props('selected')).toBe('official_alipay')
+  })
+
+  it('shows fee-inclusive gateway limits as principal amount input bounds', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [
+        { ...alipayChannels[0], fee_rate: 2.5, single_min: 10, single_max: 100 },
+      ],
+    })
+
+    const amountInput = wrapper.findComponent(AmountInput)
+    expect(amountInput.props('min')).toBe(9.75)
+    expect(amountInput.props('max')).toBe(97.56)
+  })
+
+  it('calculates fee boundaries without binary floating-point overcharge', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [
+        { ...alipayChannels[0], fee_rate: 7, single_max: 1.07 },
+      ],
+    })
+
+    const amountInput = wrapper.findComponent(AmountInput)
+    amountInput.vm.$emit('update:modelValue', 1)
+    await flushPromises()
+
+    expect(amountInput.props('max')).toBe(1)
+    expect(wrapper.text()).toContain(formatPaymentAmount(0.07, 'CNY'))
+    expect(wrapper.text()).toContain(formatPaymentAmount(1.07, 'CNY'))
+  })
+
+  it('disables recharge for a fractional amount in a zero-decimal currency', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [
+        { ...alipayChannels[0], currency: 'JPY' },
+      ],
+    })
+
+    wrapper.findComponent(AmountInput).vm.$emit('update:modelValue', 10.5)
+    await flushPromises()
+
+    const selector = wrapper.findComponent(PaymentChannelSelector)
+    expect(selector.props('methods')).toEqual([
+      expect.objectContaining({ id: 'easypay_alipay', available: false }),
+    ])
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit?.attributes('disabled')).toBeDefined()
+    expect(createOrder).not.toHaveBeenCalled()
+  })
+
+  it('disables subscriptions whose price is fractional in a zero-decimal currency', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: {
+        method_options: [
+          { ...alipayChannels[0], currency: 'JPY' },
+        ],
+      },
+      plan: { price: 10.5 },
+    })
+
+    const selector = wrapper.findComponent(PaymentChannelSelector)
+    expect(selector.props('methods')).toEqual([
+      expect.objectContaining({ id: 'easypay_alipay', available: false }),
+    ])
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit?.attributes('disabled')).toBeDefined()
+    expect(createOrder).not.toHaveBeenCalled()
+  })
+
+  it('suggests a backup relative to the channel that actually made the request', async () => {
+    let rejectRequest: (reason?: unknown) => void = () => {}
+    const wrapper = await mountRecharge({ method_options: alipayChannels })
+    createOrder.mockImplementation(() => new Promise((_, reject) => {
+      rejectRequest = reject
+    }))
+    wrapper.findComponent(AmountInput).vm.$emit('update:modelValue', 10)
+    await flushPromises()
+
+    const selector = wrapper.findComponent(PaymentChannelSelector)
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(selector.props('selected')).toBe('easypay_alipay')
+    await submit!.trigger('click')
+    await Promise.resolve()
+    expect(createOrder).toHaveBeenCalledTimes(1)
+
+    selector.vm.$emit('select', 'official_alipay')
+    await flushPromises()
+    rejectRequest({ reason: 'NO_AVAILABLE_INSTANCE' })
+    await flushPromises()
+
+    const message = String(showError.mock.calls.at(-1)?.[0] || '')
+    expect(message).toContain('payment.channels.officialAlipay')
+    expect(message).not.toContain('payment.channels.easypayAlipay')
+  })
+
+  it('does not expose a false amount inside a gap between provider instances', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [{
+        ...alipayChannels[0],
+        single_min: 1,
+        single_max: 10,
+        amount_ranges: [
+          { single_min: 1, single_max: 10 },
+          { single_min: 20, single_max: 100 },
+        ],
+      }],
+    })
+
+    wrapper.findComponent(AmountInput).vm.$emit('update:modelValue', 15)
+    await flushPromises()
+
+    expect(wrapper.findComponent(PaymentChannelSelector).props('methods')).toEqual([
+      expect.objectContaining({ id: 'easypay_alipay', available: false }),
+    ])
+    expect(wrapper.findComponent(AmountInput).props('max')).toBe(100)
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit?.attributes('disabled')).toBeDefined()
+    expect(createOrder).not.toHaveBeenCalled()
+  })
+
+  it('uses three-decimal principal limits for KWD', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [{
+        ...alipayChannels[0],
+        currency: 'KWD',
+        single_min: 1.001,
+        single_max: 1.009,
+      }],
+    })
+
+    const amountInput = wrapper.findComponent(AmountInput)
+    expect(amountInput.props('min')).toBe(1.001)
+    expect(amountInput.props('max')).toBe(1.009)
+  })
+})
+
+describe('AmountInput currency symbol', () => {
+  it('renders the selected currency symbol and keeps legacy USD as the default', async () => {
+    const wrapper = mount(AmountInput, {
+      props: { modelValue: 10 },
+    })
+    expect(wrapper.get('[data-test="amount-currency-symbol"]').text()).toBe('$')
+
+    await wrapper.setProps({ currency: 'CNY' })
+    expect(wrapper.get('[data-test="amount-currency-symbol"]').text()).toBe('¥')
+
+    await wrapper.setProps({ currency: 'HKD' })
+    expect(wrapper.get('[data-test="amount-currency-symbol"]').text()).toBe('HK$')
+    expect(wrapper.get('input').classes()).toContain('pl-14')
+
+    await wrapper.setProps({ currency: 'KWD' })
+    await wrapper.get('input').setValue('1.001')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([1.001])
+  })
 })
 
 describe('PaymentView payment recovery', () => {
@@ -390,7 +796,7 @@ describe('PaymentView payment recovery', () => {
           PaymentStatusPanel: {
             template: '<button data-test="payment-done" @click="$emit(\'done\')" />',
           },
-          PaymentMethodSelector: {
+          PaymentChannelSelector: {
             props: ['selected'],
             template: '<div data-test="method-selector">{{ selected }}</div>',
           },
@@ -554,6 +960,7 @@ describe('PaymentView WeChat JSAPI flow', () => {
       wechat_resume: '1',
       wechat_resume_token: 'resume-subscription-7',
       payment_type: 'wxpay_direct',
+      provider_key: 'wxpay',
       order_type: 'subscription',
       plan_id: '7',
     }
@@ -587,10 +994,11 @@ describe('PaymentView WeChat JSAPI flow', () => {
       order_type: 'subscription',
       plan_id: 7,
       wechat_resume_token: 'resume-subscription-7',
+      provider_key: 'wxpay',
     }))
     expect(locationState.href).toContain('/api/v1/auth/oauth/wechat/payment/start?')
     expect(new URL(locationState.href, 'http://localhost').searchParams.get('redirect')).toBe(
-      '/purchase?from=wechat&payment_type=wxpay&order_type=subscription&plan_id=7',
+      '/purchase?from=wechat&payment_type=wxpay&order_type=subscription&plan_id=7&provider_key=wxpay',
     )
 
     Object.defineProperty(window, 'location', {
@@ -604,6 +1012,7 @@ describe('PaymentView WeChat JSAPI flow', () => {
       wechat_resume: '1',
       wechat_resume_token: 'resume-token-h5',
       payment_type: 'wxpay_direct',
+      provider_key: 'wxpay',
     }
     createOrder
       .mockRejectedValueOnce({ reason: 'WECHAT_H5_NOT_AUTHORIZED' })
@@ -633,11 +1042,13 @@ describe('PaymentView WeChat JSAPI flow', () => {
       payment_type: 'wxpay',
       is_mobile: true,
       wechat_resume_token: 'resume-token-h5',
+      provider_key: 'wxpay',
     }))
     expect(createOrder).toHaveBeenNthCalledWith(2, expect.objectContaining({
       payment_type: 'wxpay',
       is_mobile: false,
       payment_source: 'hosted_redirect',
+      provider_key: 'wxpay',
     }))
     expect(showWarning).toHaveBeenCalledWith('payment.errors.mobilePaymentFallbackToQr')
     expect(showError).not.toHaveBeenCalled()

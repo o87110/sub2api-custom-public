@@ -2,15 +2,17 @@
 
 ## 1. 目标
 
-公开仓库只同步 `Wei-Shaw/sub2api` 的正式 `vX.Y.Z` Tag，不直接跟随未发布的
-`upstream/main`。升级必须保持二改功能、数据库安全、可复现分支和完整审查证据。
+公开仓库只同步 `Wei-Shaw/sub2api` 的正式 `vX.Y.Z` Tag，不直接跟随官方远程尚未
+发布的 `upstream/main`。升级必须保持二改功能、数据库安全、可复现分支和完整
+审查证据。
 
 ## 2. 引用与分支
 
 | 引用 | 含义 |
 | --- | --- |
 | `main` | 当前公开二改主线 |
-| `upstream/main` | 最近完成审查的官方镜像提交 |
+| `upstream/main` | 官方远程尚未审核的最新主线，不作为当前基线 |
+| `origin/upstream/main` | 本仓库最近完成审查的官方镜像提交 |
 | `refs/upstream-tags/v*` | 从官方仓库获取的隔离 Tag |
 | `vendor-X.Y.Z` | 已合入 `main` 的官方基线 |
 | `upgrade/vX.Y.Z` | 持久升级分支 |
@@ -132,8 +134,8 @@ UPSTREAM_SYNC_ENABLED=true
 5. 从受信任 `main` 调度准确合并 SHA 的 CI 与 Security Scan。
 6. CI 成功后才允许发布 `vX.Y.Z-custom.1`。
 
-`upstream/main` 与 `vendor-*` 的更新必须是同一次受控收尾，避免产生“代码已合并但
-基线未登记”的中间状态。
+`refs/heads/upstream/main` 与 `vendor-*` 的更新必须是同一次受控收尾，避免产生
+“代码已合并但基线未登记”的中间状态。
 
 ## 10. 阻断恢复
 
@@ -143,7 +145,7 @@ UPSTREAM_SYNC_ENABLED=true
 | `protected_overlap` | 先审查官方变化如何映射到 Custom 路径 |
 | `database_review` | 完成人工数据库评审和回滚说明 |
 | `tests` | 修复候选分支，不能关闭检查绕过 |
-| 收尾失败 | 核对 `main`、`upstream/main`、`vendor-*` 后从可信分支重试 |
+| 收尾失败 | 核对 `main`、`origin/upstream/main`、`vendor-*` 后从可信分支重试 |
 | Release/GHCR 失败 | 保持 Tag 不变，按发布恢复流程处理 |
 
 AI 或维护者修复后继续使用同一个 `upgrade/vX.Y.Z`，确保历史和讨论可追溯。

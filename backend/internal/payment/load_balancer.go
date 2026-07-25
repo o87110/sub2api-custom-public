@@ -2,9 +2,11 @@ package payment
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -12,6 +14,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 )
 
 // Strategy represents a load balancing strategy for provider instance selection.
@@ -36,6 +39,7 @@ type InstanceLimits map[string]ChannelLimits
 type LoadBalancer interface {
 	GetInstanceConfig(ctx context.Context, instanceID int64) (map[string]string, error)
 	SelectInstance(ctx context.Context, providerKey string, paymentType PaymentType, strategy Strategy, orderAmount float64) (*InstanceSelection, error)
+	RevalidateSelection(ctx context.Context, selection *InstanceSelection, paymentType PaymentType, orderAmount float64) (bool, error)
 }
 
 // DefaultLoadBalancer implements LoadBalancer using database queries.
@@ -103,6 +107,12 @@ func (lb *DefaultLoadBalancer) SelectInstance(
 	// Step 3: filter by limits.
 	available := filterByLimits(candidates, paymentType, orderAmount)
 	if len(available) == 0 {
+		if paymentchannels.ShouldFailClosedOnNoAvailableInstance(providerKey) {
+			slog.Warn("all explicitly selected provider instances exceeded limits",
+				"provider", providerKey, "payment_type", paymentType,
+				"order_amount", orderAmount, "count", len(candidates))
+			return nil, nil
+		}
 		slog.Warn("all instances exceeded limits, using full candidate list",
 			"provider", providerKey, "payment_type", paymentType,
 			"order_amount", orderAmount, "count", len(candidates))
@@ -112,6 +122,50 @@ func (lb *DefaultLoadBalancer) SelectInstance(
 	// Step 4: pick by strategy.
 	selected := lb.pickByStrategy(available, strategy)
 	return lb.buildSelection(selected.inst)
+}
+
+// RevalidateSelection fails closed when the selected instance changed after
+// selection, was disabled, no longer supports the method, or no longer fits
+// its configured limits. Passing a non-positive amount checks only instance
+// identity and revision, which avoids counting a just-created pending order
+// twice immediately before the gateway call.
+func (lb *DefaultLoadBalancer) RevalidateSelection(
+	ctx context.Context,
+	selection *InstanceSelection,
+	paymentType PaymentType,
+	orderAmount float64,
+) (bool, error) {
+	if selection == nil {
+		return false, nil
+	}
+	instanceID, err := strconv.ParseInt(strings.TrimSpace(selection.InstanceID), 10, 64)
+	if err != nil || instanceID <= 0 {
+		return false, nil
+	}
+	inst, err := lb.db.PaymentProviderInstance.Get(ctx, instanceID)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("revalidate payment instance %d: %w", instanceID, err)
+	}
+	if !inst.Enabled ||
+		!strings.EqualFold(strings.TrimSpace(inst.ProviderKey), strings.TrimSpace(selection.ProviderKey)) ||
+		!InstanceSupportsType(inst.SupportedTypes, paymentType) ||
+		selection.InstanceRevision == "" ||
+		instanceRevision(inst) != selection.InstanceRevision {
+		return false, nil
+	}
+	if orderAmount > 0 {
+		candidates, err := lb.queryDailyUsage(ctx, []*dbent.PaymentProviderInstance{inst})
+		if err != nil {
+			return false, fmt.Errorf("revalidate payment instance %d limits: %w", instanceID, err)
+		}
+		if len(filterByLimits(candidates, paymentType, orderAmount)) == 0 {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // queryEnabledInstances returns enabled instances that support paymentType.
@@ -166,25 +220,23 @@ func (lb *DefaultLoadBalancer) queryEnabledInstances(
 
 // attachDailyUsage queries daily usage for each instance in a single pass.
 // Usage includes PENDING orders to avoid over-committing capacity.
-func (lb *DefaultLoadBalancer) attachDailyUsage(
+func (lb *DefaultLoadBalancer) queryDailyUsage(
 	ctx context.Context,
 	instances []*dbent.PaymentProviderInstance,
-) []instanceCandidate {
+) ([]instanceCandidate, error) {
 	todayStart := startOfDay(time.Now())
 
-	// Collect instance IDs.
 	ids := make([]string, len(instances))
 	for i, inst := range instances {
 		ids[i] = fmt.Sprintf("%d", inst.ID)
 	}
 
-	// Batch query: sum pay_amount grouped by provider_instance_id.
 	type row struct {
 		InstanceID string  `json:"provider_instance_id"`
 		Sum        float64 `json:"sum"`
 	}
 	var rows []row
-	err := lb.db.PaymentOrder.Query().
+	if err := lb.db.PaymentOrder.Query().
 		Where(
 			paymentorder.ProviderInstanceIDIn(ids...),
 			paymentorder.StatusIn(
@@ -195,9 +247,8 @@ func (lb *DefaultLoadBalancer) attachDailyUsage(
 		).
 		GroupBy(paymentorder.FieldProviderInstanceID).
 		Aggregate(dbent.Sum(paymentorder.FieldPayAmount)).
-		Scan(ctx, &rows)
-	if err != nil {
-		slog.Warn("batch daily usage query failed, treating all as zero", "error", err)
+		Scan(ctx, &rows); err != nil {
+		return nil, err
 	}
 
 	usageMap := make(map[string]float64, len(rows))
@@ -211,6 +262,23 @@ func (lb *DefaultLoadBalancer) attachDailyUsage(
 			inst:      inst,
 			dailyUsed: usageMap[fmt.Sprintf("%d", inst.ID)],
 		}
+	}
+	return candidates, nil
+}
+
+func (lb *DefaultLoadBalancer) attachDailyUsage(
+	ctx context.Context,
+	instances []*dbent.PaymentProviderInstance,
+) []instanceCandidate {
+	candidates, err := lb.queryDailyUsage(ctx, instances)
+	if err == nil {
+		return candidates
+	}
+
+	slog.Warn("batch daily usage query failed, treating all as zero", "error", err)
+	candidates = make([]instanceCandidate, len(instances))
+	for i, inst := range instances {
+		candidates[i] = instanceCandidate{inst: inst}
 	}
 	return candidates
 }
@@ -292,6 +360,22 @@ func pickLeastAmount(candidates []instanceCandidate) instanceCandidate {
 	return best
 }
 
+func instanceRevision(instance *dbent.PaymentProviderInstance) string {
+	if instance == nil {
+		return ""
+	}
+	payload := strings.Join([]string{
+		strings.TrimSpace(instance.ProviderKey),
+		instance.Config,
+		instance.SupportedTypes,
+		instance.PaymentMode,
+		instance.Limits,
+		strconv.FormatBool(instance.Enabled),
+	}, "\x00")
+	sum := sha256.Sum256([]byte(payload))
+	return fmt.Sprintf("%x", sum)
+}
+
 func (lb *DefaultLoadBalancer) buildSelection(selected *dbent.PaymentProviderInstance) (*InstanceSelection, error) {
 	config, err := lb.decryptConfig(selected.Config)
 	if err != nil {
@@ -306,11 +390,12 @@ func (lb *DefaultLoadBalancer) buildSelection(selected *dbent.PaymentProviderIns
 	}
 
 	return &InstanceSelection{
-		InstanceID:     fmt.Sprintf("%d", selected.ID),
-		ProviderKey:    selected.ProviderKey,
-		Config:         config,
-		SupportedTypes: selected.SupportedTypes,
-		PaymentMode:    selected.PaymentMode,
+		InstanceID:       fmt.Sprintf("%d", selected.ID),
+		ProviderKey:      selected.ProviderKey,
+		Config:           config,
+		SupportedTypes:   selected.SupportedTypes,
+		PaymentMode:      selected.PaymentMode,
+		InstanceRevision: instanceRevision(selected),
 	}, nil
 }
 

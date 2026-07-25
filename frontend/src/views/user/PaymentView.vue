@@ -41,7 +41,7 @@
               <p class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ user?.username || '' }}</p>
               <p class="mt-0.5 text-sm font-medium text-green-600 dark:text-green-400">{{ t('payment.currentBalance') }}: {{ user?.balance?.toFixed(2) || '0.00' }}</p>
             </div>
-            <div v-if="enabledMethods.length === 0" class="card py-16 text-center">
+            <div v-if="enabledChannelIds.length === 0" class="card py-16 text-center">
               <p class="text-gray-500 dark:text-gray-400">{{ t('payment.notAvailable') }}</p>
             </div>
             <template v-else>
@@ -49,16 +49,17 @@
               <AmountInput
                 v-model="amount"
                 :amounts="[10, 20, 50, 100, 200, 500, 1000, 2000, 5000]"
+                :currency="selectedCurrency"
                 :min="globalMinAmount"
                 :max="globalMaxAmount"
               />
               <p v-if="amountError" class="mt-2 text-xs text-amber-600 dark:text-amber-300">{{ amountError }}</p>
             </div>
-            <div v-if="enabledMethods.length >= 1" class="card p-6">
-              <PaymentMethodSelector
+            <div v-if="enabledChannelIds.length >= 1" class="card p-6">
+              <PaymentChannelSelector
                 :methods="methodOptions"
-                :selected="selectedMethod"
-                @select="selectedMethod = $event"
+                :selected="selectedChannelId"
+                @select="selectedChannelId = $event"
               />
             </div>
             <div v-if="validAmount > 0" class="card p-6">
@@ -149,11 +150,11 @@
                   </div>
                 </div>
               </div>
-              <div v-if="enabledMethods.length >= 1" class="card p-6">
-                <PaymentMethodSelector
+              <div v-if="enabledChannelIds.length >= 1" class="card p-6">
+                <PaymentChannelSelector
                   :methods="subMethodOptions"
-                  :selected="selectedMethod"
-                  @select="selectedMethod = $event"
+                  :selected="selectedChannelId"
+                  @select="selectedChannelId = $event"
                 />
               </div>
               <div v-if="feeRate > 0 && selectedPlan.price > 0" class="card p-6">
@@ -264,20 +265,18 @@ import { usePaymentStore } from '@/stores/payment'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
-import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
+import { extractApiErrorCode, extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
 import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
-import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
-import { METHOD_ORDER, getPaymentPopupFeatures, isBuiltInAlipayMethod, isBuiltInWxpayMethod } from '@/components/payment/providerConfig'
+import { getPaymentPopupFeatures, isBuiltInAlipayMethod, isBuiltInWxpayMethod } from '@/components/payment/providerConfig'
 import {
   PAYMENT_RECOVERY_STORAGE_KEY,
   buildCreateOrderPayload,
   clearPaymentRecoverySnapshot,
   decidePaymentLaunch,
-  getVisibleMethods,
   normalizeVisibleMethod,
   readPaymentRecoverySnapshot,
   type PaymentRecoverySnapshot,
@@ -289,7 +288,24 @@ import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { DEFAULT_PAYMENT_CURRENCY, formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
 import { planValiditySuffix as validitySuffixOf } from '@/components/payment/validity'
-import type { PaymentMethodOption } from '@/components/payment/PaymentMethodSelector.vue'
+import PaymentChannelSelector from '@/custom/payment-channels/PaymentChannelSelector.vue'
+import {
+  ALIPAY_MOBILE_PRECREATE_DEEP_LINK,
+  findBackupPaymentChannel,
+  findPaymentChannel,
+  isGatewayChannelFailureCode,
+  normalizePaymentChannelOptions,
+  paymentChannelLabel,
+  paymentChannelSupports,
+  type PaymentChannelOption,
+} from '@/custom/payment-channels/paymentChannels'
+import {
+  isPaymentAmountRepresentable,
+  multiplyAndRoundPaymentAmount,
+  paymentCurrencyFractionDigits,
+  paymentFeeAmount,
+  roundPaymentAmount,
+} from '@/custom/payment-channels/paymentMoney'
 import { buildPaymentErrorToastMessage, describePaymentScenarioError } from './paymentUx'
 import { hasWechatResumeQuery, parseWechatResumeRoute, stripWechatResumeQuery } from './paymentWechatResume'
 
@@ -324,7 +340,7 @@ const errorMessage = ref('')
 const errorHintMessage = ref('')
 const activeTab = ref<'recharge' | 'subscription'>('recharge')
 const amount = ref<number | null>(null)
-const selectedMethod = ref('')
+const selectedChannelId = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
 const previewImage = ref('')
 
@@ -334,8 +350,16 @@ interface CreateOrderOptions {
   openid?: string
   wechatResumeToken?: string
   paymentType?: string
+  providerKey?: string
+  paymentChannelId?: string
   isResume?: boolean
   mobileQrFallbackAttempted?: boolean
+}
+
+interface BackupChannelHintContext {
+  attemptedChannelId?: string
+  orderType: OrderType
+  orderAmount: number
 }
 
 interface WeixinJSBridgeLike {
@@ -353,6 +377,8 @@ function emptyPaymentState(): PaymentRecoverySnapshot {
     qrCode: '',
     expiresAt: '',
     paymentType: '',
+    paymentChannelId: '',
+    providerKey: '',
     payUrl: '',
     outTradeNo: '',
     clientSecret: '',
@@ -441,7 +467,7 @@ async function redirectToPaymentResult(state: PaymentRecoverySnapshot): Promise<
 
 function buildWechatOAuthAuthorizeUrl(
   authorizeUrl: string,
-  context: { paymentType: string; orderType: OrderType; planId?: number; orderAmount: number },
+  context: { paymentType: string; providerKey?: string; orderType: OrderType; planId?: number; orderAmount: number },
 ): string {
   const normalizedUrl = authorizeUrl.trim()
   if (!normalizedUrl || typeof window === 'undefined') {
@@ -469,6 +495,11 @@ function buildWechatOAuthAuthorizeUrl(
       redirectUrl.searchParams.delete('amount')
     }
 
+    if (context.providerKey?.trim()) {
+      const providerKey = context.providerKey.trim().toLowerCase()
+      targetUrl.searchParams.set('provider_key', providerKey)
+      redirectUrl.searchParams.set('provider_key', providerKey)
+    }
     targetUrl.searchParams.set('redirect', `${redirectUrl.pathname}${redirectUrl.search}`)
     return targetUrl.toString()
   } catch {
@@ -501,7 +532,7 @@ function onPaymentSettled() {
 
 // All checkout data from single API call
 const checkout = ref<CheckoutInfoResponse>({
-  methods: {}, global_min: 0, global_max: 0,
+  methods: {}, method_options: [], global_min: 0, global_max: 0,
   plans: [], balance_disabled: false, balance_recharge_multiplier: 1, subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
 })
 
@@ -512,8 +543,13 @@ const tabs = computed(() => {
   return result
 })
 
-const visibleMethods = computed(() => getVisibleMethods(checkout.value.methods))
-const enabledMethods = computed(() => Object.keys(visibleMethods.value))
+const channelOptions = computed(() => normalizePaymentChannelOptions(checkout.value))
+const enabledChannelIds = computed(() =>
+  channelOptions.value.filter(option => option.available).map(option => option.id),
+)
+const selectedChannel = computed(() =>
+  channelOptions.value.find(option => option.id === selectedChannelId.value),
+)
 const validAmount = computed(() => amount.value ?? 0)
 const balanceRechargeMultiplier = computed(() => {
   const multiplier = checkout.value.balance_recharge_multiplier
@@ -534,31 +570,46 @@ const planGridClass = computed(() => {
 })
 
 // Check if an amount fits a method's [min, max]. 0 = no limit.
-function amountFitsMethod(amt: number, methodType: string): boolean {
+function amountFitsChannel(amt: number, channelId: string): boolean {
   if (amt <= 0) return true
-  const ml = visibleMethods.value[methodType]
-  if (!ml) return false
-  if (ml.single_min > 0 && amt < ml.single_min) return false
-  if (ml.single_max > 0 && amt > ml.single_max) return false
+  const channel = channelOptions.value.find(option => option.id === channelId)
+  if (!channel) return false
+  if (channel.amount_ranges?.length) {
+    return channel.amount_ranges.some(range =>
+      (range.single_min <= 0 || amt >= range.single_min)
+      && (range.single_max <= 0 || amt <= range.single_max),
+    )
+  }
+  if (channel.single_min > 0 && amt < channel.single_min) return false
+  if (channel.single_max > 0 && amt > channel.single_max) return false
   return true
 }
 
-// Visible methods decide the amount range shown to users.
+// Visible methods decide the principal range shown to users. Gateway limits include fees.
+const balancePrincipalLimits = computed(() => channelOptions.value.flatMap((channel) => {
+  const ranges = channel.amount_ranges?.length
+    ? channel.amount_ranges
+    : [{ single_min: channel.single_min, single_max: channel.single_max }]
+  return ranges.map(range => ({
+    min: balancePrincipalAmountForGatewayLimit(channel, range.single_min, 'min'),
+    max: balancePrincipalAmountForGatewayLimit(channel, range.single_max, 'max'),
+  }))
+}))
 const globalMinAmount = computed(() => {
-  const limits = Object.values(visibleMethods.value)
+  const limits = balancePrincipalLimits.value
   if (limits.length === 0) return 0
-  if (limits.some(limit => limit.single_min <= 0)) return 0
-  return Math.min(...limits.map(limit => limit.single_min))
+  if (limits.some(limit => limit.min <= 0)) return 0
+  return Math.min(...limits.map(limit => limit.min))
 })
 const globalMaxAmount = computed(() => {
-  const limits = Object.values(visibleMethods.value)
+  const limits = balancePrincipalLimits.value
   if (limits.length === 0) return 0
-  if (limits.some(limit => limit.single_max <= 0)) return 0
-  return Math.max(...limits.map(limit => limit.single_max))
+  if (limits.some(limit => limit.max <= 0)) return 0
+  return Math.max(...limits.map(limit => limit.max))
 })
 
 // Selected method's limits (for validation and error messages)
-const selectedLimit = computed(() => visibleMethods.value[selectedMethod.value])
+const selectedLimit = computed(() => selectedChannel.value)
 const selectedCurrency = computed(() => normalizePaymentCurrency(selectedLimit.value?.currency))
 const localeCode = computed(() => {
   const raw = i18n.locale as unknown
@@ -569,33 +620,10 @@ const localeCode = computed(() => {
   return undefined
 })
 
-function currencyFractionDigits(currency: string): number {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency,
-    }).resolvedOptions().maximumFractionDigits ?? 2
-  } catch {
-    return 2
-  }
-}
-
-function roundPaymentAmount(value: number, currency: string): number {
-  if (!Number.isFinite(value)) return 0
-  const factor = 10 ** currencyFractionDigits(currency)
-  return Math.round(value * factor) / factor
-}
-
-function ceilPaymentAmount(value: number, currency: string): number {
-  if (!Number.isFinite(value)) return 0
-  const factor = 10 ** currencyFractionDigits(currency)
-  return Math.ceil(value * factor) / factor
-}
-
 function subscriptionPaymentAmountForCurrency(value: number, currency: string): number {
   const rate = subscriptionUsdToCnyRate.value
-  if (rate <= 0 || currency !== DEFAULT_PAYMENT_CURRENCY) return roundPaymentAmount(value, currency)
-  return roundPaymentAmount(value * rate, currency)
+  if (rate <= 0 || currency !== DEFAULT_PAYMENT_CURRENCY) return value
+  return multiplyAndRoundPaymentAmount(value, rate, currency)
 }
 
 function formatSelectedPaymentAmount(value: number): string {
@@ -606,48 +634,108 @@ function formatSelectedSubscriptionPaymentAmount(value: number): string {
   return formatSelectedPaymentAmount(subscriptionPaymentAmountForCurrency(value, selectedCurrency.value))
 }
 
-const methodOptions = computed<PaymentMethodOption[]>(() =>
-  enabledMethods.value.map((type) => {
-    const ml = visibleMethods.value[type]
-    return {
-      type,
-      display_name: ml?.display_name,
-      fee_rate: ml?.fee_rate ?? 0,
-      available: ml?.available !== false && amountFitsMethod(validAmount.value, type),
-    }
-  })
+function paymentChannelFeeRate(channel: PaymentChannelOption | undefined): number {
+  const rate = channel?.fee_rate
+  if (Number.isFinite(rate) && rate! >= 0) return rate!
+  return checkout.value.recharge_fee_rate ?? 0
+}
+
+function balanceTotalAmountForChannel(value: number, channel: PaymentChannelOption): number {
+  const currency = normalizePaymentCurrency(channel.currency)
+  const rate = paymentChannelFeeRate(channel)
+  if (rate <= 0 || value <= 0) return value
+  const fee = paymentFeeAmount(value, rate, currency)
+  return roundPaymentAmount(value + fee, currency)
+}
+
+function balancePrincipalAmountForGatewayLimit(
+  channel: PaymentChannelOption,
+  limit: number,
+  boundary: 'min' | 'max',
+): number {
+  if (!Number.isFinite(limit) || limit <= 0) return 0
+  const rawRate = paymentChannelFeeRate(channel)
+  const rate = Number.isFinite(rawRate) && rawRate > 0 ? rawRate : 0
+  const estimate = limit / (1 + rate / 100)
+  const currency = normalizePaymentCurrency(channel.currency)
+  const currencyDigits = paymentCurrencyFractionDigits(currency)
+  const inputScale = 10 ** Math.max(2, currencyDigits)
+  const stepUnits = 10 ** Math.max(0, Math.max(2, currencyDigits) - currencyDigits)
+  const estimatedUnits = estimate * inputScale
+  let units = boundary === 'min'
+    ? Math.ceil((estimatedUnits - 1e-9) / stepUnits) * stepUnits
+    : Math.floor((estimatedUnits + 1e-9) / stepUnits) * stepUnits
+  units = Math.max(boundary === 'min' ? stepUnits : 0, units)
+  if (!Number.isSafeInteger(units)) return estimate
+
+  const totalAt = (candidateUnits: number) =>
+    balanceTotalAmountForChannel(candidateUnits / inputScale, channel)
+  const tolerance = Number.EPSILON * Math.max(1, Math.abs(limit))
+
+  if (boundary === 'min') {
+    while (units > stepUnits && totalAt(units - stepUnits) + tolerance >= limit) units -= stepUnits
+    while (totalAt(units) + tolerance < limit) units += stepUnits
+  } else {
+    while (units > 0 && totalAt(units) > limit + tolerance) units -= stepUnits
+    while (totalAt(units + stepUnits) <= limit + tolerance) units += stepUnits
+  }
+
+  return units / inputScale
+}
+
+function balanceAmountFitsChannel(channel: PaymentChannelOption, value = validAmount.value): boolean {
+  const currency = normalizePaymentCurrency(channel.currency)
+  if (!isPaymentAmountRepresentable(value, currency)) return false
+  return amountFitsChannel(
+    balanceTotalAmountForChannel(value, channel),
+    channel.id,
+  )
+}
+
+const methodOptions = computed<PaymentChannelOption[]>(() =>
+  channelOptions.value.map(channel => ({
+    ...channel,
+    available: channel.available && balanceAmountFitsChannel(channel),
+  }))
 )
 
-const feeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
+const feeRate = computed(() => paymentChannelFeeRate(selectedChannel.value))
 const feeAmount = computed(() =>
-  feeRate.value > 0 && validAmount.value > 0
-    ? Math.ceil(((validAmount.value * feeRate.value) / 100) * 100) / 100
+  feeRate.value > 0
+    && validAmount.value > 0
+    && isPaymentAmountRepresentable(validAmount.value, selectedCurrency.value)
+    ? paymentFeeAmount(validAmount.value, feeRate.value, selectedCurrency.value)
     : 0
 )
 const totalAmount = computed(() =>
-  feeRate.value > 0 && validAmount.value > 0
-    ? Math.round((validAmount.value + feeAmount.value) * 100) / 100
+  selectedChannel.value && isPaymentAmountRepresentable(validAmount.value, selectedCurrency.value)
+    ? balanceTotalAmountForChannel(validAmount.value, selectedChannel.value)
     : validAmount.value
 )
 
 const amountError = computed(() => {
   if (validAmount.value <= 0) return ''
   // No method can handle this amount
-  if (!enabledMethods.value.some((m) => amountFitsMethod(validAmount.value, m))) {
+  if (!channelOptions.value.some(channel => channel.available && balanceAmountFitsChannel(channel))) {
     return t('payment.amountNoMethod')
   }
   // Selected method can't handle this amount (but others can)
   const ml = selectedLimit.value
   if (ml) {
-    if (ml.single_min > 0 && validAmount.value < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
-    if (ml.single_max > 0 && validAmount.value > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
+    if (ml.amount_ranges?.length) return ''
+    const currency = normalizePaymentCurrency(ml.currency)
+    if (!isPaymentAmountRepresentable(validAmount.value, currency)) return ''
+    const payAmount = balanceTotalAmountForChannel(validAmount.value, ml)
+    if (ml.single_min > 0 && payAmount < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
+    if (ml.single_max > 0 && payAmount > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
   }
   return ''
 })
 
 const canSubmit = computed(() =>
   validAmount.value > 0
-    && amountFitsMethod(validAmount.value, selectedMethod.value)
+    && !!selectedChannel.value
+    && balanceAmountFitsChannel(selectedChannel.value)
     && selectedLimit.value?.available !== false
 )
 
@@ -657,8 +745,12 @@ const subPaymentAmount = computed(() => {
 })
 
 const subFeeAmount = computed(() => {
-  if (feeRate.value <= 0 || subPaymentAmount.value <= 0) return 0
-  return ceilPaymentAmount((subPaymentAmount.value * feeRate.value) / 100, selectedCurrency.value)
+  if (
+    feeRate.value <= 0
+    || subPaymentAmount.value <= 0
+    || !isPaymentAmountRepresentable(subPaymentAmount.value, selectedCurrency.value)
+  ) return 0
+  return paymentFeeAmount(subPaymentAmount.value, feeRate.value, selectedCurrency.value)
 })
 
 const subTotalAmount = computed(() => {
@@ -666,44 +758,73 @@ const subTotalAmount = computed(() => {
   return roundPaymentAmount(subPaymentAmount.value + subFeeAmount.value, selectedCurrency.value)
 })
 
-function subscriptionTotalAmountForCurrency(value: number, currency: string): number {
+function subscriptionTotalAmountForCurrency(value: number, currency: string, rate = feeRate.value): number {
   const paymentAmount = subscriptionPaymentAmountForCurrency(value, currency)
-  if (feeRate.value <= 0 || paymentAmount <= 0) return paymentAmount
-  const fee = ceilPaymentAmount((paymentAmount * feeRate.value) / 100, currency)
+  if (rate <= 0 || paymentAmount <= 0) return paymentAmount
+  const fee = paymentFeeAmount(paymentAmount, rate, currency)
   return roundPaymentAmount(paymentAmount + fee, currency)
 }
 
+function subscriptionAmountFitsChannel(
+  channel: PaymentChannelOption,
+  price = selectedPlan.value?.price ?? 0,
+): boolean {
+  const currency = normalizePaymentCurrency(channel.currency)
+  const paymentAmount = subscriptionPaymentAmountForCurrency(price, currency)
+  if (!isPaymentAmountRepresentable(paymentAmount, currency)) return false
+  return amountFitsChannel(
+    subscriptionTotalAmountForCurrency(price, currency, paymentChannelFeeRate(channel)),
+    channel.id,
+  )
+}
+
 // Subscription-specific: method options based on gateway pay amount
-const subMethodOptions = computed<PaymentMethodOption[]>(() => {
-  const price = selectedPlan.value?.price ?? 0
-  return enabledMethods.value.map((type) => {
-    const ml = visibleMethods.value[type]
-    const currency = normalizePaymentCurrency(ml?.currency)
+const subMethodOptions = computed<PaymentChannelOption[]>(() => {
+  return channelOptions.value.map((channel) => {
     return {
-      type,
-      display_name: ml?.display_name,
-      fee_rate: ml?.fee_rate ?? 0,
-      available: ml?.available !== false && amountFitsMethod(subscriptionTotalAmountForCurrency(price, currency), type),
+      ...channel,
+      available: channel.available && subscriptionAmountFitsChannel(channel),
     }
   })
 })
 
 const canSubmitSubscription = computed(() =>
   selectedPlan.value !== null
-    && amountFitsMethod(subTotalAmount.value, selectedMethod.value)
+    && !!selectedChannel.value
+    && subscriptionAmountFitsChannel(selectedChannel.value)
     && selectedLimit.value?.available !== false
 )
 
-// Auto-switch to first available method when current selection can't handle the amount
-watch(() => [validAmount.value, selectedMethod.value] as const, ([amt, method]) => {
-  if (amt <= 0 || amountFitsMethod(amt, method)) return
-  const available = enabledMethods.value.find((m) => amountFitsMethod(amt, m))
-  if (available) selectedMethod.value = available
-})
+// Auto-switch only for the active tab so recharge and subscription constraints cannot fight.
+watch(
+  () => [activeTab.value, validAmount.value, selectedChannelId.value] as const,
+  ([tab, amt, channelId]) => {
+    if (tab !== 'recharge' || amt <= 0) return
+    const current = channelOptions.value.find(channel => channel.id === channelId)
+    if (current && current.available && balanceAmountFitsChannel(current)) return
+    const available = channelOptions.value.find(channel =>
+      channel.available && balanceAmountFitsChannel(channel),
+    )
+    if (available) selectedChannelId.value = available.id
+  },
+)
+
+watch(
+  () => [activeTab.value, selectedPlan.value?.price ?? 0, selectedChannelId.value] as const,
+  ([tab, price, channelId]) => {
+    if (tab !== 'subscription' || price <= 0) return
+    const current = channelOptions.value.find(channel => channel.id === channelId)
+    if (current && current.available && subscriptionAmountFitsChannel(current)) return
+    const available = channelOptions.value.find(channel =>
+      channel.available && subscriptionAmountFitsChannel(channel),
+    )
+    if (available) selectedChannelId.value = available.id
+  },
+)
 
 // Payment button class: follows selected payment method color
 const paymentButtonClass = computed(() => {
-  const m = selectedMethod.value
+  const m = selectedChannel.value?.payment_type || ''
   if (!m) return 'btn-primary'
   if (isBuiltInAlipayMethod(m)) return 'btn-alipay'
   if (isBuiltInWxpayMethod(m)) return 'btn-wxpay'
@@ -768,18 +889,36 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
   submitting.value = true
   errorMessage.value = ''
   errorHintMessage.value = ''
-  const requestType = normalizeVisibleMethod(options.paymentType || selectedMethod.value) || options.paymentType || selectedMethod.value
+  const requestedChannel = findPaymentChannel(
+    channelOptions.value,
+    options.paymentChannelId || selectedChannelId.value,
+    options.paymentType,
+    options.providerKey,
+  ) || selectedChannel.value
+  const requestedPaymentType = options.paymentType || requestedChannel?.payment_type || ''
+  const requestType = normalizeVisibleMethod(requestedPaymentType) || requestedPaymentType
+  const requestProviderKey = options.providerKey !== undefined
+    ? options.providerKey
+    : options.isResume
+      ? ''
+      : requestedChannel?.provider_key || ''
+  let attemptedChannelId = requestedChannel?.id
+  const mobilePrecreateDeepLink = paymentChannelSupports(
+    requestedChannel,
+    ALIPAY_MOBILE_PRECREATE_DEEP_LINK,
+  )
   try {
     const payload = buildCreateOrderPayload({
       amount: orderAmount,
       paymentType: requestType,
+      providerKey: requestProviderKey,
       orderType,
       planId,
       origin: typeof window !== 'undefined' ? window.location.origin : '',
       isMobile: isMobileDevice(),
       isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
       forceQRCode: !!(checkout.value.alipay_force_qrcode && normalizeVisibleMethod(requestType) === 'alipay'),
-      mobilePrecreateDeepLink: checkout.value.alipay_mobile_precreate_deep_link === true,
+      mobilePrecreateDeepLink,
     })
     if (options.openid) {
       payload.openid = options.openid
@@ -796,6 +935,13 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       }
     }
     const visibleMethod = normalizeVisibleMethod(requestType) || requestType
+    const actualChannel = findPaymentChannel(
+      channelOptions.value,
+      result.provider_key ? undefined : requestedChannel?.id,
+      visibleMethod,
+      result.provider_key || requestProviderKey,
+    ) || requestedChannel
+    attemptedChannelId = actualChannel?.id || attemptedChannelId
     // When user clicks the dedicated Stripe button, leave method blank so the
     // landing page renders Stripe's full Payment Element (card/link/alipay/wxpay).
     const stripeMethod = visibleMethod === 'stripe'
@@ -824,11 +970,13 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       : ''
     const decision = decidePaymentLaunch(result, {
       visibleMethod,
+      paymentChannelId: actualChannel?.id,
+      providerKey: result.provider_key || requestProviderKey,
       orderType,
       isMobile: isMobileDevice(),
       isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
       forceQRCode: !!(checkout.value.alipay_force_qrcode && visibleMethod === 'alipay'),
-      mobilePrecreateDeepLink: checkout.value.alipay_mobile_precreate_deep_link === true,
+      mobilePrecreateDeepLink: paymentChannelSupports(actualChannel, ALIPAY_MOBILE_PRECREATE_DEEP_LINK),
       stripePopupUrl: stripeRouteUrl,
       stripeRouteUrl,
       airwallexRouteUrl,
@@ -837,6 +985,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     if (decision.kind === 'wechat_oauth' && decision.oauth?.authorize_url) {
       window.location.href = buildWechatOAuthAuthorizeUrl(decision.oauth.authorize_url, {
         paymentType: visibleMethod,
+        providerKey: result.provider_key || requestProviderKey,
         orderType,
         planId,
         orderAmount,
@@ -845,7 +994,11 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     }
 
     if (decision.kind === 'unhandled') {
-      applyScenarioError({ reason: 'UNHANDLED_PAYMENT_SCENARIO' }, visibleMethod)
+      applyScenarioError(
+        { reason: 'UNHANDLED_PAYMENT_SCENARIO' },
+        visibleMethod,
+        { attemptedChannelId: actualChannel?.id, orderType, orderAmount },
+      )
       return
     }
 
@@ -881,11 +1034,17 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
               orderType,
               planId,
               paymentType: visibleMethod,
+              providerKey: result.provider_key || requestProviderKey,
+              paymentChannelId: actualChannel?.id,
               attempted: options.mobileQrFallbackAttempted === true,
             },
           )
           if (!fallbackApplied) {
-            applyScenarioError({ reason: 'WECHAT_JSAPI_FAILED', message: errMsg }, visibleMethod)
+            applyScenarioError(
+              { reason: 'WECHAT_JSAPI_FAILED', message: errMsg },
+              visibleMethod,
+              { attemptedChannelId: actualChannel?.id, orderType, orderAmount },
+            )
           }
         } else {
           const resultState = { ...decision.paymentState }
@@ -899,6 +1058,8 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
           orderType,
           planId,
           paymentType: visibleMethod,
+          providerKey: result.provider_key || requestProviderKey,
+          paymentChannelId: actualChannel?.id,
           attempted: options.mobileQrFallbackAttempted === true,
         })
         if (!fallbackApplied) {
@@ -928,17 +1089,25 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       orderType,
       planId,
       paymentType: requestType,
+      providerKey: requestProviderKey,
+      paymentChannelId: requestedChannel?.id,
       attempted: options.mobileQrFallbackAttempted === true,
     })) {
       return
     } else {
       const handled = applyScenarioError(
         err,
-        normalizeVisibleMethod(options.paymentType || selectedMethod.value) || selectedMethod.value,
+        requestType,
+        { attemptedChannelId, orderType, orderAmount },
       )
       if (!handled) {
         errorMessage.value = extractI18nErrorMessage(err, t, 'payment.errors', extractApiErrorMessage(err, t('payment.result.failed')))
-        errorHintMessage.value = ''
+        errorHintMessage.value = appendBackupChannelHint(
+          err,
+          '',
+          requestType,
+          { attemptedChannelId, orderType, orderAmount },
+        )
       }
       if (handled) {
         return
@@ -955,6 +1124,8 @@ interface MobileQrFallbackContext {
   orderType: OrderType
   planId?: number
   paymentType: string
+  providerKey?: string
+  paymentChannelId?: string
   attempted: boolean
 }
 
@@ -1001,6 +1172,7 @@ async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackCo
     const payload = buildCreateOrderPayload({
       amount: context.orderAmount,
       paymentType: visibleMethod,
+      providerKey: context.providerKey,
       orderType: context.orderType,
       planId: context.planId,
       origin: typeof window !== 'undefined' ? window.location.origin : '',
@@ -1022,6 +1194,8 @@ async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackCo
       : ''
     const decision = decidePaymentLaunch(result, {
       visibleMethod,
+      paymentChannelId: context.paymentChannelId,
+      providerKey: context.providerKey,
       orderType: context.orderType,
       isMobile: false,
       isWechatBrowser: false,
@@ -1045,7 +1219,11 @@ async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackCo
   }
 }
 
-function applyScenarioError(err: unknown, paymentMethod: string): boolean {
+function applyScenarioError(
+  err: unknown,
+  paymentMethod: string,
+  context: BackupChannelHintContext,
+): boolean {
   const descriptor = describePaymentScenarioError(err, {
     paymentMethod,
     isMobile: isMobileDevice(),
@@ -1057,9 +1235,40 @@ function applyScenarioError(err: unknown, paymentMethod: string): boolean {
     return false
   }
   errorMessage.value = t(descriptor.messageKey)
-  errorHintMessage.value = descriptor.hintKey ? t(descriptor.hintKey) : ''
+  errorHintMessage.value = appendBackupChannelHint(
+    err,
+    descriptor.hintKey ? t(descriptor.hintKey) : '',
+    paymentMethod,
+    context,
+  )
   appStore.showError(buildPaymentErrorToastMessage(errorMessage.value, errorHintMessage.value))
   return true
+}
+
+function appendBackupChannelHint(
+  err: unknown,
+  currentHint: string,
+  paymentMethod: string,
+  context: BackupChannelHintContext,
+): string {
+  if (!isGatewayChannelFailure(err)) return currentHint
+  const backup = findBackupPaymentChannel(
+    channelOptions.value,
+    context.attemptedChannelId || '',
+    paymentMethod,
+    channel => context.orderType === 'subscription'
+      ? subscriptionAmountFitsChannel(channel, context.orderAmount)
+      : balanceAmountFitsChannel(channel, context.orderAmount),
+  )
+  if (!backup) return currentHint
+  const switchHint = t('payment.errors.switchChannelHint', {
+    channel: paymentChannelLabel(backup, t),
+  })
+  return currentHint ? `${currentHint} ${switchHint}` : switchHint
+}
+
+function isGatewayChannelFailure(err: unknown): boolean {
+  return isGatewayChannelFailureCode(extractApiErrorCode(err))
 }
 
 async function resumeWechatPaymentFromQuery() {
@@ -1068,7 +1277,15 @@ async function resumeWechatPaymentFromQuery() {
     return
   }
 
-  selectedMethod.value = resume.paymentType
+  const resumeChannel = findPaymentChannel(
+    channelOptions.value,
+    '',
+    resume.paymentType,
+    resume.providerKey,
+  )
+  if (resumeChannel) {
+    selectedChannelId.value = resumeChannel.id
+  }
   if (resume.orderType === 'balance' && resume.orderAmount > 0) {
     amount.value = resume.orderAmount
   }
@@ -1082,6 +1299,7 @@ async function resumeWechatPaymentFromQuery() {
     await createOrder(0, resume.orderType, resume.planId, {
       wechatResumeToken: resume.wechatResumeToken,
       paymentType: resume.paymentType,
+      providerKey: resume.providerKey,
       isResume: true,
     })
     return
@@ -1091,6 +1309,7 @@ async function resumeWechatPaymentFromQuery() {
     await createOrder(resume.orderAmount, resume.orderType, resume.planId, {
       openid: resume.openid,
       paymentType: resume.paymentType,
+      providerKey: resume.providerKey,
       isResume: true,
     })
   }
@@ -1100,14 +1319,8 @@ onMounted(async () => {
   try {
     const res = await paymentAPI.getCheckoutInfo()
     checkout.value = res.data
-    if (enabledMethods.value.length) {
-      const order: readonly string[] = METHOD_ORDER
-      const sorted = [...enabledMethods.value].sort((a, b) => {
-        const ai = order.indexOf(a)
-        const bi = order.indexOf(b)
-        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
-      })
-      selectedMethod.value = sorted[0]
+    if (enabledChannelIds.value.length) {
+      selectedChannelId.value = enabledChannelIds.value[0]
     }
     if (typeof window !== 'undefined') {
       if (hasWechatResumeQuery(route.query)) {
@@ -1125,10 +1338,14 @@ onMounted(async () => {
       if (restored) {
         paymentState.value = restored
         paymentPhase.value = 'paying'
-        const restoredMethod = normalizeVisibleMethod(restored.paymentType)
-          || (visibleMethods.value[restored.paymentType] ? restored.paymentType : '')
-        if (restoredMethod) {
-          selectedMethod.value = restoredMethod
+        const restoredChannel = findPaymentChannel(
+          channelOptions.value,
+          restored.paymentChannelId,
+          restored.paymentType,
+          restored.providerKey,
+        )
+        if (restoredChannel) {
+          selectedChannelId.value = restoredChannel.id
         }
       } else {
         removeRecoverySnapshot()

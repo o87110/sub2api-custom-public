@@ -537,3 +537,259 @@ func TestGetAvailableMethodLimitsPreservesLegacyCrossProviderBehaviorWhenVisible
 	require.Equal(t, 10.0, resp.GlobalMin)
 	require.Equal(t, 400.0, resp.GlobalMax)
 }
+
+func TestGetAvailableMethodOptionsSeparatesVisibleMethodProviders(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	for _, instance := range []struct {
+		providerKey   string
+		name          string
+		supportedType string
+		limits        string
+	}{
+		{payment.TypeAlipay, "Official Alipay", payment.TypeAlipay, `{"alipay":{"singleMin":20,"singleMax":200}}`},
+		{payment.TypeEasyPay, "EasyPay", "alipay,wxpay", `{"alipay":{"singleMin":10,"singleMax":100},"wxpay":{"singleMin":5,"singleMax":80}}`},
+		{payment.TypeWxpay, "Official WeChat", payment.TypeWxpay, `{"wxpay":{"singleMin":30,"singleMax":300}}`},
+	} {
+		_, err := client.PaymentProviderInstance.Create().
+			SetProviderKey(instance.providerKey).
+			SetName(instance.name).
+			SetConfig("{}").
+			SetSupportedTypes(instance.supportedType).
+			SetLimits(instance.limits).
+			SetEnabled(true).
+			Save(ctx)
+		require.NoError(t, err)
+	}
+
+	svc := &PaymentConfigService{
+		entClient:   client,
+		settingRepo: &paymentConfigSettingRepoStub{values: map[string]string{}},
+	}
+	options, err := svc.GetAvailableMethodOptions(ctx, 2.5, true)
+	require.NoError(t, err)
+	require.Len(t, options, 4)
+	require.Equal(t, []string{
+		"easypay_alipay",
+		"official_alipay",
+		"easypay_wxpay",
+		"official_wxpay",
+	}, []string{options[0].ID, options[1].ID, options[2].ID, options[3].ID})
+	require.Equal(t, 10.0, options[0].SingleMin)
+	require.Equal(t, 20.0, options[1].SingleMin)
+	require.Equal(t, 2.5, options[0].FeeRate)
+	require.Empty(t, options[0].Capabilities)
+	require.Equal(t, []string{"alipay_mobile_precreate_deep_link"}, options[1].Capabilities)
+}
+
+func TestGetAvailableMethodOptionsIncludesLegacyOfficialEmptySupportedTypes(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	for _, instance := range []struct {
+		providerKey   string
+		name          string
+		supportedType string
+	}{
+		{payment.TypeAlipay, "Legacy Official Alipay", ""},
+		{payment.TypeEasyPay, "EasyPay", "alipay,wxpay"},
+		{payment.TypeWxpay, "Legacy Official WeChat", ""},
+		{payment.TypeAirwallex, "Airwallex", payment.TypeAirwallex},
+	} {
+		_, err := client.PaymentProviderInstance.Create().
+			SetProviderKey(instance.providerKey).
+			SetName(instance.name).
+			SetConfig("{}").
+			SetSupportedTypes(instance.supportedType).
+			SetLimits("{}").
+			SetEnabled(true).
+			Save(ctx)
+		require.NoError(t, err)
+	}
+
+	svc := &PaymentConfigService{
+		entClient:   client,
+		settingRepo: &paymentConfigSettingRepoStub{values: map[string]string{}},
+	}
+	options, err := svc.GetAvailableMethodOptions(ctx, 0, false)
+	require.NoError(t, err)
+	require.Len(t, options, 5)
+	require.Equal(t, []string{
+		"easypay_alipay",
+		"official_alipay",
+		"easypay_wxpay",
+		"official_wxpay",
+		"airwallex",
+	}, []string{options[0].ID, options[1].ID, options[2].ID, options[3].ID, options[4].ID})
+
+	valid, err := svc.HasConfiguredProviderPaymentType(ctx, payment.TypeAlipay, payment.TypeAlipay)
+	require.NoError(t, err)
+	require.True(t, valid)
+	valid, err = svc.HasConfiguredProviderPaymentType(ctx, payment.TypeWxpay, payment.TypeWxpay)
+	require.NoError(t, err)
+	require.True(t, valid)
+}
+
+func TestDefaultLoadBalancerRevalidatesSelectedInstanceState(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	instance, err := client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeEasyPay).
+		SetName("EasyPay").
+		SetConfig("{}").
+		SetSupportedTypes(payment.TypeAlipay).
+		SetLimits(`{"alipay":{"singleMin":1,"singleMax":100}}`).
+		SetEnabled(true).
+		Save(ctx)
+	require.NoError(t, err)
+
+	loadBalancer := payment.NewDefaultLoadBalancer(client, nil)
+	selection, err := loadBalancer.SelectInstance(
+		ctx,
+		payment.TypeEasyPay,
+		payment.TypeAlipay,
+		payment.StrategyRoundRobin,
+		10,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	valid, err := loadBalancer.RevalidateSelection(ctx, selection, payment.TypeAlipay, 10)
+	require.NoError(t, err)
+	require.True(t, valid)
+
+	_, err = client.PaymentProviderInstance.UpdateOneID(instance.ID).
+		SetEnabled(false).
+		Save(ctx)
+	require.NoError(t, err)
+	valid, err = loadBalancer.RevalidateSelection(ctx, selection, payment.TypeAlipay, 10)
+	require.NoError(t, err)
+	require.False(t, valid)
+
+	_, err = client.PaymentProviderInstance.UpdateOneID(instance.ID).
+		SetEnabled(true).
+		SetLimits(`{"alipay":{"singleMin":1,"singleMax":100}}`).
+		Save(ctx)
+	require.NoError(t, err)
+	selection, err = loadBalancer.SelectInstance(
+		ctx,
+		payment.TypeEasyPay,
+		payment.TypeAlipay,
+		payment.StrategyRoundRobin,
+		10,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+
+	_, err = client.PaymentProviderInstance.UpdateOneID(instance.ID).
+		SetConfig(`{"merchantId":"changed"}`).
+		Save(ctx)
+	require.NoError(t, err)
+	valid, err = loadBalancer.RevalidateSelection(ctx, selection, payment.TypeAlipay, 10)
+	require.NoError(t, err)
+	require.False(t, valid)
+
+	selection, err = loadBalancer.SelectInstance(
+		ctx,
+		payment.TypeEasyPay,
+		payment.TypeAlipay,
+		payment.StrategyRoundRobin,
+		10,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	_, err = client.PaymentProviderInstance.UpdateOneID(instance.ID).
+		SetLimits(`{"alipay":{"singleMin":20,"singleMax":100}}`).
+		Save(ctx)
+	require.NoError(t, err)
+	valid, err = loadBalancer.RevalidateSelection(ctx, selection, payment.TypeAlipay, 10)
+	require.NoError(t, err)
+	require.False(t, valid)
+
+	canceledCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	valid, err = loadBalancer.RevalidateSelection(canceledCtx, selection, payment.TypeAlipay, 10)
+	require.Error(t, err)
+	require.False(t, valid)
+}
+
+func TestValidateMethodProviderCurrencyConsistencyDoesNotMixProviders(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	_, err := client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeEasyPay).
+		SetName("EasyPay Alipay").
+		SetConfig(`{}`).
+		SetSupportedTypes(payment.TypeAlipay).
+		SetEnabled(true).
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeStripe).
+		SetName("Stripe USD").
+		SetConfig(`{"currency":"USD"}`).
+		SetSupportedTypes(payment.TypeStripe).
+		SetEnabled(true).
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeStripe).
+		SetName("Stripe HKD").
+		SetConfig(`{"currency":"HKD"}`).
+		SetSupportedTypes(payment.TypeStripe).
+		SetEnabled(true).
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentConfigService{
+		entClient:   client,
+		settingRepo: &paymentConfigSettingRepoStub{values: map[string]string{}},
+	}
+	easyPayCurrency, err := svc.ValidateMethodProviderCurrencyConsistency(ctx, payment.TypeAlipay, payment.TypeEasyPay)
+	require.NoError(t, err)
+	require.Equal(t, payment.DefaultPaymentCurrency, easyPayCurrency)
+
+	_, err = svc.ValidateMethodProviderCurrencyConsistency(ctx, payment.TypeStripe, payment.TypeStripe)
+	require.Error(t, err)
+	require.Equal(t, "PAYMENT_METHOD_CURRENCY_CONFLICT", infraerrors.Reason(err))
+}
+
+func TestHasConfiguredProviderPaymentTypeMatchesExposedChannelOptions(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	_, err := client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeEasyPay).
+		SetName("EasyPay Custom").
+		SetConfig(`{}`).
+		SetSupportedTypes("alipay,ldc").
+		SetEnabled(false).
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeStripe).
+		SetName("Stripe").
+		SetConfig(`{}`).
+		SetSupportedTypes("card,link,alipay,wxpay").
+		SetEnabled(true).
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentConfigService{
+		entClient:   client,
+		settingRepo: &paymentConfigSettingRepoStub{values: map[string]string{}},
+	}
+
+	valid, err := svc.HasConfiguredProviderPaymentType(ctx, "ldc", payment.TypeEasyPay)
+	require.NoError(t, err)
+	require.True(t, valid, "configured EasyPay custom methods remain valid even while disabled")
+
+	valid, err = svc.HasConfiguredProviderPaymentType(ctx, payment.TypeStripe, payment.TypeStripe)
+	require.NoError(t, err)
+	require.True(t, valid)
+
+	valid, err = svc.HasConfiguredProviderPaymentType(ctx, payment.TypeAlipay, payment.TypeStripe)
+	require.NoError(t, err)
+	require.False(t, valid, "Stripe sub-methods are not standalone provider channel selections")
+}

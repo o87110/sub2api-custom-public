@@ -13,7 +13,7 @@
 | 官方远程 | `https://github.com/Wei-Shaw/sub2api.git` |
 | 官方基线 | `vendor-0.1.164^{commit}` |
 | 基线提交 | `cd8bb98c44303b2c8f04c0da340447c992f0cb7d` |
-| 官方镜像分支 | `upstream/main` |
+| 已审核官方镜像 | `origin/upstream/main`（远程分支 `refs/heads/upstream/main`） |
 | 升级分支 | `upgrade/vX.Y.Z` |
 | 发布标签 | `vX.Y.Z-custom.N` |
 
@@ -44,10 +44,13 @@ Issue 和生产资料不迁移。
 backend/internal/custom/
 ├── databaseboundary/       数据库与迁移边界检查
 ├── moderation/             cyber_policy 范围隔离与摘要
+├── paymentchannels/        支付宝/微信用户级渠道选项与合法组合
 └── updater/                自定义 Release、更新与回退
 
 frontend/src/custom/
+├── api-keys/               API 密钥当前页批量操作
 ├── moderation/             风控二改页面与文案
+├── payment-channels/       支付渠道归一化、选择器与备用提示
 └── updater/                版本、更新与回退界面
 ```
 
@@ -56,6 +59,7 @@ frontend/src/custom/
 
 ## 文档导航
 
+- [代码代理项目级协作规则](../AGENTS.md)
 - [二改功能清单](custom/FEATURES_CN.md)
 - [日常维护](custom/MAINTENANCE_CN.md)
 - [公开部署与运维](custom/OPERATIONS_CN.md)
@@ -72,7 +76,8 @@ frontend/src/custom/
 4. Release 标签不可变；已发布资产不能覆盖。
 5. 构建版本使用完整 `X.Y.Z-custom.N`，官方版本提示使用基础版本。
 6. 下载必须校验 SHA256，跨主机重定向必须剥离 Authorization。
-7. 构建、测试和 PR 不接触生产凭据。
+7. Repository 和 Environment 不配置自定义 Secrets，构建、测试和 PR 不持有发布
+   写权限。
 8. GitHub Actions 使用最小权限和固定提交版本的第三方 Action。
 9. 数据库迁移或语义变化必须经过数据库门禁和人工审查。
 10. 文档不得包含真实 Token、密码、Cookie、服务器地址或生产数据。
@@ -89,4 +94,5 @@ frontend/src/custom/
 - 发布前确认准确提交、标签和官方基线关系。
 
 公开迁移后的首次 Release 应使用手动工作流。完成分支保护、GHCR 可见性和
-`custom-release-publish` Environment 审批配置后，才启用自动发布变量。
+`custom-release-publish` Environment 的 `main`/`v*-custom.*` 部署策略配置，
+且不设置 `Required reviewer` 后，才启用自动发布变量。

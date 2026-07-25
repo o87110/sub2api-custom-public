@@ -7,6 +7,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -109,6 +110,15 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	methodOptions, err := h.configService.GetAvailableMethodOptions(
+		ctx,
+		cfg.RechargeFeeRate,
+		cfg.AlipayMobilePrecreateDeepLink,
+	)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	alipayMobilePrecreateDeepLink := false
 	if cfg.AlipayMobilePrecreateDeepLink {
 		alipayMobilePrecreateDeepLink, err = h.configService.UsesOfficialAlipayVisibleMethod(ctx)
@@ -142,6 +152,7 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 
 	response.Success(c, checkoutInfoResponse{
 		Methods:                       limitsResp.Methods,
+		MethodOptions:                 methodOptions,
 		GlobalMin:                     limitsResp.GlobalMin,
 		GlobalMax:                     limitsResp.GlobalMax,
 		Plans:                         planList,
@@ -159,6 +170,7 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 
 type checkoutInfoResponse struct {
 	Methods                       map[string]service.MethodLimits `json:"methods"`
+	MethodOptions                 []paymentchannels.MethodOption  `json:"method_options"`
 	GlobalMin                     float64                         `json:"global_min"`
 	GlobalMax                     float64                         `json:"global_max"`
 	Plans                         []checkoutPlan                  `json:"plans"`
@@ -230,6 +242,7 @@ func (h *PaymentHandler) GetLimits(c *gin.Context) {
 type CreateOrderRequest struct {
 	Amount            float64 `json:"amount"`
 	PaymentType       string  `json:"payment_type" binding:"required"`
+	ProviderKey       string  `json:"provider_key,omitempty"`
 	OpenID            string  `json:"openid"`
 	WechatResumeToken string  `json:"wechat_resume_token"`
 	ReturnURL         string  `json:"return_url"`
@@ -275,6 +288,7 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 		UserID:          subject.UserID,
 		Amount:          req.Amount,
 		PaymentType:     req.PaymentType,
+		ProviderKey:     req.ProviderKey,
 		OpenID:          req.OpenID,
 		ClientIP:        c.ClientIP(),
 		IsMobile:        mobile,
@@ -315,6 +329,16 @@ func applyWeChatPaymentResumeClaims(req *CreateOrderRequest, claims *service.WeC
 	}
 	req.PaymentType = paymentType
 	req.OpenID = openid
+	providerKey := strings.ToLower(strings.TrimSpace(claims.ProviderKey))
+	if providerKey != "" {
+		if req.ProviderKey != "" && !strings.EqualFold(strings.TrimSpace(req.ProviderKey), providerKey) {
+			return infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume token provider mismatch")
+		}
+		if !paymentchannels.IsValidSelection(paymentType, providerKey) {
+			return infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume token provider is invalid")
+		}
+		req.ProviderKey = providerKey
+	}
 
 	if strings.TrimSpace(claims.Amount) != "" {
 		amount, err := strconv.ParseFloat(strings.TrimSpace(claims.Amount), 64)

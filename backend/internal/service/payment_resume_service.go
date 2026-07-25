@@ -58,6 +58,7 @@ type WeChatPaymentResumeClaims struct {
 	TokenType   string `json:"tk,omitempty"`
 	OpenID      string `json:"openid"`
 	PaymentType string `json:"pt,omitempty"`
+	ProviderKey string `json:"pk,omitempty"`
 	Amount      string `json:"amt,omitempty"`
 	OrderType   string `json:"ot,omitempty"`
 	PlanID      int64  `json:"pid,omitempty"`
@@ -192,6 +193,10 @@ func newVisibleMethodLoadBalancer(inner payment.LoadBalancer, configService *Pay
 
 func (lb *visibleMethodLoadBalancer) GetInstanceConfig(ctx context.Context, instanceID int64) (map[string]string, error) {
 	return lb.inner.GetInstanceConfig(ctx, instanceID)
+}
+
+func (lb *visibleMethodLoadBalancer) RevalidateSelection(ctx context.Context, selection *payment.InstanceSelection, paymentType payment.PaymentType, orderAmount float64) (bool, error) {
+	return lb.inner.RevalidateSelection(ctx, selection, paymentType, orderAmount)
 }
 
 func (lb *visibleMethodLoadBalancer) SelectInstance(ctx context.Context, providerKey string, paymentType payment.PaymentType, strategy payment.Strategy, orderAmount float64) (*payment.InstanceSelection, error) {

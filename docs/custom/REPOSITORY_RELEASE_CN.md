@@ -10,7 +10,7 @@ upstream  = https://github.com/Wei-Shaw/sub2api.git
 | 分支 | 责任 |
 | --- | --- |
 | `main` | 二改源码、文档和可信工作流 |
-| `upstream/main` | 官方镜像提交，不作为默认分支 |
+| `refs/heads/upstream/main` | 本仓库已审核官方镜像，本地查看为 `origin/upstream/main` |
 | `upgrade/vX.Y.Z` | 官方升级冲突和审查现场 |
 | 功能分支 | 通过 PR 合入 `main` |
 
@@ -45,6 +45,9 @@ GHCR 和 `custom-release-publish` Environment 设置后，再创建仓库变量�
 AUTO_PUBLISH_ENABLED=true
 ```
 
+`custom-release-publish` Environment 只保留 `main`/`v*-custom.*` 部署策略，
+不设置 `Required reviewer`；变量启用后，CI 通过即自动完成 Tag、构建和发布。
+
 官方同步由独立变量控制：
 
 ```text
@@ -70,8 +73,8 @@ Release Workflow 分为三个权限隔离阶段：
 
 1. `context`：验证 Tag、提交、CI 和现有 Release 状态。
 2. `build`：无发布权限地构建归档、校验和与 OCI Layout，并上传短期 Artifact。
-3. `publish`：通过 `custom-release-publish` Environment 审批后，验证 Artifact 和
-   Manifest，再创建 Release、上传资产并推送 GHCR。
+3. `publish`：进入受 `custom-release-publish` Environment 部署策略约束的发布
+   Job，验证 Artifact 和 Manifest，再自动创建 Release、上传资产并推送 GHCR。
 
 构建阶段不持有 `packages: write`，发布阶段不重新执行仓库业务脚本。第三方工具
 使用固定版本和 SHA256，Action 使用完整提交 SHA。
@@ -117,9 +120,11 @@ vX.Y.Z-custom.N-arm64
 - 必须通过 PR；
 - 必须通过 CI；Security Scan 独立报告且不得配置为 Required Check；
 - 禁止 Force Push 和删除；
-- Workflow、发布脚本和差异台账要求 Code Owner Review；
+- `CODEOWNERS` 标识 Workflow、发布脚本和差异台账的责任人，但当前不要求人工审批
+  或 Code Owner Review；
 - 合并前分支必须是最新状态；
-- 管理员是否允许绕过应显式决定，默认不绕过。
+- 必须解决全部 Review Conversation；
+- 分支保护同样约束管理员，不允许绕过。
 
 ## 9. 发布失败
 
