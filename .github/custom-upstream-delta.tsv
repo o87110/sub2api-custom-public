@@ -87,12 +87,12 @@ deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	16
 deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad7233c21340ce3dd1969db55ed51	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
 deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	569db1d95d2a5799e8cf43400ced2389c113d827	-	-	goreleaser-check+release-safety	验证二改行为和发布边界
-deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	5e9cc7b92b10bf64c99cdd5cc50424c31fff0364	-	-	candidate-tree+crlf-ledger-test	验证二改行为和 Windows CRLF 台账解析边界
+deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	6894261c5366888b3acdf7e8589aff970ee033c6	-	-	candidate-tree+crlf-ledger-test	验证二改行为、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
 deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	0b0cb8815a6f10cf63c98bed4b38564383eec711	-	-	test-executed-in-CI	验证二改行为和发布边界
-deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	f90d4dcc730cd561e2664a18529003beb88c1376	-	-	upstream-sync+crlf-ledger-test	验证上游同步与 Windows CRLF 台账解析边界
+deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	dcc8e093d2eb90fe427c4f1a85f33833ac11e476	-	-	upstream-sync+crlf-ledger-test	验证上游同步、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
 docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	97ffb0ca2dca2d9c84f7b406586d249e810da8b7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	b7d2990d9a26e03fb257c5a8a13acd43c1e95ecc	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	848a7c335ab8503c6d3f1457ec47d4a0d5f06a2d	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束

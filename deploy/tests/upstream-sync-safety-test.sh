@@ -854,15 +854,19 @@ for baseline_test in "$delta_test" "$database_test"; do
     'baseline_file="${CUSTOM_UPSTREAM_BASELINE_FILE:-$repo_root/.github/custom-upstream-baseline.env}"' \
     "$baseline_test"
   grep -Fq \
-    'mapfile -t baseline_lines < "$baseline_file"' \
-    "$baseline_test"
-  grep -Fq \
     '[[ "${#baseline_lines[@]}" -eq 2 ]]' \
     "$baseline_test"
   grep -Fq \
     'CUSTOM_UPSTREAM_BASE_REF="${baseline_ref_line#CUSTOM_UPSTREAM_BASE_REF=}"' \
     "$baseline_test"
 done
+grep -Fq \
+  'while IFS= read -r baseline_line || [[ -n "$baseline_line" ]]; do' \
+  "$delta_test"
+if grep -nE '(^|[[:space:]])(mapfile|readarray|declare[[:space:]]+-A)([[:space:]]|$)' \
+  "$delta_test"; then
+  fail "custom upstream delta test must remain compatible with macOS Bash 3.2"
+fi
 candidate_tree="$(/bin/bash "$candidate_tree_script" --worktree)"
 awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }' \
   "$repo_root/.github/custom-upstream-delta.tsv" \
