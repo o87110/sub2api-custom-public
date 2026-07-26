@@ -28,6 +28,7 @@
 /backend/internal/handler/openai_gateway_custom_test.go @o87110
 /backend/internal/repository/content_moderation_repo.go @o87110
 /backend/internal/repository/content_moderation_repo_test.go @o87110
+/backend/internal/server/api_contract_test.go @o87110
 /backend/internal/payment/load_balancer.go @o87110
 /backend/internal/payment/types.go @o87110
 /backend/internal/service/content_moderation.go @o87110
@@ -59,6 +60,8 @@
 /deploy/tests/rehearsal-compose-safety-test.sh @o87110
 /docs/CUSTOM_DEVELOPMENT_CN.md @o87110
 /docs/custom/** @o87110
+/frontend/package.json @o87110
+/frontend/pnpm-lock.yaml @o87110
 /frontend/src/api/__tests__/admin.system.rollback.spec.ts @o87110
 /frontend/src/api/admin/payment.ts @o87110
 /frontend/src/api/admin/settings.ts @o87110

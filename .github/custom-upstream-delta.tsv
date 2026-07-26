@@ -1,5 +1,5 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	e9d68c394edf8c0a12b32451a27de82690373aaf	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	2fbc4efb42010233bf3f1fe8e2878d6c5921fa78	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	6696f69e0bd178834ab7b53aa6fd609085531a56	-	-	database-boundary-unit+candidate-tree-test	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	5c62b4ce4e04c11d4980bc74697b4ef25b3741ac	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -11,8 +11,8 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	72fb782ec9bca71b0661ba92cc25031f5ca97c7e	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/release.yml	M	keep	M	fixed-path	2ba01833c112a2653155953314fc7b8a3fbf3def	c29408f7b0431b378304e098d3a1cb4326e2e4be	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	96a7ae4edd5873207a013aa827a6ea09f6f18821	d8c92e440f35ff2300370bcf5f57d13963a875e7	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	3ad2d6c4b80b908cfd848b4b9d5c660aa0af6d0a	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	c9d090011d442a53eb2e76eb1436efe8e5574e29	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
+.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	79815883cdb0a3d6dca88dd8309553d732185c9d	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	6e64ea3bc1ca15221eaa1a16f2a0aadc456d80b7	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .gitignore	M	keep	M	fixed-path	8c7e67f7e2592a5a42b45964c8ab6574d4cd6256	e88d8e20f1a39f9dc6f7453e96e6b1806ad599ac	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .goreleaser.simple.yaml	M	restore	RESTORED	whole-file-restore	14f67fd1cb7bdee6508cf1bbd3147173e0e1aefb	14f67fd1cb7bdee6508cf1bbd3147173e0e1aefb	-	-	baseline-blob-equality	非二改需求，整文件恢复官方基线
 .goreleaser.yaml	M	keep	M	fixed-path	41f9a5559bc79b244d008e37b039a293dcf02c76	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
@@ -72,6 +72,7 @@ backend/internal/payment/types.go	M	keep	M	official-thin-bridge	6421c4afed00f7ed
 backend/internal/repository/content_moderation_repo.go	M	restore	RESTORED	whole-file-restore	369951eb4bfbb5759b1c9fbb1eb6ad12ed9324e1	369951eb4bfbb5759b1c9fbb1eb6ad12ed9324e1	backend/internal/repository/content_moderation_repo.go	backend/internal/custom/moderation/violation_counter.go	baseline-blob-equality	非二改需求，整文件恢复官方基线
 backend/internal/repository/content_moderation_repo_test.go	M	restore	RESTORED	whole-file-restore	3f34f9d05fa6231721db31fcb81eb17c961ef42d	3f34f9d05fa6231721db31fcb81eb17c961ef42d	backend/internal/repository/content_moderation_repo_test.go	backend/internal/custom/moderation/violation_counter_test.go	baseline-blob-equality	非二改需求，整文件恢复官方基线
 backend/internal/repository/wire.go	M	restore	RESTORED	whole-file-restore	66588299ba7a2bb7b82b1bb1cca6ea0078ea5200	66588299ba7a2bb7b82b1bb1cca6ea0078ea5200	backend/internal/repository/wire.go	backend/internal/custom/updater/wire.go	baseline-blob-equality	非二改需求，整文件恢复官方基线
+backend/internal/server/api_contract_test.go	M	keep	M	custom-test	11b8eb5f76ab61a4222224ed52b099e21be09f4c	7d2434a9624bd52585b09fa9a34b225c4b1ced54	-	-	api-contract-test+go-test	同步管理设置 API 合同中的用户渠道配置字段
 backend/internal/service/content_moderation.go	M	keep	M	official-thin-bridge	8102f34a90d3b1b2ce02ee3e10cfd7c804e754ab	b073bd45e55f3758dc6dee2d59c69435a7a939fb	backend/internal/service/content_moderation.go	backend/internal/custom/moderation/cyber_policy.go	thin-bridge-review+go-test+wire-check	保留连接官方入口与二改实现的最薄适配
 backend/internal/service/content_moderation_cyber_test.go	M	restore	RESTORED	whole-file-restore	07ef2812d346ad512dcd1408ce2dd335b1e7b6e8	07ef2812d346ad512dcd1408ce2dd335b1e7b6e8	backend/internal/service/content_moderation_cyber_test.go	backend/internal/custom/moderation/cyber_policy_test.go	baseline-blob-equality	非二改需求，整文件恢复官方基线
 backend/internal/service/content_moderation_test.go	M	restore	RESTORED	whole-file-restore	f4e3aeb00d48fe21ee9479e6a2a77772a8968c39	f4e3aeb00d48fe21ee9479e6a2a77772a8968c39	backend/internal/service/content_moderation_test.go	backend/internal/custom/moderation/excerpt_test.go	baseline-blob-equality	非二改需求，整文件恢复官方基线
@@ -125,6 +126,8 @@ docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	70353ded52
 docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	79660432a64bb9bd9b99ddede3d4e91d0355c1c2	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	6fbbff561404e858c1fd7535c88756fa1070a003	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	5aeeade179f55f3f0b6a629827e5a2098df8cc15	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+frontend/package.json	M	keep	M	fixed-path	b3c3450a391ad578c54ee9b78d5f3c47c08a114b	14a3e24055c0b8db5f837cec0ea19008e8c7e02a	-	-	frontend-security+pnpm-audit+build	升级 PostCSS 至修复高危路径读取漏洞的安全版本
+frontend/pnpm-lock.yaml	M	keep	M	fixed-path	4bc3d2fee61ee60e7c674f6ea8ab00f3d2a0f9ab	5e2958c17e477e87c668055b7cd625d6005cccb2	-	-	frontend-security+pnpm-audit+build	锁定 PostCSS 安全修复及对应依赖图
 frontend/src/api/__tests__/admin.system.rollback.spec.ts	M	keep	M	custom-test	15d0989ffbbe3bb4fbc2a1fc10b9d27ca0f56012	bccdbe696e22d0ea67657a08deaca23328525a82	frontend/src/api/__tests__/admin.system.rollback.spec.ts	frontend/src/custom/updater/__tests__/api.rollback.spec.ts	updater-unit+security-tests	验证二改回退超时边界
 frontend/src/api/admin/payment.ts	M	keep	M	official-thin-bridge	1d4305948ebe97d6dc06b532f8056bd3566b5656	8a37c9859c4bfc9f9d181320492ce7212089b646	frontend/src/api/admin/payment.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue	payment-channel-vitest+typecheck+build	管理端支付渠道配置 API 类型薄适配
 frontend/src/api/admin/settings.ts	M	keep	M	official-thin-bridge	8861ce56bd4ae9e58c2ec111b85036ea6ad92e0a	2a0156ae50bd7bd1a8c26851fb8464285bad45b9	frontend/src/api/admin/settings.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue	payment-channel-vitest+typecheck+build	管理设置支付渠道配置 API 类型薄适配
