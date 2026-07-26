@@ -14,6 +14,10 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -128,7 +132,7 @@ jobs:
           /bin/bash deploy/tests/rehearsal-compose-safety-test.sh
           /bin/bash deploy/tests/upstream-sync-safety-test.sh
 
-  test:
+  backend_unit:
     needs: [verify-target, boundaries]
     runs-on: ubuntu-latest
     steps:
@@ -149,9 +153,43 @@ jobs:
       - name: Unit tests
         working-directory: backend
         run: make test-unit
+
+  backend_integration:
+    needs: [verify-target, boundaries]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Verify Go version
+        run: |
+          go version | grep -q 'go1.26.5'
       - name: Integration tests
         working-directory: backend
         run: make test-integration
+
+  backend_build:
+    needs: [verify-target, boundaries]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Verify Go version
+        run: |
+          go version | grep -q 'go1.26.5'
       - name: Verify generated Wire graph
         working-directory: backend
         run: |
@@ -159,6 +197,22 @@ jobs:
           git diff --exit-code -- cmd/server/wire_gen.go
       - name: Build production backend target
         run: make build-backend
+
+  test:
+    if: ${{ always() }}
+    needs: [backend_unit, backend_integration, backend_build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all backend validation jobs
+        env:
+          BACKEND_UNIT_RESULT: ${{ needs.backend_unit.result }}
+          BACKEND_INTEGRATION_RESULT: ${{ needs.backend_integration.result }}
+          BACKEND_BUILD_RESULT: ${{ needs.backend_build.result }}
+        run: |
+          set -euo pipefail
+          [[ "$BACKEND_UNIT_RESULT" == "success" ]]
+          [[ "$BACKEND_INTEGRATION_RESULT" == "success" ]]
+          [[ "$BACKEND_BUILD_RESULT" == "success" ]]
 
   frontend:
     needs: [verify-target, boundaries]
