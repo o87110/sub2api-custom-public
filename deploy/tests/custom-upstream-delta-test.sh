@@ -174,10 +174,14 @@ blob_at() {
 thin_bridge_allowed() {
   case "$1" in
     backend/cmd/server/wire.go | \
+      backend/internal/handler/admin/payment_handler.go | \
+      backend/internal/handler/admin/setting_handler.go | \
+      backend/internal/handler/admin/setting_handler_update.go | \
       backend/internal/handler/auth_wechat_oauth.go | \
       backend/internal/handler/auth_wechat_oauth_test.go | \
       backend/internal/handler/admin/system_handler.go | \
       backend/internal/handler/admin/system_handler_test.go | \
+      backend/internal/handler/dto/settings.go | \
       backend/internal/handler/openai_gateway_handler.go | \
       backend/internal/handler/payment_handler.go | \
       backend/internal/handler/payment_handler_resume_test.go | \
@@ -187,16 +191,23 @@ thin_bridge_allowed() {
       backend/internal/service/content_moderation.go | \
       backend/internal/service/payment_config_limits.go | \
       backend/internal/service/payment_config_limits_test.go | \
+      backend/internal/service/payment_config_service.go | \
+      backend/internal/service/payment_config_service_test.go | \
       backend/internal/service/payment_order.go | \
       backend/internal/service/payment_order_result_test.go | \
       backend/internal/service/payment_resume_service.go | \
       backend/internal/service/payment_resume_service_test.go | \
       backend/internal/service/payment_service.go | \
+      frontend/src/api/admin/payment.ts | \
+      frontend/src/api/admin/settings.ts | \
       frontend/src/components/payment/AmountInput.vue | \
+      frontend/src/components/payment/PaymentProviderDialog.vue | \
       frontend/src/components/payment/paymentFlow.ts | \
       frontend/src/components/payment/__tests__/paymentFlow.spec.ts | \
       frontend/src/components/layout/AppSidebar.vue | \
+      frontend/src/i18n/locales/en/admin/settings.ts | \
       frontend/src/i18n/locales/en/misc.ts | \
+      frontend/src/i18n/locales/zh/admin/settings.ts | \
       frontend/src/i18n/locales/zh/misc.ts | \
       frontend/src/router/index.ts | \
       frontend/src/types/payment.ts | \

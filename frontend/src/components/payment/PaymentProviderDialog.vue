@@ -14,6 +14,9 @@
             <span class="text-red-500">*</span>
           </label>
           <input v-model="form.name" type="text" class="input" required />
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.settings.payment.providerNameHint') }}
+          </p>
         </div>
         <div>
           <label class="input-label">

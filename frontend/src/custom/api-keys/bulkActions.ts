@@ -1,4 +1,4 @@
-export type ApiKeyBulkAction = 'group' | 'disable' | 'delete'
+export type ApiKeyBulkAction = 'group' | 'enable' | 'disable' | 'delete'
 
 export interface ApiKeyBulkExecutionResult {
   succeededIds: number[]

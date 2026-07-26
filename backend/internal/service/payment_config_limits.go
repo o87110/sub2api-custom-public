@@ -43,17 +43,23 @@ func (s *PaymentConfigService) GetAvailableMethodLimits(ctx context.Context) (*M
 
 // GetAvailableMethodOptions exposes provider-specific user choices while
 // preserving GetAvailableMethodLimits for legacy clients.
-func (s *PaymentConfigService) GetAvailableMethodOptions(ctx context.Context, feeRate float64, alipayMobilePrecreateDeepLink bool) ([]paymentchannels.MethodOption, error) {
+func (s *PaymentConfigService) GetAvailableMethodOptions(
+	ctx context.Context,
+	feeRate float64,
+	channelSettings paymentchannels.ChannelSettings,
+	alipayMobilePrecreateDeepLink bool,
+) ([]paymentchannels.MethodOption, error) {
 	instances, err := s.entClient.PaymentProviderInstance.Query().
 		Where(paymentproviderinstance.EnabledEQ(true)).All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("query provider instances: %w", err)
 	}
-	return paymentchannels.BuildMethodOptions(
+	options := paymentchannels.BuildMethodOptions(
 		s.pcPaymentChannelInstances(instances),
 		feeRate,
 		alipayMobilePrecreateDeepLink,
-	), nil
+	)
+	return paymentchannels.ApplyChannelSettings(options, channelSettings), nil
 }
 
 func (s *PaymentConfigService) pcApplyEnabledVisibleMethodInstances(ctx context.Context, typeInstances map[string][]*dbent.PaymentProviderInstance, instances []*dbent.PaymentProviderInstance) map[string][]*dbent.PaymentProviderInstance {

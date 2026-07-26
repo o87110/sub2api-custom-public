@@ -10,6 +10,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -29,6 +30,7 @@ const (
 	// 0/未配置 = 关闭换算（订阅按 price 数值直付），显式配置后 CNY 通道订阅按 price × rate 收款。
 	SettingSubscriptionUSDToCNYRate      = "SUBSCRIPTION_USD_TO_CNY_RATE"
 	SettingRechargeFeeRate               = "RECHARGE_FEE_RATE"
+	SettingPaymentChannelSettings        = "PAYMENT_CHANNEL_SETTINGS"
 	SettingProductNamePrefix             = "PRODUCT_NAME_PREFIX"
 	SettingProductNameSuffix             = "PRODUCT_NAME_SUFFIX"
 	SettingHelpImageURL                  = "PAYMENT_HELP_IMAGE_URL"
@@ -60,14 +62,15 @@ type PaymentConfig struct {
 	BalanceDisabled           bool     `json:"balance_disabled"`
 	BalanceRechargeMultiplier float64  `json:"balance_recharge_multiplier"`
 	// SubscriptionUSDToCNYRate 为 0 时订阅换算关闭（兼容存量行为）。
-	SubscriptionUSDToCNYRate float64 `json:"subscription_usd_to_cny_rate"`
-	RechargeFeeRate          float64 `json:"recharge_fee_rate"`
-	LoadBalanceStrategy      string  `json:"load_balance_strategy"`
-	ProductNamePrefix        string  `json:"product_name_prefix"`
-	ProductNameSuffix        string  `json:"product_name_suffix"`
-	HelpImageURL             string  `json:"help_image_url"`
-	HelpText                 string  `json:"help_text"`
-	StripePublishableKey     string  `json:"stripe_publishable_key,omitempty"`
+	SubscriptionUSDToCNYRate float64                         `json:"subscription_usd_to_cny_rate"`
+	RechargeFeeRate          float64                         `json:"recharge_fee_rate"`
+	ChannelSettings          paymentchannels.ChannelSettings `json:"-"`
+	LoadBalanceStrategy      string                          `json:"load_balance_strategy"`
+	ProductNamePrefix        string                          `json:"product_name_prefix"`
+	ProductNameSuffix        string                          `json:"product_name_suffix"`
+	HelpImageURL             string                          `json:"help_image_url"`
+	HelpText                 string                          `json:"help_text"`
+	StripePublishableKey     string                          `json:"stripe_publishable_key,omitempty"`
 
 	// Cancel rate limit settings
 	CancelRateLimitEnabled bool   `json:"cancel_rate_limit_enabled"`
@@ -84,22 +87,23 @@ type PaymentConfig struct {
 
 // UpdatePaymentConfigRequest contains fields to update payment configuration.
 type UpdatePaymentConfigRequest struct {
-	Enabled                   *bool    `json:"enabled"`
-	MinAmount                 *float64 `json:"min_amount"`
-	MaxAmount                 *float64 `json:"max_amount"`
-	DailyLimit                *float64 `json:"daily_limit"`
-	OrderTimeoutMin           *int     `json:"order_timeout_minutes"`
-	MaxPendingOrders          *int     `json:"max_pending_orders"`
-	EnabledTypes              []string `json:"enabled_payment_types"`
-	BalanceDisabled           *bool    `json:"balance_disabled"`
-	BalanceRechargeMultiplier *float64 `json:"balance_recharge_multiplier"`
-	SubscriptionUSDToCNYRate  *float64 `json:"subscription_usd_to_cny_rate"`
-	RechargeFeeRate           *float64 `json:"recharge_fee_rate"`
-	LoadBalanceStrategy       *string  `json:"load_balance_strategy"`
-	ProductNamePrefix         *string  `json:"product_name_prefix"`
-	ProductNameSuffix         *string  `json:"product_name_suffix"`
-	HelpImageURL              *string  `json:"help_image_url"`
-	HelpText                  *string  `json:"help_text"`
+	Enabled                   *bool                            `json:"enabled"`
+	MinAmount                 *float64                         `json:"min_amount"`
+	MaxAmount                 *float64                         `json:"max_amount"`
+	DailyLimit                *float64                         `json:"daily_limit"`
+	OrderTimeoutMin           *int                             `json:"order_timeout_minutes"`
+	MaxPendingOrders          *int                             `json:"max_pending_orders"`
+	EnabledTypes              []string                         `json:"enabled_payment_types"`
+	BalanceDisabled           *bool                            `json:"balance_disabled"`
+	BalanceRechargeMultiplier *float64                         `json:"balance_recharge_multiplier"`
+	SubscriptionUSDToCNYRate  *float64                         `json:"subscription_usd_to_cny_rate"`
+	RechargeFeeRate           *float64                         `json:"recharge_fee_rate"`
+	ChannelSettings           *paymentchannels.ChannelSettings `json:"channel_settings"`
+	LoadBalanceStrategy       *string                          `json:"load_balance_strategy"`
+	ProductNamePrefix         *string                          `json:"product_name_prefix"`
+	ProductNameSuffix         *string                          `json:"product_name_suffix"`
+	HelpImageURL              *string                          `json:"help_image_url"`
+	HelpText                  *string                          `json:"help_text"`
 
 	// Cancel rate limit settings
 	CancelRateLimitEnabled *bool   `json:"cancel_rate_limit_enabled"`
@@ -219,7 +223,7 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 	keys := []string{
 		SettingPaymentEnabled, SettingMinRechargeAmount, SettingMaxRechargeAmount,
 		SettingDailyRechargeLimit, SettingOrderTimeoutMinutes, SettingMaxPendingOrders,
-		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingLoadBalanceStrategy,
+		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingPaymentChannelSettings, SettingLoadBalanceStrategy,
 		SettingProductNamePrefix, SettingProductNameSuffix,
 		SettingHelpImageURL, SettingHelpText,
 		SettingCancelRateLimitOn, SettingCancelRateLimitMax,
@@ -233,6 +237,11 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 		return nil, fmt.Errorf("get payment config settings: %w", err)
 	}
 	cfg := s.parsePaymentConfig(vals)
+	channelSettings, err := paymentchannels.ParseChannelSettings(vals[SettingPaymentChannelSettings])
+	if err != nil {
+		return nil, fmt.Errorf("parse payment channel settings: %w", err)
+	}
+	cfg.ChannelSettings = channelSettings
 	// Load Stripe publishable key from the first enabled Stripe provider instance
 	cfg.StripePublishableKey = s.getStripePublishableKey(ctx)
 	return cfg, nil
@@ -343,40 +352,50 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 			return infraerrors.BadRequest("INVALID_RECHARGE_FEE_RATE", "recharge fee rate allows at most 2 decimal places")
 		}
 	}
-	m := map[string]string{
-		SettingPaymentEnabled:                    formatBoolOrEmpty(req.Enabled),
-		SettingMinRechargeAmount:                 formatPositiveFloat(req.MinAmount),
-		SettingMaxRechargeAmount:                 formatPositiveFloat(req.MaxAmount),
-		SettingDailyRechargeLimit:                formatPositiveFloat(req.DailyLimit),
-		SettingOrderTimeoutMinutes:               formatPositiveInt(req.OrderTimeoutMin),
-		SettingMaxPendingOrders:                  formatPositiveInt(req.MaxPendingOrders),
-		SettingBalancePayDisabled:                formatBoolOrEmpty(req.BalanceDisabled),
-		SettingBalanceRechargeMult:               formatPositiveFloat(req.BalanceRechargeMultiplier),
-		SettingSubscriptionUSDToCNYRate:          formatPositiveFloatExact(req.SubscriptionUSDToCNYRate),
-		SettingRechargeFeeRate:                   formatNonNegativeFloat(req.RechargeFeeRate),
-		SettingLoadBalanceStrategy:               derefStr(req.LoadBalanceStrategy),
-		SettingProductNamePrefix:                 derefStr(req.ProductNamePrefix),
-		SettingProductNameSuffix:                 derefStr(req.ProductNameSuffix),
-		SettingHelpImageURL:                      derefStr(req.HelpImageURL),
-		SettingHelpText:                          derefStr(req.HelpText),
-		SettingCancelRateLimitOn:                 formatBoolOrEmpty(req.CancelRateLimitEnabled),
-		SettingCancelRateLimitMax:                formatPositiveInt(req.CancelRateLimitMax),
-		SettingCancelWindowSize:                  formatPositiveInt(req.CancelRateLimitWindow),
-		SettingCancelWindowUnit:                  derefStr(req.CancelRateLimitUnit),
-		SettingCancelWindowMode:                  derefStr(req.CancelRateLimitMode),
-		SettingAlipayForceQRCode:                 formatBoolOrEmpty(req.AlipayForceQRCode),
-		SettingAlipayMobilePrecreateDeepLink:     formatBoolOrEmpty(req.AlipayMobilePrecreateDeepLink),
-		SettingPaymentVisibleMethodAlipaySource:  derefStr(req.VisibleMethodAlipaySource),
-		SettingPaymentVisibleMethodWxpaySource:   derefStr(req.VisibleMethodWxpaySource),
-		SettingPaymentVisibleMethodAlipayEnabled: formatBoolOrEmpty(req.VisibleMethodAlipayEnabled),
-		SettingPaymentVisibleMethodWxpayEnabled:  formatBoolOrEmpty(req.VisibleMethodWxpayEnabled),
+	m := make(map[string]string)
+	setPaymentConfigValue(m, SettingPaymentEnabled, req.Enabled != nil, formatBoolOrEmpty(req.Enabled))
+	setPaymentConfigValue(m, SettingMinRechargeAmount, req.MinAmount != nil, formatPositiveFloat(req.MinAmount))
+	setPaymentConfigValue(m, SettingMaxRechargeAmount, req.MaxAmount != nil, formatPositiveFloat(req.MaxAmount))
+	setPaymentConfigValue(m, SettingDailyRechargeLimit, req.DailyLimit != nil, formatPositiveFloat(req.DailyLimit))
+	setPaymentConfigValue(m, SettingOrderTimeoutMinutes, req.OrderTimeoutMin != nil, formatPositiveInt(req.OrderTimeoutMin))
+	setPaymentConfigValue(m, SettingMaxPendingOrders, req.MaxPendingOrders != nil, formatPositiveInt(req.MaxPendingOrders))
+	setPaymentConfigValue(m, SettingBalancePayDisabled, req.BalanceDisabled != nil, formatBoolOrEmpty(req.BalanceDisabled))
+	setPaymentConfigValue(m, SettingBalanceRechargeMult, req.BalanceRechargeMultiplier != nil, formatPositiveFloat(req.BalanceRechargeMultiplier))
+	setPaymentConfigValue(m, SettingSubscriptionUSDToCNYRate, req.SubscriptionUSDToCNYRate != nil, formatPositiveFloatExact(req.SubscriptionUSDToCNYRate))
+	setPaymentConfigValue(m, SettingRechargeFeeRate, req.RechargeFeeRate != nil, formatNonNegativeFloat(req.RechargeFeeRate))
+	setPaymentConfigValue(m, SettingLoadBalanceStrategy, req.LoadBalanceStrategy != nil, derefStr(req.LoadBalanceStrategy))
+	setPaymentConfigValue(m, SettingProductNamePrefix, req.ProductNamePrefix != nil, derefStr(req.ProductNamePrefix))
+	setPaymentConfigValue(m, SettingProductNameSuffix, req.ProductNameSuffix != nil, derefStr(req.ProductNameSuffix))
+	setPaymentConfigValue(m, SettingHelpImageURL, req.HelpImageURL != nil, derefStr(req.HelpImageURL))
+	setPaymentConfigValue(m, SettingHelpText, req.HelpText != nil, derefStr(req.HelpText))
+	setPaymentConfigValue(m, SettingCancelRateLimitOn, req.CancelRateLimitEnabled != nil, formatBoolOrEmpty(req.CancelRateLimitEnabled))
+	setPaymentConfigValue(m, SettingCancelRateLimitMax, req.CancelRateLimitMax != nil, formatPositiveInt(req.CancelRateLimitMax))
+	setPaymentConfigValue(m, SettingCancelWindowSize, req.CancelRateLimitWindow != nil, formatPositiveInt(req.CancelRateLimitWindow))
+	setPaymentConfigValue(m, SettingCancelWindowUnit, req.CancelRateLimitUnit != nil, derefStr(req.CancelRateLimitUnit))
+	setPaymentConfigValue(m, SettingCancelWindowMode, req.CancelRateLimitMode != nil, derefStr(req.CancelRateLimitMode))
+	setPaymentConfigValue(m, SettingAlipayForceQRCode, req.AlipayForceQRCode != nil, formatBoolOrEmpty(req.AlipayForceQRCode))
+	setPaymentConfigValue(m, SettingAlipayMobilePrecreateDeepLink, req.AlipayMobilePrecreateDeepLink != nil, formatBoolOrEmpty(req.AlipayMobilePrecreateDeepLink))
+	setPaymentConfigValue(m, SettingPaymentVisibleMethodAlipaySource, req.VisibleMethodAlipaySource != nil, derefStr(req.VisibleMethodAlipaySource))
+	setPaymentConfigValue(m, SettingPaymentVisibleMethodWxpaySource, req.VisibleMethodWxpaySource != nil, derefStr(req.VisibleMethodWxpaySource))
+	setPaymentConfigValue(m, SettingPaymentVisibleMethodAlipayEnabled, req.VisibleMethodAlipayEnabled != nil, formatBoolOrEmpty(req.VisibleMethodAlipayEnabled))
+	setPaymentConfigValue(m, SettingPaymentVisibleMethodWxpayEnabled, req.VisibleMethodWxpayEnabled != nil, formatBoolOrEmpty(req.VisibleMethodWxpayEnabled))
+	if req.ChannelSettings != nil {
+		encoded, _, err := paymentchannels.SerializeChannelSettings(*req.ChannelSettings)
+		if err != nil {
+			return infraerrors.BadRequest("INVALID_PAYMENT_CHANNEL_SETTINGS", err.Error())
+		}
+		m[SettingPaymentChannelSettings] = encoded
 	}
 	if req.EnabledTypes != nil {
 		m[SettingEnabledPaymentTypes] = strings.Join(req.EnabledTypes, ",")
-	} else {
-		m[SettingEnabledPaymentTypes] = ""
 	}
 	return s.settingRepo.SetMultiple(ctx, m)
+}
+
+func setPaymentConfigValue(values map[string]string, key string, provided bool, value string) {
+	if provided {
+		values[key] = value
+	}
 }
 
 func formatBoolOrEmpty(v *bool) string {

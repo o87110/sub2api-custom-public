@@ -75,6 +75,7 @@ type CreateOrderRequest struct {
 	Amount          float64
 	PaymentType     string
 	ProviderKey     string
+	ResolvedFeeRate *float64
 	OpenID          string
 	ClientIP        string
 	IsMobile        bool

@@ -6,10 +6,12 @@ export type ApiKeyBulkTextKey =
   | 'searchGroup'
   | 'noGroups'
   | 'applyGroup'
+  | 'enable'
   | 'disable'
   | 'delete'
   | 'processing'
   | 'groupAction'
+  | 'enableAction'
   | 'disableAction'
   | 'deleteAction'
   | 'noChanges'
@@ -19,6 +21,9 @@ export type ApiKeyBulkTextKey =
   | 'disableConfirmTitle'
   | 'disableConfirmMessage'
   | 'disableConfirm'
+  | 'enableConfirmTitle'
+  | 'enableConfirmMessage'
+  | 'enableConfirm'
   | 'deleteConfirmTitle'
   | 'deleteConfirmMessage'
   | 'deleteConfirm'
@@ -35,10 +40,12 @@ const zhMessages: Record<ApiKeyBulkTextKey, TextFactory> = {
   searchGroup: () => '搜索分组',
   noGroups: () => '没有可用分组',
   applyGroup: () => '应用分组',
+  enable: () => '批量启用',
   disable: () => '批量禁用',
   delete: () => '批量删除',
   processing: () => '处理中…',
   groupAction: () => '切换分组',
+  enableAction: () => '启用',
   disableAction: () => '禁用',
   deleteAction: () => '删除',
   noChanges: ({ action, skipped }) => `${action}无需更新，已跳过 ${skipped} 项。`,
@@ -52,6 +59,10 @@ const zhMessages: Record<ApiKeyBulkTextKey, TextFactory> = {
   disableConfirmMessage: ({ count, skipped }) =>
     `将禁用 ${count} 个 API 密钥${Number(skipped) > 0 ? `，另有 ${skipped} 个已禁用项会跳过` : ''}。禁用后这些密钥的调用将立即失败。`,
   disableConfirm: ({ count }) => `确认禁用 ${count} 个`,
+  enableConfirmTitle: () => '确认批量启用',
+  enableConfirmMessage: ({ count }) =>
+    `将启用 ${count} 个 API 密钥。启用后这些密钥将立即恢复调用能力。`,
+  enableConfirm: ({ count }) => `确认启用 ${count} 个`,
   deleteConfirmTitle: () => '确认批量删除',
   deleteConfirmMessage: ({ count }) =>
     `将永久删除选中的 ${count} 个 API 密钥。删除后密钥立即失效，且无法恢复。`,
@@ -67,10 +78,12 @@ const enMessages: Record<ApiKeyBulkTextKey, TextFactory> = {
   searchGroup: () => 'Search groups',
   noGroups: () => 'No groups available',
   applyGroup: () => 'Apply group',
+  enable: () => 'Enable selected',
   disable: () => 'Disable selected',
   delete: () => 'Delete selected',
   processing: () => 'Processing…',
   groupAction: () => 'Change group',
+  enableAction: () => 'Enable',
   disableAction: () => 'Disable',
   deleteAction: () => 'Delete',
   noChanges: ({ action, skipped }) => `${action} requires no update; ${skipped} skipped.`,
@@ -84,6 +97,10 @@ const enMessages: Record<ApiKeyBulkTextKey, TextFactory> = {
   disableConfirmMessage: ({ count, skipped }) =>
     `Disable ${count} API keys${Number(skipped) > 0 ? ` and skip ${skipped} already disabled` : ''}? Their requests will fail immediately.`,
   disableConfirm: ({ count }) => `Disable ${count}`,
+  enableConfirmTitle: () => 'Confirm bulk enable',
+  enableConfirmMessage: ({ count }) =>
+    `Enable ${count} API keys? They will regain API access immediately.`,
+  enableConfirm: ({ count }) => `Enable ${count}`,
   deleteConfirmTitle: () => 'Confirm bulk delete',
   deleteConfirmMessage: ({ count }) =>
     `Permanently delete the selected ${count} API keys? They will stop working immediately and cannot be recovered.`,

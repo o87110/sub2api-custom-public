@@ -72,9 +72,10 @@ export function sortPaymentChannelOptions(options: PaymentChannelOption[]): Paym
 }
 
 export function paymentChannelLabel(option: PaymentChannelOption, t: Translate): string {
+  if (option.display_name) return option.display_name
   const fixedKey = FIXED_CHANNEL_LABEL_KEYS[option.id]
   if (fixedKey) return t(fixedKey)
-  return option.display_name || t(`payment.methods.${option.payment_type}`, option.payment_type)
+  return t(`payment.methods.${option.payment_type}`, option.payment_type)
 }
 
 export function findPaymentChannel(

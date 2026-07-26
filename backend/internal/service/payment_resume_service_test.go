@@ -272,16 +272,50 @@ func TestParseTokenRejectsExpiredToken(t *testing.T) {
 	}
 }
 
+func TestWeChatPaymentOAuthTokenRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	svc := NewPaymentResumeService([]byte("0123456789abcdef0123456789abcdef"))
+	feeRate := 0.0
+	token, err := svc.CreateWeChatPaymentOAuthToken(WeChatPaymentOAuthClaims{
+		PaymentType: payment.TypeWxpay,
+		ProviderKey: payment.TypeWxpay,
+		Amount:      "12.50",
+		OrderType:   payment.OrderTypeSubscription,
+		PlanID:      7,
+		FeeRate:     &feeRate,
+	})
+	if err != nil {
+		t.Fatalf("CreateWeChatPaymentOAuthToken returned error: %v", err)
+	}
+
+	claims, err := svc.ParseWeChatPaymentOAuthToken(token)
+	if err != nil {
+		t.Fatalf("ParseWeChatPaymentOAuthToken returned error: %v", err)
+	}
+	if claims.PaymentType != payment.TypeWxpay || claims.ProviderKey != payment.TypeWxpay {
+		t.Fatalf("claims channel mismatch: %+v", claims)
+	}
+	if claims.Amount != "12.50" || claims.OrderType != payment.OrderTypeSubscription || claims.PlanID != 7 {
+		t.Fatalf("claims payment context mismatch: %+v", claims)
+	}
+	if claims.FeeRate == nil || *claims.FeeRate != 0 {
+		t.Fatalf("explicit zero fee rate was not preserved: %v", claims.FeeRate)
+	}
+}
+
 func TestWeChatPaymentResumeTokenRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	svc := NewPaymentResumeService([]byte("0123456789abcdef0123456789abcdef"))
+	feeRate := 1.25
 	token, err := svc.CreateWeChatPaymentResumeToken(WeChatPaymentResumeClaims{
 		OpenID:      "openid-123",
 		PaymentType: payment.TypeWxpay,
 		Amount:      "12.50",
 		OrderType:   payment.OrderTypeSubscription,
 		PlanID:      7,
+		FeeRate:     &feeRate,
 		RedirectTo:  "/purchase?from=wechat",
 		Scope:       "snsapi_base",
 		IssuedAt:    1234567890,
@@ -299,6 +333,9 @@ func TestWeChatPaymentResumeTokenRoundTrip(t *testing.T) {
 	}
 	if claims.Amount != "12.50" || claims.OrderType != payment.OrderTypeSubscription || claims.PlanID != 7 {
 		t.Fatalf("claims payment context mismatch: %+v", claims)
+	}
+	if claims.FeeRate == nil || *claims.FeeRate != feeRate {
+		t.Fatalf("claims fee rate mismatch: %v", claims.FeeRate)
 	}
 	if claims.RedirectTo != "/purchase?from=wechat" || claims.Scope != "snsapi_base" {
 		t.Fatalf("claims redirect/scope mismatch: %+v", claims)

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -567,7 +568,13 @@ func TestGetAvailableMethodOptionsSeparatesVisibleMethodProviders(t *testing.T) 
 		entClient:   client,
 		settingRepo: &paymentConfigSettingRepoStub{values: map[string]string{}},
 	}
-	options, err := svc.GetAvailableMethodOptions(ctx, 2.5, true)
+	easyPayFee := 1.25
+	options, err := svc.GetAvailableMethodOptions(ctx, 2.5, paymentchannels.ChannelSettings{
+		"easypay_alipay": {
+			DisplayName: "支付宝优惠通道",
+			FeeRate:     &easyPayFee,
+		},
+	}, true)
 	require.NoError(t, err)
 	require.Len(t, options, 4)
 	require.Equal(t, []string{
@@ -578,7 +585,9 @@ func TestGetAvailableMethodOptionsSeparatesVisibleMethodProviders(t *testing.T) 
 	}, []string{options[0].ID, options[1].ID, options[2].ID, options[3].ID})
 	require.Equal(t, 10.0, options[0].SingleMin)
 	require.Equal(t, 20.0, options[1].SingleMin)
-	require.Equal(t, 2.5, options[0].FeeRate)
+	require.Equal(t, 1.25, options[0].FeeRate)
+	require.Equal(t, "支付宝优惠通道", options[0].DisplayName)
+	require.Equal(t, 2.5, options[1].FeeRate)
 	require.Empty(t, options[0].Capabilities)
 	require.Equal(t, []string{"alipay_mobile_precreate_deep_link"}, options[1].Capabilities)
 }
@@ -612,7 +621,7 @@ func TestGetAvailableMethodOptionsIncludesLegacyOfficialEmptySupportedTypes(t *t
 		entClient:   client,
 		settingRepo: &paymentConfigSettingRepoStub{values: map[string]string{}},
 	}
-	options, err := svc.GetAvailableMethodOptions(ctx, 0, false)
+	options, err := svc.GetAvailableMethodOptions(ctx, 0, nil, false)
 	require.NoError(t, err)
 	require.Len(t, options, 5)
 	require.Equal(t, []string{

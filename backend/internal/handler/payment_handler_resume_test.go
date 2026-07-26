@@ -27,6 +27,7 @@ import (
 func TestApplyWeChatPaymentResumeClaims(t *testing.T) {
 	t.Parallel()
 
+	feeRate := 1.25
 	req := CreateOrderRequest{
 		Amount:      0,
 		PaymentType: payment.TypeWxpay,
@@ -40,6 +41,7 @@ func TestApplyWeChatPaymentResumeClaims(t *testing.T) {
 		Amount:      "12.50",
 		OrderType:   payment.OrderTypeSubscription,
 		PlanID:      7,
+		FeeRate:     &feeRate,
 	})
 	if err != nil {
 		t.Fatalf("applyWeChatPaymentResumeClaims returned error: %v", err)
@@ -58,6 +60,9 @@ func TestApplyWeChatPaymentResumeClaims(t *testing.T) {
 	}
 	if req.PlanID != 7 {
 		t.Fatalf("plan_id = %d, want 7", req.PlanID)
+	}
+	if req.ResolvedFeeRate == nil || *req.ResolvedFeeRate != feeRate {
+		t.Fatalf("resolved fee rate = %v, want %v", req.ResolvedFeeRate, feeRate)
 	}
 }
 
@@ -93,6 +98,9 @@ func TestApplyWeChatPaymentResumeClaimsKeepsLegacyProviderRouting(t *testing.T) 
 	}
 	if req.ProviderKey != "" {
 		t.Fatalf("legacy token must not invent provider key: %q", req.ProviderKey)
+	}
+	if req.ResolvedFeeRate != nil {
+		t.Fatalf("legacy token must keep existing fee routing: %v", req.ResolvedFeeRate)
 	}
 }
 

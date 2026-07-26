@@ -5,6 +5,7 @@ import {
   findPaymentChannel,
   isGatewayChannelFailureCode,
   normalizePaymentChannelOptions,
+  paymentChannelLabel,
 } from './paymentChannels'
 
 function checkout(overrides: Partial<CheckoutInfoResponse> = {}): CheckoutInfoResponse {
@@ -201,5 +202,21 @@ describe('isGatewayChannelFailureCode', () => {
 
   it('does not classify an invalid provider selection as a transient channel failure', () => {
     expect(isGatewayChannelFailureCode('INVALID_PAYMENT_PROVIDER_SELECTION')).toBe(false)
+  })
+})
+
+describe('paymentChannelLabel', () => {
+  it('prefers the backend custom display name over fixed localized labels', () => {
+    expect(paymentChannelLabel({
+      id: 'official_alipay',
+      payment_type: 'alipay',
+      provider_key: 'alipay',
+      display_name: '支付宝备用通道',
+      fee_rate: 0,
+      daily_limit: 0,
+      single_min: 0,
+      single_max: 0,
+      available: true,
+    }, key => key)).toBe('支付宝备用通道')
   })
 })
