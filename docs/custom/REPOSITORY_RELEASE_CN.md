@@ -38,6 +38,10 @@ upstream  = https://github.com/Wei-Shaw/sub2api.git
 | `upstream-sync.yml` | 检测官方 Tag、准备升级分支和 PR |
 | `upstream-upgrade-gate.yml` | 升级门禁与基线收尾 |
 
+功能分支只通过 `pull_request` 运行 CI 与 Security Scan，避免同一提交再由 `push`
+重复执行；`push` 仅验证合并后的 `main` 精确提交，自动 Publish 也只接收该分支的
+CI 完成事件。
+
 公开迁移后的自动发布默认关闭。首次发布使用 `workflow_dispatch`；完成分支保护、
 GHCR 和 `custom-release-publish` Environment 设置后，再创建仓库变量：
 

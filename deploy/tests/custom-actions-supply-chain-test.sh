@@ -18,6 +18,22 @@ fail() {
   exit 1
 }
 
+trigger_branches() {
+  local workflow="$1"
+  local trigger="$2"
+
+  awk -v trigger="$trigger" '
+    $0 == "  " trigger ":" { in_trigger = 1; next }
+    in_trigger && /^  [[:alnum:]_-]+:$/ { exit }
+    in_trigger && /^    branches:$/ { in_branches = 1; next }
+    in_branches && /^    [[:alnum:]_-]+:$/ { exit }
+    in_branches && /^      - / {
+      sub(/^      - /, "")
+      print
+    }
+  ' "$workflow"
+}
+
 [[ -s "$versions_file" ]] || fail "custom tool version manifest is missing"
 [[ -s "$installer" ]] || fail "verified custom tool installer is missing"
 # shellcheck disable=SC1090
@@ -70,7 +86,19 @@ grep -Fq -- '--new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"' \
   fail "golangci-lint is not scoped to changes from the explicit custom baseline"
 
 backend_ci="$repo_root/.github/workflows/backend-ci.yml"
+security_scan="$repo_root/.github/workflows/security-scan.yml"
+publish_workflow="$repo_root/.github/workflows/publish-custom.yml"
 upgrade_gate="$repo_root/.github/workflows/upstream-upgrade-gate.yml"
+
+for workflow in "$backend_ci" "$security_scan"; do
+  [[ "$(trigger_branches "$workflow" push)" == "main" ]] ||
+    fail "feature branches must not duplicate PR checks through push: $workflow"
+  grep -Fqx '  pull_request:' "$workflow" ||
+    fail "pull request validation trigger is missing: $workflow"
+done
+[[ "$(trigger_branches "$publish_workflow" workflow_run)" == "main" ]] ||
+  fail "automatic publication must only react to completed main CI runs"
+
 upgrade_backend_job="$(
   awk '
     /^  backend:$/ { in_job = 1 }
