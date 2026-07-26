@@ -1,6 +1,6 @@
 # 二改功能清单
 
-本文档描述相对官方基线 `vendor-0.1.164` 的有效二改需求。文件级实现范围以
+本文档描述相对官方基线 `vendor-0.1.165` 的有效二改需求。文件级实现范围以
 `.github/custom-upstream-delta.tsv` 为准。
 
 ## 1. cyber_policy 审计范围隔离

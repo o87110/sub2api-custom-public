@@ -94,11 +94,13 @@ DTO/接口适配、路由注册、Wire 注入、组件导入或启动入口。Br
 发布只能针对通过 CI 的 `main` 精确提交 SHA。Tag 使用
 `vX.Y.Z-custom.N` 且不可变；已有 Tag 不得移动，失败时只能针对原 Tag 恢复或重试。
 Release Notes 必须通过安全的环境变量、文件或标准输入传递，不能直接插值进 Shell。
-发布前验证必要架构资产、checksum、Manifest 和 GHCR Digest。
+并且必须包含 `Custom changes`、`Database`、`Validation` 三个固定章节。发布前验证
+必要架构资产、checksum、Manifest 和 GHCR Digest。
 
 Security Scan 独立运行并如实报告，不作为自动发布硬门禁，也不得伪装成成功。仓库
-当前的自动发布在 CI 通过后运行；`custom-release-publish` Environment 只保留部署
-分支/Tag 策略，不设置 `Required reviewer`。修改代码时不得新增
+当前的自动发布在 CI 通过后运行；官方升级最终器必须显式调度绑定合并 SHA 的发布
+等待任务，由其复核同一 SHA 的 CI 与 `boundaries`。`custom-release-publish`
+Environment 只保留部署分支/Tag 策略，不设置 `Required reviewer`。修改代码时不得新增
 `bypass_checks`、`break-glass` 或其他绕过必需 CI 的入口。
 
 ## 数据库边界

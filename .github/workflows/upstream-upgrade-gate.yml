@@ -192,6 +192,10 @@ jobs:
             --no-tags \
             '+refs/heads/main:refs/remotes/origin/main' \
             --force
+          git fetch origin \
+            --no-tags \
+            '+refs/tags/vendor-*:refs/origin-tags/vendor-*' \
+            --force
           git fetch upstream \
             --no-tags \
             '+refs/tags/v*:refs/upstream-tags/v*' \
@@ -207,21 +211,35 @@ jobs:
             fi
           done < <(git for-each-ref --format='%(refname)' refs/upstream-tags/)
 
-          git diff --name-only --no-renames origin/main "$HEAD_SHA" -- \
-            '.github/upgrades/*.md' > /tmp/nonstandard-upgrade-reports.txt
-          if [[ -s /tmp/introduced-official-tags.txt || -s /tmp/nonstandard-upgrade-reports.txt ]]; then
+          report_policy=/tmp/validate-upgrade-report-maintenance.sh
+          report_validation_log=/tmp/upgrade-report-maintenance.log
+          git show \
+            origin/main:deploy/upstream/validate-upgrade-report-maintenance.sh \
+            > "$report_policy"
+          chmod 0700 "$report_policy"
+          report_validation_failed=false
+          if ! /bin/bash "$report_policy" \
+            --base-ref origin/main \
+            --target-ref "$HEAD_SHA" \
+            --vendor-ref-prefix refs/origin-tags/ \
+            >"$report_validation_log" 2>&1; then
+            report_validation_failed=true
+          fi
+
+          if [[ -s /tmp/introduced-official-tags.txt ||
+                "$report_validation_failed" == "true" ]]; then
             echo "Official upgrades must use a same-repository upgrade/vX.Y.Z branch." >&2
             if [[ -s /tmp/introduced-official-tags.txt ]]; then
               echo "New official tags introduced by this PR:" >&2
               sed 's/^/  - /' /tmp/introduced-official-tags.txt >&2
             fi
-            if [[ -s /tmp/nonstandard-upgrade-reports.txt ]]; then
-              echo "Upgrade reports changed by this PR:" >&2
-              sed 's/^/  - /' /tmp/nonstandard-upgrade-reports.txt >&2
+            if [[ "$report_validation_failed" == "true" ]]; then
+              cat "$report_validation_log" >&2
             fi
             exit 1
           fi
 
+          cat "$report_validation_log"
           echo "No new official version was introduced by this non-upgrade PR."
 
       - name: Record exact-revision approvals
@@ -982,6 +1000,10 @@ jobs:
               --ref main \
               -f expected_sha="$merged_sha"
           done
+          gh workflow run publish-custom.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f expected_sha="$merged_sha"
 
           {
             echo "### Upgrade finalized"
@@ -991,7 +1013,7 @@ jobs:
             echo "- Vendor tag: \`${VENDOR_TAG}\`"
             echo "- main: \`$(git rev-parse origin/main)\`"
             echo
-            echo "CI and Security Scan were dispatched from trusted main for the exact merged SHA; Publish Custom Build waits for CI while Security Scan reports independently."
+            echo "CI, Security Scan, and Publish Custom Build were dispatched from trusted main for the exact merged SHA; Publish waits for exact-SHA CI and boundaries while Security Scan reports independently."
           } >> "$GITHUB_STEP_SUMMARY"
 
   report-finalize-failure:

@@ -3,8 +3,13 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 policy_script="$script_dir/release-state-policy.sh"
+release_notes_tool="$script_dir/release-notes.sh"
 [[ -s "$policy_script" ]] || {
   echo "ERROR: release state policy is missing" >&2
+  exit 1
+}
+[[ -s "$release_notes_tool" ]] || {
+  echo "ERROR: Release Notes policy is missing" >&2
   exit 1
 }
 # shellcheck disable=SC1090
@@ -62,6 +67,14 @@ oci_repository="ghcr.io/o87110/sub2api-custom-public"
 query_release() {
   gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" |
     jq -s --arg tag "$tag" 'add | map(select(.tag_name == $tag))'
+}
+
+validate_release_notes() {
+  local release_json="$1"
+  local notes_file="$tmp_dir/release-notes-body.md"
+  jq -er '.body // ""' <<<"$release_json" > "$notes_file" ||
+    fail "Release body is unavailable"
+  /bin/bash "$release_notes_tool" validate "$notes_file"
 }
 
 verify_tag_unchanged() {
@@ -595,6 +608,7 @@ case "$manifest_action" in
 esac
 
 if [[ "$release_state" == "published" ]]; then
+  validate_release_notes "$release"
   verify_release_assets "$release" "$authoritative_manifest"
   verify_remote_oci "$authoritative_manifest"
   echo "published Release is read-only and matches the authoritative manifest"
@@ -602,6 +616,7 @@ if [[ "$release_state" == "published" ]]; then
 fi
 
 if [[ -n "$release" ]]; then
+  validate_release_notes "$release"
   validate_draft_asset_names "$release" "$authoritative_manifest"
   if [[ -z "$manifest_asset" && "$(jq '.assets | length' <<<"$release")" -ne 0 ]]; then
     fail "Draft contains assets before its authoritative manifest"
@@ -644,6 +659,7 @@ if [[ "$release_state" == "none" || "$release_state" == "remote" ]]; then
   release="$(jq '.[0]' <<<"$releases")"
   [[ "$(jq -r '.draft' <<<"$release")" == "true" ]] || fail "new Release is not Draft"
   release_state=draft
+  validate_release_notes "$release"
   validate_draft_asset_names "$release" "$authoritative_manifest"
   [[ "$(jq '.assets | length' <<<"$release")" -eq 0 ]] ||
     fail "new Draft unexpectedly contains assets before its manifest"
