@@ -96,7 +96,16 @@ fail_if_present \
   "$repo_root/backend/cmd/server/wire_gen.go"
 
 tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$tmp_dir"' EXIT
+temporary_baseline_ref=""
+temporary_baseline_commit=""
+cleanup() {
+  if [[ -n "$temporary_baseline_ref" ]]; then
+    git -C "$repo_root" update-ref \
+      -d "$temporary_baseline_ref" "$temporary_baseline_commit"
+  fi
+  rm -rf "$tmp_dir"
+}
+trap cleanup EXIT
 
 extract_protected_pattern() {
   local workflow="$1"
@@ -933,12 +942,38 @@ if grep -nE '(^|[[:space:]])(mapfile|readarray|declare[[:space:]]+-A)([[:space:]
   "$delta_test"; then
   fail "custom upstream delta test must remain compatible with macOS Bash 3.2"
 fi
+baseline_ref="$(
+  sed -n 's/^CUSTOM_UPSTREAM_BASE_REF=//p' \
+    "$repo_root/.github/custom-upstream-baseline.env" | tr -d '\r'
+)"
+baseline_commit="$(
+  sed -n 's/^CUSTOM_UPSTREAM_BASE_COMMIT=//p' \
+    "$repo_root/.github/custom-upstream-baseline.env" | tr -d '\r'
+)"
+[[ "$baseline_ref" =~ ^(vendor-[0-9]+\.[0-9]+\.[0-9]+)\^\{commit\}$ ]] ||
+  fail "candidate baseline ref is invalid"
+baseline_tag="${BASH_REMATCH[1]}"
+[[ "$baseline_commit" =~ ^[0-9a-f]{40}$ ]] ||
+  fail "candidate baseline commit is invalid"
+if ! git -C "$repo_root" rev-parse --verify "$baseline_ref" >/dev/null 2>&1; then
+  git -C "$repo_root" rev-parse --verify "${baseline_commit}^{commit}" >/dev/null
+  temporary_baseline_ref="refs/tags/$baseline_tag"
+  temporary_baseline_commit="$baseline_commit"
+  git -C "$repo_root" update-ref \
+    "$temporary_baseline_ref" "$temporary_baseline_commit" ""
+fi
 candidate_tree="$(/bin/bash "$candidate_tree_script" --worktree)"
 awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }' \
   "$repo_root/.github/custom-upstream-delta.tsv" \
   > "$tmp_dir/custom-upstream-delta-crlf.tsv"
 CUSTOM_UPSTREAM_DELTA_LEDGER="$tmp_dir/custom-upstream-delta-crlf.tsv" \
   /bin/bash "$delta_test" --candidate-tree "$candidate_tree" >/dev/null
+if [[ -n "$temporary_baseline_ref" ]]; then
+  git -C "$repo_root" update-ref \
+    -d "$temporary_baseline_ref" "$temporary_baseline_commit"
+  temporary_baseline_ref=""
+  temporary_baseline_commit=""
+fi
 grep -Fq \
   '\.github/workflows/' \
   "$gate_workflow"

@@ -117,7 +117,7 @@ deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	d9214f896e91c3125151bfc4397132f8caa61b25	-	-	test-executed-in-CI	验证二改行为和发布边界
-deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	dd7455d03f5c6caacc37d1d3baab58846f80efe9	-	-	upstream-sync+crlf-ledger-test	验证上游同步、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
+deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	3cf005e0fca0e7084fd657f6dc66c0a1bb7eaefb	-	-	upstream-sync+crlf-ledger-test	验证上游同步、预发布 Vendor Tag、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
 docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	01dd0a5d39db099090e87c49f47e8b6396d2c64e	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	290ec01900613c50247fb563590326127a69dfcb	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	dabde5f19f747cd9ca10ead3645d53fe6671fba6	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
