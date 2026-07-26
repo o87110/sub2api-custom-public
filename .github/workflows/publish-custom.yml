@@ -320,7 +320,9 @@ jobs:
           } > "$tag_message_file"
           /bin/bash deploy/release/release-notes.sh \
             validate "$tag_message_file"
-          git tag -a "$custom_tag" "$target_sha" -F "$tag_message_file"
+          git tag -a --cleanup=verbatim \
+            -F "$tag_message_file" \
+            "$custom_tag" "$target_sha"
           rm -f "$tag_message_file"
 
           git push origin "$custom_tag"

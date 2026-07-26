@@ -167,6 +167,7 @@ grep -Fq 'ci_wait_args+=(--wait)' "$publish_workflow"
 grep -Fq 'deploy/release/release-notes.sh render \' "$publish_workflow"
 grep -Fq 'deploy/release/release-notes.sh \' "$publish_workflow"
 grep -Fq 'validate "$tag_message_file"' "$publish_workflow"
+grep -Fq 'git tag -a --cleanup=verbatim \' "$publish_workflow"
 grep -Fq 'gh workflow run publish-custom.yml \' "$upgrade_gate_workflow"
 grep -Fq -- '-f expected_sha="$merged_sha"' "$upgrade_gate_workflow"
 grep -Fq 'validate_release_notes "$release"' "$publisher"
@@ -368,6 +369,27 @@ grep -Fq 'Includes `CREATE INDEX CONCURRENTLY`' \
   "$notes_tmp/upgrade-notes.md"
 grep -Fq -- '- User-visible custom behavior remains available.' \
   "$notes_tmp/upgrade-notes.md"
+
+tag_fixture_repo="$notes_tmp/tag-fixture"
+git init -q "$tag_fixture_repo"
+git -C "$tag_fixture_repo" config user.name "Custom Release Safety"
+git -C "$tag_fixture_repo" config user.email "release-safety@example.invalid"
+printf 'fixture\n' > "$tag_fixture_repo/fixture.txt"
+git -C "$tag_fixture_repo" add fixture.txt
+git -C "$tag_fixture_repo" commit -q -m "fixture"
+{
+  echo 'Sub2API v0.1.165-custom.1'
+  echo
+  cat "$notes_tmp/upgrade-notes.md"
+} > "$notes_tmp/tag-message.md"
+git -C "$tag_fixture_repo" tag -a --cleanup=verbatim \
+  -F "$notes_tmp/tag-message.md" \
+  v0.1.165-custom.1 HEAD
+git -C "$tag_fixture_repo" tag -l \
+  --format='%(contents:body)' \
+  v0.1.165-custom.1 \
+  > "$notes_tmp/tag-body.md"
+/bin/bash "$release_notes_tool" validate "$notes_tmp/tag-body.md"
 
 /bin/bash "$release_notes_tool" render \
   --tag v0.1.165-custom.2 \
