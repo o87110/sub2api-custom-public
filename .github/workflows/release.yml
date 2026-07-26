@@ -313,12 +313,14 @@ jobs:
           mkdir -p "$control_dir"
           for control_path in \
             deploy/release/publish-release.sh \
+            deploy/release/release-notes.sh \
             deploy/release/release-state-policy.sh; do
             git show "${CONTROL_COMMIT}:${control_path}" \
               > "$control_dir/${control_path##*/}"
           done
           chmod 0700 \
             "$control_dir/publish-release.sh" \
+            "$control_dir/release-notes.sh" \
             "$control_dir/release-state-policy.sh"
           args=(
             --tag "${{ needs.context.outputs.tag }}"

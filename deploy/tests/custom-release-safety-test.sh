@@ -14,6 +14,8 @@ payload_builder="$repo_root/deploy/release/build-release-payload.sh"
 manifest_builder="$repo_root/deploy/release/create-release-manifest.sh"
 publisher="$repo_root/deploy/release/publish-release.sh"
 release_policy="$repo_root/deploy/release/release-state-policy.sh"
+release_notes_tool="$repo_root/deploy/release/release-notes.sh"
+ci_waiter="$repo_root/deploy/release/wait-for-required-ci.sh"
 tool_versions="$repo_root/.github/custom-tool-versions.env"
 release_dockerfile="$repo_root/deploy/release/Dockerfile"
 
@@ -44,12 +46,21 @@ for file in \
   "$manifest_builder" \
   "$publisher" \
   "$release_policy" \
+  "$release_notes_tool" \
+  "$ci_waiter" \
   "$release_dockerfile" \
   "$tool_versions"; do
   [[ -s "$file" ]] || fail "required custom release control is missing: $file"
 done
 
-for script in "$preflight" "$payload_builder" "$manifest_builder" "$publisher" "$release_policy"; do
+for script in \
+  "$preflight" \
+  "$payload_builder" \
+  "$manifest_builder" \
+  "$publisher" \
+  "$release_policy" \
+  "$release_notes_tool" \
+  "$ci_waiter"; do
   /bin/bash -n "$script"
 done
 # shellcheck disable=SC1090
@@ -149,6 +160,17 @@ grep -Fq 'CURRENT_PAYLOAD_ARTIFACT_ID: ${{ needs.build.outputs.payload_artifact_
 grep -Fq 'CURRENT_MANIFEST_ARTIFACT_ID: ${{ needs.build.outputs.manifest_artifact_id }}' "$release_workflow"
 grep -Fq 'release-payload-${{ needs.context.outputs.tag }}-${{ github.run_id }}-${{ github.run_attempt }}' "$release_workflow"
 grep -Fq 'release-manifest-${{ needs.context.outputs.tag }}-${{ github.run_id }}-${{ github.run_attempt }}' "$release_workflow"
+grep -Fq 'expected_sha:' "$publish_workflow"
+grep -Fq 'INPUT_EXPECTED_SHA: ${{ inputs.expected_sha }}' "$publish_workflow"
+grep -Fq 'deploy/release/wait-for-required-ci.sh \' "$publish_workflow"
+grep -Fq 'ci_wait_args+=(--wait)' "$publish_workflow"
+grep -Fq 'deploy/release/release-notes.sh render \' "$publish_workflow"
+grep -Fq 'deploy/release/release-notes.sh \' "$publish_workflow"
+grep -Fq 'validate "$tag_message_file"' "$publish_workflow"
+grep -Fq 'gh workflow run publish-custom.yml \' "$upgrade_gate_workflow"
+grep -Fq -- '-f expected_sha="$merged_sha"' "$upgrade_gate_workflow"
+grep -Fq 'validate_release_notes "$release"' "$publisher"
+grep -Fq '/bin/bash "$release_notes_tool" validate "$notes_file"' "$publisher"
 
 payload_upload_line="$(grep -nE '^[[:space:]]+id: payload$' "$release_workflow" | cut -d: -f1)"
 manifest_create_line="$(grep -nF 'Create immutable release manifest' "$release_workflow" | cut -d: -f1)"
@@ -215,6 +237,156 @@ grep -Fq 'Release assets do not exactly match the authoritative manifest' "$publ
 grep -Fq 'Draft contains duplicate or undeclared assets' "$publisher"
 grep -Fq 'Draft contains an asset created before its authoritative manifest' "$publisher"
 grep -Fq 'Draft contains assets before its authoritative manifest' "$publisher"
+
+ci_wait_tmp="$(mktemp -d)"
+mkdir -p "$ci_wait_tmp/bin"
+cat > "$ci_wait_tmp/bin/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-} ${2:-}" == "run list" ]]; then
+  case "${FAKE_CI_SCENARIO:-success}" in
+    success)
+      printf '101\tcompleted\tsuccess\t%s\tmain\tworkflow_dispatch\n' \
+        "$FAKE_TARGET_SHA"
+      ;;
+    delayed)
+      count=0
+      if [[ -s "$FAKE_STATE_FILE" ]]; then
+        count="$(<"$FAKE_STATE_FILE")"
+      fi
+      count=$((count + 1))
+      printf '%s\n' "$count" > "$FAKE_STATE_FILE"
+      if [[ "$count" -gt 1 ]]; then
+        printf '102\tcompleted\tsuccess\t%s\tmain\tworkflow_dispatch\n' \
+          "$FAKE_TARGET_SHA"
+      fi
+      ;;
+    failed)
+      printf '103\tcompleted\tfailure\t%s\tmain\tworkflow_dispatch\n' \
+        "$FAKE_TARGET_SHA"
+      ;;
+    boundary-failed)
+      printf '104\tcompleted\tsuccess\t%s\tmain\tworkflow_dispatch\n' \
+        "$FAKE_TARGET_SHA"
+      ;;
+    *)
+      exit 91
+      ;;
+  esac
+  exit 0
+fi
+
+if [[ "${1:-} ${2:-}" == "run view" ]]; then
+  if [[ "${FAKE_CI_SCENARIO:-success}" == "boundary-failed" ]]; then
+    printf 'completed\tfailure\n'
+  else
+    printf 'completed\tsuccess\n'
+  fi
+  exit 0
+fi
+
+exit 92
+EOF
+chmod +x "$ci_wait_tmp/bin/gh"
+fixture_sha="0bec4e52db6919325cb7efa4847483da9efb870a"
+
+wait_result="$(
+  PATH="$ci_wait_tmp/bin:$PATH" \
+  FAKE_CI_SCENARIO=success \
+  FAKE_TARGET_SHA="$fixture_sha" \
+    /bin/bash "$ci_waiter" \
+      --repo o87110/sub2api-custom-public \
+      --workflow backend-ci.yml \
+      --sha "$fixture_sha"
+)"
+[[ "$wait_result" == "101" ]] ||
+  fail "exact-SHA CI waiter rejected a successful required run"
+
+wait_result="$(
+  PATH="$ci_wait_tmp/bin:$PATH" \
+  FAKE_CI_SCENARIO=delayed \
+  FAKE_TARGET_SHA="$fixture_sha" \
+  FAKE_STATE_FILE="$ci_wait_tmp/state" \
+  PUBLISH_CI_MAX_ATTEMPTS=2 \
+  PUBLISH_CI_POLL_SECONDS=0 \
+    /bin/bash "$ci_waiter" \
+      --repo o87110/sub2api-custom-public \
+      --workflow backend-ci.yml \
+      --sha "$fixture_sha" \
+      --wait
+)"
+[[ "$wait_result" == "102" ]] ||
+  fail "exact-SHA CI waiter did not wait for the trusted dispatch"
+
+if PATH="$ci_wait_tmp/bin:$PATH" \
+  FAKE_CI_SCENARIO=failed \
+  FAKE_TARGET_SHA="$fixture_sha" \
+    /bin/bash "$ci_waiter" \
+      --repo o87110/sub2api-custom-public \
+      --workflow backend-ci.yml \
+      --sha "$fixture_sha" >/dev/null 2>&1; then
+  fail "exact-SHA CI waiter accepted a failed required run"
+fi
+if PATH="$ci_wait_tmp/bin:$PATH" \
+  FAKE_CI_SCENARIO=boundary-failed \
+  FAKE_TARGET_SHA="$fixture_sha" \
+    /bin/bash "$ci_waiter" \
+      --repo o87110/sub2api-custom-public \
+      --workflow backend-ci.yml \
+      --sha "$fixture_sha" >/dev/null 2>&1; then
+  fail "exact-SHA CI waiter accepted a failed boundaries job"
+fi
+rm -rf "$ci_wait_tmp"
+
+notes_tmp="$(mktemp -d)"
+release_fixture_commit="$(
+  git -C "$repo_root" rev-parse 'v0.1.165-custom.1^{commit}'
+)"
+CUSTOM_RELEASE_EXTRA_NOTES=$'User-visible custom behavior remains available.\nRelease controls were hardened.' \
+  /bin/bash "$release_notes_tool" render \
+    --tag v0.1.165-custom.1 \
+    --official-tag v0.1.165 \
+    --commit "$release_fixture_commit" \
+    --previous-ref v0.1.164-custom.6 \
+    --repository o87110/sub2api-custom-public \
+    --ci-run-id 30199742684 \
+    > "$notes_tmp/upgrade-notes.md"
+/bin/bash "$release_notes_tool" validate "$notes_tmp/upgrade-notes.md"
+for heading in \
+  '## Custom changes' \
+  '## Database' \
+  '## Validation'; do
+  [[ "$(grep -Fxc -- "$heading" "$notes_tmp/upgrade-notes.md")" -eq 1 ]] ||
+    fail "generated Release Notes contain an invalid ${heading} section"
+done
+grep -Fq 'backend/migrations/187_add_usage_log_session_id.sql' \
+  "$notes_tmp/upgrade-notes.md"
+grep -Fq 'backend/migrations/190_add_users_email_alias_dedup_index_notx.sql' \
+  "$notes_tmp/upgrade-notes.md"
+grep -Fq 'Includes `CREATE INDEX CONCURRENTLY`' \
+  "$notes_tmp/upgrade-notes.md"
+grep -Fq -- '- User-visible custom behavior remains available.' \
+  "$notes_tmp/upgrade-notes.md"
+
+/bin/bash "$release_notes_tool" render \
+  --tag v0.1.165-custom.2 \
+  --official-tag v0.1.165 \
+  --commit "$release_fixture_commit" \
+  --previous-ref v0.1.165-custom.1 \
+  --repository o87110/sub2api-custom-public \
+  --ci-run-id 30199742684 \
+  > "$notes_tmp/no-migration-notes.md"
+grep -Fq 'No Migration files changed' "$notes_tmp/no-migration-notes.md"
+printf '%s\n' \
+  '## Custom changes' \
+  '## Database' \
+  > "$notes_tmp/incomplete-notes.md"
+if /bin/bash "$release_notes_tool" \
+  validate "$notes_tmp/incomplete-notes.md" >/dev/null 2>&1; then
+  fail "Release Notes without Validation were accepted"
+fi
+rm -rf "$notes_tmp"
 
 [[ "$(release_manifest_action none false true)" == "current-manifest" ]]
 [[ "$(release_manifest_action draft true false)" == "remote-manifest" ]]
@@ -436,8 +608,8 @@ fail_if_present \
   "$preflight"
 
 grep -Fq 'workflow=backend-ci.yml' "$publish_workflow"
-grep -Fq '.headBranch == "main"' "$publish_workflow"
-grep -Fq '.name == "boundaries"' "$publish_workflow"
+grep -Fq '.headBranch == "main"' "$ci_waiter"
+grep -Fq '.name == "boundaries"' "$ci_waiter"
 grep -Fq 'source .github/custom-upstream-baseline.env' "$publish_workflow"
 grep -Fq 'vendor_tag" != "$declared_vendor_tag' "$publish_workflow"
 grep -Fq 'vendor_commit" != "$CUSTOM_UPSTREAM_BASE_COMMIT' "$publish_workflow"
@@ -487,6 +659,12 @@ if grep -Fq 'git fetch origin' <<<"$build_job"; then
   fail "Release build must not depend on persisted checkout credentials for control ref refresh"
 fi
 grep -Fq '/bin/bash "$control_dir/publish-release.sh"' "$release_workflow"
+grep -Fq \
+  'deploy/release/release-notes.sh \' \
+  "$release_workflow"
+grep -Fq \
+  '"$control_dir/release-notes.sh" \' \
+  "$release_workflow"
 grep -Fq '"repos/${GITHUB_REPOSITORY}/git/ref/heads/main"' <<<"$publish_job"
 if grep -Fq 'git fetch origin' <<<"$publish_job"; then
   fail "Release publish must not depend on persisted checkout credentials for control ref refresh"

@@ -10,6 +10,7 @@ delta_test="$repo_root/deploy/tests/custom-upstream-delta-test.sh"
 database_test="$repo_root/deploy/tests/custom-database-boundary-test.sh"
 candidate_tree_script="$repo_root/deploy/tests/custom-candidate-tree.sh"
 codeowners="$repo_root/.github/CODEOWNERS"
+makefile="$repo_root/Makefile"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -83,8 +84,8 @@ fail_if_present \
   'run: go test ./...' \
   "$gate_workflow"
 fail_if_present \
-  "the upgrade gate must not publish before post-merge main checks pass" \
-  'gh workflow run publish-custom.yml' \
+  "the upgrade gate must not dispatch the Release builder directly" \
+  'gh workflow run release.yml' \
   "$gate_workflow"
 fail_if_present \
   "generated Wire graph must not instantiate the upstream updater" \
@@ -94,6 +95,9 @@ fail_if_present \
   "generated Wire graph must not instantiate the upstream GitHub release client" \
   'repository.ProvideGitHubReleaseClient' \
   "$repo_root/backend/cmd/server/wire_gen.go"
+grep -Fq \
+  'src/views/user/__tests__/KeysView.spec.ts \' \
+  "$makefile"
 
 tmp_dir="$(mktemp -d)"
 temporary_baseline_ref=""
@@ -1011,10 +1015,16 @@ grep -Fq \
   'run: /bin/bash deploy/tests/install-custom-tools.sh golangci-lint' \
   "$gate_workflow"
 grep -Fq \
-  'CI and Security Scan were dispatched from trusted main for the exact merged SHA; Publish Custom Build waits for CI while Security Scan reports independently.' \
+  'CI, Security Scan, and Publish Custom Build were dispatched from trusted main for the exact merged SHA; Publish waits for exact-SHA CI and boundaries while Security Scan reports independently.' \
   "$gate_workflow"
 grep -Fq \
   'for workflow in backend-ci.yml security-scan.yml; do' \
+  "$gate_workflow"
+grep -Fq \
+  'gh workflow run publish-custom.yml \' \
+  "$gate_workflow"
+grep -Fq -- \
+  '-f expected_sha="$merged_sha"' \
   "$gate_workflow"
 grep -Fq -- \
   '--ref main' \

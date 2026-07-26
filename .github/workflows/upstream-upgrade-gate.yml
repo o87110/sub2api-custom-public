@@ -982,6 +982,10 @@ jobs:
               --ref main \
               -f expected_sha="$merged_sha"
           done
+          gh workflow run publish-custom.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f expected_sha="$merged_sha"
 
           {
             echo "### Upgrade finalized"
@@ -991,7 +995,7 @@ jobs:
             echo "- Vendor tag: \`${VENDOR_TAG}\`"
             echo "- main: \`$(git rev-parse origin/main)\`"
             echo
-            echo "CI and Security Scan were dispatched from trusted main for the exact merged SHA; Publish Custom Build waits for CI while Security Scan reports independently."
+            echo "CI, Security Scan, and Publish Custom Build were dispatched from trusted main for the exact merged SHA; Publish waits for exact-SHA CI and boundaries while Security Scan reports independently."
           } >> "$GITHUB_STEP_SUMMARY"
 
   report-finalize-failure:

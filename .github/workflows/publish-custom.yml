@@ -10,8 +10,12 @@ on:
       - completed
   workflow_dispatch:
     inputs:
+      expected_sha:
+        description: 'Optional exact main SHA dispatched by a trusted finalizer'
+        required: false
+        type: string
       release_notes:
-        description: 'Optional notes included in the public Release'
+        description: 'Optional plain-text Custom changes lines'
         required: false
         type: string
 
@@ -39,6 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
+      INPUT_EXPECTED_SHA: ${{ inputs.expected_sha }}
       INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
       TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
@@ -78,41 +83,50 @@ jobs:
             exit 1
           }
 
+          wait_for_ci=false
           if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
             if [[ "$target_sha" != "$TRIGGER_SHA" ]]; then
               echo "Skipping stale checked commit ${TRIGGER_SHA}; main is now ${target_sha}."
               exit 0
             fi
+          elif [[ -n "$INPUT_EXPECTED_SHA" ]]; then
+            if [[ ! "$INPUT_EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "expected_sha must be a full 40-character commit SHA." >&2
+              exit 1
+            fi
+            if [[ "$target_sha" != "$INPUT_EXPECTED_SHA" ]]; then
+              echo "main is now ${target_sha}, expected ${INPUT_EXPECTED_SHA}." >&2
+              exit 1
+            fi
+            wait_for_ci=true
           fi
 
           workflow=backend-ci.yml
-          run_state="$(
-            gh run list \
-              --repo "$GITHUB_REPOSITORY" \
-              --workflow "$workflow" \
-              --commit "$target_sha" \
-              --limit 20 \
-              --json databaseId,status,conclusion,headSha,headBranch,event \
-              --jq 'map(select((.event == "push" or .event == "workflow_dispatch") and .headBranch == "main")) | if length == 0 then "" else .[0] | [.databaseId, .status, .conclusion, .headSha, .headBranch, .event] | @tsv end'
+          ci_wait_args=(
+            --repo "$GITHUB_REPOSITORY"
+            --workflow "$workflow"
+            --sha "$target_sha"
+          )
+          if [[ "$wait_for_ci" == "true" ]]; then
+            ci_wait_args+=(--wait)
+          fi
+          ci_error_file="$(mktemp)"
+          set +e
+          run_id="$(
+            /bin/bash deploy/release/wait-for-required-ci.sh \
+              "${ci_wait_args[@]}" \
+              2>"$ci_error_file"
           )"
-          if [[ -z "$run_state" ]]; then
-            fail_required_check "Required workflow ${workflow} has no accepted run for ${target_sha}"
+          ci_wait_status=$?
+          set -e
+          if [[ "$ci_wait_status" -ne 0 ]]; then
+            ci_error="$(<"$ci_error_file")"
+            rm -f "$ci_error_file"
+            fail_required_check "${ci_error:-Required CI validation failed}"
           fi
-          IFS=$'\t' read -r run_id status conclusion head_sha head_branch event_type <<<"$run_state"
-          if [[ "$status" != "completed" || "$conclusion" != "success" ||
-                "$head_sha" != "$target_sha" || "$head_branch" != "main" ]]; then
-            fail_required_check "Required workflow ${workflow} (${event_type}) is ${status}/${conclusion} for ${head_branch}@${head_sha}; expected success for main@${target_sha}"
-          fi
-          boundary_state="$(
-            gh run view "$run_id" \
-              --repo "$GITHUB_REPOSITORY" \
-              --json jobs \
-              --jq '.jobs | map(select(.name == "boundaries")) | if length == 1 then [.[0].status, .[0].conclusion] | @tsv else "" end'
-          )"
-          IFS=$'\t' read -r boundary_status boundary_conclusion <<<"$boundary_state"
-          if [[ "$boundary_status" != "completed" || "$boundary_conclusion" != "success" ]]; then
-            fail_required_check "Required boundaries job is ${boundary_status:-missing}/${boundary_conclusion:-missing} in CI run ${run_id}"
-          fi
+          rm -f "$ci_error_file"
+          [[ "$run_id" =~ ^[0-9]+$ ]] ||
+            fail_required_check "Required CI validation returned an invalid run ID"
           echo "CI passed for ${target_sha}; continuing publication."
 
           current_vendor_ref=""
@@ -265,6 +279,7 @@ jobs:
 
           next_custom=$((max_custom + 1))
           custom_tag="v${version}-custom.${next_custom}"
+          notes_base_ref="${latest_custom:-$vendor_tag}"
 
           git fetch origin \
             --no-tags \
@@ -290,16 +305,23 @@ jobs:
             exit 1
           fi
 
+          tag_message_file="$(mktemp)"
           {
             echo "Sub2API ${custom_tag}"
             echo
-            echo "Based on official ${official_tag}."
-            echo "Source commit: ${target_sha}"
-            if [[ -n "$INPUT_RELEASE_NOTES" ]]; then
-              echo
-              echo "$INPUT_RELEASE_NOTES"
-            fi
-          } | git tag -a "$custom_tag" "$target_sha" -F -
+            CUSTOM_RELEASE_EXTRA_NOTES="$INPUT_RELEASE_NOTES" \
+              /bin/bash deploy/release/release-notes.sh render \
+                --tag "$custom_tag" \
+                --official-tag "$official_tag" \
+                --commit "$target_sha" \
+                --previous-ref "$notes_base_ref" \
+                --repository "$GITHUB_REPOSITORY" \
+                --ci-run-id "$run_id"
+          } > "$tag_message_file"
+          /bin/bash deploy/release/release-notes.sh \
+            validate "$tag_message_file"
+          git tag -a "$custom_tag" "$target_sha" -F "$tag_message_file"
+          rm -f "$tag_message_file"
 
           git push origin "$custom_tag"
           queue_release "$custom_tag"

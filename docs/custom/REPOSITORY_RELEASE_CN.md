@@ -47,6 +47,10 @@ AUTO_PUBLISH_ENABLED=true
 
 `custom-release-publish` Environment 只保留 `main`/`v*-custom.*` 部署策略，
 不设置 `Required reviewer`；变量启用后，CI 通过即自动完成 Tag、构建和发布。
+普通 `main` Push 由 CI 完成事件触发发布。官方升级最终器使用仓库
+`GITHUB_TOKEN` 显式调度绑定合并 SHA 的 Publish；Publish 必须等待同一 SHA 的
+CI 和 `boundaries` Job 成功后才能创建 Tag。两条路径共享同一并发组；若重复调度，
+已存在的同提交正式 Release 必须安全退出，不得递增出重复版本。
 
 官方同步由独立变量控制：
 
@@ -66,6 +70,10 @@ UPSTREAM_SYNC_ENABLED=true
 6. 已有最高 `custom.N` 若未完成发布，优先恢复或重试，不跳号掩盖失败。
 
 Security Scan 独立报告，不能由自动发布工作流伪造或绕过。
+每个新 Tag 的注释和 Release Body 必须包含 `Custom changes`、`Database`、
+`Validation` 三个固定章节。数据库章节至少列出相对上一正式 Custom Tag 的
+Migration 和 Ent Schema 变化、备份要求、回滚评审链接，并明确
+`CREATE INDEX CONCURRENTLY` 的事务与失败清理边界。
 
 ## 5. Release 构建
 

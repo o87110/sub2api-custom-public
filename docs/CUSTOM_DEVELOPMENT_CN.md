@@ -96,3 +96,6 @@ frontend/src/custom/
 公开迁移后的首次 Release 应使用手动工作流。完成分支保护、GHCR 可见性和
 `custom-release-publish` Environment 的 `main`/`v*-custom.*` 部署策略配置，
 且不设置 `Required reviewer` 后，才启用自动发布变量。
+普通 Push 通过 CI 完成事件触发发布；官方升级最终器必须显式调度绑定合并 SHA 的
+发布等待任务，由其确认同一 SHA 的 CI 与 `boundaries` 成功。Release Notes 必须
+生成并校验 `Custom changes`、`Database`、`Validation` 三个固定章节。

@@ -63,6 +63,10 @@ docs/custom/
 ```
 
 公开 Release 说明不得包含内部服务器、真实账号、Token 路径或生产故障细节。
+发布控制面必须生成并校验上述三个二级标题各且仅出现一次。自动发布根据前一正式
+Custom Tag 与目标提交生成变更比较、Migration/Ent Schema 差异、备份与回滚提示、
+精确 SHA CI 链接及 Release/GHCR 验证约束；手动输入只能作为
+`Custom changes` 下的附加纯文本条目，不能替代固定章节。
 
 ## 5. 文档同步矩阵
 

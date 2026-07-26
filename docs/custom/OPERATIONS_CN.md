@@ -136,9 +136,12 @@ sha256sum runtime/sub2api
 ## 9. 生产安全原则
 
 - GitHub Environment 保留 `main`/`v*-custom.*` 部署策略，不设置
-  `Required reviewer`，CI 通过后自动发布；
+  `Required reviewer`，普通 Push 在 CI 通过后自动发布；官方升级由最终器显式
+  调度精确 SHA 发布等待任务，任务必须再次确认 CI 与 `boundaries` 成功；
 - Repository 和 Environment 不配置自定义 Secrets，构建 Job 不持有写权限；
 - 发布 Job 只获得必要的 `contents: write` 与 `packages: write`；
 - Workflow 日志不得输出 Token、服务器地址或连接字符串；
 - 公共 PR 不得直接触发 Release 或 GHCR 发布；
+- Release Notes 必须包含 `Custom changes`、`Database`、`Validation`，并披露
+  Migration、备份及回滚边界；
 - 所有部署固定不可变版本或 Digest。
