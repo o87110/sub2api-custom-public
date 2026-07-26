@@ -6,7 +6,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/upgrades/0.1.162.md	A	keep	A	custom-docs-ops	@absent	a873781565b70fa65a9ed5e2f88ddb762faeb81b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 .github/upgrades/0.1.164.md	A	keep	A	custom-docs-ops	@absent	81ea0d2f32358597dc9a4c91f487d3b74760dac7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-.github/upgrades/0.1.165.md	A	keep	A	custom-docs-ops	@absent	1dbd404b69d16bba81d79b9b430f750462c5d550	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.165 升级、数据库评审、冲突解决与验证证据
+.github/upgrades/0.1.165.md	A	keep	A	custom-docs-ops	@absent	3b5864d1a0df01b727afbbd64417838e3daf0f7b	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.165 升级、数据库评审、冲突解决与验证证据
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	d536736120f9a2605ca5d9a976db3b9b0fd76bcf	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/backend-ci.yml	M	keep	M	fixed-path	85994652548841a65c3c7c5ff87531f31398154b	52e07f116eadaadb83c492c0ecee70977d3225d8	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	72fb782ec9bca71b0661ba92cc25031f5ca97c7e	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
