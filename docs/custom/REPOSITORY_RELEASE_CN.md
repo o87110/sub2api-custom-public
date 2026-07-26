@@ -43,7 +43,7 @@ upstream  = https://github.com/Wei-Shaw/sub2api.git
 CI 完成事件。同一 PR 推送新提交时取消旧提交仍在运行的 CI 与 Security Scan；
 `main` Push、定时任务和可信手工调度使用独立并发键，不得互相取消。
 
-后端 Unit 与 Integration/Wire/生产构建分为两条并行路径，现有必需检查 `test`
+后端 Unit、Integration、Wire/生产构建分为三条并行路径，现有必需检查 `test`
 作为失败关闭的聚合门禁；任一路径失败、取消或跳过时，`test` 都不得成功。
 
 公开迁移后的自动发布默认关闭。首次发布使用 `workflow_dispatch`；完成分支保护、
