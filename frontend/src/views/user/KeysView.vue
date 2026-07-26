@@ -105,8 +105,10 @@
           @completed="handleBulkCompleted"
         />
         <div
+          class="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
           :class="{ 'pointer-events-none opacity-75': bulkActionBusy }"
           :aria-busy="bulkActionBusy"
+          data-test="api-key-table-region"
         >
           <DataTable
             :columns="columns"

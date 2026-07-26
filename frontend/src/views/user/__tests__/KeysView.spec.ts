@@ -479,6 +479,30 @@ describe('user KeysView column settings', () => {
     expect(table.props('selectedKeys')).toEqual([])
   })
 
+  it('keeps the desktop table region shrinkable so every current-page row remains scrollable', async () => {
+    listKeys.mockResolvedValueOnce({
+      items: Array.from({ length: 9 }, (_, index) => ({
+        ...createApiKey(),
+        id: index + 1,
+        key: `sk-test-key-${index + 1}`,
+        name: `test-key-${index + 1}`,
+      })),
+      total: 9,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+
+    const wrapper = await mountView()
+    const tableRegion = wrapper.get('[data-test="api-key-table-region"]')
+    const table = wrapper.findComponent({ name: 'DataTable' })
+
+    expect(table.props('data')).toHaveLength(9)
+    expect(tableRegion.classes()).toEqual(
+      expect.arrayContaining(['lg:flex', 'lg:min-h-0', 'lg:flex-1', 'lg:flex-col'])
+    )
+  })
+
   it('clears current-page selection when the table query changes or refreshes', async () => {
     const wrapper = await mountView()
     const table = wrapper.findComponent({ name: 'DataTable' })
