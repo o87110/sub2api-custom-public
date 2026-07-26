@@ -139,10 +139,10 @@ const SelectStub = {
 
 const ConfirmDialogStub = {
   name: 'ConfirmDialog',
-  props: ['show', 'title', 'message', 'confirmText'],
+  props: ['show', 'title', 'message', 'confirmText', 'danger'],
   emits: ['confirm', 'cancel'],
   template: `
-    <div v-if="show" data-test="bulk-confirm-dialog">
+    <div v-if="show" data-test="bulk-confirm-dialog" :data-danger="String(danger)">
       <span data-test="confirm-title">{{ title }}</span>
       <span data-test="confirm-message">{{ message }}</span>
       <button data-test="confirm-action" @click="$emit('confirm')">{{ confirmText }}</button>
@@ -253,6 +253,7 @@ describe('ApiKeyBulkActions', () => {
     expect(toggleStatus).not.toHaveBeenCalled()
     expect(wrapper.get('[data-test="confirm-message"]').text()).toContain('1 个 API 密钥')
     expect(wrapper.get('[data-test="confirm-message"]').text()).toContain('1 个已禁用项')
+    expect(wrapper.get('[data-test="bulk-confirm-dialog"]').attributes('data-danger')).toBe('true')
 
     await wrapper.get('[data-test="confirm-action"]').trigger('click')
     await flushPromises()
@@ -267,18 +268,62 @@ describe('ApiKeyBulkActions', () => {
     })
   })
 
-  it('does not open a confirmation or send requests when all rows are already disabled', async () => {
+  it('disables every selected key when all rows are active', async () => {
+    const wrapper = mountActions([createApiKey(1), createApiKey(2)], [1, 2])
+
+    await wrapper.get('[data-test="bulk-disable"]').trigger('click')
+    await wrapper.get('[data-test="confirm-action"]').trigger('click')
+    await flushPromises()
+
+    expect(toggleStatus).toHaveBeenCalledTimes(2)
+    expect(toggleStatus).toHaveBeenCalledWith(1, 'inactive')
+    expect(toggleStatus).toHaveBeenCalledWith(2, 'inactive')
+  })
+
+  it('changes the status action to enable when all selected rows are inactive', async () => {
     const wrapper = mountActions([
       createApiKey(1, { status: 'inactive' }),
       createApiKey(2, { status: 'inactive' })
     ], [1, 2])
 
-    await wrapper.get('[data-test="bulk-disable"]').trigger('click')
+    expect(wrapper.find('[data-test="bulk-disable"]').exists()).toBe(false)
+    expect(wrapper.get('[data-test="bulk-enable"]').text()).toContain('批量启用')
 
-    expect(wrapper.find('[data-test="bulk-confirm-dialog"]').exists()).toBe(false)
+    await wrapper.get('[data-test="bulk-enable"]').trigger('click')
+
     expect(toggleStatus).not.toHaveBeenCalled()
-    expect(showInfo).toHaveBeenCalledOnce()
-    expect(wrapper.emitted('update:selectedIds')?.at(-1)?.[0]).toEqual([])
+    expect(wrapper.get('[data-test="confirm-message"]').text()).toContain('立即恢复调用能力')
+    expect(wrapper.get('[data-test="bulk-confirm-dialog"]').attributes('data-danger')).toBe('false')
+
+    await wrapper.get('[data-test="confirm-action"]').trigger('click')
+    await flushPromises()
+
+    expect(toggleStatus).toHaveBeenCalledTimes(2)
+    expect(toggleStatus).toHaveBeenCalledWith(1, 'active')
+    expect(toggleStatus).toHaveBeenCalledWith(2, 'active')
+    expect(wrapper.emitted('completed')?.at(-1)?.[0]).toEqual({
+      action: 'enable',
+      succeededIds: [1, 2],
+      failedIds: [],
+      skippedIds: []
+    })
+  })
+
+  it('retains failed enables selected for retry', async () => {
+    toggleStatus.mockImplementation((id: number) =>
+      id === 2 ? Promise.reject(new Error('failed')) : Promise.resolve({})
+    )
+    const wrapper = mountActions([
+      createApiKey(1, { status: 'inactive' }),
+      createApiKey(2, { status: 'inactive' })
+    ], [1, 2])
+
+    await wrapper.get('[data-test="bulk-enable"]').trigger('click')
+    await wrapper.get('[data-test="confirm-action"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('update:selectedIds')?.at(-1)?.[0]).toEqual([2])
+    expect(showWarning).toHaveBeenCalledOnce()
   })
 
   it('requires confirmation before deletion and preserves failed deletions', async () => {

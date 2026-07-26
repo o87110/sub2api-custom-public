@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -113,6 +114,7 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 	methodOptions, err := h.configService.GetAvailableMethodOptions(
 		ctx,
 		cfg.RechargeFeeRate,
+		cfg.ChannelSettings,
 		cfg.AlipayMobilePrecreateDeepLink,
 	)
 	if err != nil {
@@ -240,15 +242,16 @@ func (h *PaymentHandler) GetLimits(c *gin.Context) {
 
 // CreateOrderRequest is the request body for creating a payment order.
 type CreateOrderRequest struct {
-	Amount            float64 `json:"amount"`
-	PaymentType       string  `json:"payment_type" binding:"required"`
-	ProviderKey       string  `json:"provider_key,omitempty"`
-	OpenID            string  `json:"openid"`
-	WechatResumeToken string  `json:"wechat_resume_token"`
-	ReturnURL         string  `json:"return_url"`
-	PaymentSource     string  `json:"payment_source"`
-	OrderType         string  `json:"order_type"`
-	PlanID            int64   `json:"plan_id"`
+	Amount            float64  `json:"amount"`
+	PaymentType       string   `json:"payment_type" binding:"required"`
+	ProviderKey       string   `json:"provider_key,omitempty"`
+	ResolvedFeeRate   *float64 `json:"-"`
+	OpenID            string   `json:"openid"`
+	WechatResumeToken string   `json:"wechat_resume_token"`
+	ReturnURL         string   `json:"return_url"`
+	PaymentSource     string   `json:"payment_source"`
+	OrderType         string   `json:"order_type"`
+	PlanID            int64    `json:"plan_id"`
 	// IsMobile lets the frontend declare its mobile status directly. When
 	// nil we fall back to User-Agent heuristics (which miss iPadOS / some
 	// embedded browsers that strip the "Mobile" keyword).
@@ -289,6 +292,7 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 		Amount:          req.Amount,
 		PaymentType:     req.PaymentType,
 		ProviderKey:     req.ProviderKey,
+		ResolvedFeeRate: req.ResolvedFeeRate,
 		OpenID:          req.OpenID,
 		ClientIP:        c.ClientIP(),
 		IsMobile:        mobile,
@@ -352,6 +356,13 @@ func applyWeChatPaymentResumeClaims(req *CreateOrderRequest, claims *service.WeC
 	}
 	if claims.PlanID > 0 {
 		req.PlanID = claims.PlanID
+	}
+	if claims.FeeRate != nil {
+		if math.IsNaN(*claims.FeeRate) || math.IsInf(*claims.FeeRate, 0) || *claims.FeeRate < 0 || *claims.FeeRate > 100 {
+			return infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume token fee rate is invalid")
+		}
+		feeRate := *claims.FeeRate
+		req.ResolvedFeeRate = &feeRate
 	}
 	return nil
 }

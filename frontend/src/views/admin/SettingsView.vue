@@ -7211,6 +7211,14 @@
             </div>
           </div>
 
+          <UserPaymentChannelSettings
+            v-if="form.payment_enabled"
+            ref="paymentChannelSettingsRef"
+            v-model="form.payment_channel_settings"
+            :providers="providers"
+            :default-fee-rate="Number(form.payment_recharge_fee_rate) || 0"
+          />
+
           <!-- Provider Management -->
           <PaymentProviderList
             v-if="form.payment_enabled"
@@ -7769,6 +7777,8 @@ import Select from "@/components/common/Select.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import PaymentProviderList from "@/components/payment/PaymentProviderList.vue";
 import PaymentProviderDialog from "@/components/payment/PaymentProviderDialog.vue";
+import UserPaymentChannelSettings from "@/custom/payment-channels/PaymentChannelSettings.vue";
+import type { PaymentChannelSettings } from "@/api/admin/payment";
 import GroupBadge from "@/components/common/GroupBadge.vue";
 import GroupOptionItem from "@/components/common/GroupOptionItem.vue";
 import Toggle from "@/components/common/Toggle.vue";
@@ -8430,6 +8440,7 @@ type SettingsForm = Omit<
   | "wechat_connect_open_enabled"
   | "wechat_connect_mp_enabled"
   | "wechat_connect_mobile_enabled"
+  | "payment_channel_settings"
 > & {
   smtp_password: string;
   turnstile_secret_key: string;
@@ -8442,6 +8453,7 @@ type SettingsForm = Omit<
   wechat_connect_open_enabled: boolean;
   wechat_connect_mp_enabled: boolean;
   wechat_connect_mobile_enabled: boolean;
+  payment_channel_settings: PaymentChannelSettings;
   oidc_connect_client_secret: string;
   github_oauth_client_secret: string;
   google_oauth_client_secret: string;
@@ -8515,6 +8527,7 @@ const form = reactive<SettingsForm>({
   payment_balance_recharge_multiplier: 1,
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
+  payment_channel_settings: {},
   payment_enabled_types: [],
   payment_help_image_url: "",
   payment_help_text: "",
@@ -9831,6 +9844,18 @@ function findDuplicateDefaultSubscription(
 async function saveSettings() {
   saving.value = true;
   try {
+    if (
+      paymentChannelSettingsRef.value
+      && !paymentChannelSettingsRef.value.validate()
+    ) {
+      appStore.showError(
+        localText(
+          "请修正用户渠道配置中的字段错误。",
+          "Please fix the errors in user channel settings.",
+        ),
+      );
+      return;
+    }
     const normalizedTableDefaultPageSize = Math.floor(
       Number(form.table_default_page_size),
     );
@@ -10184,6 +10209,7 @@ async function saveSettings() {
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,
+      payment_channel_settings: form.payment_channel_settings,
       payment_enabled_types: form.payment_enabled_types,
       payment_load_balance_strategy: form.payment_load_balance_strategy,
       payment_product_name_prefix: form.payment_product_name_prefix,
@@ -10965,6 +10991,9 @@ function slog(...args: unknown[]) {
 const providersLoading = ref(false);
 const providerSaving = ref(false);
 const providers = ref<ProviderInstance[]>([]);
+const paymentChannelSettingsRef = ref<InstanceType<
+  typeof UserPaymentChannelSettings
+> | null>(null);
 const showProviderDialog = ref(false);
 const showDeleteProviderDialog = ref(false);
 const editingProvider = ref<ProviderInstance | null>(null);

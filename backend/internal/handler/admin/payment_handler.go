@@ -5,6 +5,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -484,7 +485,13 @@ func (h *PaymentHandler) GetConfig(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, cfg)
+	response.Success(c, struct {
+		*service.PaymentConfig
+		ChannelSettings paymentchannels.ChannelSettings `json:"channel_settings"`
+	}{
+		PaymentConfig:   cfg,
+		ChannelSettings: cfg.ChannelSettings,
+	})
 }
 
 // UpdateConfig updates the payment configuration.

@@ -68,7 +68,18 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	} else if req.OrderType == payment.OrderTypeBalance {
 		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
 	}
-	feeRate := cfg.RechargeFeeRate
+	feeRate := paymentchannels.ResolveFeeRate(
+		req.PaymentType,
+		req.ProviderKey,
+		cfg.RechargeFeeRate,
+		cfg.ChannelSettings,
+	)
+	if req.ResolvedFeeRate != nil {
+		if math.IsNaN(*req.ResolvedFeeRate) || math.IsInf(*req.ResolvedFeeRate, 0) || *req.ResolvedFeeRate < 0 || *req.ResolvedFeeRate > 100 {
+			return nil, infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume fee rate is invalid")
+		}
+		feeRate = *req.ResolvedFeeRate
+	}
 	methodCurrency := payment.DefaultPaymentCurrency
 	if s.configService != nil {
 		methodCurrency, err = s.configService.ValidateMethodProviderCurrencyConsistency(ctx, req.PaymentType, req.ProviderKey)
@@ -634,7 +645,18 @@ func (s *PaymentService) buildWeChatOAuthRequiredResponse(ctx context.Context, r
 		return nil, err
 	}
 
-	authorizeURL, err := buildWeChatPaymentOAuthStartURL(req, "snsapi_base")
+	paymentContextToken, err := s.paymentResume().CreateWeChatPaymentOAuthToken(WeChatPaymentOAuthClaims{
+		PaymentType: req.PaymentType,
+		ProviderKey: req.ProviderKey,
+		Amount:      strconv.FormatFloat(req.Amount, 'f', -1, 64),
+		OrderType:   req.OrderType,
+		PlanID:      req.PlanID,
+		FeeRate:     &feeRate,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create wechat payment oauth context token: %w", err)
+	}
+	authorizeURL, err := buildWeChatPaymentOAuthStartURL(req, "snsapi_base", paymentContextToken)
 	if err != nil {
 		return nil, err
 	}
@@ -814,12 +836,15 @@ func buildCreateOrderResponse(order *dbent.PaymentOrder, req CreateOrderRequest,
 	}
 }
 
-func buildWeChatPaymentOAuthStartURL(req CreateOrderRequest, scope string) (string, error) {
+func buildWeChatPaymentOAuthStartURL(req CreateOrderRequest, scope, paymentContextToken string) (string, error) {
 	u, err := url.Parse("/api/v1/auth/oauth/wechat/payment/start")
 	if err != nil {
 		return "", fmt.Errorf("build wechat payment oauth start url: %w", err)
 	}
 	q := u.Query()
+	if paymentContextToken = strings.TrimSpace(paymentContextToken); paymentContextToken != "" {
+		q.Set("payment_context_token", paymentContextToken)
+	}
 	q.Set("payment_type", strings.TrimSpace(req.PaymentType))
 	if providerKey := strings.TrimSpace(req.ProviderKey); providerKey != "" {
 		q.Set("provider_key", providerKey)

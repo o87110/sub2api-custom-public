@@ -9,6 +9,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/enttest"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 
 	"entgo.io/ent/dialect"
@@ -467,6 +468,85 @@ func TestUpdatePaymentConfig_PersistsVisibleMethodRouting(t *testing.T) {
 	}
 	if repo.values[SettingPaymentVisibleMethodWxpaySource] != VisibleMethodSourceOfficialWechat {
 		t.Fatalf("wxpay source = %q, want %q", repo.values[SettingPaymentVisibleMethodWxpaySource], VisibleMethodSourceOfficialWechat)
+	}
+}
+
+func TestPaymentConfigChannelSettingsRoundTrip(t *testing.T) {
+	zeroFee := 0.0
+	customFee := 1.5
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{
+		SettingRechargeFeeRate:     "2.50",
+		SettingEnabledPaymentTypes: "alipay,wxpay",
+		SettingLoadBalanceStrategy: string(payment.StrategyRoundRobin),
+	}}
+	svc := &PaymentConfigService{settingRepo: repo}
+
+	settings := paymentchannels.ChannelSettings{
+		"easypay_alipay": {
+			DisplayName: "支付宝优惠通道",
+			FeeRate:     &customFee,
+		},
+		"easypay_wxpay": {
+			FeeRate: &zeroFee,
+		},
+		"future_channel": {
+			DisplayName: "未来渠道",
+		},
+	}
+	if err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{
+		ChannelSettings: &settings,
+	}); err != nil {
+		t.Fatalf("UpdatePaymentConfig returned error: %v", err)
+	}
+	if got := repo.values[SettingPaymentChannelSettings]; got == "" {
+		t.Fatal("PAYMENT_CHANNEL_SETTINGS was not persisted")
+	}
+	if got := repo.values[SettingRechargeFeeRate]; got != "2.50" {
+		t.Fatalf("partial channel-settings update changed global fee rate to %q", got)
+	}
+	if got := repo.values[SettingEnabledPaymentTypes]; got != "alipay,wxpay" {
+		t.Fatalf("partial channel-settings update changed enabled payment types to %q", got)
+	}
+	if got := repo.values[SettingLoadBalanceStrategy]; got != string(payment.StrategyRoundRobin) {
+		t.Fatalf("partial channel-settings update changed load-balance strategy to %q", got)
+	}
+
+	cfg, err := svc.GetPaymentConfig(context.Background())
+	if err != nil {
+		t.Fatalf("GetPaymentConfig returned error: %v", err)
+	}
+	if got := cfg.ChannelSettings["easypay_alipay"]; got.DisplayName != "支付宝优惠通道" || got.FeeRate == nil || *got.FeeRate != customFee {
+		t.Fatalf("EasyPay Alipay setting = %+v", got)
+	}
+	if got := cfg.ChannelSettings["easypay_wxpay"].FeeRate; got == nil || *got != 0 {
+		t.Fatalf("explicit zero fee = %v", got)
+	}
+	if got := cfg.ChannelSettings["future_channel"].DisplayName; got != "未来渠道" {
+		t.Fatalf("unknown valid channel setting was not preserved: %q", got)
+	}
+}
+
+func TestGetPaymentConfigRejectsMalformedPersistedChannelSettings(t *testing.T) {
+	svc := &PaymentConfigService{settingRepo: &paymentConfigSettingRepoStub{
+		values: map[string]string{
+			SettingPaymentChannelSettings: `{"stripe":{"fee_rate":1.001}}`,
+		},
+	}}
+	if _, err := svc.GetPaymentConfig(context.Background()); err == nil {
+		t.Fatal("GetPaymentConfig unexpectedly accepted malformed channel settings")
+	}
+}
+
+func TestUpdatePaymentConfigRejectsInvalidChannelSettings(t *testing.T) {
+	invalidFee := 1.001
+	settings := paymentchannels.ChannelSettings{
+		"stripe": {FeeRate: &invalidFee},
+	}
+	svc := &PaymentConfigService{settingRepo: &paymentConfigSettingRepoStub{values: map[string]string{}}}
+	if err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{
+		ChannelSettings: &settings,
+	}); err == nil {
+		t.Fatal("UpdatePaymentConfig unexpectedly accepted a fee with more than two decimals")
 	}
 }
 

@@ -450,6 +450,7 @@ const baseSettingsResponse = {
   payment_balance_recharge_multiplier: 1,
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
+  payment_channel_settings: {},
   payment_load_balance_strategy: "round-robin",
   payment_product_name_prefix: "",
   payment_product_name_suffix: "",
@@ -668,6 +669,34 @@ describe("admin SettingsView payment visible method controls", () => {
 
     expect(wrapper.text()).not.toContain("可见方式");
     expect(wrapper.text()).not.toContain("支付来源");
+  });
+
+  it("loads and submits user payment channel settings", async () => {
+    const channelSettings = {
+      easypay_alipay: {
+        display_name: "支付宝优惠通道",
+        fee_rate: 1.5,
+      },
+      easypay_wxpay: {
+        fee_rate: 0,
+      },
+    };
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      payment_channel_settings: channelSettings,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_channel_settings: channelSettings,
+      }),
+    );
   });
 
   it("loads, edits, validates, and saves forwarded client-IP headers", async () => {

@@ -96,11 +96,11 @@
           type="button"
           class="btn btn-secondary min-h-11"
           :disabled="busy"
-          data-test="bulk-disable"
-          @click="requestConfirmation('disable')"
+          :data-test="`bulk-${statusAction}`"
+          @click="requestConfirmation(statusAction)"
         >
-          <Icon name="ban" size="sm" class="mr-2" />
-          {{ currentAction === 'disable' ? text('processing') : text('disable') }}
+          <Icon :name="statusAction === 'enable' ? 'checkCircle' : 'ban'" size="sm" class="mr-2" />
+          {{ currentAction === statusAction ? text('processing') : text(statusAction) }}
         </button>
 
         <button
@@ -123,7 +123,7 @@
     :message="confirmationMessage"
     :confirm-text="confirmationConfirmText"
     :cancel-text="commonText('cancel')"
-    :danger="true"
+    :danger="pendingConfirmation?.action !== 'enable'"
     @confirm="confirmPendingAction"
     @cancel="pendingConfirmation = null"
   />
@@ -166,7 +166,7 @@ interface BulkGroupOption {
 }
 
 interface PendingConfirmation {
-  action: 'disable' | 'delete'
+  action: 'enable' | 'disable' | 'delete'
   eligibleIds: number[]
   skippedIds: number[]
 }
@@ -222,17 +222,27 @@ const selectedGroup = computed(() =>
 
 const busy = computed(() => currentAction.value !== null)
 
-const confirmationTitle = computed(() =>
-  pendingConfirmation.value?.action === 'delete'
-    ? text('deleteConfirmTitle')
-    : text('disableConfirmTitle')
+const statusAction = computed<'enable' | 'disable'>(() =>
+  selectedRows.value.length > 0 && selectedRows.value.every((row) => row.status === 'inactive')
+    ? 'enable'
+    : 'disable'
 )
+
+const confirmationTitle = computed(() => {
+  const action = pendingConfirmation.value?.action
+  if (action === 'delete') return text('deleteConfirmTitle')
+  if (action === 'enable') return text('enableConfirmTitle')
+  return text('disableConfirmTitle')
+})
 
 const confirmationMessage = computed(() => {
   const pending = pendingConfirmation.value
   if (!pending) return ''
   if (pending.action === 'delete') {
     return text('deleteConfirmMessage', { count: pending.eligibleIds.length })
+  }
+  if (pending.action === 'enable') {
+    return text('enableConfirmMessage', { count: pending.eligibleIds.length })
   }
   return text('disableConfirmMessage', {
     count: pending.eligibleIds.length,
@@ -243,13 +253,18 @@ const confirmationMessage = computed(() => {
 const confirmationConfirmText = computed(() => {
   const pending = pendingConfirmation.value
   if (!pending) return ''
-  return pending.action === 'delete'
-    ? text('deleteConfirm', { count: pending.eligibleIds.length })
-    : text('disableConfirm', { count: pending.eligibleIds.length })
+  if (pending.action === 'delete') {
+    return text('deleteConfirm', { count: pending.eligibleIds.length })
+  }
+  if (pending.action === 'enable') {
+    return text('enableConfirm', { count: pending.eligibleIds.length })
+  }
+  return text('disableConfirm', { count: pending.eligibleIds.length })
 })
 
 const actionLabel = (action: ApiKeyBulkAction) => {
   if (action === 'group') return text('groupAction')
+  if (action === 'enable') return text('enableAction')
   if (action === 'disable') return text('disableAction')
   return text('deleteAction')
 }
@@ -327,6 +342,10 @@ const executeAction = async (
         await keysAPI.toggleStatus(id, 'inactive')
         return
       }
+      if (action === 'enable') {
+        await keysAPI.toggleStatus(id, 'active')
+        return
+      }
       await keysAPI.delete(id)
     })
 
@@ -358,7 +377,7 @@ const applyGroup = async () => {
   await executeAction('group', eligibleIds, skippedIds)
 }
 
-const requestConfirmation = (action: 'disable' | 'delete') => {
+const requestConfirmation = (action: 'enable' | 'disable' | 'delete') => {
   if (busy.value) return
   const rows = selectedRows.value
   if (action === 'delete') {
@@ -370,10 +389,14 @@ const requestConfirmation = (action: 'disable' | 'delete') => {
     return
   }
 
-  const eligibleIds = rows.filter((row) => row.status !== 'inactive').map((row) => row.id)
-  const skippedIds = rows.filter((row) => row.status === 'inactive').map((row) => row.id)
+  const eligibleIds = rows
+    .filter((row) => action === 'enable' ? row.status === 'inactive' : row.status !== 'inactive')
+    .map((row) => row.id)
+  const skippedIds = rows
+    .filter((row) => action === 'enable' ? row.status !== 'inactive' : row.status === 'inactive')
+    .map((row) => row.id)
   if (eligibleIds.length === 0) {
-    completeWithoutRequests('disable', skippedIds)
+    completeWithoutRequests(action, skippedIds)
     return
   }
   pendingConfirmation.value = { action, eligibleIds, skippedIds }

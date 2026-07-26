@@ -44,13 +44,13 @@ Issue 和生产资料不迁移。
 backend/internal/custom/
 ├── databaseboundary/       数据库与迁移边界检查
 ├── moderation/             cyber_policy 范围隔离与摘要
-├── paymentchannels/        支付宝/微信用户级渠道选项与合法组合
+├── paymentchannels/        用户级支付渠道选项、个性化配置与合法组合
 └── updater/                自定义 Release、更新与回退
 
 frontend/src/custom/
-├── api-keys/               API 密钥当前页批量操作
+├── api-keys/               API 密钥当前页批量分组、启用、禁用与删除
 ├── moderation/             风控二改页面与文案
-├── payment-channels/       支付渠道归一化、选择器与备用提示
+├── payment-channels/       支付渠道归一化、后台配置、选择器与备用提示
 └── updater/                版本、更新与回退界面
 ```
 

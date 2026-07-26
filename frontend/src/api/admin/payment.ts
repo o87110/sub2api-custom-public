@@ -13,6 +13,13 @@ import type {
 } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
+export interface PaymentChannelSetting {
+  display_name?: string
+  fee_rate?: number | null
+}
+
+export type PaymentChannelSettings = Record<string, PaymentChannelSetting>
+
 /** Admin-facing payment config returned by GET /admin/payment/config */
 export interface AdminPaymentConfig {
   enabled: boolean
@@ -26,6 +33,7 @@ export interface AdminPaymentConfig {
   balance_recharge_multiplier: number
   subscription_usd_to_cny_rate: number
   recharge_fee_rate: number
+  channel_settings?: PaymentChannelSettings
   load_balance_strategy: string
   product_name_prefix: string
   product_name_suffix: string
@@ -46,6 +54,7 @@ export interface UpdatePaymentConfigRequest {
   balance_recharge_multiplier?: number
   subscription_usd_to_cny_rate?: number
   recharge_fee_rate?: number
+  channel_settings?: PaymentChannelSettings
   load_balance_strategy?: string
   product_name_prefix?: string
   product_name_suffix?: string

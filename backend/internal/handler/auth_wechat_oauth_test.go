@@ -358,6 +358,55 @@ func TestWeChatOAuthCallbackRejectsDisabledExistingIdentityUser(t *testing.T) {
 	require.Zero(t, count)
 }
 
+func TestWeChatPaymentOAuthStartUsesSignedChannelFeeContext(t *testing.T) {
+	handler, client := newWeChatOAuthTestHandlerWithSettings(t, false, wechatOAuthTestSettings("mp", "wx-mp-app", "wx-mp-secret", "/auth/wechat/callback"))
+	defer client.Close()
+	handler.cfg.Totp.EncryptionKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	handler.cfg.Totp.EncryptionKeyConfigured = true
+
+	feeRate := 1.25
+	contextToken, err := handler.wechatPaymentResumeService().CreateWeChatPaymentOAuthToken(service.WeChatPaymentOAuthClaims{
+		PaymentType: payment.TypeWxpay,
+		ProviderKey: payment.TypeWxpay,
+		Amount:      "12.5",
+		OrderType:   payment.OrderTypeSubscription,
+		PlanID:      7,
+		FeeRate:     &feeRate,
+	})
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/auth/oauth/wechat/payment/start?payment_context_token="+url.QueryEscape(contextToken)+"&payment_type=alipay&provider_key=easypay&amount=1",
+		nil,
+	)
+	req.Host = "api.example.com"
+	c.Request = req
+
+	handler.WeChatPaymentOAuthStart(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	var contextCookie *http.Cookie
+	for _, cookie := range recorder.Result().Cookies() {
+		if cookie.Name == wechatPaymentOAuthContextName {
+			contextCookie = cookie
+			break
+		}
+	}
+	require.NotNil(t, contextCookie)
+	paymentContext, err := decodeWeChatPaymentOAuthContext(decodeCookieValueForTest(t, contextCookie.Value))
+	require.NoError(t, err)
+	require.Equal(t, payment.TypeWxpay, paymentContext.PaymentType)
+	require.Equal(t, payment.TypeWxpay, paymentContext.ProviderKey)
+	require.Equal(t, "12.5", paymentContext.Amount)
+	require.Equal(t, payment.OrderTypeSubscription, paymentContext.OrderType)
+	require.EqualValues(t, 7, paymentContext.PlanID)
+	require.NotNil(t, paymentContext.FeeRate)
+	require.Equal(t, feeRate, *paymentContext.FeeRate)
+}
+
 func TestWeChatPaymentOAuthCallbackRedirectsWithOpaqueResumeToken(t *testing.T) {
 	originalAccessTokenURL := wechatOAuthAccessTokenURL
 	t.Cleanup(func() {
@@ -386,7 +435,7 @@ func TestWeChatPaymentOAuthCallbackRedirectsWithOpaqueResumeToken(t *testing.T) 
 	req.Host = "api.example.com"
 	req.AddCookie(encodedCookie(wechatPaymentOAuthStateName, "state-123"))
 	req.AddCookie(encodedCookie(wechatPaymentOAuthRedirect, "/purchase?from=wechat"))
-	req.AddCookie(encodedCookie(wechatPaymentOAuthContextName, `{"payment_type":"wxpay","provider_key":"wxpay","amount":"12.5","order_type":"subscription","plan_id":7}`))
+	req.AddCookie(encodedCookie(wechatPaymentOAuthContextName, `{"payment_type":"wxpay","provider_key":"wxpay","amount":"12.5","order_type":"subscription","plan_id":7,"fee_rate":1.25}`))
 	req.AddCookie(encodedCookie(wechatPaymentOAuthScope, "snsapi_base"))
 	c.Request = req
 
@@ -414,6 +463,8 @@ func TestWeChatPaymentOAuthCallbackRedirectsWithOpaqueResumeToken(t *testing.T) 
 	require.Equal(t, "12.5", claims.Amount)
 	require.Equal(t, payment.OrderTypeSubscription, claims.OrderType)
 	require.EqualValues(t, 7, claims.PlanID)
+	require.NotNil(t, claims.FeeRate)
+	require.Equal(t, 1.25, *claims.FeeRate)
 	require.Equal(t, "/purchase?from=wechat", claims.RedirectTo)
 }
 
