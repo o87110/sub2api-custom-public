@@ -9,6 +9,7 @@ shadow_map_test="$repo_root/deploy/tests/upstream-shadow-map-test.sh"
 delta_test="$repo_root/deploy/tests/custom-upstream-delta-test.sh"
 database_test="$repo_root/deploy/tests/custom-database-boundary-test.sh"
 candidate_tree_script="$repo_root/deploy/tests/custom-candidate-tree.sh"
+report_maintenance_policy="$repo_root/deploy/upstream/validate-upgrade-report-maintenance.sh"
 codeowners="$repo_root/.github/CODEOWNERS"
 makefile="$repo_root/Makefile"
 
@@ -98,6 +99,9 @@ fail_if_present \
 grep -Fq \
   'src/views/user/__tests__/KeysView.spec.ts \' \
   "$makefile"
+[[ -s "$report_maintenance_policy" ]] ||
+  fail "released upgrade report maintenance policy is missing"
+/bin/bash -n "$report_maintenance_policy"
 
 tmp_dir="$(mktemp -d)"
 temporary_baseline_ref=""
@@ -110,6 +114,103 @@ cleanup() {
   rm -rf "$tmp_dir"
 }
 trap cleanup EXIT
+
+base_fixture_commit="$(git -C "$repo_root" rev-parse 'origin/main^{commit}')"
+base_report_path=".github/upgrades/0.1.165.md"
+base_report_blob="$(
+  git -C "$repo_root" ls-tree "$base_fixture_commit" -- "$base_report_path" |
+    awk 'NR == 1 { print $3 } END { if (NR != 1) exit 1 }'
+)"
+git -C "$repo_root" cat-file blob "$base_report_blob" \
+  > "$tmp_dir/base-upgrade-report.md"
+sed \
+  's/^- State: .*/- State: `released`/' \
+  "$tmp_dir/base-upgrade-report.md" \
+  > "$tmp_dir/maintained-upgrade-report.md"
+sed \
+  's/^- Official target commit: .*/- Official target commit: `0000000000000000000000000000000000000000`/' \
+  "$tmp_dir/maintained-upgrade-report.md" \
+  > "$tmp_dir/changed-identity-upgrade-report.md"
+
+fixture_counter=0
+make_report_fixture_commit() {
+  local action="$1"
+  local path="$2"
+  local content_file="${3:-}"
+  local fixture_index fixture_blob fixture_tree
+  fixture_counter=$((fixture_counter + 1))
+  fixture_index="$tmp_dir/report-index-${fixture_counter}"
+  GIT_INDEX_FILE="$fixture_index" \
+    git -C "$repo_root" read-tree "${base_fixture_commit}^{tree}"
+  case "$action" in
+    update)
+      fixture_blob="$(git -C "$repo_root" hash-object -w -- "$content_file")"
+      GIT_INDEX_FILE="$fixture_index" \
+        git -C "$repo_root" update-index \
+          --add \
+          --cacheinfo 100644 "$fixture_blob" "$path"
+      ;;
+    delete)
+      GIT_INDEX_FILE="$fixture_index" \
+        git -C "$repo_root" update-index --force-remove -- "$path"
+      ;;
+    *)
+      fail "unsupported report fixture action: $action"
+      ;;
+  esac
+  fixture_tree="$(
+    GIT_INDEX_FILE="$fixture_index" git -C "$repo_root" write-tree
+  )"
+  printf 'upgrade report maintenance fixture\n' |
+    GIT_AUTHOR_NAME=fixture \
+    GIT_AUTHOR_EMAIL=fixture@example.invalid \
+    GIT_COMMITTER_NAME=fixture \
+    GIT_COMMITTER_EMAIL=fixture@example.invalid \
+      git -C "$repo_root" commit-tree \
+        "$fixture_tree" \
+        -p "$base_fixture_commit"
+}
+
+maintained_report_commit="$(
+  make_report_fixture_commit \
+    update \
+    "$base_report_path" \
+    "$tmp_dir/maintained-upgrade-report.md"
+)"
+changed_identity_commit="$(
+  make_report_fixture_commit \
+    update \
+    "$base_report_path" \
+    "$tmp_dir/changed-identity-upgrade-report.md"
+)"
+added_report_commit="$(
+  make_report_fixture_commit \
+    update \
+    ".github/upgrades/9.9.9.md" \
+    "$tmp_dir/maintained-upgrade-report.md"
+)"
+deleted_report_commit="$(
+  make_report_fixture_commit delete "$base_report_path"
+)"
+
+/bin/bash "$report_maintenance_policy" \
+  --base-ref "$base_fixture_commit" \
+  --target-ref "$maintained_report_commit" \
+  --vendor-ref-prefix refs/tags/ \
+  >/dev/null ||
+  fail "released upgrade report maintenance was rejected"
+for rejected_report_commit in \
+  "$changed_identity_commit" \
+  "$added_report_commit" \
+  "$deleted_report_commit"; do
+  if /bin/bash "$report_maintenance_policy" \
+    --base-ref "$base_fixture_commit" \
+    --target-ref "$rejected_report_commit" \
+    --vendor-ref-prefix refs/tags/ \
+    >/dev/null 2>&1; then
+    fail "unsafe upgrade report maintenance was accepted"
+  fi
+done
 
 extract_protected_pattern() {
   local workflow="$1"
@@ -831,8 +932,17 @@ grep -Fq \
   "'+refs/tags/v*:refs/upstream-tags/v*'" \
   "$gate_workflow"
 grep -Fq \
-  "'.github/upgrades/*.md'" \
+  "'+refs/tags/vendor-*:refs/origin-tags/vendor-*'" \
   "$gate_workflow"
+grep -Fq \
+  'origin/main:deploy/upstream/validate-upgrade-report-maintenance.sh' \
+  "$gate_workflow"
+grep -Fq -- \
+  '--vendor-ref-prefix refs/origin-tags/' \
+  "$gate_workflow"
+grep -Fq \
+  "'.github/upgrades/*.md'" \
+  "$report_maintenance_policy"
 grep -Fq \
   "if: needs.context.outputs.is_upgrade == 'true'" \
   "$gate_workflow"

@@ -6,14 +6,14 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/upgrades/0.1.162.md	A	keep	A	custom-docs-ops	@absent	a873781565b70fa65a9ed5e2f88ddb762faeb81b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 .github/upgrades/0.1.164.md	A	keep	A	custom-docs-ops	@absent	81ea0d2f32358597dc9a4c91f487d3b74760dac7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-.github/upgrades/0.1.165.md	A	keep	A	custom-docs-ops	@absent	c9f7a078a051aa1f8da541d78815349437ab9dd5	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.165 升级、数据库评审、冲突解决与验证证据
+.github/upgrades/0.1.165.md	A	keep	A	custom-docs-ops	@absent	3b5864d1a0df01b727afbbd64417838e3daf0f7b	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.165 升级、数据库评审、冲突解决与验证证据
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	d536736120f9a2605ca5d9a976db3b9b0fd76bcf	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/backend-ci.yml	M	keep	M	fixed-path	85994652548841a65c3c7c5ff87531f31398154b	52e07f116eadaadb83c492c0ecee70977d3225d8	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	146147e64b91555887f2ea229e6e444c0ac770ce	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/release.yml	M	keep	M	fixed-path	2ba01833c112a2653155953314fc7b8a3fbf3def	45c12de4976ee4b52c3de6f481efe9c843d97e80	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	96a7ae4edd5873207a013aa827a6ea09f6f18821	d8c92e440f35ff2300370bcf5f57d13963a875e7	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	79815883cdb0a3d6dca88dd8309553d732185c9d	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	64a552cf6ccd02f7046fe3f523cecf5ba6fa3cd4	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	5ce6dcb761c153efa6a7965cee02bf6e644cc87f	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .gitignore	M	keep	M	fixed-path	8c7e67f7e2592a5a42b45964c8ab6574d4cd6256	e88d8e20f1a39f9dc6f7453e96e6b1806ad599ac	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .goreleaser.simple.yaml	M	restore	RESTORED	whole-file-restore	14f67fd1cb7bdee6508cf1bbd3147173e0e1aefb	14f67fd1cb7bdee6508cf1bbd3147173e0e1aefb	-	-	baseline-blob-equality	非二改需求，整文件恢复官方基线
 .goreleaser.yaml	M	keep	M	fixed-path	41f9a5559bc79b244d008e37b039a293dcf02c76	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
@@ -120,7 +120,8 @@ deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	d9214f896e91c3125151bfc4397132f8caa61b25	-	-	test-executed-in-CI	验证二改行为和发布边界
-deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	1e01d7b992e47dbdd0657bb1f3c09503e3d12817	-	-	upstream-sync+crlf-ledger-test	验证上游同步、预发布 Vendor Tag、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
+deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	d4e9d51877d41ec1b922b3eb1f119994a0e0ce61	-	-	upstream-sync+crlf-ledger-test	验证上游同步、预发布 Vendor Tag、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
+deploy/upstream/validate-upgrade-report-maintenance.sh	A	keep	A	fixed-path	@absent	4fb1b58ebd2e0e64368d5cd327b17b6e0a6cfdaf	-	-	upstream-sync+candidate-tree	固定工具路径中的二改上游升级控制面最小差异
 docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	84699f00b03dafc51809380655822314fd7f8171	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	4100689022e49213176beb463c0e2ce719c90fae	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	6afc182b332fbadf75a6a07dee1b1531f17c84b6	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
