@@ -9,7 +9,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.1.165.md	A	keep	A	custom-docs-ops	@absent	c9f7a078a051aa1f8da541d78815349437ab9dd5	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.165 升级、数据库评审、冲突解决与验证证据
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	d536736120f9a2605ca5d9a976db3b9b0fd76bcf	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/backend-ci.yml	M	keep	M	fixed-path	85994652548841a65c3c7c5ff87531f31398154b	52e07f116eadaadb83c492c0ecee70977d3225d8	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	146147e64b91555887f2ea229e6e444c0ac770ce	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
+.github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	cb484d4583659af76006cbbb00e39a4c426030b7	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/release.yml	M	keep	M	fixed-path	2ba01833c112a2653155953314fc7b8a3fbf3def	45c12de4976ee4b52c3de6f481efe9c843d97e80	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	96a7ae4edd5873207a013aa827a6ea09f6f18821	d8c92e440f35ff2300370bcf5f57d13963a875e7	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	79815883cdb0a3d6dca88dd8309553d732185c9d	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
@@ -114,7 +114,7 @@ deploy/release/wait-for-required-ci.sh	A	keep	A	fixed-path	@absent	b258588e89194
 deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	16c2aedb21da73056a462d55e17ff54dc1fd869f	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad7233c21340ce3dd1969db55ed51	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
-deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	b9d442ca4554cf2ae5c8131e5d3267ced3819e02	-	-	goreleaser-check+release-safety	验证二改行为和发布边界
+deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	ebd075d1cdfaf35b9607a172b20f23bda5827d0c	-	-	goreleaser-check+release-safety	验证二改行为和发布边界
 deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	90fa4dfe5ab284787d4524b57e0309466700bc62	-	-	candidate-tree+crlf-ledger-test	验证二改行为、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
 deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
