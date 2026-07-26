@@ -99,6 +99,40 @@ done
 [[ "$(trigger_branches "$publish_workflow" workflow_run)" == "main" ]] ||
   fail "automatic publication must only react to completed main CI runs"
 
+grep -Fq \
+  'group: ci-${{ github.event_name == '\''pull_request'\'' && github.event.pull_request.number || github.run_id }}' \
+  "$backend_ci" || fail "CI does not isolate concurrency to each pull request"
+grep -Fq \
+  'group: security-scan-${{ github.event_name == '\''pull_request'\'' && github.event.pull_request.number || github.run_id }}' \
+  "$security_scan" || fail "Security Scan does not isolate concurrency to each pull request"
+for workflow in "$backend_ci" "$security_scan"; do
+  grep -Fq 'cancel-in-progress: ${{ github.event_name == '\''pull_request'\'' }}' "$workflow" ||
+    fail "stale pull request runs are not cancelled: $workflow"
+done
+
+for job in backend_unit backend_integration_build test; do
+  grep -Fq "  ${job}:" "$backend_ci" ||
+    fail "parallel backend validation job is missing: $job"
+done
+[[ "$(grep -Fc 'run: make test-unit' "$backend_ci")" -eq 1 ]] ||
+  fail "backend unit tests must run exactly once"
+[[ "$(grep -Fc 'run: make test-integration' "$backend_ci")" -eq 1 ]] ||
+  fail "backend integration tests must run exactly once"
+[[ "$(grep -Fc 'run: make build-backend' "$backend_ci")" -eq 1 ]] ||
+  fail "backend production build must run exactly once"
+grep -Fq 'needs: [backend_unit, backend_integration_build]' "$backend_ci" ||
+  fail "required test check does not aggregate both backend validation paths"
+grep -Fq '    if: ${{ always() }}' "$backend_ci" ||
+  fail "required test check does not run after a failed or skipped backend path"
+grep -Fq 'BACKEND_UNIT_RESULT: ${{ needs.backend_unit.result }}' "$backend_ci" ||
+  fail "required test check does not inspect the unit result"
+grep -Fq 'BACKEND_INTEGRATION_BUILD_RESULT: ${{ needs.backend_integration_build.result }}' \
+  "$backend_ci" || fail "required test check does not inspect the integration/build result"
+grep -Fq '[[ "$BACKEND_UNIT_RESULT" == "success" ]]' "$backend_ci" ||
+  fail "required test check does not fail closed on unit failure"
+grep -Fq '[[ "$BACKEND_INTEGRATION_BUILD_RESULT" == "success" ]]' "$backend_ci" ||
+  fail "required test check does not fail closed on integration/build failure"
+
 upgrade_backend_job="$(
   awk '
     /^  backend:$/ { in_job = 1 }
