@@ -16,7 +16,9 @@ EOF
   exit 2
 }
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+repo_root="${GITHUB_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+git -C "$repo_root" rev-parse --git-dir >/dev/null ||
+  fail "upgrade report repository root is unavailable"
 base_ref=""
 target_ref=""
 vendor_ref_prefix=""

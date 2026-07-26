@@ -199,6 +199,14 @@ deleted_report_commit="$(
   --vendor-ref-prefix refs/tags/ \
   >/dev/null ||
   fail "released upgrade report maintenance was rejected"
+cp "$report_maintenance_policy" "$tmp_dir/copied-report-maintenance-policy.sh"
+GITHUB_WORKSPACE="$repo_root" \
+  /bin/bash "$tmp_dir/copied-report-maintenance-policy.sh" \
+    --base-ref "$base_fixture_commit" \
+    --target-ref "$maintained_report_commit" \
+    --vendor-ref-prefix refs/tags/ \
+    >/dev/null ||
+  fail "trusted copied report maintenance policy lost the repository root"
 for rejected_report_commit in \
   "$changed_identity_commit" \
   "$added_report_commit" \

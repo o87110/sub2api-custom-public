@@ -120,8 +120,8 @@ deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	d9214f896e91c3125151bfc4397132f8caa61b25	-	-	test-executed-in-CI	验证二改行为和发布边界
-deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	d4e9d51877d41ec1b922b3eb1f119994a0e0ce61	-	-	upstream-sync+crlf-ledger-test	验证上游同步、预发布 Vendor Tag、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
-deploy/upstream/validate-upgrade-report-maintenance.sh	A	keep	A	fixed-path	@absent	4fb1b58ebd2e0e64368d5cd327b17b6e0a6cfdaf	-	-	upstream-sync+candidate-tree	固定工具路径中的二改上游升级控制面最小差异
+deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	acc3fcd44850a83f28ae42f2ce016db6f62c758e	-	-	upstream-sync+crlf-ledger-test	验证上游同步、预发布 Vendor Tag、Windows CRLF 台账解析及 macOS Bash 3.2 兼容边界
+deploy/upstream/validate-upgrade-report-maintenance.sh	A	keep	A	fixed-path	@absent	f5a53260391239668e82cadba98d48d814a3d803	-	-	upstream-sync+candidate-tree	固定工具路径中的二改上游升级控制面最小差异
 docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	84699f00b03dafc51809380655822314fd7f8171	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	4100689022e49213176beb463c0e2ce719c90fae	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	6afc182b332fbadf75a6a07dee1b1531f17c84b6	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
