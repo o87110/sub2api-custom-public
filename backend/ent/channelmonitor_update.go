@@ -154,6 +154,47 @@ func (_u *ChannelMonitorUpdate) ClearGroupName() *ChannelMonitorUpdate {
 	return _u
 }
 
+// SetGroupRateOverride sets the "group_rate_override" field.
+func (_u *ChannelMonitorUpdate) SetGroupRateOverride(v float64) *ChannelMonitorUpdate {
+	_u.mutation.ResetGroupRateOverride()
+	_u.mutation.SetGroupRateOverride(v)
+	return _u
+}
+
+// SetNillableGroupRateOverride sets the "group_rate_override" field if the given value is not nil.
+func (_u *ChannelMonitorUpdate) SetNillableGroupRateOverride(v *float64) *ChannelMonitorUpdate {
+	if v != nil {
+		_u.SetGroupRateOverride(*v)
+	}
+	return _u
+}
+
+// AddGroupRateOverride adds value to the "group_rate_override" field.
+func (_u *ChannelMonitorUpdate) AddGroupRateOverride(v float64) *ChannelMonitorUpdate {
+	_u.mutation.AddGroupRateOverride(v)
+	return _u
+}
+
+// ClearGroupRateOverride clears the value of the "group_rate_override" field.
+func (_u *ChannelMonitorUpdate) ClearGroupRateOverride() *ChannelMonitorUpdate {
+	_u.mutation.ClearGroupRateOverride()
+	return _u
+}
+
+// SetGroupRateDisplayTemplate sets the "group_rate_display_template" field.
+func (_u *ChannelMonitorUpdate) SetGroupRateDisplayTemplate(v string) *ChannelMonitorUpdate {
+	_u.mutation.SetGroupRateDisplayTemplate(v)
+	return _u
+}
+
+// SetNillableGroupRateDisplayTemplate sets the "group_rate_display_template" field if the given value is not nil.
+func (_u *ChannelMonitorUpdate) SetNillableGroupRateDisplayTemplate(v *string) *ChannelMonitorUpdate {
+	if v != nil {
+		_u.SetGroupRateDisplayTemplate(*v)
+	}
+	return _u
+}
+
 // SetEnabled sets the "enabled" field.
 func (_u *ChannelMonitorUpdate) SetEnabled(v bool) *ChannelMonitorUpdate {
 	_u.mutation.SetEnabled(v)
@@ -478,6 +519,16 @@ func (_u *ChannelMonitorUpdate) check() error {
 			return &ValidationError{Name: "group_name", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.group_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.GroupRateOverride(); ok {
+		if err := channelmonitor.GroupRateOverrideValidator(v); err != nil {
+			return &ValidationError{Name: "group_rate_override", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.group_rate_override": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.GroupRateDisplayTemplate(); ok {
+		if err := channelmonitor.GroupRateDisplayTemplateValidator(v); err != nil {
+			return &ValidationError{Name: "group_rate_display_template", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.group_rate_display_template": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.IntervalSeconds(); ok {
 		if err := channelmonitor.IntervalSecondsValidator(v); err != nil {
 			return &ValidationError{Name: "interval_seconds", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.interval_seconds": %w`, err)}
@@ -542,6 +593,18 @@ func (_u *ChannelMonitorUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if _u.mutation.GroupNameCleared() {
 		_spec.ClearField(channelmonitor.FieldGroupName, field.TypeString)
+	}
+	if value, ok := _u.mutation.GroupRateOverride(); ok {
+		_spec.SetField(channelmonitor.FieldGroupRateOverride, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedGroupRateOverride(); ok {
+		_spec.AddField(channelmonitor.FieldGroupRateOverride, field.TypeFloat64, value)
+	}
+	if _u.mutation.GroupRateOverrideCleared() {
+		_spec.ClearField(channelmonitor.FieldGroupRateOverride, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.GroupRateDisplayTemplate(); ok {
+		_spec.SetField(channelmonitor.FieldGroupRateDisplayTemplate, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(channelmonitor.FieldEnabled, field.TypeBool, value)
@@ -840,6 +903,47 @@ func (_u *ChannelMonitorUpdateOne) SetNillableGroupName(v *string) *ChannelMonit
 // ClearGroupName clears the value of the "group_name" field.
 func (_u *ChannelMonitorUpdateOne) ClearGroupName() *ChannelMonitorUpdateOne {
 	_u.mutation.ClearGroupName()
+	return _u
+}
+
+// SetGroupRateOverride sets the "group_rate_override" field.
+func (_u *ChannelMonitorUpdateOne) SetGroupRateOverride(v float64) *ChannelMonitorUpdateOne {
+	_u.mutation.ResetGroupRateOverride()
+	_u.mutation.SetGroupRateOverride(v)
+	return _u
+}
+
+// SetNillableGroupRateOverride sets the "group_rate_override" field if the given value is not nil.
+func (_u *ChannelMonitorUpdateOne) SetNillableGroupRateOverride(v *float64) *ChannelMonitorUpdateOne {
+	if v != nil {
+		_u.SetGroupRateOverride(*v)
+	}
+	return _u
+}
+
+// AddGroupRateOverride adds value to the "group_rate_override" field.
+func (_u *ChannelMonitorUpdateOne) AddGroupRateOverride(v float64) *ChannelMonitorUpdateOne {
+	_u.mutation.AddGroupRateOverride(v)
+	return _u
+}
+
+// ClearGroupRateOverride clears the value of the "group_rate_override" field.
+func (_u *ChannelMonitorUpdateOne) ClearGroupRateOverride() *ChannelMonitorUpdateOne {
+	_u.mutation.ClearGroupRateOverride()
+	return _u
+}
+
+// SetGroupRateDisplayTemplate sets the "group_rate_display_template" field.
+func (_u *ChannelMonitorUpdateOne) SetGroupRateDisplayTemplate(v string) *ChannelMonitorUpdateOne {
+	_u.mutation.SetGroupRateDisplayTemplate(v)
+	return _u
+}
+
+// SetNillableGroupRateDisplayTemplate sets the "group_rate_display_template" field if the given value is not nil.
+func (_u *ChannelMonitorUpdateOne) SetNillableGroupRateDisplayTemplate(v *string) *ChannelMonitorUpdateOne {
+	if v != nil {
+		_u.SetGroupRateDisplayTemplate(*v)
+	}
 	return _u
 }
 
@@ -1180,6 +1284,16 @@ func (_u *ChannelMonitorUpdateOne) check() error {
 			return &ValidationError{Name: "group_name", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.group_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.GroupRateOverride(); ok {
+		if err := channelmonitor.GroupRateOverrideValidator(v); err != nil {
+			return &ValidationError{Name: "group_rate_override", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.group_rate_override": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.GroupRateDisplayTemplate(); ok {
+		if err := channelmonitor.GroupRateDisplayTemplateValidator(v); err != nil {
+			return &ValidationError{Name: "group_rate_display_template", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.group_rate_display_template": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.IntervalSeconds(); ok {
 		if err := channelmonitor.IntervalSecondsValidator(v); err != nil {
 			return &ValidationError{Name: "interval_seconds", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.interval_seconds": %w`, err)}
@@ -1261,6 +1375,18 @@ func (_u *ChannelMonitorUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 	}
 	if _u.mutation.GroupNameCleared() {
 		_spec.ClearField(channelmonitor.FieldGroupName, field.TypeString)
+	}
+	if value, ok := _u.mutation.GroupRateOverride(); ok {
+		_spec.SetField(channelmonitor.FieldGroupRateOverride, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedGroupRateOverride(); ok {
+		_spec.AddField(channelmonitor.FieldGroupRateOverride, field.TypeFloat64, value)
+	}
+	if _u.mutation.GroupRateOverrideCleared() {
+		_spec.ClearField(channelmonitor.FieldGroupRateOverride, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.GroupRateDisplayTemplate(); ok {
+		_spec.SetField(channelmonitor.FieldGroupRateDisplayTemplate, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(channelmonitor.FieldEnabled, field.TypeBool, value)

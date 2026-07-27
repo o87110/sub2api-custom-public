@@ -68,6 +68,51 @@ func TestGroupRateResolverResolve(t *testing.T) {
 	}, lookup.keys)
 }
 
+func TestGroupRateResolverResolvePrefersManualOverride(t *testing.T) {
+	override := 0.9
+	lookup := &groupRateLookupStub{
+		rates: map[string]GroupRate{
+			"sk-overridden": {Platform: "openai", RateMultiplier: 0.18},
+			"sk-auto":       {Platform: "openai", RateMultiplier: 0.2},
+		},
+	}
+	resolver := newGroupRateResolver(
+		&groupRateMonitorListerStub{monitors: []*service.ChannelMonitor{
+			{ID: 1, Provider: "openai", APIKey: "sk-overridden", GroupRateOverride: &override},
+			{ID: 2, Provider: "openai", APIKey: "sk-auto"},
+			{ID: 3, Provider: "openai", APIKeyDecryptFailed: true, GroupRateOverride: &override},
+		}},
+		lookup,
+	)
+
+	require.Equal(t, map[int64]float64{1: 0.9, 2: 0.2, 3: 0.9}, resolver.Resolve(context.Background()))
+	require.Equal(t, []string{"sk-auto"}, lookup.keys)
+}
+
+func TestGroupRateResolverResolveOverrideSurvivesMissingLookupAndClearsBackToAuto(t *testing.T) {
+	override := 0.9
+	monitor := &service.ChannelMonitor{
+		ID:                1,
+		Provider:          "openai",
+		APIKey:            "sk-local",
+		GroupRateOverride: &override,
+	}
+	lister := &groupRateMonitorListerStub{monitors: []*service.ChannelMonitor{monitor}}
+
+	require.Equal(t, map[int64]float64{1: 0.9}, newGroupRateResolver(lister, nil).Resolve(context.Background()))
+
+	lookup := &groupRateLookupStub{rates: map[string]GroupRate{
+		"sk-local": {Platform: "openai", RateMultiplier: 0.18},
+	}}
+	resolver := newGroupRateResolver(lister, lookup)
+	require.Equal(t, 0.9, resolver.Resolve(context.Background())[1])
+	require.Zero(t, lookup.callCount)
+
+	monitor.GroupRateOverride = nil
+	require.Equal(t, 0.18, resolver.Resolve(context.Background())[1])
+	require.Equal(t, 1, lookup.callCount)
+}
+
 func TestGroupRateResolverResolveRefreshesCurrentRate(t *testing.T) {
 	lookup := &groupRateLookupStub{
 		rates: map[string]GroupRate{
@@ -101,13 +146,15 @@ func TestGroupRateResolverResolveFallsBackOnErrors(t *testing.T) {
 	})
 
 	t.Run("batch lookup failure", func(t *testing.T) {
+		override := 0.9
 		resolver := newGroupRateResolver(
 			&groupRateMonitorListerStub{monitors: []*service.ChannelMonitor{
 				{ID: 1, Provider: "openai", APIKey: "sk-local"},
+				{ID: 2, Provider: "openai", APIKey: "sk-external", GroupRateOverride: &override},
 			}},
 			&groupRateLookupStub{err: errors.New("lookup failed")},
 		)
 
-		require.Empty(t, resolver.Resolve(context.Background()))
+		require.Equal(t, map[int64]float64{2: 0.9}, resolver.Resolve(context.Background()))
 	})
 }

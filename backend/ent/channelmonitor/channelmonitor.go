@@ -35,6 +35,10 @@ const (
 	FieldExtraModels = "extra_models"
 	// FieldGroupName holds the string denoting the group_name field in the database.
 	FieldGroupName = "group_name"
+	// FieldGroupRateOverride holds the string denoting the group_rate_override field in the database.
+	FieldGroupRateOverride = "group_rate_override"
+	// FieldGroupRateDisplayTemplate holds the string denoting the group_rate_display_template field in the database.
+	FieldGroupRateDisplayTemplate = "group_rate_display_template"
 	// FieldEnabled holds the string denoting the enabled field in the database.
 	FieldEnabled = "enabled"
 	// FieldIntervalSeconds holds the string denoting the interval_seconds field in the database.
@@ -97,6 +101,8 @@ var Columns = []string{
 	FieldPrimaryModel,
 	FieldExtraModels,
 	FieldGroupName,
+	FieldGroupRateOverride,
+	FieldGroupRateDisplayTemplate,
 	FieldEnabled,
 	FieldIntervalSeconds,
 	FieldJitterSeconds,
@@ -143,6 +149,12 @@ var (
 	DefaultGroupName string
 	// GroupNameValidator is a validator for the "group_name" field. It is called by the builders before save.
 	GroupNameValidator func(string) error
+	// GroupRateOverrideValidator is a validator for the "group_rate_override" field. It is called by the builders before save.
+	GroupRateOverrideValidator func(float64) error
+	// DefaultGroupRateDisplayTemplate holds the default value on creation for the "group_rate_display_template" field.
+	DefaultGroupRateDisplayTemplate string
+	// GroupRateDisplayTemplateValidator is a validator for the "group_rate_display_template" field. It is called by the builders before save.
+	GroupRateDisplayTemplateValidator func(string) error
 	// DefaultEnabled holds the default value on creation for the "enabled" field.
 	DefaultEnabled bool
 	// IntervalSecondsValidator is a validator for the "interval_seconds" field. It is called by the builders before save.
@@ -235,6 +247,16 @@ func ByPrimaryModel(opts ...sql.OrderTermOption) OrderOption {
 // ByGroupName orders the results by the group_name field.
 func ByGroupName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldGroupName, opts...).ToFunc()
+}
+
+// ByGroupRateOverride orders the results by the group_rate_override field.
+func ByGroupRateOverride(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGroupRateOverride, opts...).ToFunc()
+}
+
+// ByGroupRateDisplayTemplate orders the results by the group_rate_display_template field.
+func ByGroupRateDisplayTemplate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGroupRateDisplayTemplate, opts...).ToFunc()
 }
 
 // ByEnabled orders the results by the enabled field.

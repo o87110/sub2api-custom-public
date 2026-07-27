@@ -202,19 +202,24 @@ backend/internal/custom/paymentchannels/
 frontend/src/custom/payment-channels/
 ```
 
-## 10. 渠道监控自动分组倍率
+## 10. 渠道监控分组名称与展示倍率
 
-用户渠道监控列表会根据监控保存的本站 API Key，动态读取该 Key 当前所属分组的
-默认 `rate_multiplier`，并在主模型后显示倍率标签。分组管理修改默认倍率后，
-下一次手动刷新或自动刷新即使用新值，不需要同步修改监控配置。
+`group_name` 保持原有自定义标签语义：显示在用户监控卡片的模型后方、参与管理后台
+搜索，并在复制监控时保留。倍率作为独立标签显示在卡片右上角状态下方，不覆盖
+分组名称，也不修改真实分组倍率、计费、调度或 API Key。
 
-- 倍率来源只使用分组默认倍率，不叠加用户专属倍率或高峰倍率；
-- 启用监控的 Key 通过单次批量查询关联分组，避免按卡片逐项查询；
-- 外部 Key、失效 Key、解密失败、无分组或平台不匹配时不返回倍率，继续显示监控
-  配置中的备用分组标签；
-- 倍率解析失败不影响可用性、延迟、时间线或详情接口，日志不得包含 API Key；
-- 用户监控列表增量返回 `group_rate_multiplier`，无法解析时为 `null`；
-- 不新增 Migration、Ent Schema、实体字段或数据库结构变化。
+- 最终展示倍率的固定优先级为：监控的 `group_rate_override` 手动覆盖值 >
+  本站有效 API Key 当前所属分组的默认 `rate_multiplier` > 不显示；
+- 清空手动覆盖值后立即恢复自动解析；即使 Key 属于外部站、失效、解密失败或查询
+  出错，合法的手动覆盖值仍可显示；
+- 自动倍率只读取启用且有效的本站 Key，并保持平台匹配；不叠加用户专属倍率或
+  高峰倍率，分组默认倍率修改后下一次刷新立即生效；
+- `group_rate_display_template` 为空时按 `{rate}x` 显示；非空模板必须在最多
+  64 个字符内且恰好包含一次 `{rate}`，倍率数值最多保留四位小数；
+- 用户监控列表返回最终 `group_rate_multiplier` 和可选
+  `group_rate_display_template`；旧客户端可以忽略新字段；
+- 本功能新增 Migration `191_channel_monitor_group_rate_display.sql`、Ent Schema
+  字段和生成代码，发布前必须人工审核 Migration/Schema，不能跳过数据库门禁。
 
 主要实现：
 

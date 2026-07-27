@@ -212,14 +212,14 @@ func inspectChanges(root, baseObject, targetObject string) ([]change, error) {
 func enforceFinalBoundary(changes []change, allowed map[string]exception, baselineCommit string) error {
 	seen := make(map[string]bool)
 	for _, item := range changes {
-		if item.Kind == "structural" {
-			return fmt.Errorf("database structure path changed: %s", item.Path)
-		}
 		if len(item.TargetSemantics.Dynamic) > 0 || len(item.BaseSemantics.Dynamic) > 0 {
 			return fmt.Errorf("dynamic or unresolved SQL changed in %s", item.Path)
 		}
 		entry, ok := allowed[item.Path]
 		if !ok {
+			if item.Kind == "structural" {
+				return fmt.Errorf("unapproved database structure change: %s", item.Path)
+			}
 			return fmt.Errorf("unapproved embedded SQL change: %s", item.Path)
 		}
 		if entry.BaseCommit != baselineCommit ||
@@ -229,13 +229,15 @@ func enforceFinalBoundary(changes []change, allowed map[string]exception, baseli
 			entry.ChangeDigest != item.digest() {
 			return fmt.Errorf("database exception fingerprint mismatch for %s", item.Path)
 		}
-		for _, statement := range item.TargetSemantics.Statements {
-			upper := strings.ToUpper(strings.TrimSpace(statement))
-			if !strings.HasPrefix(upper, "SELECT ") && !strings.HasPrefix(upper, "WITH ") {
-				return fmt.Errorf("final database exception is not read-only in %s", item.Path)
-			}
-			if databaseWritePattern.MatchString(statement) {
-				return fmt.Errorf("final database exception contains a write or DDL token in %s", item.Path)
+		if item.Kind != "structural" {
+			for _, statement := range item.TargetSemantics.Statements {
+				upper := strings.ToUpper(strings.TrimSpace(statement))
+				if !strings.HasPrefix(upper, "SELECT ") && !strings.HasPrefix(upper, "WITH ") {
+					return fmt.Errorf("final database exception is not read-only in %s", item.Path)
+				}
+				if databaseWritePattern.MatchString(statement) {
+					return fmt.Errorf("final database exception contains a write or DDL token in %s", item.Path)
+				}
 			}
 		}
 		seen[item.Path] = true

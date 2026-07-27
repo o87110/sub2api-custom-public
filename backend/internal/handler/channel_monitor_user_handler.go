@@ -56,18 +56,19 @@ func (h *ChannelMonitorUserHandler) featureEnabled(c *gin.Context) bool {
 // --- Response ---
 
 type channelMonitorUserListItem struct {
-	ID                   int64                                `json:"id"`
-	Name                 string                               `json:"name"`
-	Provider             string                               `json:"provider"`
-	GroupName            string                               `json:"group_name"`
-	GroupRateMultiplier  *float64                             `json:"group_rate_multiplier"`
-	PrimaryModel         string                               `json:"primary_model"`
-	PrimaryStatus        string                               `json:"primary_status"`
-	PrimaryLatencyMs     *int                                 `json:"primary_latency_ms"`
-	PrimaryPingLatencyMs *int                                 `json:"primary_ping_latency_ms"`
-	Availability7d       float64                              `json:"availability_7d"`
-	ExtraModels          []dto.ChannelMonitorExtraModelStatus `json:"extra_models"`
-	Timeline             []channelMonitorUserTimelinePoint    `json:"timeline"`
+	ID                       int64                                `json:"id"`
+	Name                     string                               `json:"name"`
+	Provider                 string                               `json:"provider"`
+	GroupName                string                               `json:"group_name"`
+	GroupRateMultiplier      *float64                             `json:"group_rate_multiplier"`
+	GroupRateDisplayTemplate string                               `json:"group_rate_display_template,omitempty"`
+	PrimaryModel             string                               `json:"primary_model"`
+	PrimaryStatus            string                               `json:"primary_status"`
+	PrimaryLatencyMs         *int                                 `json:"primary_latency_ms"`
+	PrimaryPingLatencyMs     *int                                 `json:"primary_ping_latency_ms"`
+	Availability7d           float64                              `json:"availability_7d"`
+	ExtraModels              []dto.ChannelMonitorExtraModelStatus `json:"extra_models"`
+	Timeline                 []channelMonitorUserTimelinePoint    `json:"timeline"`
 }
 
 // channelMonitorUserTimelinePoint 主模型最近一次检测的 timeline 点。
@@ -116,18 +117,19 @@ func userMonitorViewToItem(v *service.UserMonitorView, groupRateMultiplier *floa
 		})
 	}
 	return channelMonitorUserListItem{
-		ID:                   v.ID,
-		Name:                 v.Name,
-		Provider:             v.Provider,
-		GroupName:            v.GroupName,
-		GroupRateMultiplier:  groupRateMultiplier,
-		PrimaryModel:         v.PrimaryModel,
-		PrimaryStatus:        v.PrimaryStatus,
-		PrimaryLatencyMs:     v.PrimaryLatencyMs,
-		PrimaryPingLatencyMs: v.PrimaryPingLatencyMs,
-		Availability7d:       v.Availability7d,
-		ExtraModels:          extras,
-		Timeline:             timeline,
+		ID:                       v.ID,
+		Name:                     v.Name,
+		Provider:                 v.Provider,
+		GroupName:                v.GroupName,
+		GroupRateMultiplier:      groupRateMultiplier,
+		GroupRateDisplayTemplate: v.GroupRateDisplayTemplate,
+		PrimaryModel:             v.PrimaryModel,
+		PrimaryStatus:            v.PrimaryStatus,
+		PrimaryLatencyMs:         v.PrimaryLatencyMs,
+		PrimaryPingLatencyMs:     v.PrimaryPingLatencyMs,
+		Availability7d:           v.Availability7d,
+		ExtraModels:              extras,
+		Timeline:                 timeline,
 	}
 }
 

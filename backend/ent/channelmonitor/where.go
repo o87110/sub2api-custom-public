@@ -95,6 +95,16 @@ func GroupName(v string) predicate.ChannelMonitor {
 	return predicate.ChannelMonitor(sql.FieldEQ(FieldGroupName, v))
 }
 
+// GroupRateOverride applies equality check predicate on the "group_rate_override" field. It's identical to GroupRateOverrideEQ.
+func GroupRateOverride(v float64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldGroupRateOverride, v))
+}
+
+// GroupRateDisplayTemplate applies equality check predicate on the "group_rate_display_template" field. It's identical to GroupRateDisplayTemplateEQ.
+func GroupRateDisplayTemplate(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldGroupRateDisplayTemplate, v))
+}
+
 // Enabled applies equality check predicate on the "enabled" field. It's identical to EnabledEQ.
 func Enabled(v bool) predicate.ChannelMonitor {
 	return predicate.ChannelMonitor(sql.FieldEQ(FieldEnabled, v))
@@ -628,6 +638,121 @@ func GroupNameEqualFold(v string) predicate.ChannelMonitor {
 // GroupNameContainsFold applies the ContainsFold predicate on the "group_name" field.
 func GroupNameContainsFold(v string) predicate.ChannelMonitor {
 	return predicate.ChannelMonitor(sql.FieldContainsFold(FieldGroupName, v))
+}
+
+// GroupRateOverrideEQ applies the EQ predicate on the "group_rate_override" field.
+func GroupRateOverrideEQ(v float64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldGroupRateOverride, v))
+}
+
+// GroupRateOverrideNEQ applies the NEQ predicate on the "group_rate_override" field.
+func GroupRateOverrideNEQ(v float64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNEQ(FieldGroupRateOverride, v))
+}
+
+// GroupRateOverrideIn applies the In predicate on the "group_rate_override" field.
+func GroupRateOverrideIn(vs ...float64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldIn(FieldGroupRateOverride, vs...))
+}
+
+// GroupRateOverrideNotIn applies the NotIn predicate on the "group_rate_override" field.
+func GroupRateOverrideNotIn(vs ...float64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNotIn(FieldGroupRateOverride, vs...))
+}
+
+// GroupRateOverrideGT applies the GT predicate on the "group_rate_override" field.
+func GroupRateOverrideGT(v float64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldGT(FieldGroupRateOverride, v))
+}
+
+// GroupRateOverrideGTE applies the GTE predicate on the "group_rate_override" field.
+func GroupRateOverrideGTE(v float64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldGTE(FieldGroupRateOverride, v))
+}
+
+// GroupRateOverrideLT applies the LT predicate on the "group_rate_override" field.
+func GroupRateOverrideLT(v float64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldLT(FieldGroupRateOverride, v))
+}
+
+// GroupRateOverrideLTE applies the LTE predicate on the "group_rate_override" field.
+func GroupRateOverrideLTE(v float64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldLTE(FieldGroupRateOverride, v))
+}
+
+// GroupRateOverrideIsNil applies the IsNil predicate on the "group_rate_override" field.
+func GroupRateOverrideIsNil() predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldIsNull(FieldGroupRateOverride))
+}
+
+// GroupRateOverrideNotNil applies the NotNil predicate on the "group_rate_override" field.
+func GroupRateOverrideNotNil() predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNotNull(FieldGroupRateOverride))
+}
+
+// GroupRateDisplayTemplateEQ applies the EQ predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateEQ(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldGroupRateDisplayTemplate, v))
+}
+
+// GroupRateDisplayTemplateNEQ applies the NEQ predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateNEQ(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNEQ(FieldGroupRateDisplayTemplate, v))
+}
+
+// GroupRateDisplayTemplateIn applies the In predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateIn(vs ...string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldIn(FieldGroupRateDisplayTemplate, vs...))
+}
+
+// GroupRateDisplayTemplateNotIn applies the NotIn predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateNotIn(vs ...string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNotIn(FieldGroupRateDisplayTemplate, vs...))
+}
+
+// GroupRateDisplayTemplateGT applies the GT predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateGT(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldGT(FieldGroupRateDisplayTemplate, v))
+}
+
+// GroupRateDisplayTemplateGTE applies the GTE predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateGTE(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldGTE(FieldGroupRateDisplayTemplate, v))
+}
+
+// GroupRateDisplayTemplateLT applies the LT predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateLT(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldLT(FieldGroupRateDisplayTemplate, v))
+}
+
+// GroupRateDisplayTemplateLTE applies the LTE predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateLTE(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldLTE(FieldGroupRateDisplayTemplate, v))
+}
+
+// GroupRateDisplayTemplateContains applies the Contains predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateContains(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldContains(FieldGroupRateDisplayTemplate, v))
+}
+
+// GroupRateDisplayTemplateHasPrefix applies the HasPrefix predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateHasPrefix(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldHasPrefix(FieldGroupRateDisplayTemplate, v))
+}
+
+// GroupRateDisplayTemplateHasSuffix applies the HasSuffix predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateHasSuffix(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldHasSuffix(FieldGroupRateDisplayTemplate, v))
+}
+
+// GroupRateDisplayTemplateEqualFold applies the EqualFold predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateEqualFold(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEqualFold(FieldGroupRateDisplayTemplate, v))
+}
+
+// GroupRateDisplayTemplateContainsFold applies the ContainsFold predicate on the "group_rate_display_template" field.
+func GroupRateDisplayTemplateContainsFold(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldContainsFold(FieldGroupRateDisplayTemplate, v))
 }
 
 // EnabledEQ applies the EQ predicate on the "enabled" field.

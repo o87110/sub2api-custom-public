@@ -4,6 +4,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
@@ -58,6 +59,18 @@ func (ChannelMonitor) Fields() []ent.Field {
 			Optional().
 			Default("").
 			MaxLen(100),
+		field.Float("group_rate_override").
+			Optional().
+			Nillable().
+			Positive().
+			SchemaType(map[string]string{
+				dialect.Postgres: "numeric(10,4)",
+			}).
+			Comment("Optional display-only group rate override for this monitor"),
+		field.String("group_rate_display_template").
+			Default("").
+			MaxLen(64).
+			Comment("Display template containing exactly one {rate}; empty means {rate}x"),
 		field.Bool("enabled").
 			Default(true),
 		field.Int("interval_seconds").

@@ -26,8 +26,10 @@ export interface UserMonitorView {
   name: string
   provider: Provider
   group_name: string
-  /** 本站监控 Key 当前所属分组的默认倍率；无法关联时为 null。 */
+  /** 手动展示覆盖值或本站监控 Key 当前所属分组的默认倍率；无法解析时为 null。 */
   group_rate_multiplier: number | null
+  /** 倍率展示模板；缺失或空值按 `{rate}x` 显示。 */
+  group_rate_display_template?: string
   primary_model: string
   primary_status: MonitorStatus
   primary_latency_ms: number | null

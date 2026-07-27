@@ -175,6 +175,7 @@ thin_bridge_allowed() {
   case "$1" in
     backend/cmd/server/wire.go | \
       backend/internal/handler/admin/payment_handler.go | \
+      backend/internal/handler/admin/channel_monitor_handler.go | \
       backend/internal/handler/admin/setting_handler.go | \
       backend/internal/handler/admin/setting_handler_update.go | \
       backend/internal/handler/auth_wechat_oauth.go | \
@@ -189,6 +190,11 @@ thin_bridge_allowed() {
       backend/internal/handler/wire.go | \
       backend/internal/payment/load_balancer.go | \
       backend/internal/payment/types.go | \
+      backend/internal/repository/channel_monitor_repo.go | \
+      backend/internal/service/channel_monitor_aggregator.go | \
+      backend/internal/service/channel_monitor_const.go | \
+      backend/internal/service/channel_monitor_service.go | \
+      backend/internal/service/channel_monitor_types.go | \
       backend/internal/service/content_moderation.go | \
       backend/internal/service/payment_config_limits.go | \
       backend/internal/service/payment_config_limits_test.go | \
@@ -200,6 +206,7 @@ thin_bridge_allowed() {
       backend/internal/service/payment_resume_service_test.go | \
       backend/internal/service/payment_service.go | \
       frontend/src/api/admin/payment.ts | \
+      frontend/src/api/admin/channelMonitor.ts | \
       frontend/src/api/admin/settings.ts | \
       frontend/src/api/channelMonitor.ts | \
       frontend/src/components/admin/monitor/MonitorFormDialog.vue | \
