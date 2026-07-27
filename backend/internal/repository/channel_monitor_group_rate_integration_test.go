@@ -15,7 +15,7 @@ func TestChannelMonitorRepositoryPersistsAndClearsGroupRateDisplay(t *testing.T)
 	tx := testEntTx(t)
 	ctx := dbent.NewTxContext(context.Background(), tx)
 
-	repo := NewChannelMonitorRepository(integrationEntClient, integrationDB)
+	repo := NewChannelMonitorRepository(tx.Client(), integrationDB)
 	override := 0.9
 	monitor := &service.ChannelMonitor{
 		Name:                     "group-rate-persistence",
