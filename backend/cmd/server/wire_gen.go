@@ -10,6 +10,7 @@ import (
 	"context"
 	"github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/internal/custom/moderation"
 	"github.com/Wei-Shaw/sub2api/internal/custom/updater"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
@@ -321,7 +322,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	userPlatformQuotaUsageFlusher := service.ProvideUserPlatformQuotaUsageFlusher(configConfig, billingCache, serviceUserPlatformQuotaRepository, timingWheelService)
 	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, upstreamBillingProbeService, ollamaCloudUsageService, auditLogService, promptService)
 	violationCounter := moderation.NewViolationCounter(db)
-	application := provideApplication(httpServer, promptService, v, contentModerationService, violationCounter)
+	entGroupRateLookup := channelmonitor.NewEntGroupRateLookup(client)
+	groupRateResolver := channelmonitor.NewGroupRateResolver(channelMonitorService, entGroupRateLookup)
+	application := provideApplication(httpServer, promptService, v, contentModerationService, violationCounter, channelMonitorUserHandler, groupRateResolver)
 	return application, nil
 }
 
@@ -339,8 +342,11 @@ func provideApplication(
 	cleanup func(),
 	moderationService *service.ContentModerationService,
 	violationCounter moderation.ViolationCounter,
+	channelMonitorUserHandler *handler.ChannelMonitorUserHandler,
+	groupRateResolver *channelmonitor.GroupRateResolver,
 ) *Application {
 	service.AttachCustomViolationCounter(moderationService, violationCounter)
+	channelMonitorUserHandler.SetGroupRateResolver(groupRateResolver)
 	return &Application{
 		Server:      httpServer,
 		PromptAudit: promptAudit,

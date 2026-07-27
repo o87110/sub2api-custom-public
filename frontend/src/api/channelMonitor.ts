@@ -26,6 +26,8 @@ export interface UserMonitorView {
   name: string
   provider: Provider
   group_name: string
+  /** 本站监控 Key 当前所属分组的默认倍率；无法关联时为 null。 */
+  group_rate_multiplier: number | null
   primary_model: string
   primary_status: MonitorStatus
   primary_latency_ms: number | null

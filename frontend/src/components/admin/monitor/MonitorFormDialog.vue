@@ -103,6 +103,9 @@
       <div>
         <label class="input-label">{{ t('admin.channelMonitor.form.groupName') }}</label>
         <input v-model="form.group_name" type="text" class="input" :placeholder="t('admin.channelMonitor.form.groupNamePlaceholder')" />
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.channelMonitor.form.groupNameHint') }}
+        </p>
       </div>
 
       <div>
