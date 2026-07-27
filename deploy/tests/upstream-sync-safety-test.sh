@@ -312,6 +312,7 @@ backend/internal/handler/admin/payment_handler.go
 backend/internal/handler/admin/setting_handler.go
 backend/internal/handler/admin/setting_handler_update.go
 backend/internal/handler/auth_wechat_oauth.go
+backend/internal/handler/channel_monitor_user_handler.go
 backend/internal/handler/dto/settings.go
 backend/internal/handler/payment_handler.go
 backend/internal/payment/load_balancer.go
@@ -359,6 +360,7 @@ done <<'EOF'
 /backend/cmd/server/wire_gen.go
 /backend/internal/config/config.go
 /backend/internal/handler/wire.go
+/backend/internal/handler/channel_monitor_user_handler.go
 /backend/internal/handler/admin/payment_handler.go
 /backend/internal/handler/admin/setting_handler.go
 /backend/internal/handler/admin/setting_handler_update.go

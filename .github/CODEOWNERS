@@ -12,6 +12,8 @@
 /backend/internal/config/config.go @o87110
 /backend/internal/custom/** @o87110
 /backend/internal/handler/wire.go @o87110
+/backend/internal/handler/channel_monitor_user_handler.go @o87110
+/backend/internal/handler/channel_monitor_user_handler_custom_test.go @o87110
 /backend/internal/handler/admin/system_handler.go @o87110
 /backend/internal/handler/admin/setting_handler.go @o87110
 /backend/internal/handler/admin/setting_handler_update.go @o87110
