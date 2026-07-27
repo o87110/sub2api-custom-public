@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
@@ -12,9 +13,15 @@ import (
 )
 
 // ChannelMonitorUserHandler 渠道监控用户只读 handler。
+// ChannelMonitorGroupRateResolver 为用户监控视图提供可选的 Custom 分组倍率。
+type ChannelMonitorGroupRateResolver interface {
+	Resolve(ctx context.Context) map[int64]float64
+}
+
 type ChannelMonitorUserHandler struct {
-	monitorService *service.ChannelMonitorService
-	settingService *service.SettingService
+	monitorService    *service.ChannelMonitorService
+	settingService    *service.SettingService
+	groupRateResolver ChannelMonitorGroupRateResolver
 }
 
 // NewChannelMonitorUserHandler 创建 handler。
@@ -27,6 +34,14 @@ func NewChannelMonitorUserHandler(
 		monitorService: monitorService,
 		settingService: settingService,
 	}
+}
+
+// SetGroupRateResolver 挂载可选的 Custom 分组倍率解析器。
+func (h *ChannelMonitorUserHandler) SetGroupRateResolver(resolver ChannelMonitorGroupRateResolver) {
+	if h == nil {
+		return
+	}
+	h.groupRateResolver = resolver
 }
 
 // featureEnabled 返回当前渠道监控功能是否开启。
@@ -45,6 +60,7 @@ type channelMonitorUserListItem struct {
 	Name                 string                               `json:"name"`
 	Provider             string                               `json:"provider"`
 	GroupName            string                               `json:"group_name"`
+	GroupRateMultiplier  *float64                             `json:"group_rate_multiplier"`
 	PrimaryModel         string                               `json:"primary_model"`
 	PrimaryStatus        string                               `json:"primary_status"`
 	PrimaryLatencyMs     *int                                 `json:"primary_latency_ms"`
@@ -81,7 +97,7 @@ type channelMonitorUserModelStat struct {
 	AvgLatency7dMs  *int    `json:"avg_latency_7d_ms"`
 }
 
-func userMonitorViewToItem(v *service.UserMonitorView) channelMonitorUserListItem {
+func userMonitorViewToItem(v *service.UserMonitorView, groupRateMultiplier *float64) channelMonitorUserListItem {
 	extras := make([]dto.ChannelMonitorExtraModelStatus, 0, len(v.ExtraModels))
 	for _, e := range v.ExtraModels {
 		extras = append(extras, dto.ChannelMonitorExtraModelStatus{
@@ -104,6 +120,7 @@ func userMonitorViewToItem(v *service.UserMonitorView) channelMonitorUserListIte
 		Name:                 v.Name,
 		Provider:             v.Provider,
 		GroupName:            v.GroupName,
+		GroupRateMultiplier:  groupRateMultiplier,
 		PrimaryModel:         v.PrimaryModel,
 		PrimaryStatus:        v.PrimaryStatus,
 		PrimaryLatencyMs:     v.PrimaryLatencyMs,
@@ -149,9 +166,20 @@ func (h *ChannelMonitorUserHandler) List(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+
+	var groupRates map[int64]float64
+	if h.groupRateResolver != nil {
+		groupRates = h.groupRateResolver.Resolve(c.Request.Context())
+	}
+
 	items := make([]channelMonitorUserListItem, 0, len(views))
 	for _, v := range views {
-		items = append(items, userMonitorViewToItem(v))
+		var groupRateMultiplier *float64
+		if rate, ok := groupRates[v.ID]; ok {
+			rateCopy := rate
+			groupRateMultiplier = &rateCopy
+		}
+		items = append(items, userMonitorViewToItem(v, groupRateMultiplier))
 	}
 	response.Success(c, gin.H{"items": items})
 }

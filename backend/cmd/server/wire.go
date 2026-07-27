@@ -12,6 +12,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	customchannelmonitor "github.com/Wei-Shaw/sub2api/internal/custom/channelmonitor"
 	custommoderation "github.com/Wei-Shaw/sub2api/internal/custom/moderation"
 	customupdater "github.com/Wei-Shaw/sub2api/internal/custom/updater"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
@@ -40,6 +41,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		// Business layer ProviderSets
 		repository.ProviderSet,
 		service.ProviderSet,
+		customchannelmonitor.ProviderSet,
 		custommoderation.ProviderSet,
 		customupdater.ProviderSet,
 		securityaudit.ProviderSet,
@@ -71,8 +73,11 @@ func provideApplication(
 	cleanup func(),
 	moderationService *service.ContentModerationService,
 	violationCounter custommoderation.ViolationCounter,
+	channelMonitorUserHandler *handler.ChannelMonitorUserHandler,
+	groupRateResolver *customchannelmonitor.GroupRateResolver,
 ) *Application {
 	service.AttachCustomViolationCounter(moderationService, violationCounter)
+	channelMonitorUserHandler.SetGroupRateResolver(groupRateResolver)
 	return &Application{
 		Server:      httpServer,
 		PromptAudit: promptAudit,

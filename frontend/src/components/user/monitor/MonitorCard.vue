@@ -26,9 +26,13 @@
           <span class="font-mono text-xs truncate text-gray-500 dark:text-gray-400">
             {{ item.primary_model }}
           </span>
+          <GroupRateBadge
+            v-if="typeof item.group_rate_multiplier === 'number'"
+            :rate="item.group_rate_multiplier"
+          />
           <span
-            v-if="item.group_name"
-            class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300 flex-shrink-0"
+            v-else-if="item.group_name"
+            class="inline-flex flex-shrink-0 items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-200"
           >
             {{ item.group_name }}
           </span>
@@ -76,6 +80,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { UserMonitorView } from '@/api/channelMonitor'
+import GroupRateBadge from '@/custom/channel-monitor/GroupRateBadge.vue'
 import {
   useChannelMonitorFormat,
   providerGradient,

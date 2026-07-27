@@ -202,7 +202,28 @@ backend/internal/custom/paymentchannels/
 frontend/src/custom/payment-channels/
 ```
 
-## 10. 明确没有改变的行为
+## 10. 渠道监控自动分组倍率
+
+用户渠道监控列表会根据监控保存的本站 API Key，动态读取该 Key 当前所属分组的
+默认 `rate_multiplier`，并在主模型后显示倍率标签。分组管理修改默认倍率后，
+下一次手动刷新或自动刷新即使用新值，不需要同步修改监控配置。
+
+- 倍率来源只使用分组默认倍率，不叠加用户专属倍率或高峰倍率；
+- 启用监控的 Key 通过单次批量查询关联分组，避免按卡片逐项查询；
+- 外部 Key、失效 Key、解密失败、无分组或平台不匹配时不返回倍率，继续显示监控
+  配置中的备用分组标签；
+- 倍率解析失败不影响可用性、延迟、时间线或详情接口，日志不得包含 API Key；
+- 用户监控列表增量返回 `group_rate_multiplier`，无法解析时为 `null`；
+- 不新增 Migration、Ent Schema、实体字段或数据库结构变化。
+
+主要实现：
+
+```text
+backend/internal/custom/channelmonitor/
+frontend/src/custom/channel-monitor/
+```
+
+## 11. 明确没有改变的行为
 
 除本文档列出的边界外，认证、计费、调度、协议兼容和官方功能应保持当前
 源码既有行为。新增需求必须先更新本清单和对应测试，不能用“二改”名义扩大隐式

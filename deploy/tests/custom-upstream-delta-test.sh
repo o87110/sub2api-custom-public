@@ -179,6 +179,7 @@ thin_bridge_allowed() {
       backend/internal/handler/admin/setting_handler_update.go | \
       backend/internal/handler/auth_wechat_oauth.go | \
       backend/internal/handler/auth_wechat_oauth_test.go | \
+      backend/internal/handler/channel_monitor_user_handler.go | \
       backend/internal/handler/admin/system_handler.go | \
       backend/internal/handler/admin/system_handler_test.go | \
       backend/internal/handler/dto/settings.go | \
@@ -200,14 +201,19 @@ thin_bridge_allowed() {
       backend/internal/service/payment_service.go | \
       frontend/src/api/admin/payment.ts | \
       frontend/src/api/admin/settings.ts | \
+      frontend/src/api/channelMonitor.ts | \
+      frontend/src/components/admin/monitor/MonitorFormDialog.vue | \
       frontend/src/components/payment/AmountInput.vue | \
       frontend/src/components/payment/PaymentProviderDialog.vue | \
       frontend/src/components/payment/paymentFlow.ts | \
       frontend/src/components/payment/__tests__/paymentFlow.spec.ts | \
+      frontend/src/components/user/monitor/MonitorCard.vue | \
       frontend/src/components/layout/AppSidebar.vue | \
+      frontend/src/i18n/locales/en/admin/channels.ts | \
       frontend/src/i18n/locales/en/admin/settings.ts | \
       frontend/src/i18n/locales/en/misc.ts | \
       frontend/src/i18n/locales/zh/admin/settings.ts | \
+      frontend/src/i18n/locales/zh/admin/channels.ts | \
       frontend/src/i18n/locales/zh/misc.ts | \
       frontend/src/router/index.ts | \
       frontend/src/types/payment.ts | \
