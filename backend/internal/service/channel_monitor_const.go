@@ -126,6 +126,12 @@ var (
 	ErrChannelMonitorInvalidRequestBody = infraerrors.BadRequest(
 		"CHANNEL_MONITOR_INVALID_REQUEST_BODY", "openai-compatible replace-mode body_override must include non-empty messages for chat_completions or non-empty instructions and input for responses",
 	)
+	ErrChannelMonitorInvalidGroupRateOverride = infraerrors.BadRequest(
+		"CHANNEL_MONITOR_INVALID_GROUP_RATE_OVERRIDE", "group_rate_override must be a finite positive number",
+	)
+	ErrChannelMonitorInvalidGroupRateDisplayTemplate = infraerrors.BadRequest(
+		"CHANNEL_MONITOR_INVALID_GROUP_RATE_DISPLAY_TEMPLATE", "group_rate_display_template must be at most 64 characters and contain exactly one {rate}",
+	)
 	ErrChannelMonitorInvalidInterval = infraerrors.BadRequest(
 		"CHANNEL_MONITOR_INVALID_INTERVAL", "interval_seconds must be in [15, 3600]",
 	)

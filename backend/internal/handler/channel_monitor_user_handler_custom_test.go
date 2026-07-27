@@ -10,16 +10,18 @@ import (
 func TestUserMonitorViewToItemIncludesCustomGroupRateMultiplier(t *testing.T) {
 	rate := 0.18
 	item := userMonitorViewToItem(&service.UserMonitorView{
-		ID:           7,
-		Name:         "monitor",
-		Provider:     "openai",
-		GroupName:    "legacy label",
-		PrimaryModel: "gpt-5",
+		ID:                       7,
+		Name:                     "monitor",
+		Provider:                 "openai",
+		GroupName:                "custom label",
+		GroupRateDisplayTemplate: "{rate}优先用",
+		PrimaryModel:             "gpt-5",
 	}, &rate)
 
 	require.NotNil(t, item.GroupRateMultiplier)
 	require.Equal(t, 0.18, *item.GroupRateMultiplier)
-	require.Equal(t, "legacy label", item.GroupName)
+	require.Equal(t, "custom label", item.GroupName)
+	require.Equal(t, "{rate}优先用", item.GroupRateDisplayTemplate)
 }
 
 func TestUserMonitorViewToItemPreservesZeroAndMissingGroupRates(t *testing.T) {

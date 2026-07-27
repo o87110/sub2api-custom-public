@@ -46,12 +46,16 @@ func (r *channelMonitorRepository) Create(ctx context.Context, m *service.Channe
 		SetPrimaryModel(m.PrimaryModel).
 		SetExtraModels(emptySliceIfNil(m.ExtraModels)).
 		SetGroupName(m.GroupName).
+		SetGroupRateDisplayTemplate(m.GroupRateDisplayTemplate).
 		SetEnabled(m.Enabled).
 		SetIntervalSeconds(m.IntervalSeconds).
 		SetJitterSeconds(m.JitterSeconds).
 		SetCreatedBy(m.CreatedBy).
 		SetExtraHeaders(channelMonitorHeadersForPersistence(m)).
 		SetBodyOverrideMode(defaultBodyModeRepo(m.BodyOverrideMode))
+	if m.GroupRateOverride != nil {
+		builder = builder.SetGroupRateOverride(*m.GroupRateOverride)
+	}
 	if m.TemplateID != nil {
 		builder = builder.SetTemplateID(*m.TemplateID)
 	}
@@ -114,11 +118,17 @@ func (r *channelMonitorRepository) Update(ctx context.Context, m *service.Channe
 		SetPrimaryModel(m.PrimaryModel).
 		SetExtraModels(emptySliceIfNil(m.ExtraModels)).
 		SetGroupName(m.GroupName).
+		SetGroupRateDisplayTemplate(m.GroupRateDisplayTemplate).
 		SetEnabled(m.Enabled).
 		SetIntervalSeconds(m.IntervalSeconds).
 		SetJitterSeconds(m.JitterSeconds).
 		SetExtraHeaders(channelMonitorHeadersForPersistence(m)).
 		SetBodyOverrideMode(defaultBodyModeRepo(m.BodyOverrideMode))
+	if m.GroupRateOverride != nil {
+		updater = updater.SetGroupRateOverride(*m.GroupRateOverride)
+	} else {
+		updater = updater.ClearGroupRateOverride()
+	}
 	if m.TemplateID != nil {
 		updater = updater.SetTemplateID(*m.TemplateID)
 	} else {
@@ -738,26 +748,28 @@ func entToServiceMonitor(row *dbent.ChannelMonitor) *service.ChannelMonitor {
 	duplicateOperationID := headers[service.ChannelMonitorDuplicateOperationIDMetadataKey]
 	delete(headers, service.ChannelMonitorDuplicateOperationIDMetadataKey)
 	out := &service.ChannelMonitor{
-		ID:                   row.ID,
-		Name:                 row.Name,
-		Provider:             string(row.Provider),
-		APIMode:              defaultAPIModeRepo(row.APIMode),
-		Endpoint:             row.Endpoint,
-		APIKey:               row.APIKeyEncrypted, // 仍为密文，service 层负责解密
-		PrimaryModel:         row.PrimaryModel,
-		ExtraModels:          extras,
-		GroupName:            row.GroupName,
-		Enabled:              row.Enabled,
-		IntervalSeconds:      row.IntervalSeconds,
-		JitterSeconds:        row.JitterSeconds,
-		LastCheckedAt:        row.LastCheckedAt,
-		CreatedBy:            row.CreatedBy,
-		CreatedAt:            row.CreatedAt,
-		UpdatedAt:            row.UpdatedAt,
-		ExtraHeaders:         headers,
-		BodyOverrideMode:     row.BodyOverrideMode,
-		BodyOverride:         row.BodyOverride,
-		DuplicateOperationID: duplicateOperationID,
+		ID:                       row.ID,
+		Name:                     row.Name,
+		Provider:                 string(row.Provider),
+		APIMode:                  defaultAPIModeRepo(row.APIMode),
+		Endpoint:                 row.Endpoint,
+		APIKey:                   row.APIKeyEncrypted, // 仍为密文，service 层负责解密
+		PrimaryModel:             row.PrimaryModel,
+		ExtraModels:              extras,
+		GroupName:                row.GroupName,
+		GroupRateOverride:        row.GroupRateOverride,
+		GroupRateDisplayTemplate: row.GroupRateDisplayTemplate,
+		Enabled:                  row.Enabled,
+		IntervalSeconds:          row.IntervalSeconds,
+		JitterSeconds:            row.JitterSeconds,
+		LastCheckedAt:            row.LastCheckedAt,
+		CreatedBy:                row.CreatedBy,
+		CreatedAt:                row.CreatedAt,
+		UpdatedAt:                row.UpdatedAt,
+		ExtraHeaders:             headers,
+		BodyOverrideMode:         row.BodyOverrideMode,
+		BodyOverride:             row.BodyOverride,
+		DuplicateOperationID:     duplicateOperationID,
 	}
 	if row.TemplateID != nil {
 		id := *row.TemplateID

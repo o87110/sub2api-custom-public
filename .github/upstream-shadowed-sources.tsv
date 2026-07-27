@@ -11,6 +11,7 @@ backend/internal/handler/auth_wechat_oauth_test.go	backend/internal/custom/payme
 backend/internal/handler/payment_handler.go	backend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go
 backend/internal/handler/payment_handler_resume_test.go	backend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go
 backend/internal/handler/channel_monitor_user_handler.go	backend/internal/custom/channelmonitor/group_rate_resolver.go|backend/internal/custom/channelmonitor/group_rate_lookup.go
+backend/internal/service/channel_monitor_service.go	backend/internal/custom/channelmonitor/ratedisplay/config.go
 backend/internal/handler/admin/setting_handler.go	backend/internal/custom/paymentchannels/channel_settings.go
 backend/internal/handler/admin/setting_handler_update.go	backend/internal/custom/paymentchannels/channel_settings.go
 backend/internal/handler/admin/payment_handler.go	backend/internal/custom/paymentchannels/channel_settings.go
@@ -44,6 +45,7 @@ frontend/src/views/admin/SettingsView.vue	frontend/src/custom/payment-channels/P
 frontend/src/views/admin/__tests__/SettingsView.spec.ts	frontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.spec.ts|frontend/src/custom/payment-channels/adminPaymentChannels.spec.ts
 frontend/src/components/payment/PaymentProviderDialog.vue	frontend/src/custom/payment-channels/PaymentChannelSettings.vue
 frontend/src/components/user/monitor/MonitorCard.vue	frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts
+frontend/src/components/admin/monitor/MonitorFormDialog.vue	frontend/src/custom/channel-monitor/groupRate.ts
 frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts	frontend/src/custom/payment-channels/paymentChannels.spec.ts
 frontend/src/views/user/PaymentView.vue	frontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/paymentMoney.ts
 frontend/src/views/user/__tests__/PaymentView.spec.ts	frontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/paymentMoney.spec.ts
@@ -59,8 +61,8 @@ frontend/src/i18n/locales/en/admin/settings.ts	frontend/src/custom/payment-chann
 frontend/src/i18n/locales/zh/dashboard.ts	frontend/src/custom/api-keys/i18n.ts
 frontend/src/i18n/locales/zh/misc.ts	frontend/src/custom/updater/i18n.ts|frontend/src/custom/payment-channels/paymentChannels.ts
 frontend/src/i18n/locales/zh/admin/settings.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue
-frontend/src/i18n/locales/en/admin/channels.ts	frontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue
-frontend/src/i18n/locales/zh/admin/channels.ts	frontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue
+frontend/src/i18n/locales/en/admin/channels.ts	frontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts
+frontend/src/i18n/locales/zh/admin/channels.ts	frontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts
 frontend/src/utils/releaseNotes.ts|@removed	frontend/src/custom/updater/releaseNotes.ts
 frontend/src/utils/__tests__/releaseNotes.spec.ts|@removed	frontend/src/custom/updater/__tests__/releaseNotes.spec.ts
 frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts|@removed	frontend/src/custom/updater/components/__tests__/VersionBadge.rollback.spec.ts

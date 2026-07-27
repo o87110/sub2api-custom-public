@@ -117,6 +117,34 @@ func (_c *ChannelMonitorCreate) SetNillableGroupName(v *string) *ChannelMonitorC
 	return _c
 }
 
+// SetGroupRateOverride sets the "group_rate_override" field.
+func (_c *ChannelMonitorCreate) SetGroupRateOverride(v float64) *ChannelMonitorCreate {
+	_c.mutation.SetGroupRateOverride(v)
+	return _c
+}
+
+// SetNillableGroupRateOverride sets the "group_rate_override" field if the given value is not nil.
+func (_c *ChannelMonitorCreate) SetNillableGroupRateOverride(v *float64) *ChannelMonitorCreate {
+	if v != nil {
+		_c.SetGroupRateOverride(*v)
+	}
+	return _c
+}
+
+// SetGroupRateDisplayTemplate sets the "group_rate_display_template" field.
+func (_c *ChannelMonitorCreate) SetGroupRateDisplayTemplate(v string) *ChannelMonitorCreate {
+	_c.mutation.SetGroupRateDisplayTemplate(v)
+	return _c
+}
+
+// SetNillableGroupRateDisplayTemplate sets the "group_rate_display_template" field if the given value is not nil.
+func (_c *ChannelMonitorCreate) SetNillableGroupRateDisplayTemplate(v *string) *ChannelMonitorCreate {
+	if v != nil {
+		_c.SetGroupRateDisplayTemplate(*v)
+	}
+	return _c
+}
+
 // SetEnabled sets the "enabled" field.
 func (_c *ChannelMonitorCreate) SetEnabled(v bool) *ChannelMonitorCreate {
 	_c.mutation.SetEnabled(v)
@@ -315,6 +343,10 @@ func (_c *ChannelMonitorCreate) defaults() {
 		v := channelmonitor.DefaultGroupName
 		_c.mutation.SetGroupName(v)
 	}
+	if _, ok := _c.mutation.GroupRateDisplayTemplate(); !ok {
+		v := channelmonitor.DefaultGroupRateDisplayTemplate
+		_c.mutation.SetGroupRateDisplayTemplate(v)
+	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		v := channelmonitor.DefaultEnabled
 		_c.mutation.SetEnabled(v)
@@ -395,6 +427,19 @@ func (_c *ChannelMonitorCreate) check() error {
 	if v, ok := _c.mutation.GroupName(); ok {
 		if err := channelmonitor.GroupNameValidator(v); err != nil {
 			return &ValidationError{Name: "group_name", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.group_name": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.GroupRateOverride(); ok {
+		if err := channelmonitor.GroupRateOverrideValidator(v); err != nil {
+			return &ValidationError{Name: "group_rate_override", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.group_rate_override": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.GroupRateDisplayTemplate(); !ok {
+		return &ValidationError{Name: "group_rate_display_template", err: errors.New(`ent: missing required field "ChannelMonitor.group_rate_display_template"`)}
+	}
+	if v, ok := _c.mutation.GroupRateDisplayTemplate(); ok {
+		if err := channelmonitor.GroupRateDisplayTemplateValidator(v); err != nil {
+			return &ValidationError{Name: "group_rate_display_template", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.group_rate_display_template": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Enabled(); !ok {
@@ -496,6 +541,14 @@ func (_c *ChannelMonitorCreate) createSpec() (*ChannelMonitor, *sqlgraph.CreateS
 	if value, ok := _c.mutation.GroupName(); ok {
 		_spec.SetField(channelmonitor.FieldGroupName, field.TypeString, value)
 		_node.GroupName = value
+	}
+	if value, ok := _c.mutation.GroupRateOverride(); ok {
+		_spec.SetField(channelmonitor.FieldGroupRateOverride, field.TypeFloat64, value)
+		_node.GroupRateOverride = &value
+	}
+	if value, ok := _c.mutation.GroupRateDisplayTemplate(); ok {
+		_spec.SetField(channelmonitor.FieldGroupRateDisplayTemplate, field.TypeString, value)
+		_node.GroupRateDisplayTemplate = value
 	}
 	if value, ok := _c.mutation.Enabled(); ok {
 		_spec.SetField(channelmonitor.FieldEnabled, field.TypeBool, value)
@@ -741,6 +794,42 @@ func (u *ChannelMonitorUpsert) UpdateGroupName() *ChannelMonitorUpsert {
 // ClearGroupName clears the value of the "group_name" field.
 func (u *ChannelMonitorUpsert) ClearGroupName() *ChannelMonitorUpsert {
 	u.SetNull(channelmonitor.FieldGroupName)
+	return u
+}
+
+// SetGroupRateOverride sets the "group_rate_override" field.
+func (u *ChannelMonitorUpsert) SetGroupRateOverride(v float64) *ChannelMonitorUpsert {
+	u.Set(channelmonitor.FieldGroupRateOverride, v)
+	return u
+}
+
+// UpdateGroupRateOverride sets the "group_rate_override" field to the value that was provided on create.
+func (u *ChannelMonitorUpsert) UpdateGroupRateOverride() *ChannelMonitorUpsert {
+	u.SetExcluded(channelmonitor.FieldGroupRateOverride)
+	return u
+}
+
+// AddGroupRateOverride adds v to the "group_rate_override" field.
+func (u *ChannelMonitorUpsert) AddGroupRateOverride(v float64) *ChannelMonitorUpsert {
+	u.Add(channelmonitor.FieldGroupRateOverride, v)
+	return u
+}
+
+// ClearGroupRateOverride clears the value of the "group_rate_override" field.
+func (u *ChannelMonitorUpsert) ClearGroupRateOverride() *ChannelMonitorUpsert {
+	u.SetNull(channelmonitor.FieldGroupRateOverride)
+	return u
+}
+
+// SetGroupRateDisplayTemplate sets the "group_rate_display_template" field.
+func (u *ChannelMonitorUpsert) SetGroupRateDisplayTemplate(v string) *ChannelMonitorUpsert {
+	u.Set(channelmonitor.FieldGroupRateDisplayTemplate, v)
+	return u
+}
+
+// UpdateGroupRateDisplayTemplate sets the "group_rate_display_template" field to the value that was provided on create.
+func (u *ChannelMonitorUpsert) UpdateGroupRateDisplayTemplate() *ChannelMonitorUpsert {
+	u.SetExcluded(channelmonitor.FieldGroupRateDisplayTemplate)
 	return u
 }
 
@@ -1063,6 +1152,48 @@ func (u *ChannelMonitorUpsertOne) UpdateGroupName() *ChannelMonitorUpsertOne {
 func (u *ChannelMonitorUpsertOne) ClearGroupName() *ChannelMonitorUpsertOne {
 	return u.Update(func(s *ChannelMonitorUpsert) {
 		s.ClearGroupName()
+	})
+}
+
+// SetGroupRateOverride sets the "group_rate_override" field.
+func (u *ChannelMonitorUpsertOne) SetGroupRateOverride(v float64) *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetGroupRateOverride(v)
+	})
+}
+
+// AddGroupRateOverride adds v to the "group_rate_override" field.
+func (u *ChannelMonitorUpsertOne) AddGroupRateOverride(v float64) *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.AddGroupRateOverride(v)
+	})
+}
+
+// UpdateGroupRateOverride sets the "group_rate_override" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertOne) UpdateGroupRateOverride() *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateGroupRateOverride()
+	})
+}
+
+// ClearGroupRateOverride clears the value of the "group_rate_override" field.
+func (u *ChannelMonitorUpsertOne) ClearGroupRateOverride() *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.ClearGroupRateOverride()
+	})
+}
+
+// SetGroupRateDisplayTemplate sets the "group_rate_display_template" field.
+func (u *ChannelMonitorUpsertOne) SetGroupRateDisplayTemplate(v string) *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetGroupRateDisplayTemplate(v)
+	})
+}
+
+// UpdateGroupRateDisplayTemplate sets the "group_rate_display_template" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertOne) UpdateGroupRateDisplayTemplate() *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateGroupRateDisplayTemplate()
 	})
 }
 
@@ -1575,6 +1706,48 @@ func (u *ChannelMonitorUpsertBulk) UpdateGroupName() *ChannelMonitorUpsertBulk {
 func (u *ChannelMonitorUpsertBulk) ClearGroupName() *ChannelMonitorUpsertBulk {
 	return u.Update(func(s *ChannelMonitorUpsert) {
 		s.ClearGroupName()
+	})
+}
+
+// SetGroupRateOverride sets the "group_rate_override" field.
+func (u *ChannelMonitorUpsertBulk) SetGroupRateOverride(v float64) *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetGroupRateOverride(v)
+	})
+}
+
+// AddGroupRateOverride adds v to the "group_rate_override" field.
+func (u *ChannelMonitorUpsertBulk) AddGroupRateOverride(v float64) *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.AddGroupRateOverride(v)
+	})
+}
+
+// UpdateGroupRateOverride sets the "group_rate_override" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertBulk) UpdateGroupRateOverride() *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateGroupRateOverride()
+	})
+}
+
+// ClearGroupRateOverride clears the value of the "group_rate_override" field.
+func (u *ChannelMonitorUpsertBulk) ClearGroupRateOverride() *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.ClearGroupRateOverride()
+	})
+}
+
+// SetGroupRateDisplayTemplate sets the "group_rate_display_template" field.
+func (u *ChannelMonitorUpsertBulk) SetGroupRateDisplayTemplate(v string) *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetGroupRateDisplayTemplate(v)
+	})
+}
+
+// UpdateGroupRateDisplayTemplate sets the "group_rate_display_template" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertBulk) UpdateGroupRateDisplayTemplate() *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateGroupRateDisplayTemplate()
 	})
 }
 

@@ -8,7 +8,7 @@
     <form id="channel-monitor-form" @submit.prevent="handleSubmit" class="space-y-5">
       <div>
         <label class="input-label">{{ t('admin.channelMonitor.form.name') }} <span class="text-red-500">*</span></label>
-        <input v-model="form.name" type="text" required class="input" :placeholder="t('admin.channelMonitor.form.namePlaceholder')" />
+        <input v-model="form.name" data-testid="monitor-name" type="text" required class="input" :placeholder="t('admin.channelMonitor.form.namePlaceholder')" />
       </div>
 
       <div>
@@ -65,6 +65,7 @@
         <div class="flex gap-2">
           <input
             v-model="form.api_key"
+            data-testid="monitor-api-key"
             type="password"
             :required="!editing"
             class="input flex-1"
@@ -102,10 +103,43 @@
 
       <div>
         <label class="input-label">{{ t('admin.channelMonitor.form.groupName') }}</label>
-        <input v-model="form.group_name" type="text" class="input" :placeholder="t('admin.channelMonitor.form.groupNamePlaceholder')" />
+        <input v-model="form.group_name" data-testid="monitor-group-name" type="text" class="input" :placeholder="t('admin.channelMonitor.form.groupNamePlaceholder')" />
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
           {{ t('admin.channelMonitor.form.groupNameHint') }}
         </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label class="input-label">{{ t('admin.channelMonitor.form.groupRateOverride') }}</label>
+          <input
+            v-model.number="form.group_rate_override"
+            data-testid="monitor-group-rate-override"
+            type="number"
+            min="0.0001"
+            step="0.0001"
+            class="input"
+            :placeholder="t('admin.channelMonitor.form.groupRateOverridePlaceholder')"
+          />
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.channelMonitor.form.groupRateOverrideHint') }}
+          </p>
+        </div>
+
+        <div>
+          <label class="input-label">{{ t('admin.channelMonitor.form.groupRateDisplayTemplate') }}</label>
+          <input
+            v-model="form.group_rate_display_template"
+            data-testid="monitor-group-rate-template"
+            type="text"
+            :maxlength="GROUP_RATE_DISPLAY_TEMPLATE_MAX_LENGTH"
+            class="input font-mono"
+            :placeholder="DEFAULT_GROUP_RATE_DISPLAY_TEMPLATE"
+          />
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.channelMonitor.form.groupRateDisplayTemplateHint') }}
+          </p>
+        </div>
       </div>
 
       <div>
@@ -215,6 +249,11 @@ import MonitorAdvancedRequestConfig from '@/components/admin/monitor/MonitorAdva
 import ProviderIcon from '@/components/user/monitor/ProviderIcon.vue'
 import { useChannelMonitorFormat } from '@/composables/useChannelMonitorFormat'
 import {
+  DEFAULT_GROUP_RATE_DISPLAY_TEMPLATE,
+  GROUP_RATE_DISPLAY_TEMPLATE_MAX_LENGTH,
+  isValidGroupRateDisplayTemplate,
+} from '@/custom/channel-monitor/groupRate'
+import {
   PROVIDER_OPENAI,
   PROVIDER_ANTHROPIC,
   PROVIDER_GEMINI,
@@ -267,6 +306,8 @@ interface MonitorForm {
   primary_model: string
   extra_models: string[]
   group_name: string
+  group_rate_override: number | '' | null
+  group_rate_display_template: string
   interval_seconds: number
   jitter_seconds: number
   enabled: boolean
@@ -286,6 +327,8 @@ const form = reactive<MonitorForm>({
   primary_model: '',
   extra_models: [],
   group_name: '',
+  group_rate_override: null,
+  group_rate_display_template: '',
   interval_seconds: systemDefaultInterval.value,
   jitter_seconds: 0,
   enabled: true,
@@ -455,6 +498,8 @@ function resetForm() {
   form.primary_model = ''
   form.extra_models = []
   form.group_name = ''
+  form.group_rate_override = null
+  form.group_rate_display_template = ''
   form.interval_seconds = systemDefaultInterval.value
   form.jitter_seconds = 0
   form.enabled = true
@@ -475,6 +520,8 @@ function loadFromMonitor(m: ChannelMonitor) {
   form.primary_model = m.primary_model
   form.extra_models = [...(m.extra_models || [])]
   form.group_name = m.group_name || ''
+  form.group_rate_override = m.group_rate_override ?? null
+  form.group_rate_display_template = m.group_rate_display_template || ''
   form.interval_seconds = m.interval_seconds || systemDefaultInterval.value
   form.jitter_seconds = m.jitter_seconds || 0
   form.enabled = m.enabled
@@ -531,6 +578,11 @@ function pickMyKey(k: ApiKey) {
   showKeyPicker.value = false
 }
 
+function normalizedGroupRateOverride(): number | null {
+  if (form.group_rate_override === '' || form.group_rate_override === null) return null
+  return Number(form.group_rate_override)
+}
+
 function buildPayload(): CreateParams {
   return {
     name: form.name.trim(),
@@ -541,6 +593,8 @@ function buildPayload(): CreateParams {
     primary_model: form.primary_model.trim(),
     extra_models: form.extra_models,
     group_name: form.group_name.trim(),
+    group_rate_override: normalizedGroupRateOverride(),
+    group_rate_display_template: form.group_rate_display_template.trim(),
     enabled: form.enabled,
     interval_seconds: form.interval_seconds,
     jitter_seconds: form.jitter_seconds || 0,
@@ -561,15 +615,29 @@ async function handleSubmit() {
     appStore.showError(t('admin.channelMonitor.primaryModelRequired'))
     return
   }
+  const groupRateOverride = normalizedGroupRateOverride()
+  if (groupRateOverride !== null && (!Number.isFinite(groupRateOverride) || groupRateOverride <= 0)) {
+    appStore.showError(t('admin.channelMonitor.groupRateOverrideInvalid'))
+    return
+  }
+  if (!isValidGroupRateDisplayTemplate(form.group_rate_display_template)) {
+    appStore.showError(t('admin.channelMonitor.groupRateDisplayTemplateInvalid'))
+    return
+  }
 
   submitting.value = true
   try {
     const target = editing.value
     if (target) {
-      const { api_key, ...rest } = buildPayload()
+      const { api_key, group_rate_override, ...rest } = buildPayload()
       const req: UpdateParams = { ...rest }
       // Only send api_key if user typed a new value
       if (api_key) req.api_key = api_key
+      if (group_rate_override == null) {
+        req.clear_group_rate_override = true
+      } else {
+        req.group_rate_override = group_rate_override
+      }
       // template_id=null 用 clear_template=true 明确告诉后端清空（pointer 语义）
       if (form.template_id == null) {
         req.clear_template = true

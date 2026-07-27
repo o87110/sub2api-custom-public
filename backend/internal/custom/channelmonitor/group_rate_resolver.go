@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/channelmonitor/ratedisplay"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
@@ -51,13 +52,22 @@ func newGroupRateResolver(
 // 由用户视图继续展示原有备用分组标签。
 func (r *GroupRateResolver) Resolve(ctx context.Context) map[int64]float64 {
 	out := make(map[int64]float64)
-	if r == nil || r.monitors == nil || r.lookup == nil {
+	if r == nil || r.monitors == nil {
 		return out
 	}
 
 	monitors, err := r.monitors.ListEnabledMonitors(ctx)
 	if err != nil {
 		slog.Warn("custom channel monitor: list enabled monitors for group rates failed", "error", err)
+		return out
+	}
+
+	for _, monitor := range monitors {
+		if rate, ok := validMonitorGroupRateOverride(monitor); ok {
+			out[monitor.ID] = rate
+		}
+	}
+	if r.lookup == nil {
 		return out
 	}
 
@@ -76,6 +86,9 @@ func (r *GroupRateResolver) Resolve(ctx context.Context) map[int64]float64 {
 		if monitor == nil || monitor.APIKey == "" || monitor.APIKeyDecryptFailed {
 			continue
 		}
+		if _, overridden := validMonitorGroupRateOverride(monitor); overridden {
+			continue
+		}
 		rate, ok := rates[monitor.APIKey]
 		if !ok || rate.Platform != monitor.Provider {
 			continue
@@ -85,11 +98,22 @@ func (r *GroupRateResolver) Resolve(ctx context.Context) map[int64]float64 {
 	return out
 }
 
+func validMonitorGroupRateOverride(monitor *service.ChannelMonitor) (float64, bool) {
+	if monitor == nil || monitor.GroupRateOverride == nil ||
+		!ratedisplay.ValidOverride(monitor.GroupRateOverride) {
+		return 0, false
+	}
+	return *monitor.GroupRateOverride, true
+}
+
 func uniqueMonitorAPIKeys(monitors []*service.ChannelMonitor) []string {
 	keys := make([]string, 0, len(monitors))
 	seen := make(map[string]struct{}, len(monitors))
 	for _, monitor := range monitors {
 		if monitor == nil || monitor.APIKey == "" || monitor.APIKeyDecryptFailed {
+			continue
+		}
+		if _, overridden := validMonitorGroupRateOverride(monitor); overridden {
 			continue
 		}
 		if _, ok := seen[monitor.APIKey]; ok {

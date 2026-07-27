@@ -111,26 +111,29 @@ func (e *duplicateChannelMonitorEncryptor) Decrypt(ciphertext string) (string, e
 func TestDuplicateChannelMonitorCopiesConfigurationAndResetsRuntimeState(t *testing.T) {
 	lastCheckedAt := time.Date(2026, time.July, 15, 7, 0, 0, 0, time.UTC)
 	templateID := int64(9)
+	groupRateOverride := 0.9
 	source := &ChannelMonitor{
-		ID:               42,
-		Name:             "primary",
-		Provider:         MonitorProviderOpenAI,
-		APIMode:          MonitorAPIModeResponses,
-		Endpoint:         "https://api.example.com",
-		APIKey:           "OLD:top-secret",
-		PrimaryModel:     "gpt-5.4-mini",
-		ExtraModels:      []string{"gpt-5.4", "gpt-5.3"},
-		GroupName:        "production",
-		Enabled:          true,
-		IntervalSeconds:  90,
-		JitterSeconds:    15,
-		LastCheckedAt:    &lastCheckedAt,
-		CreatedBy:        4,
-		CreatedAt:        lastCheckedAt.Add(-time.Hour),
-		UpdatedAt:        lastCheckedAt,
-		TemplateID:       &templateID,
-		ExtraHeaders:     map[string]string{"User-Agent": "Codex"},
-		BodyOverrideMode: MonitorBodyOverrideModeMerge,
+		ID:                       42,
+		Name:                     "primary",
+		Provider:                 MonitorProviderOpenAI,
+		APIMode:                  MonitorAPIModeResponses,
+		Endpoint:                 "https://api.example.com",
+		APIKey:                   "OLD:top-secret",
+		PrimaryModel:             "gpt-5.4-mini",
+		ExtraModels:              []string{"gpt-5.4", "gpt-5.3"},
+		GroupName:                "production",
+		GroupRateOverride:        &groupRateOverride,
+		GroupRateDisplayTemplate: "{rate}优先用",
+		Enabled:                  true,
+		IntervalSeconds:          90,
+		JitterSeconds:            15,
+		LastCheckedAt:            &lastCheckedAt,
+		CreatedBy:                4,
+		CreatedAt:                lastCheckedAt.Add(-time.Hour),
+		UpdatedAt:                lastCheckedAt,
+		TemplateID:               &templateID,
+		ExtraHeaders:             map[string]string{"User-Agent": "Codex"},
+		BodyOverrideMode:         MonitorBodyOverrideModeMerge,
 		BodyOverride: map[string]any{
 			"metadata": map[string]any{"source": "original"},
 		},
@@ -153,6 +156,9 @@ func TestDuplicateChannelMonitorCopiesConfigurationAndResetsRuntimeState(t *test
 	require.Equal(t, source.PrimaryModel, duplicate.PrimaryModel)
 	require.Equal(t, source.ExtraModels, duplicate.ExtraModels)
 	require.Equal(t, source.GroupName, duplicate.GroupName)
+	require.Equal(t, source.GroupRateOverride, duplicate.GroupRateOverride)
+	require.Equal(t, source.GroupRateDisplayTemplate, duplicate.GroupRateDisplayTemplate)
+	require.NotSame(t, source.GroupRateOverride, duplicate.GroupRateOverride)
 	require.Equal(t, source.IntervalSeconds, duplicate.IntervalSeconds)
 	require.Equal(t, source.JitterSeconds, duplicate.JitterSeconds)
 	require.Equal(t, source.TemplateID, duplicate.TemplateID)
@@ -169,10 +175,12 @@ func TestDuplicateChannelMonitorCopiesConfigurationAndResetsRuntimeState(t *test
 	duplicate.ExtraHeaders["User-Agent"] = "changed"
 	duplicate.BodyOverride["metadata"].(map[string]any)["source"] = "changed"
 	*duplicate.TemplateID = 10
+	*duplicate.GroupRateOverride = 0.7
 	require.Equal(t, []string{"gpt-5.4", "gpt-5.3"}, source.ExtraModels)
 	require.Equal(t, "Codex", source.ExtraHeaders["User-Agent"])
 	require.Equal(t, "original", source.BodyOverride["metadata"].(map[string]any)["source"])
 	require.Equal(t, int64(9), *source.TemplateID)
+	require.Equal(t, 0.9, *source.GroupRateOverride)
 	require.Equal(t, "OLD:top-secret", source.APIKey)
 	require.True(t, source.Enabled)
 	require.Equal(t, &lastCheckedAt, source.LastCheckedAt)

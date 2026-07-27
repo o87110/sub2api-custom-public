@@ -26,24 +26,30 @@
           <span class="font-mono text-xs truncate text-gray-500 dark:text-gray-400">
             {{ item.primary_model }}
           </span>
-          <GroupRateBadge
-            v-if="typeof item.group_rate_multiplier === 'number'"
-            :rate="item.group_rate_multiplier"
-          />
           <span
-            v-else-if="item.group_name"
-            class="inline-flex flex-shrink-0 items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-200"
+            v-if="item.group_name"
+            data-testid="channel-monitor-group-name"
+            class="inline-flex max-w-32 flex-shrink-0 items-center truncate rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-200"
+            :title="item.group_name"
           >
             {{ item.group_name }}
           </span>
         </div>
       </div>
-      <span
-        class="px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0"
-        :class="statusBadgeClass(item.primary_status)"
-      >
-        {{ statusLabel(item.primary_status) }}
-      </span>
+      <div class="flex max-w-32 flex-shrink-0 flex-col items-end gap-1">
+        <span
+          class="max-w-full truncate rounded-full px-2.5 py-1 text-xs font-semibold"
+          :class="statusBadgeClass(item.primary_status)"
+          :title="statusLabel(item.primary_status)"
+        >
+          {{ statusLabel(item.primary_status) }}
+        </span>
+        <GroupRateBadge
+          v-if="typeof item.group_rate_multiplier === 'number'"
+          :rate="item.group_rate_multiplier"
+          :template="item.group_rate_display_template"
+        />
+      </div>
     </div>
 
     <!-- Metrics -->

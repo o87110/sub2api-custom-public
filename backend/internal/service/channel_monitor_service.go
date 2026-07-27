@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	channelmonitorratedisplay "github.com/Wei-Shaw/sub2api/internal/custom/channelmonitor/ratedisplay"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -130,22 +131,24 @@ func (s *ChannelMonitorService) Create(ctx context.Context, p ChannelMonitorCrea
 		return nil, fmt.Errorf("encrypt api key: %w", err)
 	}
 	m := &ChannelMonitor{
-		Name:             strings.TrimSpace(p.Name),
-		Provider:         p.Provider,
-		APIMode:          defaultAPIMode(p.APIMode),
-		Endpoint:         normalizeEndpoint(p.Endpoint),
-		APIKey:           encrypted, // 注意：传入 repository 时该字段为密文
-		PrimaryModel:     normalizeMonitorPrimaryModel(p.Provider, p.PrimaryModel),
-		ExtraModels:      normalizeModels(p.ExtraModels),
-		GroupName:        strings.TrimSpace(p.GroupName),
-		Enabled:          p.Enabled,
-		IntervalSeconds:  p.IntervalSeconds,
-		JitterSeconds:    p.JitterSeconds,
-		CreatedBy:        p.CreatedBy,
-		TemplateID:       p.TemplateID,
-		ExtraHeaders:     emptyHeadersIfNil(p.ExtraHeaders),
-		BodyOverrideMode: defaultBodyMode(p.BodyOverrideMode),
-		BodyOverride:     p.BodyOverride,
+		Name:                     strings.TrimSpace(p.Name),
+		Provider:                 p.Provider,
+		APIMode:                  defaultAPIMode(p.APIMode),
+		Endpoint:                 normalizeEndpoint(p.Endpoint),
+		APIKey:                   encrypted, // 注意：传入 repository 时该字段为密文
+		PrimaryModel:             normalizeMonitorPrimaryModel(p.Provider, p.PrimaryModel),
+		ExtraModels:              normalizeModels(p.ExtraModels),
+		GroupName:                strings.TrimSpace(p.GroupName),
+		GroupRateOverride:        cloneFloat64Pointer(p.GroupRateOverride),
+		GroupRateDisplayTemplate: normalizeGroupRateDisplayTemplate(p.GroupRateDisplayTemplate),
+		Enabled:                  p.Enabled,
+		IntervalSeconds:          p.IntervalSeconds,
+		JitterSeconds:            p.JitterSeconds,
+		CreatedBy:                p.CreatedBy,
+		TemplateID:               p.TemplateID,
+		ExtraHeaders:             emptyHeadersIfNil(p.ExtraHeaders),
+		BodyOverrideMode:         defaultBodyMode(p.BodyOverrideMode),
+		BodyOverride:             p.BodyOverride,
 	}
 	if err := s.repo.Create(ctx, m); err != nil {
 		return nil, fmt.Errorf("create channel monitor: %w", err)
@@ -195,23 +198,25 @@ func (s *ChannelMonitorService) Duplicate(
 	}
 
 	duplicate := &ChannelMonitor{
-		Name:                 duplicateChannelMonitorName(source.Name),
-		Provider:             source.Provider,
-		APIMode:              source.APIMode,
-		Endpoint:             source.Endpoint,
-		APIKey:               encryptedAPIKey,
-		PrimaryModel:         source.PrimaryModel,
-		ExtraModels:          append([]string{}, source.ExtraModels...),
-		GroupName:            source.GroupName,
-		Enabled:              false,
-		IntervalSeconds:      source.IntervalSeconds,
-		JitterSeconds:        source.JitterSeconds,
-		CreatedBy:            createdBy,
-		TemplateID:           cloneInt64Pointer(source.TemplateID),
-		ExtraHeaders:         cloneChannelMonitorHeaders(source.ExtraHeaders),
-		BodyOverrideMode:     source.BodyOverrideMode,
-		BodyOverride:         bodyOverride,
-		DuplicateOperationID: operationID,
+		Name:                     duplicateChannelMonitorName(source.Name),
+		Provider:                 source.Provider,
+		APIMode:                  source.APIMode,
+		Endpoint:                 source.Endpoint,
+		APIKey:                   encryptedAPIKey,
+		PrimaryModel:             source.PrimaryModel,
+		ExtraModels:              append([]string{}, source.ExtraModels...),
+		GroupName:                source.GroupName,
+		GroupRateOverride:        cloneFloat64Pointer(source.GroupRateOverride),
+		GroupRateDisplayTemplate: source.GroupRateDisplayTemplate,
+		Enabled:                  false,
+		IntervalSeconds:          source.IntervalSeconds,
+		JitterSeconds:            source.JitterSeconds,
+		CreatedBy:                createdBy,
+		TemplateID:               cloneInt64Pointer(source.TemplateID),
+		ExtraHeaders:             cloneChannelMonitorHeaders(source.ExtraHeaders),
+		BodyOverrideMode:         source.BodyOverrideMode,
+		BodyOverride:             bodyOverride,
+		DuplicateOperationID:     operationID,
 	}
 	if err := s.repo.Create(ctx, duplicate); err != nil {
 		return nil, fmt.Errorf("duplicate channel monitor: %w", err)
@@ -291,6 +296,33 @@ func cloneInt64Pointer(value *int64) *int64 {
 	return &cloned
 }
 
+func cloneFloat64Pointer(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
+}
+
+func validateGroupRateOverride(value *float64) error {
+	if !channelmonitorratedisplay.ValidOverride(value) {
+		return ErrChannelMonitorInvalidGroupRateOverride
+	}
+	return nil
+}
+
+func validateGroupRateDisplayTemplate(value string) error {
+	if _, ok := channelmonitorratedisplay.NormalizeTemplate(value); !ok {
+		return ErrChannelMonitorInvalidGroupRateDisplayTemplate
+	}
+	return nil
+}
+
+func normalizeGroupRateDisplayTemplate(value string) string {
+	normalized, _ := channelmonitorratedisplay.NormalizeTemplate(value)
+	return normalized
+}
+
 func cloneChannelMonitorHeaders(source map[string]string) map[string]string {
 	if source == nil {
 		return map[string]string{}
@@ -339,6 +371,12 @@ func validateCreateParams(p ChannelMonitorCreateParams) error {
 	}
 	if normalizeMonitorPrimaryModel(p.Provider, p.PrimaryModel) == "" {
 		return ErrChannelMonitorMissingPrimaryModel
+	}
+	if err := validateGroupRateOverride(p.GroupRateOverride); err != nil {
+		return err
+	}
+	if err := validateGroupRateDisplayTemplate(p.GroupRateDisplayTemplate); err != nil {
+		return err
 	}
 	return nil
 }
@@ -679,6 +717,20 @@ func applyMonitorUpdate(existing *ChannelMonitor, p ChannelMonitorUpdateParams) 
 	}
 	if p.GroupName != nil {
 		existing.GroupName = strings.TrimSpace(*p.GroupName)
+	}
+	if p.ClearGroupRateOverride {
+		existing.GroupRateOverride = nil
+	} else if p.GroupRateOverride != nil {
+		if err := validateGroupRateOverride(p.GroupRateOverride); err != nil {
+			return err
+		}
+		existing.GroupRateOverride = cloneFloat64Pointer(p.GroupRateOverride)
+	}
+	if p.GroupRateDisplayTemplate != nil {
+		if err := validateGroupRateDisplayTemplate(*p.GroupRateDisplayTemplate); err != nil {
+			return err
+		}
+		existing.GroupRateDisplayTemplate = normalizeGroupRateDisplayTemplate(*p.GroupRateDisplayTemplate)
 	}
 	if p.Enabled != nil {
 		existing.Enabled = *p.Enabled

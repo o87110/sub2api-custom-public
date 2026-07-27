@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-65}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-67}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 65 ]]; then
+if [[ "$expected_count" -eq 67 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -76,9 +76,11 @@ if [[ "$expected_count" -eq 65 ]]; then
   assert_mapping $'frontend/src/views/user/__tests__/paymentWechatResume.spec.ts\tfrontend/src/custom/payment-channels/paymentChannels.spec.ts'
   assert_mapping $'frontend/src/views/user/paymentWechatResume.ts\tfrontend/src/custom/payment-channels/paymentChannels.ts'
   assert_mapping $'backend/internal/handler/channel_monitor_user_handler.go\tbackend/internal/custom/channelmonitor/group_rate_resolver.go|backend/internal/custom/channelmonitor/group_rate_lookup.go'
+  assert_mapping $'backend/internal/service/channel_monitor_service.go\tbackend/internal/custom/channelmonitor/ratedisplay/config.go'
   assert_mapping $'frontend/src/components/user/monitor/MonitorCard.vue\tfrontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts'
-  assert_mapping $'frontend/src/i18n/locales/en/admin/channels.ts\tfrontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue'
-  assert_mapping $'frontend/src/i18n/locales/zh/admin/channels.ts\tfrontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue'
+  assert_mapping $'frontend/src/components/admin/monitor/MonitorFormDialog.vue\tfrontend/src/custom/channel-monitor/groupRate.ts'
+  assert_mapping $'frontend/src/i18n/locales/en/admin/channels.ts\tfrontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts'
+  assert_mapping $'frontend/src/i18n/locales/zh/admin/channels.ts\tfrontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts'
 fi
 
 validate_relative_path() {
@@ -308,6 +310,7 @@ backend/internal/service/content_moderation.go
 backend/internal/service/content_moderation_companion.go
 backend/internal/service/content_moderation_cyber_test.go
 backend/internal/service/content_moderation_test.go
+backend/internal/service/channel_monitor_service.go
 backend/internal/service/payment_config_limits.go
 backend/internal/service/payment_config_limits_test.go
 backend/internal/service/payment_config_service.go
@@ -330,6 +333,7 @@ frontend/src/components/payment/AmountInput.vue
 frontend/src/components/payment/PaymentProviderDialog.vue
 frontend/src/components/payment/paymentFlow.ts
 frontend/src/components/payment/__tests__/paymentFlow.spec.ts
+frontend/src/components/admin/monitor/MonitorFormDialog.vue
 frontend/src/components/user/monitor/MonitorCard.vue
 frontend/src/i18n/locales/en/admin/settings.ts
 frontend/src/i18n/locales/en/dashboard.ts

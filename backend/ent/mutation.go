@@ -14601,43 +14601,46 @@ func (m *BatchImageJobMutation) ResetEdge(name string) error {
 // ChannelMonitorMutation represents an operation that mutates the ChannelMonitor nodes in the graph.
 type ChannelMonitorMutation struct {
 	config
-	op                      Op
-	typ                     string
-	id                      *int64
-	created_at              *time.Time
-	updated_at              *time.Time
-	name                    *string
-	provider                *channelmonitor.Provider
-	api_mode                *string
-	endpoint                *string
-	api_key_encrypted       *string
-	primary_model           *string
-	extra_models            *[]string
-	appendextra_models      []string
-	group_name              *string
-	enabled                 *bool
-	interval_seconds        *int
-	addinterval_seconds     *int
-	jitter_seconds          *int
-	addjitter_seconds       *int
-	last_checked_at         *time.Time
-	created_by              *int64
-	addcreated_by           *int64
-	extra_headers           *map[string]string
-	body_override_mode      *string
-	body_override           *map[string]interface{}
-	clearedFields           map[string]struct{}
-	history                 map[int64]struct{}
-	removedhistory          map[int64]struct{}
-	clearedhistory          bool
-	daily_rollups           map[int64]struct{}
-	removeddaily_rollups    map[int64]struct{}
-	cleareddaily_rollups    bool
-	request_template        *int64
-	clearedrequest_template bool
-	done                    bool
-	oldValue                func(context.Context) (*ChannelMonitor, error)
-	predicates              []predicate.ChannelMonitor
+	op                          Op
+	typ                         string
+	id                          *int64
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	name                        *string
+	provider                    *channelmonitor.Provider
+	api_mode                    *string
+	endpoint                    *string
+	api_key_encrypted           *string
+	primary_model               *string
+	extra_models                *[]string
+	appendextra_models          []string
+	group_name                  *string
+	group_rate_override         *float64
+	addgroup_rate_override      *float64
+	group_rate_display_template *string
+	enabled                     *bool
+	interval_seconds            *int
+	addinterval_seconds         *int
+	jitter_seconds              *int
+	addjitter_seconds           *int
+	last_checked_at             *time.Time
+	created_by                  *int64
+	addcreated_by               *int64
+	extra_headers               *map[string]string
+	body_override_mode          *string
+	body_override               *map[string]interface{}
+	clearedFields               map[string]struct{}
+	history                     map[int64]struct{}
+	removedhistory              map[int64]struct{}
+	clearedhistory              bool
+	daily_rollups               map[int64]struct{}
+	removeddaily_rollups        map[int64]struct{}
+	cleareddaily_rollups        bool
+	request_template            *int64
+	clearedrequest_template     bool
+	done                        bool
+	oldValue                    func(context.Context) (*ChannelMonitor, error)
+	predicates                  []predicate.ChannelMonitor
 }
 
 var _ ent.Mutation = (*ChannelMonitorMutation)(nil)
@@ -15124,6 +15127,112 @@ func (m *ChannelMonitorMutation) GroupNameCleared() bool {
 func (m *ChannelMonitorMutation) ResetGroupName() {
 	m.group_name = nil
 	delete(m.clearedFields, channelmonitor.FieldGroupName)
+}
+
+// SetGroupRateOverride sets the "group_rate_override" field.
+func (m *ChannelMonitorMutation) SetGroupRateOverride(f float64) {
+	m.group_rate_override = &f
+	m.addgroup_rate_override = nil
+}
+
+// GroupRateOverride returns the value of the "group_rate_override" field in the mutation.
+func (m *ChannelMonitorMutation) GroupRateOverride() (r float64, exists bool) {
+	v := m.group_rate_override
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupRateOverride returns the old "group_rate_override" field's value of the ChannelMonitor entity.
+// If the ChannelMonitor object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorMutation) OldGroupRateOverride(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupRateOverride is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupRateOverride requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupRateOverride: %w", err)
+	}
+	return oldValue.GroupRateOverride, nil
+}
+
+// AddGroupRateOverride adds f to the "group_rate_override" field.
+func (m *ChannelMonitorMutation) AddGroupRateOverride(f float64) {
+	if m.addgroup_rate_override != nil {
+		*m.addgroup_rate_override += f
+	} else {
+		m.addgroup_rate_override = &f
+	}
+}
+
+// AddedGroupRateOverride returns the value that was added to the "group_rate_override" field in this mutation.
+func (m *ChannelMonitorMutation) AddedGroupRateOverride() (r float64, exists bool) {
+	v := m.addgroup_rate_override
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearGroupRateOverride clears the value of the "group_rate_override" field.
+func (m *ChannelMonitorMutation) ClearGroupRateOverride() {
+	m.group_rate_override = nil
+	m.addgroup_rate_override = nil
+	m.clearedFields[channelmonitor.FieldGroupRateOverride] = struct{}{}
+}
+
+// GroupRateOverrideCleared returns if the "group_rate_override" field was cleared in this mutation.
+func (m *ChannelMonitorMutation) GroupRateOverrideCleared() bool {
+	_, ok := m.clearedFields[channelmonitor.FieldGroupRateOverride]
+	return ok
+}
+
+// ResetGroupRateOverride resets all changes to the "group_rate_override" field.
+func (m *ChannelMonitorMutation) ResetGroupRateOverride() {
+	m.group_rate_override = nil
+	m.addgroup_rate_override = nil
+	delete(m.clearedFields, channelmonitor.FieldGroupRateOverride)
+}
+
+// SetGroupRateDisplayTemplate sets the "group_rate_display_template" field.
+func (m *ChannelMonitorMutation) SetGroupRateDisplayTemplate(s string) {
+	m.group_rate_display_template = &s
+}
+
+// GroupRateDisplayTemplate returns the value of the "group_rate_display_template" field in the mutation.
+func (m *ChannelMonitorMutation) GroupRateDisplayTemplate() (r string, exists bool) {
+	v := m.group_rate_display_template
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupRateDisplayTemplate returns the old "group_rate_display_template" field's value of the ChannelMonitor entity.
+// If the ChannelMonitor object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorMutation) OldGroupRateDisplayTemplate(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupRateDisplayTemplate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupRateDisplayTemplate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupRateDisplayTemplate: %w", err)
+	}
+	return oldValue.GroupRateDisplayTemplate, nil
+}
+
+// ResetGroupRateDisplayTemplate resets all changes to the "group_rate_display_template" field.
+func (m *ChannelMonitorMutation) ResetGroupRateDisplayTemplate() {
+	m.group_rate_display_template = nil
 }
 
 // SetEnabled sets the "enabled" field.
@@ -15731,7 +15840,7 @@ func (m *ChannelMonitorMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMonitorMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 21)
 	if m.created_at != nil {
 		fields = append(fields, channelmonitor.FieldCreatedAt)
 	}
@@ -15761,6 +15870,12 @@ func (m *ChannelMonitorMutation) Fields() []string {
 	}
 	if m.group_name != nil {
 		fields = append(fields, channelmonitor.FieldGroupName)
+	}
+	if m.group_rate_override != nil {
+		fields = append(fields, channelmonitor.FieldGroupRateOverride)
+	}
+	if m.group_rate_display_template != nil {
+		fields = append(fields, channelmonitor.FieldGroupRateDisplayTemplate)
 	}
 	if m.enabled != nil {
 		fields = append(fields, channelmonitor.FieldEnabled)
@@ -15817,6 +15932,10 @@ func (m *ChannelMonitorMutation) Field(name string) (ent.Value, bool) {
 		return m.ExtraModels()
 	case channelmonitor.FieldGroupName:
 		return m.GroupName()
+	case channelmonitor.FieldGroupRateOverride:
+		return m.GroupRateOverride()
+	case channelmonitor.FieldGroupRateDisplayTemplate:
+		return m.GroupRateDisplayTemplate()
 	case channelmonitor.FieldEnabled:
 		return m.Enabled()
 	case channelmonitor.FieldIntervalSeconds:
@@ -15864,6 +15983,10 @@ func (m *ChannelMonitorMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldExtraModels(ctx)
 	case channelmonitor.FieldGroupName:
 		return m.OldGroupName(ctx)
+	case channelmonitor.FieldGroupRateOverride:
+		return m.OldGroupRateOverride(ctx)
+	case channelmonitor.FieldGroupRateDisplayTemplate:
+		return m.OldGroupRateDisplayTemplate(ctx)
 	case channelmonitor.FieldEnabled:
 		return m.OldEnabled(ctx)
 	case channelmonitor.FieldIntervalSeconds:
@@ -15961,6 +16084,20 @@ func (m *ChannelMonitorMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetGroupName(v)
 		return nil
+	case channelmonitor.FieldGroupRateOverride:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupRateOverride(v)
+		return nil
+	case channelmonitor.FieldGroupRateDisplayTemplate:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupRateDisplayTemplate(v)
+		return nil
 	case channelmonitor.FieldEnabled:
 		v, ok := value.(bool)
 		if !ok {
@@ -16032,6 +16169,9 @@ func (m *ChannelMonitorMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *ChannelMonitorMutation) AddedFields() []string {
 	var fields []string
+	if m.addgroup_rate_override != nil {
+		fields = append(fields, channelmonitor.FieldGroupRateOverride)
+	}
 	if m.addinterval_seconds != nil {
 		fields = append(fields, channelmonitor.FieldIntervalSeconds)
 	}
@@ -16049,6 +16189,8 @@ func (m *ChannelMonitorMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *ChannelMonitorMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case channelmonitor.FieldGroupRateOverride:
+		return m.AddedGroupRateOverride()
 	case channelmonitor.FieldIntervalSeconds:
 		return m.AddedIntervalSeconds()
 	case channelmonitor.FieldJitterSeconds:
@@ -16064,6 +16206,13 @@ func (m *ChannelMonitorMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *ChannelMonitorMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case channelmonitor.FieldGroupRateOverride:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGroupRateOverride(v)
+		return nil
 	case channelmonitor.FieldIntervalSeconds:
 		v, ok := value.(int)
 		if !ok {
@@ -16096,6 +16245,9 @@ func (m *ChannelMonitorMutation) ClearedFields() []string {
 	if m.FieldCleared(channelmonitor.FieldGroupName) {
 		fields = append(fields, channelmonitor.FieldGroupName)
 	}
+	if m.FieldCleared(channelmonitor.FieldGroupRateOverride) {
+		fields = append(fields, channelmonitor.FieldGroupRateOverride)
+	}
 	if m.FieldCleared(channelmonitor.FieldLastCheckedAt) {
 		fields = append(fields, channelmonitor.FieldLastCheckedAt)
 	}
@@ -16121,6 +16273,9 @@ func (m *ChannelMonitorMutation) ClearField(name string) error {
 	switch name {
 	case channelmonitor.FieldGroupName:
 		m.ClearGroupName()
+		return nil
+	case channelmonitor.FieldGroupRateOverride:
+		m.ClearGroupRateOverride()
 		return nil
 	case channelmonitor.FieldLastCheckedAt:
 		m.ClearLastCheckedAt()
@@ -16168,6 +16323,12 @@ func (m *ChannelMonitorMutation) ResetField(name string) error {
 		return nil
 	case channelmonitor.FieldGroupName:
 		m.ResetGroupName()
+		return nil
+	case channelmonitor.FieldGroupRateOverride:
+		m.ResetGroupRateOverride()
+		return nil
+	case channelmonitor.FieldGroupRateDisplayTemplate:
+		m.ResetGroupRateDisplayTemplate()
 		return nil
 	case channelmonitor.FieldEnabled:
 		m.ResetEnabled()

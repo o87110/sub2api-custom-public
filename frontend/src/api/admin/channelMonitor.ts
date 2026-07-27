@@ -26,6 +26,10 @@ export interface ChannelMonitor {
   primary_model: string
   extra_models: string[]
   group_name: string
+  /** Optional display-only multiplier override for this monitor. */
+  group_rate_override: number | null
+  /** Empty means the default `{rate}x` display. */
+  group_rate_display_template: string
   enabled: boolean
   interval_seconds: number
   /** 每次调度在 interval 基础上 ± [0, jitter] 的随机偏移（秒），0 = 固定间隔 */
@@ -80,6 +84,8 @@ export interface CreateParams {
   primary_model: string
   extra_models?: string[]
   group_name?: string
+  group_rate_override?: number | null
+  group_rate_display_template?: string
   enabled?: boolean
   interval_seconds: number
   jitter_seconds?: number
@@ -92,6 +98,7 @@ export interface CreateParams {
 // Update request: api_key 空串 = 不修改；clear_template=true 时把 template_id 置空
 export type UpdateParams = Partial<CreateParams> & {
   clear_template?: boolean
+  clear_group_rate_override?: boolean
 }
 
 export interface CheckResult {
