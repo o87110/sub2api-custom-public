@@ -426,7 +426,7 @@ describe('user KeysView column settings', () => {
   it('shows the compact balance warning only for a bound group that is currently ineligible', async () => {
     const blockedGroup = {
       id: 42,
-      name: 'Threshold Group',
+      name: 'Threshold Group With A Very Long Display Name',
       minimum_balance: 100,
       current_balance: 80,
       usable_balance: 0,
@@ -444,6 +444,15 @@ describe('user KeysView column settings', () => {
 
     const blocked = await mountView()
     expect(blocked.find('[data-test="group-balance-warning"]').exists()).toBe(true)
+    expect(blocked.get('[data-test="api-key-group-cell-content"]').classes()).toEqual(
+      expect.arrayContaining(['min-w-0', 'max-w-full', 'flex-col', 'items-end', 'md:flex-row'])
+    )
+    expect(blocked.get('[data-test="api-key-group-selector"]').classes()).toEqual(
+      expect.arrayContaining(['min-w-0', 'max-w-full', 'md:justify-start'])
+    )
+    expect(blocked.get('group-badge-stub').classes()).toEqual(
+      expect.arrayContaining(['min-w-0', 'max-w-full'])
+    )
     blocked.unmount()
 
     const healthyGroup = {

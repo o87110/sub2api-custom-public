@@ -168,15 +168,20 @@
           </template>
 
           <template #cell-group="{ row }">
-            <div class="group/dropdown relative flex items-center gap-1.5">
+            <div
+              class="group/dropdown relative flex min-w-0 max-w-full flex-col items-end gap-1 md:flex-row md:items-center md:gap-1.5"
+              data-test="api-key-group-cell-content"
+            >
               <button
                 :ref="(el) => setGroupButtonRef(row.id, el)"
                 @click="openGroupSelector(row)"
-                class="-mx-2 -my-1 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-dark-700"
+                class="-my-1 flex min-w-0 max-w-full cursor-pointer items-center justify-end gap-2 rounded-lg px-2 py-1 transition-all duration-200 hover:bg-gray-100 md:-mx-2 md:justify-start dark:hover:bg-dark-700"
                 :title="t('keys.clickToChangeGroup')"
+                data-test="api-key-group-selector"
               >
                 <GroupBadge
                   v-if="row.group"
+                  class="min-w-0 max-w-full"
                   :name="row.group.name"
                   :platform="row.group.platform"
                   :subscription-type="row.group.subscription_type"
@@ -190,9 +195,9 @@
                 <span v-else class="text-sm text-gray-400 dark:text-dark-500">{{
                   t('keys.noGroup')
                 }}</span>
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('keys.selectGroup') }}</span>
+                <span class="flex-shrink-0 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{{ t('keys.selectGroup') }}</span>
                 <svg
-                  class="h-3.5 w-3.5 text-gray-400 opacity-60 transition-opacity group-hover/dropdown:opacity-100"
+                  class="h-3.5 w-3.5 flex-shrink-0 text-gray-400 opacity-60 transition-opacity group-hover/dropdown:opacity-100"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
