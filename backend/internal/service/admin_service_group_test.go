@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -263,6 +264,7 @@ func TestAdminService_CreateGroup_WithImagePricing(t *testing.T) {
 		Description:    "Test group",
 		Platform:       PlatformAntigravity,
 		RateMultiplier: 1.0,
+		MinimumBalance: 100,
 		ImagePrice1K:   &price1K,
 		ImagePrice2K:   &price2K,
 		ImagePrice4K:   &price4K,
@@ -274,12 +276,27 @@ func TestAdminService_CreateGroup_WithImagePricing(t *testing.T) {
 
 	// 验证 repo 收到了正确的字段
 	require.NotNil(t, repo.created)
+	require.Equal(t, 100.0, repo.created.MinimumBalance)
 	require.NotNil(t, repo.created.ImagePrice1K)
 	require.NotNil(t, repo.created.ImagePrice2K)
 	require.NotNil(t, repo.created.ImagePrice4K)
 	require.InDelta(t, 0.10, *repo.created.ImagePrice1K, 0.0001)
 	require.InDelta(t, 0.15, *repo.created.ImagePrice2K, 0.0001)
 	require.InDelta(t, 0.30, *repo.created.ImagePrice4K, 0.0001)
+}
+
+func TestAdminService_CreateGroup_RejectsInvalidMinimumBalance(t *testing.T) {
+	for _, value := range []float64{-1, math.NaN(), math.Inf(1)} {
+		t.Run("invalid", func(t *testing.T) {
+			svc := &adminServiceImpl{groupRepo: &groupRepoStubForAdmin{}}
+			_, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+				Name:           "test-group",
+				RateMultiplier: 1,
+				MinimumBalance: value,
+			})
+			require.Error(t, err)
+		})
+	}
 }
 
 func TestAdminService_CreateGroup_WithVideoPricing(t *testing.T) {

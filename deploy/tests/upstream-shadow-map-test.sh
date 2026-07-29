@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-67}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-72}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,14 +48,19 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 67 ]]; then
+if [[ "$expected_count" -eq 72 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
   assert_mapping $'backend/internal/service/content_moderation_cyber_test.go\tbackend/internal/custom/moderation/cyber_policy_test.go|backend/internal/service/custom_moderation_bridge_test.go'
   assert_mapping $'backend/internal/service/content_moderation_test.go\tbackend/internal/custom/moderation/excerpt_test.go|backend/internal/service/custom_moderation_bridge_test.go'
-  assert_mapping $'frontend/src/views/user/KeysView.vue\tfrontend/src/custom/api-keys/ApiKeyBulkActions.vue|frontend/src/custom/api-keys/bulkActions.ts'
-  assert_mapping $'frontend/src/views/user/__tests__/KeysView.spec.ts\tfrontend/src/custom/api-keys/__tests__/ApiKeyBulkActions.spec.ts|frontend/src/custom/api-keys/__tests__/bulkActions.spec.ts'
+  assert_mapping $'frontend/src/views/user/KeysView.vue\tfrontend/src/custom/api-keys/ApiKeyBulkActions.vue|frontend/src/custom/api-keys/bulkActions.ts|frontend/src/custom/group-access/GroupBalanceWarning.vue|frontend/src/custom/group-access/minimumBalance.ts'
+  assert_mapping $'frontend/src/views/user/__tests__/KeysView.spec.ts\tfrontend/src/custom/api-keys/__tests__/ApiKeyBulkActions.spec.ts|frontend/src/custom/api-keys/__tests__/bulkActions.spec.ts|frontend/src/custom/group-access/__tests__/GroupBalanceWarning.spec.ts|frontend/src/custom/group-access/__tests__/minimumBalance.spec.ts'
+  assert_mapping $'backend/internal/handler/api_key_handler.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
+  assert_mapping $'backend/internal/handler/gateway_handler.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
+  assert_mapping $'backend/internal/service/api_key_service.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
+  assert_mapping $'backend/internal/service/batch_image_public.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
+  assert_mapping $'backend/internal/service/billing_cache_service.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
   assert_mapping $'frontend/src/i18n/locales/en/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
   assert_mapping $'frontend/src/i18n/locales/zh/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
   assert_mapping $'backend/internal/service/payment_order.go\tbackend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go'
@@ -207,7 +212,8 @@ if [[ -d "$boundary_root/frontend/src" ]]; then
     relative="${file#"$boundary_root"/}"
     is_compatibility_test "$relative" && continue
     case "$relative" in
-      frontend/src/custom/* | frontend/src/components/layout/AppSidebar.vue | frontend/src/router/index.ts) ;;
+      frontend/src/custom/* | frontend/src/components/layout/AppSidebar.vue | \
+        frontend/src/router/index.ts | frontend/src/views/user/KeysView.vue) ;;
       *) echo "$match" >> "$boundary_violations" ;;
     esac
   done < <(
@@ -215,7 +221,7 @@ if [[ -d "$boundary_root/frontend/src" ]]; then
       --include='*.ts' \
       --include='*.tsx' \
       --include='*.vue' \
-      '@/custom/(updater|moderation)(/|[^[:alnum:]_]|$)|useCustomUpdaterStore' \
+      '@/custom/(updater|moderation|group-access)(/|[^[:alnum:]_]|$)|useCustomUpdaterStore' \
       "$boundary_root/frontend/src" || true
   )
 
@@ -260,8 +266,17 @@ if [[ -d "$boundary_root/backend" ]]; then
     case "$relative" in
       backend/internal/custom/* | \
         backend/cmd/server/wire.go | backend/cmd/server/wire_gen.go | \
-        backend/internal/handler/wire.go | backend/internal/handler/admin/system_handler.go | \
+        backend/internal/handler/wire.go | backend/internal/handler/api_key_handler.go | \
+        backend/internal/handler/gateway_handler.go | \
+        backend/internal/handler/gateway_handler_billing_error_test.go | \
+        backend/internal/handler/admin/system_handler.go | \
         backend/internal/handler/admin/system_handler_test.go | \
+        backend/internal/service/api_key_service.go | \
+        backend/internal/service/api_key_service_delete_test.go | \
+        backend/internal/service/batch_image_public.go | \
+        backend/internal/service/batch_image_public_test.go | \
+        backend/internal/service/billing_cache_service.go | \
+        backend/internal/service/billing_cache_service_balance_test.go | \
         backend/internal/service/custom_moderation_bridge.go | \
         backend/internal/service/custom_moderation_bridge_test.go) ;;
       *) echo "$match" >> "$boundary_violations" ;;
@@ -269,7 +284,7 @@ if [[ -d "$boundary_root/backend" ]]; then
   done < <(
     grep -RInE \
       --include='*.go' \
-      'github\.com/Wei-Shaw/sub2api/internal/custom/(updater|moderation)(/|[^[:alnum:]_]|$)' \
+      'github\.com/Wei-Shaw/sub2api/internal/custom/(updater|moderation|groupaccess)(/|[^[:alnum:]_]|$)' \
       "$boundary_root/backend" || true
   )
 fi
@@ -300,8 +315,10 @@ backend/internal/handler/admin/setting_handler.go
 backend/internal/handler/admin/setting_handler_update.go
 backend/internal/handler/auth_wechat_oauth.go
 backend/internal/handler/auth_wechat_oauth_test.go
+backend/internal/handler/api_key_handler.go
 backend/internal/handler/channel_monitor_user_handler.go
 backend/internal/handler/dto/settings.go
+backend/internal/handler/gateway_handler.go
 backend/internal/handler/payment_handler.go
 backend/internal/handler/payment_handler_resume_test.go
 backend/internal/handler/openai_gateway_cyber_test.go
@@ -311,6 +328,9 @@ backend/internal/service/content_moderation_companion.go
 backend/internal/service/content_moderation_cyber_test.go
 backend/internal/service/content_moderation_test.go
 backend/internal/service/channel_monitor_service.go
+backend/internal/service/api_key_service.go
+backend/internal/service/batch_image_public.go
+backend/internal/service/billing_cache_service.go
 backend/internal/service/payment_config_limits.go
 backend/internal/service/payment_config_limits_test.go
 backend/internal/service/payment_config_service.go

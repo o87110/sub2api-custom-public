@@ -18,3 +18,14 @@ func TestChannelMonitorGroupRateDisplayMigration(t *testing.T) {
 	require.Contains(t, sql, "table_schema = current_schema()")
 	require.Contains(t, sql, "CHECK (group_rate_override IS NULL OR group_rate_override > 0)")
 }
+
+func TestGroupMinimumBalanceMigration(t *testing.T) {
+	content, err := FS.ReadFile("192_add_group_minimum_balance.sql")
+	require.NoError(t, err)
+
+	sql := strings.Join(strings.Fields(string(content)), " ")
+	require.Contains(t, sql, "minimum_balance DECIMAL(20,8) NOT NULL DEFAULT 0")
+	require.Contains(t, sql, "groups_minimum_balance_nonnegative")
+	require.Contains(t, sql, "table_schema = current_schema()")
+	require.Contains(t, sql, "CHECK (minimum_balance >= 0)")
+}

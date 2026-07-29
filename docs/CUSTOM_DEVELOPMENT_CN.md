@@ -43,12 +43,14 @@ Issue 和生产资料不迁移。
 ```text
 backend/internal/custom/
 ├── databaseboundary/       数据库与迁移边界检查
+├── groupaccess/            分组最低余额门槛计算、错误与金额格式
 ├── moderation/             cyber_policy 范围隔离与摘要
 ├── paymentchannels/        用户级支付渠道选项、个性化配置与合法组合
 └── updater/                自定义 Release、更新与回退
 
 frontend/src/custom/
 ├── api-keys/               API 密钥当前页批量分组、启用、禁用与删除
+├── group-access/           分组最低余额禁用状态、问号说明浮层与错误提示
 ├── moderation/             风控二改页面与文案
 ├── payment-channels/       支付渠道归一化、后台配置、选择器与备用提示
 └── updater/                版本、更新与回退界面

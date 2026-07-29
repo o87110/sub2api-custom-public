@@ -13,6 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupaccess"
+	pkgerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
@@ -45,6 +48,41 @@ type apiKeyRepoStub struct {
 	updateLastUsed         func(ctx context.Context, id int64, usedAt time.Time) error
 	touchedIDs             []int64
 	touchedUsedAts         []time.Time
+}
+
+type minimumBalanceAPIKeyRepoStub struct {
+	*apiKeyRepoStub
+	created *APIKey
+}
+
+func (s *minimumBalanceAPIKeyRepoStub) Create(_ context.Context, key *APIKey) error {
+	clone := *key
+	s.created = &clone
+	return nil
+}
+
+type minimumBalanceGroupRepoStub struct {
+	*groupRepoStub
+	group  *Group
+	groups []Group
+}
+
+func (s *minimumBalanceGroupRepoStub) GetByID(_ context.Context, id int64) (*Group, error) {
+	clone := *s.group
+	clone.ID = id
+	return &clone, nil
+}
+
+func (s *minimumBalanceGroupRepoStub) ListActive(_ context.Context) ([]Group, error) {
+	return append([]Group(nil), s.groups...), nil
+}
+
+type minimumBalanceUserSubRepoStub struct {
+	userSubRepoNoop
+}
+
+func (minimumBalanceUserSubRepoStub) ListActiveByUserID(context.Context, int64) ([]UserSubscription, error) {
+	return nil, nil
 }
 
 // 以下方法在本测试中不应被调用，使用 panic 确保测试失败时能快速定位问题
@@ -498,4 +536,97 @@ func TestApiKeyService_Delete_DeleteFails(t *testing.T) {
 	require.Equal(t, []int64{3}, repo.deletedIDs) // 验证 DeleteWithAudit 被调用
 	require.Empty(t, cache.invalidated)           // 验证删除失败时缓存未被清除（新顺序：先删后清）
 	require.Empty(t, cache.deleteAuthKeys)        // 验证删除失败时 auth 缓存未被清除
+}
+
+func TestAPIKeyService_CreateEnforcesGroupMinimumBalance(t *testing.T) {
+	groupID := int64(7)
+	apiKeyRepo := &minimumBalanceAPIKeyRepoStub{apiKeyRepoStub: &apiKeyRepoStub{}}
+	groupRepo := &minimumBalanceGroupRepoStub{
+		groupRepoStub: &groupRepoStub{},
+		group:         &Group{Name: "分组 A", MinimumBalance: 100},
+	}
+	userRepo := &userRepoStub{user: &User{ID: 42, Balance: 100}}
+	svc := NewAPIKeyService(apiKeyRepo, userRepo, groupRepo, nil, nil, nil, &config.Config{})
+
+	_, err := svc.Create(context.Background(), 42, CreateAPIKeyRequest{Name: "test", GroupID: &groupID})
+	require.Equal(t, groupaccess.MinimumBalanceNotMetReason, pkgerrors.Reason(err))
+	require.Nil(t, apiKeyRepo.created)
+
+	userRepo.user.Balance = 100.00000001
+	created, err := svc.Create(context.Background(), 42, CreateAPIKeyRequest{Name: "test", GroupID: &groupID})
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	require.NotNil(t, apiKeyRepo.created)
+}
+
+func TestAPIKeyService_UpdateRejectsSwitchToGroupBelowMinimumBalance(t *testing.T) {
+	currentGroupID := int64(7)
+	targetGroupID := int64(8)
+	apiKeyRepo := &minimumBalanceAPIKeyRepoStub{apiKeyRepoStub: &apiKeyRepoStub{
+		apiKey: &APIKey{ID: 1, UserID: 42, Key: "sk-test-key", GroupID: &currentGroupID, Status: StatusActive},
+	}}
+	groupRepo := &minimumBalanceGroupRepoStub{
+		groupRepoStub: &groupRepoStub{},
+		group:         &Group{Name: "分组 A", MinimumBalance: 100},
+	}
+	userRepo := &userRepoStub{user: &User{ID: 42, Balance: 80}}
+	svc := NewAPIKeyService(apiKeyRepo, userRepo, groupRepo, nil, nil, nil, nil)
+
+	_, err := svc.Update(context.Background(), 1, 42, UpdateAPIKeyRequest{GroupID: &targetGroupID})
+	require.Equal(t, groupaccess.MinimumBalanceNotMetReason, pkgerrors.Reason(err))
+	require.Empty(t, apiKeyRepo.updatedKeys)
+}
+
+func TestAPIKeyService_UpdateSameGroupDoesNotRecheckMinimumBalance(t *testing.T) {
+	groupID := int64(7)
+	apiKeyRepo := &minimumBalanceAPIKeyRepoStub{apiKeyRepoStub: &apiKeyRepoStub{
+		apiKey: &APIKey{ID: 1, UserID: 42, Key: "sk-test-key", GroupID: &groupID, Status: StatusActive},
+	}}
+	svc := NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, nil)
+	name := "renamed"
+
+	updated, err := svc.Update(context.Background(), 1, 42, UpdateAPIKeyRequest{Name: &name, GroupID: &groupID})
+	require.NoError(t, err)
+	require.Equal(t, name, updated.Name)
+	require.Len(t, apiKeyRepo.updatedKeys, 1)
+}
+
+func TestAPIKeyService_GetAvailableGroupOptionsIncludesMinimumBalanceState(t *testing.T) {
+	groupRepo := &minimumBalanceGroupRepoStub{
+		groupRepoStub: &groupRepoStub{},
+		groups: []Group{
+			{ID: 1, Name: "普通分组", MinimumBalance: 0},
+			{ID: 2, Name: "受限分组", MinimumBalance: 100},
+			{ID: 3, Name: "可用受限分组", MinimumBalance: 60},
+		},
+	}
+	userRepo := &userRepoStub{user: &User{ID: 42, Balance: 80}}
+	svc := NewAPIKeyService(
+		&apiKeyRepoStub{},
+		userRepo,
+		groupRepo,
+		minimumBalanceUserSubRepoStub{},
+		nil,
+		nil,
+		nil,
+	)
+
+	options, err := svc.GetAvailableGroupOptions(context.Background(), 42)
+	require.NoError(t, err)
+	require.Len(t, options, 3)
+	require.Nil(t, options[0].BalanceRequirement)
+	require.Equal(t, groupaccess.BalanceRequirement{
+		MinimumBalance: 100,
+		CurrentBalance: 80,
+		UsableBalance:  0,
+		BalanceGap:     20,
+		Eligible:       false,
+	}, *options[1].BalanceRequirement)
+	require.Equal(t, groupaccess.BalanceRequirement{
+		MinimumBalance: 60,
+		CurrentBalance: 80,
+		UsableBalance:  20,
+		BalanceGap:     0,
+		Eligible:       true,
+	}, *options[2].BalanceRequirement)
 }

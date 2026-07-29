@@ -168,7 +168,7 @@
           </template>
 
           <template #cell-group="{ row }">
-            <div class="group/dropdown relative">
+            <div class="group/dropdown relative flex items-center gap-1.5">
               <button
                 :ref="(el) => setGroupButtonRef(row.id, el)"
                 @click="openGroupSelector(row)"
@@ -205,6 +205,10 @@
                   />
                 </svg>
               </button>
+              <GroupBalanceWarning
+                v-if="row.group && balanceRequirementForGroup(row.group.id)"
+                :requirement="balanceRequirementForGroup(row.group.id)!"
+              />
             </div>
           </template>
 
@@ -512,34 +516,41 @@
             data-tour="key-form-group"
           >
             <template #selected="{ option }">
-              <GroupBadge
-                v-if="option"
-                :name="(option as unknown as GroupOption).label"
-                :platform="(option as unknown as GroupOption).platform"
-                :subscription-type="(option as unknown as GroupOption).subscriptionType"
-                :rate-multiplier="(option as unknown as GroupOption).rate"
-                :user-rate-multiplier="(option as unknown as GroupOption).userRate"
-                :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
-                :peak-start="(option as unknown as GroupOption).peakStart"
-                :peak-end="(option as unknown as GroupOption).peakEnd"
-                :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
-              />
+              <span v-if="option" class="flex min-w-0 items-center">
+                <GroupBadge
+                  :name="(option as unknown as GroupOption).label"
+                  :platform="(option as unknown as GroupOption).platform"
+                  :subscription-type="(option as unknown as GroupOption).subscriptionType"
+                  :rate-multiplier="(option as unknown as GroupOption).rate"
+                  :user-rate-multiplier="(option as unknown as GroupOption).userRate"
+                  :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
+                  :peak-start="(option as unknown as GroupOption).peakStart"
+                  :peak-end="(option as unknown as GroupOption).peakEnd"
+                  :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
+                />
+              </span>
               <span v-else class="text-gray-400">{{ t('keys.selectGroup') }}</span>
             </template>
             <template #option="{ option, selected }">
-              <GroupOptionItem
-                :name="(option as unknown as GroupOption).label"
-                :platform="(option as unknown as GroupOption).platform"
-                :subscription-type="(option as unknown as GroupOption).subscriptionType"
-                :rate-multiplier="(option as unknown as GroupOption).rate"
-                :user-rate-multiplier="(option as unknown as GroupOption).userRate"
-                :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
-                :peak-start="(option as unknown as GroupOption).peakStart"
-                :peak-end="(option as unknown as GroupOption).peakEnd"
-                :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
-                :description="(option as unknown as GroupOption).description"
-                :selected="selected"
-              />
+              <div class="flex w-full min-w-0 items-center justify-between gap-2">
+                <GroupOptionItem
+                  :name="(option as unknown as GroupOption).label"
+                  :platform="(option as unknown as GroupOption).platform"
+                  :subscription-type="(option as unknown as GroupOption).subscriptionType"
+                  :rate-multiplier="(option as unknown as GroupOption).rate"
+                  :user-rate-multiplier="(option as unknown as GroupOption).userRate"
+                  :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
+                  :peak-start="(option as unknown as GroupOption).peakStart"
+                  :peak-end="(option as unknown as GroupOption).peakEnd"
+                  :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
+                  :description="(option as unknown as GroupOption).description"
+                  :selected="selected"
+                />
+                <GroupBalanceWarning
+                  v-if="(option as unknown as GroupOption).balanceRequirement"
+                  :requirement="(option as unknown as GroupOption).balanceRequirement!"
+                />
+              </div>
             </template>
           </Select>
         </div>
@@ -1112,37 +1123,49 @@
         </div>
         <!-- Group list -->
         <div class="max-h-80 overflow-y-auto p-1.5">
-          <button
+          <div
             v-for="option in filteredGroupOptions"
             :key="option.value ?? 'null'"
-            @click="changeGroup(selectedKeyForGroup!, option.value)"
             :class="[
               'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
               'border-b border-gray-100 last:border-0 dark:border-dark-700',
               selectedKeyForGroup?.group_id === option.value ||
               (!selectedKeyForGroup?.group_id && option.value === null)
                 ? 'bg-primary-50 dark:bg-primary-900/20'
-                : 'hover:bg-gray-100 dark:hover:bg-dark-700'
+                : option.disabled
+                  ? 'opacity-60'
+                  : 'hover:bg-gray-100 dark:hover:bg-dark-700'
             ]"
-            :title="option.description || undefined"
           >
-            <GroupOptionItem
-              :name="option.label"
-              :platform="option.platform"
-              :subscription-type="option.subscriptionType"
-              :rate-multiplier="option.rate"
-              :user-rate-multiplier="option.userRate"
-              :peak-rate-enabled="option.peakRateEnabled"
-              :peak-start="option.peakStart"
-              :peak-end="option.peakEnd"
-              :peak-rate-multiplier="option.peakRateMultiplier"
-              :description="option.description"
-              :selected="
-                selectedKeyForGroup?.group_id === option.value ||
-                (!selectedKeyForGroup?.group_id && option.value === null)
-              "
+            <button
+              type="button"
+              class="min-w-0 flex-1 text-left disabled:cursor-not-allowed"
+              :disabled="option.disabled"
+              :title="option.description || undefined"
+              @click="changeGroup(selectedKeyForGroup!, option.value)"
+            >
+              <GroupOptionItem
+                :name="option.label"
+                :platform="option.platform"
+                :subscription-type="option.subscriptionType"
+                :rate-multiplier="option.rate"
+                :user-rate-multiplier="option.userRate"
+                :peak-rate-enabled="option.peakRateEnabled"
+                :peak-start="option.peakStart"
+                :peak-end="option.peakEnd"
+                :peak-rate-multiplier="option.peakRateMultiplier"
+                :description="option.description"
+                :selected="
+                  selectedKeyForGroup?.group_id === option.value ||
+                  (!selectedKeyForGroup?.group_id && option.value === null)
+                "
+              />
+            </button>
+            <GroupBalanceWarning
+              v-if="option.balanceRequirement"
+              :requirement="option.balanceRequirement"
             />
-          </button>
+          </div>
           <!-- Empty state when search has no results -->
           <div v-if="filteredGroupOptions.length === 0" class="py-4 text-center text-sm text-gray-400 dark:text-gray-500">
             {{ t('keys.noGroupFound') }}
@@ -1154,35 +1177,41 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, reactive, computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
-	import { useI18n } from 'vue-i18n'
-	import { useAppStore } from '@/stores/app'
-	import { useOnboardingStore } from '@/stores/onboarding'
-	import { useClipboard } from '@/composables/useClipboard'
+import { ref, reactive, computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useAppStore } from '@/stores/app'
+import { useOnboardingStore } from '@/stores/onboarding'
+import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 
 const { t, locale } = useI18n()
 import { keysAPI, authAPI, usageAPI, userGroupsAPI } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
-	import DataTable from '@/components/common/DataTable.vue'
-	import Pagination from '@/components/common/Pagination.vue'
-	import BaseDialog from '@/components/common/BaseDialog.vue'
-	import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-	import EmptyState from '@/components/common/EmptyState.vue'
-	import Select from '@/components/common/Select.vue'
-	import SearchInput from '@/components/common/SearchInput.vue'
-	import Icon from '@/components/icons/Icon.vue'
-	import UseKeyModal from '@/components/keys/UseKeyModal.vue'
-	import EndpointPopover from '@/components/keys/EndpointPopover.vue'
-	import ApiKeyBulkActions from '@/custom/api-keys/ApiKeyBulkActions.vue'
-	import GroupBadge from '@/components/common/GroupBadge.vue'
-	import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
-	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
+import DataTable from '@/components/common/DataTable.vue'
+import Pagination from '@/components/common/Pagination.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import Select from '@/components/common/Select.vue'
+import SearchInput from '@/components/common/SearchInput.vue'
+import Icon from '@/components/icons/Icon.vue'
+import UseKeyModal from '@/components/keys/UseKeyModal.vue'
+import EndpointPopover from '@/components/keys/EndpointPopover.vue'
+import ApiKeyBulkActions from '@/custom/api-keys/ApiKeyBulkActions.vue'
+import GroupBalanceWarning from '@/custom/group-access/GroupBalanceWarning.vue'
+import GroupBadge from '@/components/common/GroupBadge.vue'
+import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
+import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
 import type { ApiKeyBulkCompletedResult } from '@/custom/api-keys/bulkActions'
 import { customApiKeyBulkText } from '@/custom/api-keys/i18n'
+import {
+  groupBalanceRequirement,
+  minimumBalanceErrorToast,
+  type GroupBalanceRequirement
+} from '@/custom/group-access/minimumBalance'
 import { formatDateTime } from '@/utils/format'
 import { maskApiKey } from '@/utils/maskApiKey'
 import {
@@ -1198,6 +1227,7 @@ const formatDateTimeLocal = (isoDate: string): string => {
 }
 
 interface GroupOption {
+  [key: string]: unknown
   value: number
   label: string
   description: string | null
@@ -1209,6 +1239,8 @@ interface GroupOption {
   peakRateMultiplier: number
   subscriptionType: SubscriptionType
   platform: GroupPlatform
+  disabled: boolean
+  balanceRequirement: GroupBalanceRequirement | null
 }
 
 const appStore = useAppStore()
@@ -1452,20 +1484,37 @@ const onStatusFilterChange = (value: string | number | boolean | null) => {
 
 // Convert groups to Select options format with rate multiplier and subscription type
 const groupOptions = computed(() =>
-  groups.value.map((group) => ({
-    value: group.id,
-    label: group.name,
-    description: group.description,
-    rate: group.rate_multiplier,
-    userRate: userGroupRates.value[group.id] ?? null,
-    peakRateEnabled: group.peak_rate_enabled,
-    peakStart: group.peak_start,
-    peakEnd: group.peak_end,
-    peakRateMultiplier: group.peak_rate_multiplier,
-    subscriptionType: group.subscription_type,
-    platform: group.platform
-  }))
+  groups.value.map((group) => {
+    const balanceRequirement = groupBalanceRequirement(group)
+    return {
+      value: group.id,
+      label: group.name,
+      description: group.description,
+      rate: group.rate_multiplier,
+      userRate: userGroupRates.value[group.id] ?? null,
+      peakRateEnabled: group.peak_rate_enabled,
+      peakStart: group.peak_start,
+      peakEnd: group.peak_end,
+      peakRateMultiplier: group.peak_rate_multiplier,
+      subscriptionType: group.subscription_type,
+      platform: group.platform,
+      disabled: balanceRequirement !== null,
+      balanceRequirement
+    }
+  })
 )
+
+const balanceRequirementsByGroupID = computed(() => {
+  const result = new Map<number, GroupBalanceRequirement>()
+  for (const group of groups.value) {
+    const requirement = groupBalanceRequirement(group)
+    if (requirement) result.set(group.id, requirement)
+  }
+  return result
+})
+
+const balanceRequirementForGroup = (groupId: number): GroupBalanceRequirement | null =>
+  balanceRequirementsByGroupID.value.get(groupId) ?? null
 
 // Group dropdown search
 const groupSearchQuery = ref('')
@@ -1714,13 +1763,16 @@ const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
   groupSelectorKeyId.value = null
   dropdownPosition.value = null
   if (key.group_id === newGroupId) return
+  if (newGroupId !== null && balanceRequirementForGroup(newGroupId)) return
 
   try {
     await keysAPI.update(key.id, { group_id: newGroupId })
     appStore.showSuccess(t('keys.groupChangedSuccess'))
     loadApiKeys()
-  } catch (error) {
-    appStore.showError(t('keys.failedToChangeGroup'))
+  } catch (error: unknown) {
+    appStore.showError(
+      minimumBalanceErrorToast(error, locale.value) ?? t('keys.failedToChangeGroup')
+    )
   }
 }
 
@@ -1835,7 +1887,10 @@ const handleSubmit = async () => {
     closeModals()
     loadApiKeys()
   } catch (error: any) {
-    const errorMsg = error.response?.data?.detail || t('keys.failedToSave')
+    const errorMsg =
+      minimumBalanceErrorToast(error, locale.value) ||
+      error.response?.data?.detail ||
+      t('keys.failedToSave')
     appStore.showError(errorMsg)
     // Don't advance tour on error
   } finally {

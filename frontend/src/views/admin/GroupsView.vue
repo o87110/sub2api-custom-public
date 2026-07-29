@@ -598,6 +598,22 @@
           <p class="input-hint">{{ t("admin.groups.rateMultiplierHint") }}</p>
         </div>
         <div>
+          <label class="input-label">{{
+            t("admin.groups.form.minimumBalance")
+          }}</label>
+          <input
+            v-model.number="createForm.minimum_balance"
+            type="number"
+            step="0.00000001"
+            min="0"
+            required
+            class="input"
+          />
+          <p class="input-hint">
+            {{ t("admin.groups.form.minimumBalanceHint") }}
+          </p>
+        </div>
+        <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
             v-model.number="createForm.rpm_limit"
@@ -2149,6 +2165,22 @@
             class="input"
             data-tour="group-form-multiplier"
           />
+        </div>
+        <div>
+          <label class="input-label">{{
+            t("admin.groups.form.minimumBalance")
+          }}</label>
+          <input
+            v-model.number="editForm.minimum_balance"
+            type="number"
+            step="0.00000001"
+            min="0"
+            required
+            class="input"
+          />
+          <p class="input-hint">
+            {{ t("admin.groups.form.minimumBalanceHint") }}
+          </p>
         </div>
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
@@ -4590,6 +4622,7 @@ const createForm = reactive({
   description: "",
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
+  minimum_balance: 0,
   is_exclusive: false,
   subscription_type: "standard" as SubscriptionType,
   daily_limit_usd: null as number | null,
@@ -4939,6 +4972,7 @@ const editForm = reactive({
   description: "",
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
+  minimum_balance: 0,
   is_exclusive: false,
   status: "active" as "active" | "inactive",
   subscription_type: "standard" as SubscriptionType,
@@ -5388,6 +5422,7 @@ const closeCreateModal = () => {
   createForm.description = "";
   createForm.platform = "anthropic";
   createForm.rate_multiplier = 1.0;
+  createForm.minimum_balance = 0;
   createForm.is_exclusive = false;
   createForm.subscription_type = "standard";
   createForm.daily_limit_usd = null;
@@ -5462,6 +5497,13 @@ const normalizeRateMultiplier = (
 const handleCreateGroup = async () => {
   if (!createForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));
+    return;
+  }
+  if (
+    !Number.isFinite(Number(createForm.minimum_balance)) ||
+    Number(createForm.minimum_balance) < 0
+  ) {
+    appStore.showError(t("admin.groups.form.minimumBalanceInvalid"));
     return;
   }
   if (
@@ -5567,6 +5609,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.description = group.description || "";
   editForm.platform = group.platform;
   editForm.rate_multiplier = group.rate_multiplier;
+  editForm.minimum_balance = group.minimum_balance ?? 0;
   editForm.is_exclusive = group.is_exclusive;
   editForm.status = group.status;
   editForm.subscription_type = group.subscription_type || "standard";
@@ -5669,6 +5712,13 @@ const handleUpdateGroup = async () => {
   if (!editingGroup.value) return;
   if (!editForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));
+    return;
+  }
+  if (
+    !Number.isFinite(Number(editForm.minimum_balance)) ||
+    Number(editForm.minimum_balance) < 0
+  ) {
+    appStore.showError(t("admin.groups.form.minimumBalanceInvalid"));
     return;
   }
   if (

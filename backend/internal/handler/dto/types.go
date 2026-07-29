@@ -93,6 +93,7 @@ type Group struct {
 	Description    string  `json:"description"`
 	Platform       string  `json:"platform"`
 	RateMultiplier float64 `json:"rate_multiplier"`
+	MinimumBalance float64 `json:"minimum_balance"`
 	IsExclusive    bool    `json:"is_exclusive"`
 	Status         string  `json:"status"`
 

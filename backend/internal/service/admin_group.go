@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -299,6 +300,9 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if input.RateMultiplier <= 0 {
 		return nil, errors.New("rate_multiplier must be > 0")
 	}
+	if math.IsNaN(input.MinimumBalance) || math.IsInf(input.MinimumBalance, 0) || input.MinimumBalance < 0 {
+		return nil, infraerrors.BadRequest("INVALID_MINIMUM_BALANCE", "minimum_balance must be a non-negative finite number")
+	}
 
 	platform := input.Platform
 	if platform == "" {
@@ -438,6 +442,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		Description:                     input.Description,
 		Platform:                        platform,
 		RateMultiplier:                  input.RateMultiplier,
+		MinimumBalance:                  input.MinimumBalance,
 		IsExclusive:                     input.IsExclusive,
 		Status:                          StatusActive,
 		SubscriptionType:                subscriptionType,
@@ -626,6 +631,12 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 			return nil, errors.New("rate_multiplier must be > 0")
 		}
 		group.RateMultiplier = *input.RateMultiplier
+	}
+	if input.MinimumBalance != nil {
+		if math.IsNaN(*input.MinimumBalance) || math.IsInf(*input.MinimumBalance, 0) || *input.MinimumBalance < 0 {
+			return nil, infraerrors.BadRequest("INVALID_MINIMUM_BALANCE", "minimum_balance must be a non-negative finite number")
+		}
+		group.MinimumBalance = *input.MinimumBalance
 	}
 	if input.IsExclusive != nil {
 		group.IsExclusive = *input.IsExclusive

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupaccess"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -429,6 +430,50 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		body, err := json.Marshal(got)
 		require.NoError(t, err)
 		requireBatchImagePublicJSONHasNoInternals(t, string(body))
+	})
+}
+
+func TestBatchImagePublicService_GroupMinimumBalance(t *testing.T) {
+	ctx := context.Background()
+	groupID := int64(7)
+	group := &Group{
+		ID:                           groupID,
+		Name:                         "分组 A",
+		Platform:                     PlatformGemini,
+		RateMultiplier:               1,
+		MinimumBalance:               100,
+		AllowBatchImageGeneration:    true,
+		BatchImageDiscountMultiplier: 0.5,
+		BatchImageHoldMultiplier:     0.6,
+	}
+	owner := BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}
+
+	t.Run("rejects a new submission before creating a job", func(t *testing.T) {
+		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
+		svc.GroupRepo = &publicBatchImageGroupRepo{groups: map[int64]*Group{groupID: group}}
+		svc.UserRepo = &userRepoStub{user: &User{ID: owner.UserID, Balance: 100}}
+
+		_, err := svc.Submit(ctx, owner, validBatchImageSubmitRequest(), "")
+		require.Equal(t, groupaccess.MinimumBalanceNotMetReason, infraerrors.Reason(err))
+		require.Empty(t, repo.jobs)
+		require.Empty(t, queue.enqueued)
+		require.Empty(t, gemini.submits)
+	})
+
+	t.Run("idempotent replay is not blocked by a later balance drop", func(t *testing.T) {
+		svc, _, _, gemini, _ := newTestBatchImagePublicService(true)
+		svc.GroupRepo = &publicBatchImageGroupRepo{groups: map[int64]*Group{groupID: group}}
+		userRepo := &userRepoStub{user: &User{ID: owner.UserID, Balance: 120}}
+		svc.UserRepo = userRepo
+		req := validBatchImageSubmitRequest()
+
+		first, err := svc.Submit(ctx, owner, req, "minimum-balance-replay")
+		require.NoError(t, err)
+		userRepo.user.Balance = 80
+		second, err := svc.Submit(ctx, owner, req, "minimum-balance-replay")
+		require.NoError(t, err)
+		require.Equal(t, first.ID, second.ID)
+		require.Len(t, gemini.submits, 1)
 	})
 }
 

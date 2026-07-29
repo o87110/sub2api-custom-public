@@ -174,28 +174,45 @@ blob_at() {
 thin_bridge_allowed() {
   case "$1" in
     backend/cmd/server/wire.go | \
+      backend/internal/handler/admin/group_handler.go | \
       backend/internal/handler/admin/payment_handler.go | \
       backend/internal/handler/admin/channel_monitor_handler.go | \
       backend/internal/handler/admin/setting_handler.go | \
       backend/internal/handler/admin/setting_handler_update.go | \
       backend/internal/handler/auth_wechat_oauth.go | \
       backend/internal/handler/auth_wechat_oauth_test.go | \
+      backend/internal/handler/api_key_handler.go | \
       backend/internal/handler/channel_monitor_user_handler.go | \
       backend/internal/handler/admin/system_handler.go | \
       backend/internal/handler/admin/system_handler_test.go | \
+      backend/internal/handler/dto/mappers.go | \
       backend/internal/handler/dto/settings.go | \
+      backend/internal/handler/dto/types.go | \
+      backend/internal/handler/gateway_handler.go | \
       backend/internal/handler/openai_gateway_handler.go | \
       backend/internal/handler/payment_handler.go | \
       backend/internal/handler/payment_handler_resume_test.go | \
       backend/internal/handler/wire.go | \
       backend/internal/payment/load_balancer.go | \
       backend/internal/payment/types.go | \
+      backend/internal/repository/api_key_minimum_balance_repo.go | \
+      backend/internal/repository/api_key_repo.go | \
       backend/internal/repository/channel_monitor_repo.go | \
+      backend/internal/repository/group_repo.go | \
+      backend/internal/service/admin_group.go | \
+      backend/internal/service/admin_group_duplicate.go | \
+      backend/internal/service/admin_service.go | \
+      backend/internal/service/api_key_auth_cache.go | \
+      backend/internal/service/api_key_auth_cache_impl.go | \
+      backend/internal/service/api_key_service.go | \
+      backend/internal/service/batch_image_public.go | \
+      backend/internal/service/billing_cache_service.go | \
       backend/internal/service/channel_monitor_aggregator.go | \
       backend/internal/service/channel_monitor_const.go | \
       backend/internal/service/channel_monitor_service.go | \
       backend/internal/service/channel_monitor_types.go | \
       backend/internal/service/content_moderation.go | \
+      backend/internal/service/group.go | \
       backend/internal/service/payment_config_limits.go | \
       backend/internal/service/payment_config_limits_test.go | \
       backend/internal/service/payment_config_service.go | \
@@ -217,13 +234,17 @@ thin_bridge_allowed() {
       frontend/src/components/user/monitor/MonitorCard.vue | \
       frontend/src/components/layout/AppSidebar.vue | \
       frontend/src/i18n/locales/en/admin/channels.ts | \
+      frontend/src/i18n/locales/en/admin/overview.ts | \
       frontend/src/i18n/locales/en/admin/settings.ts | \
       frontend/src/i18n/locales/en/misc.ts | \
       frontend/src/i18n/locales/zh/admin/settings.ts | \
       frontend/src/i18n/locales/zh/admin/channels.ts | \
+      frontend/src/i18n/locales/zh/admin/overview.ts | \
       frontend/src/i18n/locales/zh/misc.ts | \
       frontend/src/router/index.ts | \
+      frontend/src/types/index.ts | \
       frontend/src/types/payment.ts | \
+      frontend/src/views/admin/GroupsView.vue | \
       frontend/src/views/admin/SettingsView.vue | \
       frontend/src/views/admin/__tests__/SettingsView.spec.ts | \
       frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts | \

@@ -84,6 +84,7 @@ const createGroup = (id: number): Group => ({
   description: `group ${id}`,
   platform: 'openai',
   rate_multiplier: 1,
+  minimum_balance: 0,
   is_exclusive: false,
   status: 'active',
   subscription_type: 'standard',
@@ -207,6 +208,37 @@ describe('ApiKeyBulkActions', () => {
     expect(updateKey).not.toHaveBeenCalled()
   })
 
+  it('disables only groups that currently fail the minimum-balance gate', () => {
+    const healthy = createGroup(7)
+    const blocked = {
+      ...createGroup(8),
+      minimum_balance: 100,
+      current_balance: 80,
+      usable_balance: 0,
+      balance_gap: 20,
+      balance_eligible: false
+    }
+    const wrapper = mountActions([createApiKey(1)], [1], [healthy, blocked])
+    const options = wrapper.findComponent({ name: 'Select' }).props('options') as Array<{
+      value: number
+      disabled: boolean
+      balanceRequirement: unknown
+    }>
+
+    expect(options.find((option) => option.value === 7)).toMatchObject({
+      disabled: false,
+      balanceRequirement: null
+    })
+    expect(options.find((option) => option.value === 8)).toMatchObject({
+      disabled: true,
+      balanceRequirement: expect.objectContaining({
+        minimumBalance: 100,
+        currentBalance: 80,
+        balanceGap: 20
+      })
+    })
+  })
+
   it('changes groups without confirmation and skips rows already in the target group', async () => {
     const wrapper = mountActions([
       createApiKey(1),
@@ -241,6 +273,28 @@ describe('ApiKeyBulkActions', () => {
 
     expect(wrapper.emitted('update:selectedIds')?.at(-1)?.[0]).toEqual([2])
     expect(showWarning).toHaveBeenCalledOnce()
+  })
+
+  it('shows minimum-balance details when a stale bulk group selection is rejected', async () => {
+    updateKey.mockRejectedValue({
+      reason: 'GROUP_MINIMUM_BALANCE_NOT_MET',
+      metadata: {
+        group_name: '分组 A',
+        current_balance: '80',
+        minimum_balance: '100',
+        balance_gap: '20'
+      }
+    })
+    const wrapper = mountActions([createApiKey(1)], [1])
+
+    await wrapper.get('[data-test="bulk-group-select"]').setValue('7')
+    await wrapper.get('[data-test="bulk-apply-group"]').trigger('click')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith(
+      '无法使用“分组 A”：当前余额 $80.00，余额需高于 $100.00，还需增加超过 $20.00。'
+    )
+    expect(wrapper.emitted('update:selectedIds')?.at(-1)?.[0]).toEqual([1])
   })
 
   it('requires confirmation before disabling and skips inactive rows', async () => {

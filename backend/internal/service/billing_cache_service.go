@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupaccess"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
@@ -94,6 +97,10 @@ type cacheWriteTask struct {
 // apiKeyRateLimitLoader defines the interface for loading rate limit data from DB.
 type apiKeyRateLimitLoader interface {
 	GetRateLimitData(ctx context.Context, keyID int64) (*APIKeyRateLimitData, error)
+}
+
+type groupMinimumBalanceLoader interface {
+	GetGroupByIDForMinimumBalance(ctx context.Context, groupID int64) (*Group, error)
 }
 
 type subscriptionCacheInvalidationPubSub interface {
@@ -733,11 +740,25 @@ func (s *BillingCacheService) IncrementUserPlatformQuotaUsage(userID int64, plat
 // 订阅模式：检查缓存用量未超过限额（Group限额从参数传入）
 // platform 为请求的目标平台（如 "anthropic"），传空串 "" 时跳过 user × platform quota 检查。
 func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription, platform string) error {
+	minimumBalanceGroups, err := s.minimumBalanceGroupsForRequest(ctx, group)
+	if err != nil {
+		return ErrBillingServiceUnavailable.WithCause(err)
+	}
+	groupMinimumBalanceEnabled := len(minimumBalanceGroups) > 0
+	if groupMinimumBalanceEnabled {
+		if s.circuitBreaker != nil && !s.circuitBreaker.Allow() {
+			return ErrBillingServiceUnavailable
+		}
+		if err := s.checkGroupMinimumBalanceEligibility(ctx, user, minimumBalanceGroups); err != nil {
+			return err
+		}
+	}
+
 	// 简易模式：跳过所有计费检查
 	if s.cfg.RunMode == config.RunModeSimple {
 		return nil
 	}
-	if s.circuitBreaker != nil && !s.circuitBreaker.Allow() {
+	if !groupMinimumBalanceEnabled && s.circuitBreaker != nil && !s.circuitBreaker.Allow() {
 		return ErrBillingServiceUnavailable
 	}
 
@@ -773,6 +794,76 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 		return err
 	}
 
+	return nil
+}
+
+func (s *BillingCacheService) minimumBalanceGroupsForRequest(ctx context.Context, group *Group) ([]*Group, error) {
+	groups := make([]*Group, 0, 2)
+	if group == nil {
+		return groups, nil
+	}
+	if group.MinimumBalance > 0 {
+		groups = append(groups, group)
+	}
+	if forcePlatform, ok := ctx.Value(ctxkey.ForcePlatform).(string); ok && forcePlatform != "" {
+		return groups, nil
+	}
+	if !group.ClaudeCodeOnly || IsClaudeCodeClient(ctx) || group.FallbackGroupID == nil {
+		return groups, nil
+	}
+	groupLoader, ok := s.apiKeyRateLimitLoader.(groupMinimumBalanceLoader)
+	if !ok {
+		return nil, errors.New("group loader is required to resolve minimum-balance fallback")
+	}
+
+	currentID := *group.FallbackGroupID
+	visited := map[int64]struct{}{group.ID: {}}
+	for {
+		if _, seen := visited[currentID]; seen {
+			return nil, errors.New("fallback group cycle detected")
+		}
+		visited[currentID] = struct{}{}
+
+		fallbackGroup, err := groupLoader.GetGroupByIDForMinimumBalance(ctx, currentID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve fallback group %d: %w", currentID, err)
+		}
+		if !fallbackGroup.ClaudeCodeOnly || IsClaudeCodeClient(ctx) {
+			if fallbackGroup.MinimumBalance > 0 {
+				groups = append(groups, fallbackGroup)
+			}
+			return groups, nil
+		}
+		if fallbackGroup.FallbackGroupID == nil {
+			return groups, nil
+		}
+		currentID = *fallbackGroup.FallbackGroupID
+	}
+}
+
+func (s *BillingCacheService) checkGroupMinimumBalanceEligibility(ctx context.Context, user *User, groups []*Group) error {
+	if len(groups) == 0 {
+		return nil
+	}
+	if user == nil {
+		return ErrBillingServiceUnavailable.WithCause(errors.New("group minimum-balance check requires a user"))
+	}
+	balance, err := s.getUserBalanceFromDB(ctx, user.ID)
+	if err != nil {
+		if s.circuitBreaker != nil {
+			s.circuitBreaker.OnFailure(err)
+		}
+		logger.LegacyPrintf("service.billing_cache", "ALERT: group minimum-balance check failed for user %d: %v", user.ID, err)
+		return ErrBillingServiceUnavailable.WithCause(err)
+	}
+	if s.circuitBreaker != nil {
+		s.circuitBreaker.OnSuccess()
+	}
+	for _, group := range groups {
+		if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, balance, group.MinimumBalance); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

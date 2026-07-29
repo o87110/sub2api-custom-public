@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupaccess"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"go.uber.org/zap"
@@ -85,6 +86,7 @@ type BatchImagePublicService struct {
 	Repo              BatchImageRepository
 	AccountRepo       BatchImageAccountSelectionRepository
 	GroupRepo         BatchImageGroupPricingRepository
+	UserRepo          UserRepository
 	UserGroupRateRepo BatchImageUserGroupRateRepository
 	Queue             BatchImageQueue
 	ProviderRegistry  *BatchImageProviderRegistry
@@ -182,11 +184,12 @@ type BatchImageItemsQuery struct {
 	Cursor string
 }
 
-func NewBatchImagePublicService(repo BatchImageRepository, accountRepo AccountRepository, groupRepo GroupRepository, userGroupRateRepo UserGroupRateRepository, queue BatchImageQueue, pricing *BatchImageModelPricingResolver, billingRepo UsageBillingRepository, authCache APIKeyAuthCacheInvalidator, cfg *config.Config) *BatchImagePublicService {
+func NewBatchImagePublicService(repo BatchImageRepository, accountRepo AccountRepository, groupRepo GroupRepository, userRepo UserRepository, userGroupRateRepo UserGroupRateRepository, queue BatchImageQueue, pricing *BatchImageModelPricingResolver, billingRepo UsageBillingRepository, authCache APIKeyAuthCacheInvalidator, cfg *config.Config) *BatchImagePublicService {
 	return &BatchImagePublicService{
 		Repo:              repo,
 		AccountRepo:       accountRepo,
 		GroupRepo:         groupRepo,
+		UserRepo:          userRepo,
 		UserGroupRateRepo: userGroupRateRepo,
 		Queue:             queue,
 		ProviderRegistry:  NewBatchImageProviderRegistryFromConfig(cfg),
@@ -207,7 +210,8 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 	}
 	// 与 ListModels 使用同一鉴权谓词（AllowBatchImageGeneration + Platform==Gemini），
 	// 避免两个入口校验口径不一致留下防御纵深缺口。
-	if err := s.ensureGroupAllowsBatchImage(ctx, owner.GroupID); err != nil {
+	group, err := s.ensureGroupAllowsBatchImage(ctx, owner.GroupID)
+	if err != nil {
 		return nil, err
 	}
 	requestHash := HashBatchImageSubmitRequest(normalized)
@@ -227,6 +231,18 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 			return BatchImageJobToPublic(existing), nil
 		}
 		if !errors.Is(err, ErrBatchImageJobNotFound) {
+			return nil, err
+		}
+	}
+	if group != nil && group.MinimumBalance > 0 {
+		if s.UserRepo == nil {
+			return nil, ErrBillingServiceUnavailable
+		}
+		user, err := s.UserRepo.GetByID(ctx, owner.UserID)
+		if err != nil {
+			return nil, ErrBillingServiceUnavailable.WithCause(err)
+		}
+		if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {
 			return nil, err
 		}
 	}
@@ -621,7 +637,7 @@ func (s *BatchImagePublicService) ListModels(ctx context.Context, owner BatchIma
 	if s.Pricing == nil {
 		return nil, ErrBatchImageSettlementPricingMissing
 	}
-	if err := s.ensureGroupAllowsBatchImage(ctx, owner.GroupID); err != nil {
+	if _, err := s.ensureGroupAllowsBatchImage(ctx, owner.GroupID); err != nil {
 		return nil, err
 	}
 
@@ -976,24 +992,24 @@ func (s *BatchImagePublicService) listCandidateAccounts(ctx context.Context, gro
 	return s.AccountRepo.ListSchedulableByPlatform(ctx, platform)
 }
 
-func (s *BatchImagePublicService) ensureGroupAllowsBatchImage(ctx context.Context, groupID *int64) error {
+func (s *BatchImagePublicService) ensureGroupAllowsBatchImage(ctx context.Context, groupID *int64) (*Group, error) {
 	if groupID == nil || *groupID <= 0 {
-		return nil
+		return nil, nil
 	}
 	if s.GroupRepo == nil {
-		return ErrBatchImageSettlementPricingMissing
+		return nil, ErrBatchImageSettlementPricingMissing
 	}
 	group, err := s.GroupRepo.GetByIDLite(ctx, *groupID)
 	if err != nil || group == nil {
-		return ErrBatchImageSettlementPricingMissing
+		return nil, ErrBatchImageSettlementPricingMissing
 	}
 	if !group.AllowBatchImageGeneration {
-		return ErrBatchImageGroupDisabled
+		return nil, ErrBatchImageGroupDisabled
 	}
 	if group.Platform != PlatformGemini {
-		return ErrBatchImageGroupDisabled
+		return nil, ErrBatchImageGroupDisabled
 	}
-	return nil
+	return group, nil
 }
 
 func (s *BatchImagePublicService) resolvePricingSnapshot(ctx context.Context, owner BatchImageOwner, req BatchImageSubmitRequest, provider string, account *Account) (*BatchImagePricingSnapshot, error) {

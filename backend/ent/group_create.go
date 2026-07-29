@@ -105,6 +105,20 @@ func (_c *GroupCreate) SetNillableRateMultiplier(v *float64) *GroupCreate {
 	return _c
 }
 
+// SetMinimumBalance sets the "minimum_balance" field.
+func (_c *GroupCreate) SetMinimumBalance(v float64) *GroupCreate {
+	_c.mutation.SetMinimumBalance(v)
+	return _c
+}
+
+// SetNillableMinimumBalance sets the "minimum_balance" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableMinimumBalance(v *float64) *GroupCreate {
+	if v != nil {
+		_c.SetMinimumBalance(*v)
+	}
+	return _c
+}
+
 // SetPeakRateEnabled sets the "peak_rate_enabled" field.
 func (_c *GroupCreate) SetPeakRateEnabled(v bool) *GroupCreate {
 	_c.mutation.SetPeakRateEnabled(v)
@@ -870,6 +884,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultRateMultiplier
 		_c.mutation.SetRateMultiplier(v)
 	}
+	if _, ok := _c.mutation.MinimumBalance(); !ok {
+		v := group.DefaultMinimumBalance
+		_c.mutation.SetMinimumBalance(v)
+	}
 	if _, ok := _c.mutation.PeakRateEnabled(); !ok {
 		v := group.DefaultPeakRateEnabled
 		_c.mutation.SetPeakRateEnabled(v)
@@ -1019,6 +1037,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		return &ValidationError{Name: "rate_multiplier", err: errors.New(`ent: missing required field "Group.rate_multiplier"`)}
+	}
+	if _, ok := _c.mutation.MinimumBalance(); !ok {
+		return &ValidationError{Name: "minimum_balance", err: errors.New(`ent: missing required field "Group.minimum_balance"`)}
 	}
 	if _, ok := _c.mutation.PeakRateEnabled(); !ok {
 		return &ValidationError{Name: "peak_rate_enabled", err: errors.New(`ent: missing required field "Group.peak_rate_enabled"`)}
@@ -1206,6 +1227,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RateMultiplier(); ok {
 		_spec.SetField(group.FieldRateMultiplier, field.TypeFloat64, value)
 		_node.RateMultiplier = value
+	}
+	if value, ok := _c.mutation.MinimumBalance(); ok {
+		_spec.SetField(group.FieldMinimumBalance, field.TypeFloat64, value)
+		_node.MinimumBalance = value
 	}
 	if value, ok := _c.mutation.PeakRateEnabled(); ok {
 		_spec.SetField(group.FieldPeakRateEnabled, field.TypeBool, value)
@@ -1622,6 +1647,24 @@ func (u *GroupUpsert) UpdateRateMultiplier() *GroupUpsert {
 // AddRateMultiplier adds v to the "rate_multiplier" field.
 func (u *GroupUpsert) AddRateMultiplier(v float64) *GroupUpsert {
 	u.Add(group.FieldRateMultiplier, v)
+	return u
+}
+
+// SetMinimumBalance sets the "minimum_balance" field.
+func (u *GroupUpsert) SetMinimumBalance(v float64) *GroupUpsert {
+	u.Set(group.FieldMinimumBalance, v)
+	return u
+}
+
+// UpdateMinimumBalance sets the "minimum_balance" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateMinimumBalance() *GroupUpsert {
+	u.SetExcluded(group.FieldMinimumBalance)
+	return u
+}
+
+// AddMinimumBalance adds v to the "minimum_balance" field.
+func (u *GroupUpsert) AddMinimumBalance(v float64) *GroupUpsert {
+	u.Add(group.FieldMinimumBalance, v)
 	return u
 }
 
@@ -2499,6 +2542,27 @@ func (u *GroupUpsertOne) AddRateMultiplier(v float64) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateRateMultiplier() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateRateMultiplier()
+	})
+}
+
+// SetMinimumBalance sets the "minimum_balance" field.
+func (u *GroupUpsertOne) SetMinimumBalance(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetMinimumBalance(v)
+	})
+}
+
+// AddMinimumBalance adds v to the "minimum_balance" field.
+func (u *GroupUpsertOne) AddMinimumBalance(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddMinimumBalance(v)
+	})
+}
+
+// UpdateMinimumBalance sets the "minimum_balance" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateMinimumBalance() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateMinimumBalance()
 	})
 }
 
@@ -3665,6 +3729,27 @@ func (u *GroupUpsertBulk) AddRateMultiplier(v float64) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateRateMultiplier() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateRateMultiplier()
+	})
+}
+
+// SetMinimumBalance sets the "minimum_balance" field.
+func (u *GroupUpsertBulk) SetMinimumBalance(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetMinimumBalance(v)
+	})
+}
+
+// AddMinimumBalance adds v to the "minimum_balance" field.
+func (u *GroupUpsertBulk) AddMinimumBalance(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddMinimumBalance(v)
+	})
+}
+
+// UpdateMinimumBalance sets the "minimum_balance" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateMinimumBalance() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateMinimumBalance()
 	})
 }
 

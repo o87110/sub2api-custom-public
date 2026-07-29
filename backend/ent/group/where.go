@@ -85,6 +85,11 @@ func RateMultiplier(v float64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldRateMultiplier, v))
 }
 
+// MinimumBalance applies equality check predicate on the "minimum_balance" field. It's identical to MinimumBalanceEQ.
+func MinimumBalance(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldMinimumBalance, v))
+}
+
 // PeakRateEnabled applies equality check predicate on the "peak_rate_enabled" field. It's identical to PeakRateEnabledEQ.
 func PeakRateEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldPeakRateEnabled, v))
@@ -598,6 +603,46 @@ func RateMultiplierLT(v float64) predicate.Group {
 // RateMultiplierLTE applies the LTE predicate on the "rate_multiplier" field.
 func RateMultiplierLTE(v float64) predicate.Group {
 	return predicate.Group(sql.FieldLTE(FieldRateMultiplier, v))
+}
+
+// MinimumBalanceEQ applies the EQ predicate on the "minimum_balance" field.
+func MinimumBalanceEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldMinimumBalance, v))
+}
+
+// MinimumBalanceNEQ applies the NEQ predicate on the "minimum_balance" field.
+func MinimumBalanceNEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldMinimumBalance, v))
+}
+
+// MinimumBalanceIn applies the In predicate on the "minimum_balance" field.
+func MinimumBalanceIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldMinimumBalance, vs...))
+}
+
+// MinimumBalanceNotIn applies the NotIn predicate on the "minimum_balance" field.
+func MinimumBalanceNotIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldMinimumBalance, vs...))
+}
+
+// MinimumBalanceGT applies the GT predicate on the "minimum_balance" field.
+func MinimumBalanceGT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldMinimumBalance, v))
+}
+
+// MinimumBalanceGTE applies the GTE predicate on the "minimum_balance" field.
+func MinimumBalanceGTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldMinimumBalance, v))
+}
+
+// MinimumBalanceLT applies the LT predicate on the "minimum_balance" field.
+func MinimumBalanceLT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldMinimumBalance, v))
+}
+
+// MinimumBalanceLTE applies the LTE predicate on the "minimum_balance" field.
+func MinimumBalanceLTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldMinimumBalance, v))
 }
 
 // PeakRateEnabledEQ applies the EQ predicate on the "peak_rate_enabled" field.

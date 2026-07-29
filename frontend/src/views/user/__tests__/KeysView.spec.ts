@@ -179,6 +179,12 @@ const DataTableStub = {
           <slot name="cell-id" :value="row.id" :row="row" />
         </div>
         <slot name="cell-name" :value="row.name" :row="row" />
+        <div
+          v-if="columns.some((col) => col.key === 'group')"
+          data-test="group-cell"
+        >
+          <slot name="cell-group" :value="row.group" :row="row" />
+        </div>
         <div data-test="current-concurrency">
           <slot name="cell-current_concurrency" :value="row.current_concurrency" :row="row" />
         </div>
@@ -415,6 +421,49 @@ describe('user KeysView column settings', () => {
     const wrapper = await mountView()
 
     expect(wrapper.get('[data-test="current-concurrency"]').text()).toBe('3')
+  })
+
+  it('shows the compact balance warning only for a bound group that is currently ineligible', async () => {
+    const blockedGroup = {
+      id: 42,
+      name: 'Threshold Group',
+      minimum_balance: 100,
+      current_balance: 80,
+      usable_balance: 0,
+      balance_gap: 20,
+      balance_eligible: false,
+    }
+    getAvailableGroups.mockResolvedValue([blockedGroup])
+    listKeys.mockResolvedValue({
+      items: [{ ...createApiKey(), group_id: 42, group: blockedGroup }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+
+    const blocked = await mountView()
+    expect(blocked.find('[data-test="group-balance-warning"]').exists()).toBe(true)
+    blocked.unmount()
+
+    const healthyGroup = {
+      ...blockedGroup,
+      current_balance: 120,
+      usable_balance: 20,
+      balance_gap: 0,
+      balance_eligible: true,
+    }
+    getAvailableGroups.mockResolvedValue([healthyGroup])
+    listKeys.mockResolvedValue({
+      items: [{ ...createApiKey(), group_id: 42, group: healthyGroup }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+
+    const healthy = await mountView()
+    expect(healthy.find('[data-test="group-balance-warning"]').exists()).toBe(false)
   })
 
   it('marks current concurrency as sortable', async () => {

@@ -23,6 +23,15 @@ type authRepoStub struct {
 	listKeysByGroupID func(ctx context.Context, groupID int64) ([]string, error)
 }
 
+type authRepoWithMinimumBalanceStub struct {
+	*authRepoStub
+	getGroupByIDForMinimumBalance func(ctx context.Context, groupID int64) (*Group, error)
+}
+
+func (s *authRepoWithMinimumBalanceStub) GetGroupByIDForMinimumBalance(ctx context.Context, groupID int64) (*Group, error) {
+	return s.getGroupByIDForMinimumBalance(ctx, groupID)
+}
+
 func (s *authRepoStub) Create(ctx context.Context, key *APIKey) error {
 	panic("unexpected Create call")
 }
@@ -450,6 +459,51 @@ func TestAPIKeyService_GetByKey_CacheMissStoresL2(t *testing.T) {
 	apiKey, err := svc.GetByKey(context.Background(), "k2")
 	require.NoError(t, err)
 	require.Equal(t, int64(5), apiKey.ID)
+	require.Len(t, cache.setAuthKeys, 1)
+}
+
+func TestAPIKeyService_GetByKey_HydratesGroupMinimumBalanceOnCacheMiss(t *testing.T) {
+	cache := &authCacheStub{}
+	loadCalls := 0
+	repo := &authRepoWithMinimumBalanceStub{
+		authRepoStub: &authRepoStub{
+			getByKeyForAuth: func(context.Context, string) (*APIKey, error) {
+				return &APIKey{
+					ID:     5,
+					UserID: 7,
+					Status: StatusActive,
+					User: &User{
+						ID:      7,
+						Status:  StatusActive,
+						Role:    RoleUser,
+						Balance: 120,
+					},
+					Group: &Group{ID: 9, Name: "分组 A"},
+				}, nil
+			},
+		},
+		getGroupByIDForMinimumBalance: func(_ context.Context, groupID int64) (*Group, error) {
+			loadCalls++
+			require.Equal(t, int64(9), groupID)
+			return &Group{ID: groupID, Name: "分组 A", MinimumBalance: 100}, nil
+		},
+	}
+	cfg := &config.Config{
+		APIKeyAuth: config.APIKeyAuthCacheConfig{
+			L2TTLSeconds:       60,
+			NegativeTTLSeconds: 30,
+		},
+	}
+	svc := NewAPIKeyService(repo, nil, nil, nil, nil, cache, cfg)
+	cache.getAuthCache = func(context.Context, string) (*APIKeyAuthCacheEntry, error) {
+		return nil, redis.Nil
+	}
+
+	apiKey, err := svc.GetByKey(context.Background(), "minimum-balance-key")
+	require.NoError(t, err)
+	require.NotNil(t, apiKey.Group)
+	require.Equal(t, 100.0, apiKey.Group.MinimumBalance)
+	require.Equal(t, 1, loadCalls)
 	require.Len(t, cache.setAuthKeys, 1)
 }
 

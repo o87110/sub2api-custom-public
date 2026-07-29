@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 17 // v17: include the OpenAI group Live gate
+const apiKeyAuthSnapshotVersion = 18 // v18: include the group minimum-balance gate
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -282,6 +282,18 @@ func (s *APIKeyService) loadAuthCacheEntry(ctx context.Context, key, cacheKey st
 		return nil, fmt.Errorf("get api key: %w", err)
 	}
 	apiKey.Key = key
+	if apiKey.Group != nil && apiKey.Group.MinimumBalance == 0 {
+		if loader, ok := s.apiKeyRepo.(groupMinimumBalanceLoader); ok {
+			group, loadErr := loader.GetGroupByIDForMinimumBalance(ctx, apiKey.Group.ID)
+			if loadErr != nil {
+				return nil, fmt.Errorf("get api key group minimum balance: %w", loadErr)
+			}
+			if group == nil {
+				return nil, fmt.Errorf("get api key group minimum balance: %w", ErrGroupNotFound)
+			}
+			apiKey.Group.MinimumBalance = group.MinimumBalance
+		}
+	}
 	snapshot := s.snapshotFromAPIKey(ctx, apiKey)
 	if snapshot == nil {
 		return nil, fmt.Errorf("get api key: %w", ErrAPIKeyNotFound)
@@ -385,6 +397,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			Status:                          apiKey.Group.Status,
 			SubscriptionType:                apiKey.Group.SubscriptionType,
 			RateMultiplier:                  apiKey.Group.RateMultiplier,
+			MinimumBalance:                  apiKey.Group.MinimumBalance,
 			DailyLimitUSD:                   apiKey.Group.DailyLimitUSD,
 			WeeklyLimitUSD:                  apiKey.Group.WeeklyLimitUSD,
 			MonthlyLimitUSD:                 apiKey.Group.MonthlyLimitUSD,
@@ -472,6 +485,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			Hydrated:                        true,
 			SubscriptionType:                snapshot.Group.SubscriptionType,
 			RateMultiplier:                  snapshot.Group.RateMultiplier,
+			MinimumBalance:                  snapshot.Group.MinimumBalance,
 			DailyLimitUSD:                   snapshot.Group.DailyLimitUSD,
 			WeeklyLimitUSD:                  snapshot.Group.WeeklyLimitUSD,
 			MonthlyLimitUSD:                 snapshot.Group.MonthlyLimitUSD,

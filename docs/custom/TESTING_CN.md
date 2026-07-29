@@ -182,7 +182,25 @@
   目标 SQL 语义摘要和完整变更摘要。未登记、摘要漂移、动态 SQL 或非结构型写入 SQL
   仍然失败关闭。
 
-## 11. 同机演练
+## 11. 分组最低余额门槛
+
+- `balance` 低于或等于 `minimum_balance` 时拒绝，高于时允许；默认 `0` 完全关闭；
+- 小于 `$0.01` 的差额最多显示八位小数，普通金额显示两位；相等时不显示
+  “还差 `$0.00`”；
+- 门槛开启时使用数据库最新余额，覆盖充值恢复以及一次请求结算后跨过门槛、下一次
+  请求才暂停；关闭时不增加实时余额查询；
+- 创建 Key、真正切换分组、普通计费、fallback 和批量生图新提交均校验；同分组
+  编辑其他字段及批量生图幂等重放不因当前余额下降而失败；
+- 已绑定 Key 状态保持启用；异常分组选项不可选但问号可点击，鼠标、键盘、
+  移动端触摸、外部点击和 `Esc` 关闭均正常；
+- 正常分组不渲染新增标识；低于和等于门槛的中文 Toast 及英文 API 消息分别覆盖；
+- `GROUP_MINIMUM_BALANCE_NOT_MET` 保持 HTTP `403` 和专用错误码，原
+  `INSUFFICIENT_BALANCE`、`billing_error`、
+  `BATCH_IMAGE_INSUFFICIENT_BALANCE` 不改变；
+- Migration `192`、Ent 生成一致性和 Candidate Tree 数据库边界检查必须通过；
+  发布前完成人工 Migration/Schema 审核。
+
+## 12. 同机演练
 
 - 使用独立 PostgreSQL、Redis、数据目录、runtime 和端口；
 - 默认只绑定 `127.0.0.1`；
@@ -192,7 +210,7 @@
 - 匿名 Release 更新、升级和回退正常；
 - `docker compose down -v` 不作为普通清理步骤。
 
-## 12. 验收记录
+## 13. 验收记录
 
 ```markdown
 # vX.Y.Z-custom.N 验收
