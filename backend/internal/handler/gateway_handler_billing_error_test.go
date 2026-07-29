@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupaccess"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
@@ -53,6 +54,16 @@ func TestBillingErrorDetails_UnknownErrorFallsBackTo403(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, status)
 	require.Equal(t, "billing_error", code)
 	require.NotEmpty(t, msg)
+}
+
+func TestBillingErrorDetails_GroupMinimumBalancePreservesDedicatedCode(t *testing.T) {
+	err := groupaccess.CheckMinimumBalance(7, "分组 A", 80, 100)
+
+	status, code, message, retryAfter := billingErrorDetails(err)
+	require.Equal(t, http.StatusForbidden, status)
+	require.Equal(t, groupaccess.MinimumBalanceNotMetReason, code)
+	require.Contains(t, message, "Add more than $20.00")
+	require.Zero(t, retryAfter)
 }
 
 func TestExtractQuotaResetSeconds_T19_HappyPath(t *testing.T) {

@@ -21,6 +21,14 @@ type APIKeyHandler struct {
 	apiKeyService *service.APIKeyService
 }
 
+type availableGroupOptionResponse struct {
+	dto.Group
+	CurrentBalance  *float64 `json:"current_balance,omitempty"`
+	UsableBalance   *float64 `json:"usable_balance,omitempty"`
+	BalanceGap      *float64 `json:"balance_gap,omitempty"`
+	BalanceEligible *bool    `json:"balance_eligible,omitempty"`
+}
+
 // NewAPIKeyHandler creates a new APIKeyHandler
 func NewAPIKeyHandler(apiKeyService *service.APIKeyService) *APIKeyHandler {
 	return &APIKeyHandler{
@@ -279,15 +287,24 @@ func (h *APIKeyHandler) GetAvailableGroups(c *gin.Context) {
 		return
 	}
 
-	groups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID)
+	options, err := h.apiKeyService.GetAvailableGroupOptions(c.Request.Context(), subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	out := make([]dto.Group, 0, len(groups))
-	for i := range groups {
-		out = append(out, *dto.GroupFromService(&groups[i]))
+	out := make([]availableGroupOptionResponse, 0, len(options))
+	for i := range options {
+		item := availableGroupOptionResponse{
+			Group: *dto.GroupFromService(&options[i].Group),
+		}
+		if requirement := options[i].BalanceRequirement; requirement != nil {
+			item.CurrentBalance = &requirement.CurrentBalance
+			item.UsableBalance = &requirement.UsableBalance
+			item.BalanceGap = &requirement.BalanceGap
+			item.BalanceEligible = &requirement.Eligible
+		}
+		out = append(out, item)
 	}
 	response.Success(c, out)
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupaccess"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -430,6 +431,9 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		if !s.canUserBindGroup(ctx, user, group) {
 			return nil, ErrGroupNotAllowed
 		}
+		if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {
+			return nil, err
+		}
 	}
 
 	var key string
@@ -724,22 +728,30 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	}
 
 	if req.GroupID != nil {
-		// 验证分组权限
-		user, err := s.userRepo.GetByID(ctx, userID)
-		if err != nil {
-			return nil, fmt.Errorf("get user: %w", err)
-		}
+		groupChanged := apiKey.GroupID == nil || *apiKey.GroupID != *req.GroupID
+		if !groupChanged {
+			apiKey.GroupID = req.GroupID
+		} else {
+			// 验证分组权限
+			user, err := s.userRepo.GetByID(ctx, userID)
+			if err != nil {
+				return nil, fmt.Errorf("get user: %w", err)
+			}
 
-		group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
-		if err != nil {
-			return nil, fmt.Errorf("get group: %w", err)
-		}
+			group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
+			if err != nil {
+				return nil, fmt.Errorf("get group: %w", err)
+			}
 
-		if !s.canUserBindGroup(ctx, user, group) {
-			return nil, ErrGroupNotAllowed
-		}
+			if !s.canUserBindGroup(ctx, user, group) {
+				return nil, ErrGroupNotAllowed
+			}
+			if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {
+				return nil, err
+			}
 
-		apiKey.GroupID = req.GroupID
+			apiKey.GroupID = req.GroupID
+		}
 	}
 
 	if req.Status != nil {
@@ -922,27 +934,56 @@ func (s *APIKeyService) IncrementUsage(ctx context.Context, keyID int64) error {
 	return nil
 }
 
-// GetAvailableGroups 获取用户有权限绑定的分组列表
-// 返回用户可以选择的分组：
-// - 标准类型分组：公开的（非专属）或用户被明确允许的
-// - 订阅类型分组：用户有有效订阅的
+// AvailableGroupOption keeps structural group access separate from the
+// temporary minimum-balance gate so clients can explain a disabled option.
+type AvailableGroupOption struct {
+	Group              Group
+	BalanceRequirement *groupaccess.BalanceRequirement
+}
+
+// GetAvailableGroups 获取用户有白名单或订阅资格的分组列表。
+// 动态余额门槛不在此过滤，避免其他只读展示把分组静默隐藏。
 func (s *APIKeyService) GetAvailableGroups(ctx context.Context, userID int64) ([]Group, error) {
+	_, groups, err := s.availableGroupsForUser(ctx, userID)
+	return groups, err
+}
+
+// GetAvailableGroupOptions returns the same structurally available groups plus
+// a fresh balance evaluation only for groups that enable the gate.
+func (s *APIKeyService) GetAvailableGroupOptions(ctx context.Context, userID int64) ([]AvailableGroupOption, error) {
+	user, groups, err := s.availableGroupsForUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	options := make([]AvailableGroupOption, 0, len(groups))
+	for i := range groups {
+		option := AvailableGroupOption{Group: groups[i]}
+		if groups[i].MinimumBalance > 0 {
+			requirement := groupaccess.EvaluateMinimumBalance(user.Balance, groups[i].MinimumBalance)
+			option.BalanceRequirement = &requirement
+		}
+		options = append(options, option)
+	}
+	return options, nil
+}
+
+func (s *APIKeyService) availableGroupsForUser(ctx context.Context, userID int64) (*User, []Group, error) {
 	// 获取用户信息
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("get user: %w", err)
+		return nil, nil, fmt.Errorf("get user: %w", err)
 	}
 
 	// 获取所有活跃分组
 	allGroups, err := s.groupRepo.ListActive(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("list active groups: %w", err)
+		return nil, nil, fmt.Errorf("list active groups: %w", err)
 	}
 
 	// 获取用户的所有有效订阅
 	activeSubscriptions, err := s.userSubRepo.ListActiveByUserID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("list active subscriptions: %w", err)
+		return nil, nil, fmt.Errorf("list active subscriptions: %w", err)
 	}
 
 	// 构建订阅分组 ID 集合
@@ -959,7 +1000,7 @@ func (s *APIKeyService) GetAvailableGroups(ctx context.Context, userID int64) ([
 		}
 	}
 
-	return availableGroups, nil
+	return user, availableGroups, nil
 }
 
 // canUserBindGroupInternal 内部方法，检查用户是否可以绑定分组（使用预加载的订阅数据）

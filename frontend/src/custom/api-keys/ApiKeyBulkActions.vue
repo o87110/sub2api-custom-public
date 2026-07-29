@@ -59,19 +59,25 @@
               <span v-else class="text-gray-400 dark:text-dark-400">{{ text('selectGroup') }}</span>
             </template>
             <template #option="{ option, selected }">
-              <GroupOptionItem
-                :name="(option as BulkGroupOption).label"
-                :platform="(option as BulkGroupOption).platform"
-                :subscription-type="(option as BulkGroupOption).subscriptionType"
-                :rate-multiplier="(option as BulkGroupOption).rate"
-                :user-rate-multiplier="(option as BulkGroupOption).userRate"
-                :peak-rate-enabled="(option as BulkGroupOption).peakRateEnabled"
-                :peak-start="(option as BulkGroupOption).peakStart"
-                :peak-end="(option as BulkGroupOption).peakEnd"
-                :peak-rate-multiplier="(option as BulkGroupOption).peakRateMultiplier"
-                :description="(option as BulkGroupOption).description"
-                :selected="selected"
-              />
+              <div class="flex w-full min-w-0 items-center justify-between gap-2">
+                <GroupOptionItem
+                  :name="(option as BulkGroupOption).label"
+                  :platform="(option as BulkGroupOption).platform"
+                  :subscription-type="(option as BulkGroupOption).subscriptionType"
+                  :rate-multiplier="(option as BulkGroupOption).rate"
+                  :user-rate-multiplier="(option as BulkGroupOption).userRate"
+                  :peak-rate-enabled="(option as BulkGroupOption).peakRateEnabled"
+                  :peak-start="(option as BulkGroupOption).peakStart"
+                  :peak-end="(option as BulkGroupOption).peakEnd"
+                  :peak-rate-multiplier="(option as BulkGroupOption).peakRateMultiplier"
+                  :description="(option as BulkGroupOption).description"
+                  :selected="selected"
+                />
+                <GroupBalanceWarning
+                  v-if="(option as BulkGroupOption).balanceRequirement"
+                  :requirement="(option as BulkGroupOption).balanceRequirement!"
+                />
+              </div>
             </template>
           </Select>
         </div>
@@ -134,6 +140,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { keysAPI } from '@/api'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import GroupBalanceWarning from '@/custom/group-access/GroupBalanceWarning.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Select from '@/components/common/Select.vue'
@@ -149,6 +156,11 @@ import {
   customApiKeyBulkText,
   type ApiKeyBulkTextKey
 } from './i18n'
+import {
+  groupBalanceRequirement,
+  minimumBalanceErrorToast,
+  type GroupBalanceRequirement
+} from '@/custom/group-access/minimumBalance'
 
 interface BulkGroupOption {
   [key: string]: unknown
@@ -163,6 +175,8 @@ interface BulkGroupOption {
   peakRateMultiplier: number
   subscriptionType: SubscriptionType
   platform: GroupPlatform
+  disabled: boolean
+  balanceRequirement: GroupBalanceRequirement | null
 }
 
 interface PendingConfirmation {
@@ -201,19 +215,24 @@ const selectedRows = computed(() => {
 })
 
 const groupOptions = computed<BulkGroupOption[]>(() =>
-  props.groups.map((group) => ({
-    value: group.id,
-    label: group.name,
-    description: group.description,
-    rate: group.rate_multiplier,
-    userRate: props.userGroupRates[group.id] ?? null,
-    peakRateEnabled: group.peak_rate_enabled,
-    peakStart: group.peak_start,
-    peakEnd: group.peak_end,
-    peakRateMultiplier: group.peak_rate_multiplier,
-    subscriptionType: group.subscription_type,
-    platform: group.platform
-  }))
+  props.groups.map((group) => {
+    const balanceRequirement = groupBalanceRequirement(group)
+    return {
+      value: group.id,
+      label: group.name,
+      description: group.description,
+      rate: group.rate_multiplier,
+      userRate: props.userGroupRates[group.id] ?? null,
+      peakRateEnabled: group.peak_rate_enabled,
+      peakStart: group.peak_start,
+      peakEnd: group.peak_end,
+      peakRateMultiplier: group.peak_rate_multiplier,
+      subscriptionType: group.subscription_type,
+      platform: group.platform,
+      disabled: balanceRequirement !== null,
+      balanceRequirement
+    }
+  })
 )
 
 const selectedGroup = computed(() =>
@@ -328,6 +347,7 @@ const executeAction = async (
   }
 
   const groupId = targetGroupId.value
+  let groupBalanceErrorMessage: string | null = null
   currentAction.value = action
   emit('busy-change', true)
 
@@ -335,7 +355,12 @@ const executeAction = async (
     const result = await runApiKeyBulkAction(eligibleIds, async (id) => {
       if (action === 'group') {
         if (groupId === null) return
-        await keysAPI.update(id, { group_id: groupId })
+        try {
+          await keysAPI.update(id, { group_id: groupId })
+        } catch (error: unknown) {
+          groupBalanceErrorMessage ??= minimumBalanceErrorToast(error, locale.value)
+          throw error
+        }
         return
       }
       if (action === 'disable') {
@@ -350,7 +375,11 @@ const executeAction = async (
     })
 
     emit('update:selectedIds', result.failedIds)
-    reportOutcome(action, result.succeededIds, skippedIds, result.failedIds)
+    if (groupBalanceErrorMessage) {
+      appStore.showError(groupBalanceErrorMessage)
+    } else {
+      reportOutcome(action, result.succeededIds, skippedIds, result.failedIds)
+    }
     if (result.failedIds.length === 0 && action === 'group') {
       targetGroupId.value = null
     }
@@ -422,7 +451,7 @@ watch(
 watch(groupOptions, (options) => {
   if (
     targetGroupId.value !== null &&
-    !options.some((option) => option.value === targetGroupId.value)
+    !options.some((option) => option.value === targetGroupId.value && !option.disabled)
   ) {
     targetGroupId.value = null
   }
