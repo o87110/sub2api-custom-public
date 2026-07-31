@@ -1,5 +1,5 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	43bdcf18c4eab4299c1aea4b60f9a31f8c797f03	-	-	candidate-tree+targeted-CI	保护渠道监控倍率展示和最低余额门槛的官方桥接、生成文件、Migration 和测试路径
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	df7e3d5ba5117b13e95d004e0c38e0f37d3725fc	-	-	candidate-tree+targeted-CI	保护渠道监控倍率展示、最低余额门槛和升级新增容器安全测试路径
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	d83da13dc939ea2b7d2f233ea06f47b803221773	-	-	database-boundary-unit+candidate-tree-test	精确绑定已人工审核的渠道监控 Migration、Ent Schema 和生成文件结构指纹
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	b82ef758ac75ee5d32dfca13811785270fc96347	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -10,18 +10,18 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.1.166.md	A	keep	A	custom-docs-ops	@absent	f7fb9a4c36102e7fa22d01a74d88fd4aab257820	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.166 升级、数据库语义评审、冲突解决与验证证据
 .github/upgrades/0.1.168.md	A	keep	A	custom-docs-ops	@absent	2fca0759a35c9ebd24c64c60787e8987f911f13e	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.168 升级、Passkey 数据库评审、冲突解决与验证证据
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	40d4f8b1911bc8d0fc611b246ceb92e2ff43e561	-	-	candidate-tree+targeted-CI	登记渠道监控官方薄接入点到 Custom 倍率展示实现的影子关系
-.github/workflows/backend-ci.yml	M	keep	M	fixed-path	b9173449597a1484c33d11613f6510e4a5838d3d	b3c13cfef65cca7ae32b9decf96f9eb48e0b4b5d	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
+.github/workflows/backend-ci.yml	M	keep	M	fixed-path	b9173449597a1484c33d11613f6510e4a5838d3d	0ef6aacb4cec74d1952ff37ad39eda71b43d2607	-	-	yaml-parse+action-pin+actionlint+container-safety	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	97b245d2b141a9f3c465eb901d548cb18b0c17d5	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/release.yml	M	keep	M	fixed-path	2ba01833c112a2653155953314fc7b8a3fbf3def	45c12de4976ee4b52c3de6f481efe9c843d97e80	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	96a7ae4edd5873207a013aa827a6ea09f6f18821	30044abe5606dad7dc66edb3fb88fcf2193c717a	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	977300a57280586473259f8f2d600e76555108cb	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	将渠道监控倍率展示和分组最低余额的官方桥接、测试、生成及 Migration 路径纳入上游同步保护
 .github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	47336b5d1a11c13201a6243ec2b9e1336a22aefc	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	将渠道监控倍率展示和分组最低余额的官方桥接、测试、生成及 Migration 路径纳入升级人工复核
 .gitignore	M	keep	M	fixed-path	8c7e67f7e2592a5a42b45964c8ab6574d4cd6256	e88d8e20f1a39f9dc6f7453e96e6b1806ad599ac	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
-.goreleaser.simple.yaml	M	restore	RESTORED	whole-file-restore	14f67fd1cb7bdee6508cf1bbd3147173e0e1aefb	14f67fd1cb7bdee6508cf1bbd3147173e0e1aefb	-	-	baseline-blob-equality	非二改需求，整文件恢复官方基线
+.goreleaser.simple.yaml	M	keep	M	fixed-path	14f67fd1cb7bdee6508cf1bbd3147173e0e1aefb	b25df6e3bd20eba93cd94c96e047d18222534899	-	-	goreleaser-check+runtime-resource-test	升级前移植官方定价 fallback resources 构建上下文
 .goreleaser.yaml	M	keep	M	fixed-path	41f9a5559bc79b244d008e37b039a293dcf02c76	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 AGENTS.md	A	keep	A	custom-docs-ops	@absent	6e5b553659e5bbe5f205d64dda9e5ec0f0677b4d	-	-	documentation-consistency-review+candidate-tree-test	为代码代理提供二改边界、验证要求和操作授权规范
 Dockerfile	M	keep	M	fixed-path	b2dfd7034f769abd7e8640090282e6b05a2af4a1	8c825c3ea188b048f6187fd688974bebba966c05	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
-Dockerfile.goreleaser	M	keep	M	fixed-path	f251d154c68ce547cbcdf9444010e8f5c0edf6ec	b8e0369070cb520e902b4986bdd8ce81ac5d21aa	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
+Dockerfile.goreleaser	M	keep	M	fixed-path	f251d154c68ce547cbcdf9444010e8f5c0edf6ec	7687a1ee72fe8f39b9d429091f0339c44aca38be	-	-	goreleaser-check+release-safety+runtime-resource-test	保留 Custom runtime 双二进制布局并移植官方定价 fallback resources
 Makefile	M	keep	M	fixed-path	c878526f969e97ec88faddd63bb96bddbea4f3be	9bf68db07f5f1556874300e36caf033810cb26f5	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 README.md	M	keep	M	custom-docs-ops	eb0f4ba3f115ab4266203aeb6ef3d0413842727b	1e9c18e4607689062875eeef1c12cd2ded0da1e0	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
 README_CN.md	M	keep	M	custom-docs-ops	db4ac7e0858a91de3a89d82b98ff57495d21118f	cf7e6060622575a6197a4b3cbf10a74a6c656a55	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
@@ -158,10 +158,13 @@ backend/migrations/192_add_group_minimum_balance.sql	A	keep	A	fixed-path	@absent
 backend/migrations/channel_monitor_group_rate_display_migration_test.go	A	keep	A	custom-test	@absent	340bb28cc92eef6ca652bb333d8a3c3f5b78f040	-	-	database-boundary-unit+migration-review+go-test	验证列类型、默认值、正数约束、当前 Schema 限定和幂等结构
 deploy/.env.example	M	keep	M	fixed-path	6beca88308572880c2ffdad0ff051c571ac223ff	5a56b9058d672344122d22daf5fb3bc593ae878f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/CUSTOM_UPGRADE_CN.md	A	keep	A	custom-docs-ops	@absent	ae8da2590530f2c84e96a04fc8450ea27c1b6ec4	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+deploy/Dockerfile	M	keep	M	fixed-path	88d364a7f3a15d7e736ce7ec4307e43343377ce7	325520f308fb279dfabe1e6826f5f4f3c93413c4	-	-	container-build+runtime-resource-test	升级前移植官方定价 fallback resources 到运行时镜像
 deploy/README.md	M	keep	M	custom-docs-ops	e87f33fa252c01ea95ee864f5b95cde3b9a2adae	a319ce4da00568e50d103b93998533cbc0da3f91	-	-	documentation-consistency-review	公开二改部署文档需要固定准确镜像、匹配公开仓库并记录旧部署 runtime 的隔离保全顺序
 deploy/docker-compose.custom.yml	A	keep	A	fixed-path	@absent	f0a74a10c339a23bb53fd31f28e4440e8fc59b61	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
-deploy/docker-compose.local.yml	M	keep	M	fixed-path	364fcc2ecca4349f8ee0d0590c571c84916fe04a	06ad7dbd64ef48ba39250d088f8429fb5b54e5fd	-	-	compose-config+runtime-persistence-test	公开二改预构建部署必须固定准确镜像并持久化 runtime
-deploy/docker-compose.standalone.yml	M	keep	M	fixed-path	04a46a8dd5c672c084894e0c0d377d49e9b62db6	c75aa9c3d8475b564452b7eaf4e636cf59a98e66	-	-	compose-config+runtime-persistence-test	公开二改预构建部署必须固定准确镜像并持久化 runtime
+deploy/docker-compose.dev.yml	M	keep	M	fixed-path	db00ac9de8788c8c028aacc5160699cb355a5029	8603f121db2fe6edb8476135a11f40e9e84dace8	-	-	compose-config+container-safety	升级前移植官方 no-new-privileges 容器加固
+deploy/docker-compose.local.yml	M	keep	M	fixed-path	364fcc2ecca4349f8ee0d0590c571c84916fe04a	fcc403eb0bb6ee94aeab5cdcdf7a38227ef5985a	-	-	compose-config+runtime-persistence-test+container-safety	公开二改预构建部署固定准确镜像、持久化 runtime 并禁止提权
+deploy/docker-compose.standalone.yml	M	keep	M	fixed-path	04a46a8dd5c672c084894e0c0d377d49e9b62db6	7a5f6ca894790365ab14ad52ed9b1102016916fb	-	-	compose-config+runtime-persistence-test+container-safety	公开二改预构建部署固定准确镜像、持久化 runtime 并禁止提权
+deploy/docker-compose.yml	M	keep	M	fixed-path	3e1e69a8956152599a602183777c3b0e005fc88a	68a51e78dda0624a5c127106ce31bae92887f1d6	-	-	compose-config+container-safety	升级前移植官方 no-new-privileges 容器加固
 deploy/docker-deploy.sh	M	keep	M	fixed-path	a07f4f417a45c7f7e58a2e8285db885b2325f5cf	847551610cf5ab35f8941ffce9325bbb41031bf5	-	-	bash-syntax+runtime-persistence-test	一键部署必须固定准确公开二改镜像并创建 runtime 持久化目录
 deploy/docker-entrypoint.sh	M	keep	M	fixed-path	47ab6bf1bc17b8cb6d95d4e3cff66004a859fed0	914f4673b76a0365a266e3fe02ede4d290d1df1b	-	-	bash-syntax+runtime-selection-tests	容器启动必须校验并隔离持久化二改 runtime
 deploy/install.sh	M	keep	M	fixed-path	246347c624a452f68d6108a944663885f07b4419	db1bbb023a219d8c2ef10483298086a577431063	-	-	bash-syntax+installer-tests	二进制安装器必须从公开二改 Release 获取版本与资产
@@ -170,8 +173,8 @@ deploy/rehearsal/.gitignore	A	keep	A	fixed-path	@absent	e46568eee6d42e476a6a34aa
 deploy/rehearsal/README_CN.md	A	keep	A	custom-docs-ops	@absent	3d81dc37c30a915056dbd839dd19f2ed845b92fc	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 deploy/rehearsal/docker-compose.yml	A	keep	A	fixed-path	@absent	b4ae2bbe2d3e919eff8b1f8602b93a72c10f8953	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/rehearsal/preflight.sh	A	keep	A	fixed-path	@absent	11705ceb46c13712dfe139998e6e9d6ae32944ac	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
-deploy/release/Dockerfile	A	keep	A	fixed-path	@absent	6a5ed147a3d17e246544e8a9c201b2b94fe4e315	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
-deploy/release/build-release-payload.sh	A	keep	A	fixed-path	@absent	fa0635b74d2af42dfeb00e98f1af3bfdca074492	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
+deploy/release/Dockerfile	A	keep	A	fixed-path	@absent	c9c48cc8b7bf03765da51cafe88707241b4ed6ce	-	-	goreleaser-check+release-safety+runtime-resource-test	Custom 正式发布镜像保留 runtime 双二进制布局并包含官方定价 fallback resources
+deploy/release/build-release-payload.sh	A	keep	A	fixed-path	@absent	5d50e2c2034f739105b78b7fd285cb7ac0d2a69a	-	-	goreleaser-check+release-safety+runtime-resource-test	隔离发布构建上下文必须携带官方定价 fallback resources
 deploy/release/create-release-manifest.sh	A	keep	A	fixed-path	@absent	f6d69c463f53a5a767e032c87f2ad9105833185c	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 deploy/release/custom-release-preflight.sh	A	keep	A	fixed-path	@absent	bac8ec42d956f9dc52cf03af7320754813a9cd0e	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 deploy/release/publish-release.sh	A	keep	A	fixed-path	@absent	62f13fa1745f0876ac82953c56e1dea5e0067e06	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
@@ -181,9 +184,11 @@ deploy/release/wait-for-required-ci.sh	A	keep	A	fixed-path	@absent	b258588e89194
 deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	d755e41f7ed53420462b18a4a3462d64fabd2311	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad7233c21340ce3dd1969db55ed51	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
-deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	ebd075d1cdfaf35b9607a172b20f23bda5827d0c	-	-	goreleaser-check+release-safety	验证二改行为和发布边界
+deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	0f2813bd89074cfc0c1a71f78ef69b8f02574c44	-	-	goreleaser-check+release-safety+runtime-resource-test	验证二改发布链路携带官方定价 fallback resources
 deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	bccf51afbbeb6d4661f5711a368ed826a80fe0cb	-	-	candidate-tree+crlf-ledger-test	验证渠道监控和最低余额门槛官方文件仅保留允许的薄桥接，并覆盖 Windows CRLF 与 Bash 3.2 边界
+deploy/tests/docker-compose-security-test.sh	A	keep	A	custom-test	@absent	b6cfe768da80b17648f57bcba7a6f27231629f2c	-	-	container-safety	验证所有 Compose 入口均禁止应用容器提权
 deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
+deploy/tests/docker-runtime-resources-test.sh	A	keep	A	custom-test	@absent	4752f88556f2706ef283163c6524b64f90368f6d	-	-	runtime-resource-test+release-safety	验证官方及 Custom 镜像构建链路均携带定价 fallback resources
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	1d99dcdc1c74d256040071021123d8651d29de49	-	-	shadow-map+runtime-boundary-test	验证渠道监控 Service、管理表单及倍率展示前端实现的精确影子映射

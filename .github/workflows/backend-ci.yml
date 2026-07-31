@@ -131,6 +131,9 @@ jobs:
           /bin/bash deploy/tests/custom-release-safety-test.sh
           /bin/bash deploy/tests/rehearsal-compose-safety-test.sh
           /bin/bash deploy/tests/upstream-sync-safety-test.sh
+          /bin/sh deploy/tests/docker-compose-security-test.sh
+          /bin/sh deploy/tests/docker-runtime-resources-test.sh
+          /bin/sh deploy/test-caddyfile-cache.sh
 
   backend_unit:
     needs: [verify-target, boundaries]

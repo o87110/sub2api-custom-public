@@ -46,7 +46,12 @@ done
 version="${tag#v}"
 amd64_asset="sub2api_${version}_linux_amd64.tar.gz"
 arm64_asset="sub2api_${version}_linux_arm64.tar.gz"
-mkdir -p "$output/assets" "$output/oci-layout" "$output/image-context/binaries/amd64" "$output/image-context/binaries/arm64"
+mkdir -p \
+  "$output/assets" \
+  "$output/oci-layout" \
+  "$output/image-context/binaries/amd64" \
+  "$output/image-context/binaries/arm64" \
+  "$output/image-context/backend"
 
 builder=""
 cleanup() {
@@ -94,6 +99,7 @@ extract_binary() {
 extract_binary "$output/assets/$amd64_asset" amd64
 extract_binary "$output/assets/$arm64_asset" arm64
 cp "$repo_root/deploy/docker-entrypoint.sh" "$output/image-context/docker-entrypoint.sh"
+cp -R "$repo_root/backend/resources" "$output/image-context/backend/resources"
 
 docker_config="${DOCKER_CONFIG:-${RUNNER_TEMP:-$output}/docker-config}"
 mkdir -p "$docker_config/cli-plugins"
