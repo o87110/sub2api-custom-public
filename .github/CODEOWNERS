@@ -110,7 +110,9 @@
 /deploy/tests/install-custom-tools.sh @o87110
 /deploy/tests/upstream-sync-safety-test.sh @o87110
 /deploy/tests/custom-release-safety-test.sh @o87110
+/deploy/tests/docker-compose-security-test.sh @o87110
 /deploy/tests/docker-entrypoint-runtime-test.sh @o87110
+/deploy/tests/docker-runtime-resources-test.sh @o87110
 /deploy/tests/rehearsal-compose-safety-test.sh @o87110
 /docs/CUSTOM_DEVELOPMENT_CN.md @o87110
 /docs/custom/** @o87110

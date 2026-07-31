@@ -27,6 +27,8 @@ services:
     image: ${SUB2API_IMAGE:?SUB2API_IMAGE must be set to an exact custom release tag or digest}
     container_name: sub2api
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ulimits:
       nofile:
         soft: 100000
