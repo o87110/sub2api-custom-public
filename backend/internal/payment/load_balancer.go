@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -47,7 +46,6 @@ type DefaultLoadBalancer struct {
 	encryptionKey   []byte
 	coordinatorOnce sync.Once
 	coordinator     *paymentchannels.InstanceCoordinator
-	counter         atomic.Uint64
 }
 
 type contextKey string
@@ -408,16 +406,6 @@ func getInstanceChannelLimits(inst *dbent.PaymentProviderInstance, paymentType P
 		}
 	}
 	return ChannelLimits{}
-}
-
-// pickByStrategy selects one instance from the available candidates.
-func (lb *DefaultLoadBalancer) pickByStrategy(candidates []instanceCandidate, strategy Strategy) instanceCandidate {
-	if strategy == StrategyLeastAmount && len(candidates) > 1 {
-		return pickLeastAmount(candidates)
-	}
-	// Default: round-robin.
-	idx := lb.counter.Add(1) % uint64(len(candidates))
-	return candidates[idx]
 }
 
 // pickLeastAmount selects the instance with the lowest daily usage.

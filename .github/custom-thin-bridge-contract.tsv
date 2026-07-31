@@ -19,7 +19,7 @@ backend/internal/handler/openai_gateway_handler.go	delegate	true	7	1
 backend/internal/handler/payment_handler.go	delegate	true	43	8
 backend/internal/handler/payment_handler_resume_test.go	compat-test	true	47	0
 backend/internal/handler/wire.go	wire	true	2	1
-backend/internal/payment/load_balancer.go	delegate	true	158	18
+backend/internal/payment/load_balancer.go	delegate	true	157	29
 backend/internal/payment/types.go	dto	false	6	5
 backend/internal/repository/api_key_minimum_balance_repo.go	persistence	false	11	0
 backend/internal/repository/api_key_repo.go	persistence	false	1	0
