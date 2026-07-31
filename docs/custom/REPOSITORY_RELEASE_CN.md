@@ -60,6 +60,18 @@ AUTO_PUBLISH_ENABLED=true
 CI 和 `boundaries` Job 成功后才能创建 Tag。两条路径共享同一并发组；若重复调度，
 已存在的同提交正式 Release 必须安全退出，不得递增出重复版本。
 
+升级 PR 已合并但 Vendor 基线或发布调度中断时，最终器只能在显式恢复模式下按原
+base/Head/merge SHA 重放门禁。官方镜像与注释 `vendor-*` Tag 通过 Git Database API
+补齐，以兼容官方 Commit 含 Workflow 变化而临时 Token 不具备 Git Push workflow
+权限的情况；全自动引用写入使用仅限受信任最终器的可选 Repository Secret
+`UPGRADE_FINALIZER_TOKEN`。未配置且检测到 Workflow 差异时必须在合并前失败关闭；
+已有 Tag 只允许精确验证，禁止覆盖或移动。
+
+最终器创建 `vendor-*` 时必须临时停用仓库的 `release.yml`，并用退出 Trap 恢复其原
+active 状态。官方 Tag Workflow 可能使用宽泛的 `v*` 触发器，而 `vendor-*` 同样以
+字母 `v` 开头；不能依赖 Custom `main` 中较严格的 Tag 过滤规则。若 Workflow 原本已
+被人工或闲置策略停用，则保持停用，不得自动启用。
+
 官方同步由独立变量控制：
 
 ```text

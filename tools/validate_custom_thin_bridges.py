@@ -8,6 +8,7 @@ import csv
 import re
 import subprocess
 import sys
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -28,6 +29,11 @@ CONTROL_FLOW_RE = re.compile(
 )
 ORCHESTRATION_RE = re.compile(
     r"\b(?:orchestrat|coordinat|workflow|pipeline|fallback|retry)\w*\s*\(",
+    re.IGNORECASE,
+)
+DELEGATE_VIEW_CONTROL_FLOW_RE = re.compile(
+    r"^\s*(?:}\s*)?(?:else\s+)?(?:if\b|switch\b|select\b|for\b|while\b|"
+    r"do\b|try\b|catch\b)|\bv-(?:if|else-if|for)\s*=",
     re.IGNORECASE,
 )
 DTO_WIRE_CONTROL_FLOW_RE = re.compile(r"^\s*(?:if\s*[\s(]|switch\s*[\s(])", re.MULTILINE)
@@ -70,15 +76,269 @@ HIGH_RISK_DEFINITIONS: dict[str, tuple[re.Pattern[str], ...]] = {
     ),
 }
 
-# These loops only project official repository/service values into response or
-# adapter DTOs. Every other newly added loop/watcher/orchestration construct in
-# a delegate or view must live in Custom instead of being approved by budget.
-DELEGATE_CONTROL_FLOW_ALLOWLIST: dict[str, frozenset[str]] = {
-    "backend/internal/handler/api_key_handler.go": frozenset({"GetAvailableGroups"}),
+# New functions in official delegate/view bridges are denied by default. The
+# names below are the reviewed persistence, DTO, or one-call adapter functions
+# required by the current Custom boundary.
+APPROVED_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
+    "backend/internal/handler/channel_monitor_user_handler.go": frozenset({"SetGroupRateResolver"}),
+    "backend/internal/payment/load_balancer.go": frozenset({
+        "RevalidateSelection",
+        "instanceCoordinator",
+        "paymentSelectionFromCustom",
+        "customSelectionFromPayment",
+        "LoadEnabledInstances",
+        "LoadInstance",
+        "LoadDailyUsage",
+        "paymentInstanceRecord",
+    }),
     "backend/internal/service/api_key_service.go": frozenset({
         "GetAvailableGroupOptions",
         "availableGroupsForUser",
     }),
+    "backend/internal/service/billing_cache_service.go": frozenset({
+        "LoadMinimumBalanceGroup",
+        "LoadCurrentBalance",
+        "checkCustomMinimumBalanceEligibility",
+        "minimumBalanceGroupSnapshot",
+    }),
+    "backend/internal/service/channel_monitor_service.go": frozenset({
+        "cloneFloat64Pointer",
+        "validateGroupRateOverride",
+        "validateGroupRateDisplayTemplate",
+        "normalizeGroupRateDisplayTemplate",
+    }),
+    "backend/internal/service/payment_config_limits.go": frozenset({
+        "GetAvailableMethodOptions",
+        "ValidateMethodProviderCurrencyConsistency",
+        "HasConfiguredProviderPaymentType",
+        "pcPaymentProviderRecords",
+    }),
+    "backend/internal/service/payment_config_service.go": frozenset({"setPaymentConfigValue"}),
+    "backend/internal/service/payment_order.go": frozenset({
+        "customOrderPreparationRequest",
+        "HasConfiguredSelection",
+        "LoadMethodCurrency",
+        "CalculatePayAmount",
+        "SelectOrderInstance",
+        "RevalidateOrderInstance",
+        "ValidatePayAmountCurrency",
+        "UsesOfficialWeChatVisibleMethod",
+        "LoadWeChatOAuthAppID",
+        "BuildWeChatOAuth",
+        "customOrderSelection",
+        "paymentSelectionFromOrder",
+        "buildOrderOAuthResponse",
+    }),
+    "backend/internal/service/payment_resume_service.go": frozenset({
+        "RevalidateSelection",
+        "CreateWeChatPaymentOAuthToken",
+        "ParseWeChatPaymentOAuthToken",
+    }),
+    "frontend/src/views/user/KeysView.vue": frozenset({
+        "refreshApiKeys",
+        "handleTableSelectionChange",
+        "handleBulkCompleted",
+    }),
+}
+
+# Control-flow additions in delegate/view bridges use an exact structural
+# allowlist. Keeping the owning function and complete trimmed statement makes
+# renames, additional branches, and moved orchestration fail even when the TSV
+# line budget and shadow mapping are updated.
+APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
+    "backend/internal/handler/admin/setting_handler.go": (
+        ("GetSettings", "if err != nil {"),
+    ),
+    "backend/internal/handler/admin/setting_handler_update.go": (
+        ("UpdateSettings", "if err != nil {"),
+    ),
+    "backend/internal/handler/admin/system_handler.go": (
+        ("PerformUpdate", "if errors.Is(err, customupdater.ErrNoUpdateAvailable) {"),
+        ("Rollback", "if err := c.ShouldBindJSON(&req); err != nil {"),
+        ("Rollback", 'if targetVersion == "" {'),
+    ),
+    "backend/internal/handler/api_key_handler.go": (
+        ("GetAvailableGroups", "for i := range options {"),
+        ("GetAvailableGroups", "if requirement := options[i].BalanceRequirement; requirement != nil {"),
+    ),
+    "backend/internal/handler/auth_wechat_oauth.go": (
+        ("WeChatPaymentOAuthStart", 'if contextToken := strings.TrimSpace(c.Query("payment_context_token")); contextToken != "" {'),
+        ("WeChatPaymentOAuthStart", "if parseErr != nil {"),
+        ("WeChatPaymentOAuthStart", 'if paymentContext.PaymentType == "" {'),
+        ("WeChatPaymentOAuthStart", 'if paymentContext.ProviderKey != "" && paymentContext.ProviderKey != payment.TypeWxpay {'),
+        ("WeChatPaymentOAuthCallback", 'if paymentContext.ProviderKey != "" && paymentContext.ProviderKey != payment.TypeWxpay {'),
+    ),
+    "backend/internal/handler/channel_monitor_user_handler.go": (
+        ("SetGroupRateResolver", "if h == nil {"),
+        ("List", "if h.groupRateResolver != nil {"),
+        ("List", "if rate, ok := groupRates[v.ID]; ok {"),
+    ),
+    "backend/internal/handler/gateway_handler.go": (
+        ("billingErrorDetails", "if pkgerrors.Reason(err) == groupaccess.MinimumBalanceNotMetReason {"),
+    ),
+    "backend/internal/handler/openai_gateway_handler.go": (
+        ("rejectIfCyberSessionBlocked", "if h.contentModerationService == nil ||"),
+        ("recordCyberPolicyIfMarked", 'if cyberPolicyInScope && gwSvc != nil && cyberBlockKey != "" {'),
+    ),
+    "backend/internal/handler/payment_handler.go": (
+        ("GetCheckoutInfo", "if err != nil {"),
+        ("applyWeChatPaymentResumeClaims", 'if providerKey != "" {'),
+        ("applyWeChatPaymentResumeClaims", 'if req.ProviderKey != "" && !strings.EqualFold(strings.TrimSpace(req.ProviderKey), providerKey) {'),
+        ("applyWeChatPaymentResumeClaims", "if !paymentchannels.IsValidSelection(paymentType, providerKey) {"),
+        ("applyWeChatPaymentResumeClaims", "if claims.FeeRate != nil {"),
+        ("applyWeChatPaymentResumeClaims", "if math.IsNaN(*claims.FeeRate) || math.IsInf(*claims.FeeRate, 0) || *claims.FeeRate < 0 || *claims.FeeRate > 100 {"),
+    ),
+    "backend/internal/payment/load_balancer.go": (
+        ("SelectInstance", "if result.UsageLoadError != nil {"),
+        ("SelectInstance", "for _, rejection := range result.LimitRejections {"),
+        ("instanceCoordinator", "if lb.coordinator == nil {"),
+        ("paymentSelectionFromCustom", "if selection == nil {"),
+        ("customSelectionFromPayment", "if selection == nil {"),
+        ("LoadEnabledInstances", 'if providerKey != "" {'),
+        ("LoadEnabledInstances", "if err != nil {"),
+        ("LoadEnabledInstances", "for _, instance := range instances {"),
+        ("LoadEnabledInstances", "if err != nil {"),
+        ("LoadInstance", "if err != nil {"),
+        ("LoadInstance", "if dbent.IsNotFound(err) {"),
+        ("LoadDailyUsage", "if err := lb.db.PaymentOrder.Query()."),
+        ("LoadDailyUsage", "for _, item := range rows {"),
+        ("paymentInstanceRecord", "if instance == nil {"),
+        ("paymentInstanceRecord", "if err != nil {"),
+    ),
+    "backend/internal/service/api_key_service.go": (
+        ("Create", "if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {"),
+        ("Update", "if groupChanged {"),
+        ("Update", "if err != nil {"),
+        ("Update", "if err != nil {"),
+        ("Update", "if !s.canUserBindGroup(ctx, user, group) {"),
+        ("Update", "if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {"),
+        ("GetAvailableGroupOptions", "if err != nil {"),
+        ("GetAvailableGroupOptions", "for i := range groups {"),
+        ("GetAvailableGroupOptions", "if groups[i].MinimumBalance > 0 {"),
+    ),
+    "backend/internal/service/batch_image_public.go": (
+        ("Submit", "if err != nil {"),
+        ("Submit", "if group != nil && group.MinimumBalance > 0 {"),
+        ("Submit", "if s.UserRepo == nil {"),
+        ("Submit", "if err != nil {"),
+        ("Submit", "if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {"),
+        ("ListModels", "if _, err := s.ensureGroupAllowsBatchImage(ctx, owner.GroupID); err != nil {"),
+    ),
+    "backend/internal/service/billing_cache_service.go": (
+        ("LoadMinimumBalanceGroup", "if err != nil || group == nil {"),
+        ("CheckBillingEligibility", "if err != nil {"),
+        ("CheckBillingEligibility", "if !groupMinimumBalanceEnabled && s.circuitBreaker != nil && !s.circuitBreaker.Allow() {"),
+        ("checkCustomMinimumBalanceEligibility", "if loader, ok := s.apiKeyRateLimitLoader.(groupMinimumBalanceLoader); ok {"),
+        ("checkCustomMinimumBalanceEligibility", "if s.circuitBreaker != nil {"),
+        ("checkCustomMinimumBalanceEligibility", "if user != nil {"),
+        ("checkCustomMinimumBalanceEligibility", 'if forcePlatform, ok := ctx.Value(ctxkey.ForcePlatform).(string); ok && forcePlatform != "" {'),
+        ("checkCustomMinimumBalanceEligibility", "if err == nil {"),
+        ("checkCustomMinimumBalanceEligibility", "if errors.Is(err, groupaccess.ErrCircuitOpen) {"),
+        ("checkCustomMinimumBalanceEligibility", "if errors.As(err, &dependencyErr) {"),
+        ("checkCustomMinimumBalanceEligibility", "if dependencyErr.Kind == groupaccess.DependencyBalanceLoad && user != nil {"),
+        ("minimumBalanceGroupSnapshot", "if group == nil {"),
+    ),
+    "backend/internal/service/channel_monitor_service.go": (
+        ("cloneFloat64Pointer", "if value == nil {"),
+        ("validateGroupRateOverride", "if !channelmonitorratedisplay.ValidOverride(value) {"),
+        ("validateGroupRateDisplayTemplate", "if _, ok := channelmonitorratedisplay.NormalizeTemplate(value); !ok {"),
+        ("validateCreateParams", "if err := validateGroupRateOverride(p.GroupRateOverride); err != nil {"),
+        ("validateCreateParams", "if err := validateGroupRateDisplayTemplate(p.GroupRateDisplayTemplate); err != nil {"),
+        ("applyMonitorUpdate", "if p.ClearGroupRateOverride {"),
+        ("applyMonitorUpdate", "} else if p.GroupRateOverride != nil {"),
+        ("applyMonitorUpdate", "if err := validateGroupRateOverride(p.GroupRateOverride); err != nil {"),
+        ("applyMonitorUpdate", "if p.GroupRateDisplayTemplate != nil {"),
+        ("applyMonitorUpdate", "if err := validateGroupRateDisplayTemplate(*p.GroupRateDisplayTemplate); err != nil {"),
+    ),
+    "backend/internal/service/content_moderation.go": (
+        ("applyFlaggedAccountSideEffects", "if n, err := s.countFlaggedByUserSince(ctx, *log.UserID, since, cfg.CyberPolicyExcludeFromBanCount); err == nil {"),
+        ("RecordCyberPolicyEvent", "if s.tryRecordCustomCyberPolicyEvent(ctx, in) {"),
+    ),
+    "backend/internal/service/payment_config_limits.go": (
+        ("GetAvailableMethodOptions", "if err != nil {"),
+        ("ValidateMethodProviderCurrencyConsistency", 'if providerKey == "" {'),
+        ("ValidateMethodProviderCurrencyConsistency", 'if method == "" || s == nil || s.entClient == nil {'),
+        ("ValidateMethodProviderCurrencyConsistency", "if err != nil {"),
+        ("ValidateMethodProviderCurrencyConsistency", "if conflict, ok := err.(*paymentchannels.CurrencyConflictError); ok {"),
+        ("HasConfiguredProviderPaymentType", 'if method == "" || providerKey == "" || s == nil || s.entClient == nil {'),
+        ("HasConfiguredProviderPaymentType", "if err != nil {"),
+        ("pcPaymentProviderRecords", "for _, instance := range instances {"),
+        ("pcPaymentProviderRecords", "if instance == nil {"),
+        ("pcPaymentProviderRecords", "if decrypted, err := s.decryptConfig(instance.Config); err == nil && decrypted != nil {"),
+    ),
+    "backend/internal/service/payment_config_service.go": (
+        ("GetPaymentConfig", "if err != nil {"),
+        ("UpdatePaymentConfig", "if req.ChannelSettings != nil {"),
+        ("UpdatePaymentConfig", "if err != nil {"),
+        ("setPaymentConfigValue", "if provided {"),
+    ),
+    "backend/internal/service/payment_order.go": (
+        ("CreateOrder", "if preparation.OAuth != nil {"),
+        ("HasConfiguredSelection", "if loader.service == nil || loader.service.configService == nil {"),
+        ("LoadMethodCurrency", "if loader.service == nil || loader.service.configService == nil {"),
+        ("SelectOrderInstance", 'if request.WeChatJSAPIAppID != "" {'),
+        ("customOrderSelection", "if selection == nil {"),
+        ("paymentSelectionFromOrder", "if selection == nil {"),
+        ("invokeProvider", "if err := paymentchannels.NewOrderCoordinator(paymentOrderLoader{service: s}).RevalidateBeforeProvider("),
+        ("buildWeChatOAuthRequiredResponse", "if err != nil {"),
+        ("buildWeChatPaymentOAuthStartURL", 'if paymentContextToken = strings.TrimSpace(paymentContextToken); paymentContextToken != "" {'),
+        ("buildWeChatPaymentOAuthStartURL", 'if providerKey := strings.TrimSpace(req.ProviderKey); providerKey != "" {'),
+    ),
+    "backend/internal/service/payment_resume_service.go": (
+        ("CreateWeChatPaymentOAuthToken", "if err != nil {"),
+        ("ParseWeChatPaymentOAuthToken", "if err := s.ensureSigningKey(); err != nil {"),
+        ("ParseWeChatPaymentOAuthToken", "if err := s.parseSignedToken(token, &claims); err != nil {"),
+        ("ParseWeChatPaymentOAuthToken", "if claims.TokenType != paymentchannels.WeChatPaymentOAuthTokenType {"),
+        ("ParseWeChatPaymentOAuthToken", 'if err := validatePaymentResumeExpiry(claims.ExpiresAt, "INVALID_WECHAT_PAYMENT_OAUTH_TOKEN", "wechat payment oauth token has expired"); err != nil {'),
+        ("ParseWeChatPaymentOAuthToken", "if err != nil {"),
+        ("CreateWeChatPaymentResumeToken", "if err := s.ensureSigningKey(); err != nil {"),
+        ("CreateWeChatPaymentResumeToken", "if err != nil {"),
+        ("ParseWeChatPaymentResumeToken", "if claims.TokenType != paymentchannels.WeChatPaymentResumeTokenType {"),
+        ("ParseWeChatPaymentResumeToken", "if err != nil {"),
+    ),
+    "frontend/src/components/admin/monitor/MonitorFormDialog.vue": (
+        ("handleSubmit", "if (groupRateError) {"),
+    ),
+    "frontend/src/components/payment/AmountInput.vue": (
+        ("handleInput", "if (!amountPattern.value.test(val)) return"),
+    ),
+    "frontend/src/components/payment/paymentFlow.ts": (
+        ("buildCreateOrderPayload", "if (input.providerKey?.trim()) {"),
+    ),
+    "frontend/src/components/user/monitor/MonitorCard.vue": (
+        ("<top-level>", "v-if=\"typeof item.group_rate_multiplier === 'number'\""),
+    ),
+    "frontend/src/views/admin/GroupsView.vue": (
+        ("handleCreateGroup", "if (minimumBalance === null) {"),
+        ("handleUpdateGroup", "if (minimumBalance === null) {"),
+    ),
+    "frontend/src/views/admin/SettingsView.vue": (
+        ("<top-level>", 'v-if="form.payment_enabled"'),
+        ("saveSettings", "if ("),
+    ),
+    "frontend/src/views/user/KeysView.vue": (
+        ("<top-level>", 'v-if="row.group && balanceRequirementForGroup(row.group.id)"'),
+        ("<top-level>", '<span v-if="option" class="flex min-w-0 items-center">'),
+        ("<top-level>", 'v-if="(option as unknown as GroupOption).balanceRequirement"'),
+        ("<top-level>", 'v-if="option.balanceRequirement"'),
+        ("onFilterChange", "if (bulkActionBusy.value) return"),
+        ("loadApiKeys", "if (!options.preserveSelection) {"),
+        ("refreshApiKeys", "if (bulkActionBusy.value) return"),
+        ("handleTableSelectionChange", "if (bulkActionBusy.value) return"),
+        ("handleBulkCompleted", "if ("),
+        ("handlePageChange", "if (bulkActionBusy.value) return"),
+        ("handlePageSizeChange", "if (bulkActionBusy.value) return"),
+        ("handleSort", "if (bulkActionBusy.value) return"),
+        ("changeGroup", "if (newGroupId !== null && balanceRequirementForGroup(newGroupId)) return"),
+        ("changeGroup", "} catch (error: unknown) {"),
+    ),
+    "frontend/src/views/user/PaymentView.vue": (
+        ("<top-level>", '<div v-if="enabledChannelIds.length === 0" class="card py-16 text-center">'),
+        ("<top-level>", '<div v-if="enabledChannelIds.length >= 1" class="card p-6">'),
+        ("<top-level>", '<div v-if="enabledChannelIds.length >= 1" class="card p-6">'),
+        ("<top-level>", "if (enabledChannelIds.value.length) {"),
+        ("<top-level>", "if (restoredChannel) {"),
+    ),
 }
 
 FUNCTION_START_PATTERNS = (
@@ -383,6 +643,7 @@ def containing_function(blocks: list[FunctionBlock], line_number: int) -> Functi
 
 def validate_delegate_view_structure(
     row: ContractRow,
+    baseline_content: str,
     content: str,
     changed_lines: set[int],
 ) -> None:
@@ -390,20 +651,41 @@ def validate_delegate_view_structure(
         return
     lines = content.splitlines()
     blocks = function_blocks(content)
-    allowed = DELEGATE_CONTROL_FLOW_ALLOWLIST.get(row.path, frozenset())
+    baseline_names = {block.name for block in function_blocks(baseline_content)}
+    approved_new = APPROVED_NEW_BRIDGE_FUNCTIONS.get(row.path, frozenset())
+    unexpected_functions = sorted({
+        block.name
+        for block in blocks
+        if block.name not in baseline_names and block.name not in approved_new
+    })
+    if unexpected_functions:
+        raise ContractError(
+            f"{row.kind} bridge introduces orchestration through an unapproved "
+            f"new function in {row.path}: {unexpected_functions}"
+        )
+
+    approved_control = Counter(APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()))
+    actual_control: Counter[tuple[str, str]] = Counter()
     for line_number in sorted(changed_lines):
         if line_number < 1 or line_number > len(lines):
             continue
         line = lines[line_number - 1]
-        if not CONTROL_FLOW_RE.search(line) and not ORCHESTRATION_RE.search(line):
-            continue
         block = containing_function(blocks, line_number)
         function_name = block.name if block else "<top-level>"
-        if row.kind == "delegate" and function_name in allowed:
+        if DELEGATE_VIEW_CONTROL_FLOW_RE.search(line):
+            actual_control[(function_name, line.strip())] += 1
+        if not ORCHESTRATION_RE.search(line):
             continue
         raise ContractError(
-            f"{row.kind} bridge introduces orchestration/control flow in "
+            f"{row.kind} bridge introduces orchestration in "
             f"{function_name}: {row.path}:{line_number}"
+        )
+
+    unexpected_control = actual_control - approved_control
+    if unexpected_control:
+        raise ContractError(
+            f"{row.kind} bridge introduces unapproved control flow in {row.path}: "
+            f"{sorted(unexpected_control.elements())}"
         )
 
 
@@ -441,22 +723,23 @@ def validate(args: argparse.Namespace) -> None:
 
         additions_only = added_lines(repo, args.baseline, args.candidate_tree, row.path)
         code = "\n".join(line for line in additions_only if not line.lstrip().startswith(("//", "#", "*")))
-        validate_delegate_view_structure(
-            row,
-            content,
-            added_line_numbers(repo, args.baseline, args.candidate_tree, row.path),
-        )
+        for forbidden in HIGH_RISK_DEFINITIONS.get(row.path, ()):
+            if forbidden.search(content):
+                raise ContractError(f"high-risk business symbol returned to official bridge: {row.path}")
+        if row.kind in {"delegate", "view"}:
+            baseline_content = candidate_file(repo, args.baseline, row.path)
+            validate_delegate_view_structure(
+                row,
+                baseline_content,
+                content,
+                added_line_numbers(repo, args.baseline, args.candidate_tree, row.path),
+            )
         if row.kind in {"dto", "wire", "persistence"} and CONTROL_FLOW_RE.search(code):
             raise ContractError(f"{row.kind} bridge introduces a loop or watcher: {row.path}")
         if row.kind in {"dto", "wire"} and DTO_WIRE_CONTROL_FLOW_RE.search(code):
             raise ContractError(f"{row.kind} bridge introduces control flow: {row.path}")
         if row.kind in {"dto", "wire", "persistence"} and BUSINESS_HELPER_RE.search(code):
             raise ContractError(f"{row.kind} bridge introduces a business helper: {row.path}")
-
-        for forbidden in HIGH_RISK_DEFINITIONS.get(row.path, ()):
-            if forbidden.search(content):
-                raise ContractError(f"high-risk business symbol returned to official bridge: {row.path}")
-
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
