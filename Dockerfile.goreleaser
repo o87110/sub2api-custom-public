@@ -42,8 +42,11 @@ RUN addgroup -g 1000 sub2api && \
 
 WORKDIR /app
 
-# Copy pre-built binary from GoReleaser
+# Copy the pre-built binary and runtime fallback resources from GoReleaser.
+# The Custom runtime layout keeps the immutable image binary separate from the
+# persistent /app/runtime copy managed by docker-entrypoint.sh.
 COPY sub2api /app/image/sub2api
+COPY --chown=sub2api:sub2api backend/resources /app/resources
 
 # Create data directory
 RUN mkdir -p /app/data /app/runtime && chown -R sub2api:sub2api /app

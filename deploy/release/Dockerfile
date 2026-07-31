@@ -36,6 +36,7 @@ RUN addgroup -g 1000 sub2api && \
 
 WORKDIR /app
 COPY binaries/${TARGETARCH}/sub2api /app/image/sub2api
+COPY --chown=sub2api:sub2api backend/resources /app/resources
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN mkdir -p /app/data /app/runtime && \
     chmod 0755 /app/docker-entrypoint.sh /app/image/sub2api && \
