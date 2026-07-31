@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -356,7 +357,7 @@ func TestParseWeChatPaymentResumeTokenRejectsFallbackSignedTokenWhenSigningKeyMi
 	t.Parallel()
 
 	token := mustCreateFallbackSignedToken(t, WeChatPaymentResumeClaims{
-		TokenType:   wechatPaymentResumeTokenType,
+		TokenType:   paymentchannels.WeChatPaymentResumeTokenType,
 		OpenID:      "openid-123",
 		PaymentType: payment.TypeWxpay,
 	})

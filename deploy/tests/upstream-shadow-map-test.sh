@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-72}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-81}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 72 ]]; then
+if [[ "$expected_count" -eq 81 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -60,32 +60,42 @@ if [[ "$expected_count" -eq 72 ]]; then
   assert_mapping $'backend/internal/handler/gateway_handler.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
   assert_mapping $'backend/internal/service/api_key_service.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
   assert_mapping $'backend/internal/service/batch_image_public.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
-  assert_mapping $'backend/internal/service/billing_cache_service.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
+  assert_mapping $'backend/internal/service/billing_cache_service.go\tbackend/internal/custom/groupaccess/minimum_balance.go|backend/internal/custom/groupaccess/eligibility.go'
   assert_mapping $'frontend/src/i18n/locales/en/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
   assert_mapping $'frontend/src/i18n/locales/zh/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
-  assert_mapping $'backend/internal/service/payment_order.go\tbackend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go'
+  assert_mapping $'backend/internal/service/payment_order.go\tbackend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/paymentchannels/order_policy.go|backend/internal/custom/paymentchannels/order_coordinator.go'
+  assert_mapping $'backend/internal/service/payment_order_result_test.go\tbackend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/paymentchannels/order_policy_test.go|backend/internal/custom/paymentchannels/revalidation_test.go|backend/internal/custom/paymentchannels/order_coordinator_test.go'
   assert_mapping $'backend/internal/handler/payment_handler.go\tbackend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go'
   assert_mapping $'backend/internal/handler/admin/setting_handler.go\tbackend/internal/custom/paymentchannels/channel_settings.go'
   assert_mapping $'backend/internal/handler/admin/payment_handler.go\tbackend/internal/custom/paymentchannels/channel_settings.go'
   assert_mapping $'backend/internal/service/payment_config_service.go\tbackend/internal/custom/paymentchannels/channel_settings.go'
-  assert_mapping $'backend/internal/payment/load_balancer.go\tbackend/internal/custom/paymentchannels/payment_channels.go'
-  assert_mapping $'backend/internal/service/payment_resume_service_test.go\tbackend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go'
+  assert_mapping $'backend/internal/payment/load_balancer.go\tbackend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/revalidation.go|backend/internal/custom/paymentchannels/instance_coordinator.go'
+  assert_mapping $'backend/internal/payment/load_balancer_test.go\tbackend/internal/custom/paymentchannels/instance_coordinator_test.go'
+  assert_mapping $'backend/internal/service/payment_resume_service_test.go\tbackend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/paymentchannels/resume_policy_test.go'
   assert_mapping $'frontend/src/components/payment/AmountInput.vue\tfrontend/src/custom/payment-channels/paymentMoney.ts'
-  assert_mapping $'frontend/src/views/user/PaymentView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/paymentMoney.ts'
-  assert_mapping $'frontend/src/views/user/__tests__/PaymentView.spec.ts\tfrontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/paymentMoney.spec.ts'
+  assert_mapping $'frontend/src/views/user/PaymentView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/paymentMoney.ts|frontend/src/custom/payment-channels/usePaymentChannelPricing.ts|frontend/src/custom/payment-channels/usePaymentChannelRecovery.ts|frontend/src/custom/payment-channels/paymentRecoveryRoute.ts'
+  assert_mapping $'frontend/src/views/user/__tests__/PaymentView.spec.ts\tfrontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/paymentMoney.spec.ts|frontend/src/custom/payment-channels/usePaymentChannelPricing.spec.ts|frontend/src/custom/payment-channels/usePaymentChannelRecovery.spec.ts'
   assert_mapping $'frontend/src/views/admin/SettingsView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/payment-channels/adminPaymentChannels.ts'
   assert_mapping $'frontend/src/views/admin/__tests__/SettingsView.spec.ts\tfrontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.spec.ts|frontend/src/custom/payment-channels/adminPaymentChannels.spec.ts'
   assert_mapping $'frontend/src/api/admin/payment.ts\tfrontend/src/custom/payment-channels/PaymentChannelSettings.vue'
   assert_mapping $'frontend/src/components/payment/PaymentProviderDialog.vue\tfrontend/src/custom/payment-channels/PaymentChannelSettings.vue'
   assert_mapping $'frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts\tfrontend/src/custom/payment-channels/paymentChannels.spec.ts'
-  assert_mapping $'frontend/src/views/user/__tests__/paymentWechatResume.spec.ts\tfrontend/src/custom/payment-channels/paymentChannels.spec.ts'
-  assert_mapping $'frontend/src/views/user/paymentWechatResume.ts\tfrontend/src/custom/payment-channels/paymentChannels.ts'
+  assert_mapping $'frontend/src/views/user/__tests__/paymentWechatResume.spec.ts\tfrontend/src/custom/payment-channels/usePaymentChannelRecovery.spec.ts'
+  assert_mapping $'frontend/src/views/user/paymentWechatResume.ts\tfrontend/src/custom/payment-channels/paymentRecoveryRoute.ts'
   assert_mapping $'backend/internal/handler/channel_monitor_user_handler.go\tbackend/internal/custom/channelmonitor/group_rate_resolver.go|backend/internal/custom/channelmonitor/group_rate_lookup.go'
   assert_mapping $'backend/internal/service/channel_monitor_service.go\tbackend/internal/custom/channelmonitor/ratedisplay/config.go'
   assert_mapping $'frontend/src/components/user/monitor/MonitorCard.vue\tfrontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts'
-  assert_mapping $'frontend/src/components/admin/monitor/MonitorFormDialog.vue\tfrontend/src/custom/channel-monitor/groupRate.ts'
+  assert_mapping $'frontend/src/components/admin/monitor/MonitorFormDialog.vue\tfrontend/src/custom/channel-monitor/groupRate.ts|frontend/src/custom/channel-monitor/MonitorGroupRateFields.vue'
   assert_mapping $'frontend/src/i18n/locales/en/admin/channels.ts\tfrontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts'
   assert_mapping $'frontend/src/i18n/locales/zh/admin/channels.ts\tfrontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts'
+  assert_mapping $'backend/cmd/server/wire.go\tbackend/internal/custom/channelmonitor/wire.go|backend/internal/custom/moderation/wire.go|backend/internal/custom/updater/wire.go'
+  assert_mapping $'backend/internal/handler/admin/system_handler.go\tbackend/internal/custom/updater/service.go'
+  assert_mapping $'backend/internal/handler/admin/system_handler_test.go\tbackend/internal/custom/updater/service_test.go'
+  assert_mapping $'backend/internal/handler/openai_gateway_handler.go\tbackend/internal/custom/moderation/cyber_policy.go'
+  assert_mapping $'backend/internal/handler/wire.go\tbackend/internal/custom/updater/wire.go'
+  assert_mapping $'frontend/src/components/layout/AppSidebar.vue\tfrontend/src/custom/updater/components/VersionBadge.vue'
+  assert_mapping $'frontend/src/router/index.ts\tfrontend/src/custom/moderation/views/RiskControlView.vue'
+  assert_mapping $'frontend/src/views/admin/GroupsView.vue\tfrontend/src/custom/group-access/GroupMinimumBalanceField.vue|frontend/src/custom/group-access/minimumBalance.ts'
 fi
 
 validate_relative_path() {
@@ -181,6 +191,7 @@ if [[ -d "$boundary_root/frontend/src" ]]; then
     file="${match%%:*}"
     relative="${file#"$boundary_root"/}"
     is_compatibility_test "$relative" && continue
+    is_shadowed_source "$relative" && continue
     case "$relative" in
       frontend/src/custom/* | frontend/src/components/common/VersionBadge.vue | frontend/src/components/layout/AppSidebar.vue) ;;
       *) echo "$match" >> "$boundary_violations" ;;
@@ -211,6 +222,7 @@ if [[ -d "$boundary_root/frontend/src" ]]; then
     file="${match%%:*}"
     relative="${file#"$boundary_root"/}"
     is_compatibility_test "$relative" && continue
+    is_shadowed_source "$relative" && continue
     case "$relative" in
       frontend/src/custom/* | frontend/src/components/layout/AppSidebar.vue | \
         frontend/src/router/index.ts | frontend/src/views/user/KeysView.vue) ;;
@@ -263,6 +275,7 @@ if [[ -d "$boundary_root/backend" ]]; then
   while IFS= read -r match; do
     file="${match%%:*}"
     relative="${file#"$boundary_root"/}"
+    is_shadowed_source "$relative" && continue
     case "$relative" in
       backend/internal/custom/* | \
         backend/cmd/server/wire.go | backend/cmd/server/wire_gen.go | \
@@ -310,6 +323,10 @@ backend/internal/repository/github_release_service_test.go
 backend/internal/repository/content_moderation_repo.go
 backend/internal/repository/content_moderation_repo_test.go
 backend/internal/repository/wire.go
+backend/cmd/server/wire.go
+backend/internal/handler/wire.go
+backend/internal/handler/admin/system_handler.go
+backend/internal/handler/admin/system_handler_test.go
 backend/internal/handler/admin/payment_handler.go
 backend/internal/handler/admin/setting_handler.go
 backend/internal/handler/admin/setting_handler_update.go
@@ -321,8 +338,10 @@ backend/internal/handler/dto/settings.go
 backend/internal/handler/gateway_handler.go
 backend/internal/handler/payment_handler.go
 backend/internal/handler/payment_handler_resume_test.go
+backend/internal/handler/openai_gateway_handler.go
 backend/internal/handler/openai_gateway_cyber_test.go
 backend/internal/payment/load_balancer.go
+backend/internal/payment/load_balancer_test.go
 backend/internal/service/content_moderation.go
 backend/internal/service/content_moderation_companion.go
 backend/internal/service/content_moderation_cyber_test.go
@@ -349,6 +368,7 @@ frontend/src/api/admin/settings.ts
 frontend/src/api/admin/system.ts
 frontend/src/components/common/VersionBadge.vue
 frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts
+frontend/src/components/layout/AppSidebar.vue
 frontend/src/components/payment/AmountInput.vue
 frontend/src/components/payment/PaymentProviderDialog.vue
 frontend/src/components/payment/paymentFlow.ts
@@ -369,6 +389,7 @@ frontend/src/utils/__tests__/releaseNotes.spec.ts
 frontend/src/utils/releaseNotes.ts
 frontend/src/views/admin/RiskControlView.vue
 frontend/src/views/admin/__tests__/RiskControlView.spec.ts
+frontend/src/views/admin/GroupsView.vue
 frontend/src/views/admin/SettingsView.vue
 frontend/src/views/admin/__tests__/SettingsView.spec.ts
 frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts
@@ -378,6 +399,7 @@ frontend/src/views/user/PaymentView.vue
 frontend/src/views/user/__tests__/PaymentView.spec.ts
 frontend/src/views/user/__tests__/paymentWechatResume.spec.ts
 frontend/src/views/user/paymentWechatResume.ts
+frontend/src/router/index.ts
 backend/internal/service/not_content_moderation_companion.go
 unmapped/fixture-must-not-match.txt
 EOF

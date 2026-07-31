@@ -597,22 +597,7 @@
           />
           <p class="input-hint">{{ t("admin.groups.rateMultiplierHint") }}</p>
         </div>
-        <div>
-          <label class="input-label">{{
-            t("admin.groups.form.minimumBalance")
-          }}</label>
-          <input
-            v-model.number="createForm.minimum_balance"
-            type="number"
-            step="0.00000001"
-            min="0"
-            required
-            class="input"
-          />
-          <p class="input-hint">
-            {{ t("admin.groups.form.minimumBalanceHint") }}
-          </p>
-        </div>
+        <GroupMinimumBalanceField v-model="createMinimumBalance" />
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
@@ -2166,22 +2151,7 @@
             data-tour="group-form-multiplier"
           />
         </div>
-        <div>
-          <label class="input-label">{{
-            t("admin.groups.form.minimumBalance")
-          }}</label>
-          <input
-            v-model.number="editForm.minimum_balance"
-            type="number"
-            step="0.00000001"
-            min="0"
-            required
-            class="input"
-          />
-          <p class="input-hint">
-            {{ t("admin.groups.form.minimumBalanceHint") }}
-          </p>
-        </div>
+        <GroupMinimumBalanceField v-model="editMinimumBalance" />
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
@@ -4105,6 +4075,11 @@ import GroupRateMultipliersModal from "@/components/admin/group/GroupRateMultipl
 import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesModal.vue";
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
+import GroupMinimumBalanceField from "@/custom/group-access/GroupMinimumBalanceField.vue";
+import {
+  minimumBalanceFormValue,
+  normalizeMinimumBalanceFormValue,
+} from "@/custom/group-access/minimumBalance";
 import { VueDraggable } from "vue-draggable-plus";
 import { createStableObjectKeyResolver } from "@/utils/stableObjectKey";
 import { extractApiErrorMessage } from "@/utils/apiError";
@@ -4622,7 +4597,6 @@ const createForm = reactive({
   description: "",
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
-  minimum_balance: 0,
   is_exclusive: false,
   subscription_type: "standard" as SubscriptionType,
   daily_limit_usd: null as number | null,
@@ -4678,6 +4652,7 @@ const createForm = reactive({
   max_reasoning_effort: "",
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
 });
+const createMinimumBalance = ref(minimumBalanceFormValue());
 
 // 简单账号类型（用于模型路由选择）
 interface SimpleAccount {
@@ -4972,7 +4947,6 @@ const editForm = reactive({
   description: "",
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
-  minimum_balance: 0,
   is_exclusive: false,
   status: "active" as "active" | "inactive",
   subscription_type: "standard" as SubscriptionType,
@@ -5030,6 +5004,7 @@ const editForm = reactive({
   max_reasoning_effort: "",
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
 });
+const editMinimumBalance = ref(minimumBalanceFormValue());
 
 type ImagePricingFormState = {
   platform: GroupPlatform;
@@ -5422,7 +5397,7 @@ const closeCreateModal = () => {
   createForm.description = "";
   createForm.platform = "anthropic";
   createForm.rate_multiplier = 1.0;
-  createForm.minimum_balance = 0;
+  createMinimumBalance.value = minimumBalanceFormValue();
   createForm.is_exclusive = false;
   createForm.subscription_type = "standard";
   createForm.daily_limit_usd = null;
@@ -5499,10 +5474,10 @@ const handleCreateGroup = async () => {
     appStore.showError(t("admin.groups.nameRequired"));
     return;
   }
-  if (
-    !Number.isFinite(Number(createForm.minimum_balance)) ||
-    Number(createForm.minimum_balance) < 0
-  ) {
+  const minimumBalance = normalizeMinimumBalanceFormValue(
+    createMinimumBalance.value,
+  );
+  if (minimumBalance === null) {
     appStore.showError(t("admin.groups.form.minimumBalanceInvalid"));
     return;
   }
@@ -5518,6 +5493,7 @@ const handleCreateGroup = async () => {
     // 构建请求数据，包含模型路由配置
     const requestData = {
       ...createForm,
+      minimum_balance: minimumBalance,
       daily_limit_usd: normalizeOptionalLimit(
         createForm.daily_limit_usd as number | string | null,
       ),
@@ -5609,7 +5585,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.description = group.description || "";
   editForm.platform = group.platform;
   editForm.rate_multiplier = group.rate_multiplier;
-  editForm.minimum_balance = group.minimum_balance ?? 0;
+  editMinimumBalance.value = minimumBalanceFormValue(group.minimum_balance);
   editForm.is_exclusive = group.is_exclusive;
   editForm.status = group.status;
   editForm.subscription_type = group.subscription_type || "standard";
@@ -5697,6 +5673,7 @@ const closeEditModal = () => {
   editForm.peak_start = "";
   editForm.peak_end = "";
   editForm.peak_rate_multiplier = 1.0;
+  editMinimumBalance.value = minimumBalanceFormValue();
   editForm.video_rate_independent = false;
   editForm.video_rate_multiplier = 1;
   editForm.video_price_480p = null;
@@ -5714,10 +5691,10 @@ const handleUpdateGroup = async () => {
     appStore.showError(t("admin.groups.nameRequired"));
     return;
   }
-  if (
-    !Number.isFinite(Number(editForm.minimum_balance)) ||
-    Number(editForm.minimum_balance) < 0
-  ) {
+  const minimumBalance = normalizeMinimumBalanceFormValue(
+    editMinimumBalance.value,
+  );
+  if (minimumBalance === null) {
     appStore.showError(t("admin.groups.form.minimumBalanceInvalid"));
     return;
   }
@@ -5734,6 +5711,7 @@ const handleUpdateGroup = async () => {
     // 转换 fallback_group_id: null -> 0 (后端使用 0 表示清除)
     const payload = {
       ...editForm,
+      minimum_balance: minimumBalance,
       daily_limit_usd: normalizeOptionalLimit(
         editForm.daily_limit_usd as number | string | null,
       ),

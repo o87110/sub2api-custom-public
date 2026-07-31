@@ -2,6 +2,19 @@ import type { Group } from '@/types'
 
 export const GROUP_MINIMUM_BALANCE_NOT_MET = 'GROUP_MINIMUM_BALANCE_NOT_MET'
 
+export type MinimumBalanceFormValue = number | ''
+
+export function minimumBalanceFormValue(value?: number | null): MinimumBalanceFormValue {
+  return Number.isFinite(value) && Number(value) >= 0 ? Number(value) : 0
+}
+
+export function normalizeMinimumBalanceFormValue(
+  value: MinimumBalanceFormValue,
+): number | null {
+  const normalized = Number(value)
+  return Number.isFinite(normalized) && normalized >= 0 ? normalized : null
+}
+
 export interface GroupBalanceRequirement {
   groupName: string
   minimumBalance: number
@@ -28,6 +41,17 @@ export function groupBalanceRequirement(group: Group | null | undefined): GroupB
     balanceGap: group.balance_gap ?? Math.max(group.minimum_balance - group.current_balance, 0),
     eligible: false
   }
+}
+
+export function groupBalanceRequirementsByID(
+  groups: Group[],
+): Map<number, GroupBalanceRequirement> {
+  const result = new Map<number, GroupBalanceRequirement>()
+  for (const group of groups) {
+    const requirement = groupBalanceRequirement(group)
+    if (requirement) result.set(group.id, requirement)
+  }
+  return result
 }
 
 export function formatGroupBalance(value: number): string {

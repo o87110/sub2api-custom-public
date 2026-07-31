@@ -38,11 +38,13 @@ UPSTREAM_SYNC_ENABLED=true
 2. 确定当前可达的最新 `vendor-*`。
 3. 比较新官方版本和当前二改 Tree。
 4. 检查 `.github/upstream-shadowed-sources.tsv`。
-5. 识别保护路径、数据库 Migration 和 Schema 变化。
-6. 创建或复用 `upgrade/vX.Y.Z`。
-7. 保留已有升级现场，不重置、不强推。
-8. 创建以 `main` 为 Base 的升级 PR。
-9. 从受信任 `main` 调度准确 PR Head SHA 的升级门禁。
+5. 用 `.github/custom-thin-bridge-contract.tsv` 复核全部薄桥类型、精确增删预算和
+   Custom 目标；不得仅凭差异台账登记判断职责合规。
+6. 识别保护路径、数据库 Migration 和 Schema 变化。
+7. 创建或复用 `upgrade/vX.Y.Z`。
+8. 保留已有升级现场，不重置、不强推。
+9. 创建以 `main` 为 Base 的升级 PR。
+10. 从受信任 `main` 调度准确 PR Head SHA 的升级门禁。
 
 ## 5. 影子来源和保护路径
 
@@ -53,6 +55,7 @@ UPSTREAM_SYNC_ENABLED=true
 
 - `.github/workflows/`；
 - `.github/custom-*` 与影子映射；
+- `tools/validate_custom_thin_bridges.py` 及其失败夹具；
 - `backend/internal/custom/`；
 - `frontend/src/custom/`；
 - `deploy/release/`；
@@ -89,6 +92,9 @@ UPSTREAM_SYNC_ENABLED=true
 
 - 冲突与保护路径检查；
 - 差异台账和 Candidate Tree；
+- 全量薄桥契约、精确增删预算和禁止高风险业务符号回流断言；
+- `delegate/view` 新增函数块的循环、Watcher、重试与改名协调流程检查，以及精确到
+  路径和函数名的 DTO 投影允许结构；
 - 影子来源映射检查；
 - 数据库语义门禁；
 - 后端 Unit、Integration 和生产构建；

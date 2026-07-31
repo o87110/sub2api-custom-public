@@ -29,9 +29,11 @@ Issue 和生产资料不迁移。
 2. `.github/custom-upstream-delta.tsv` 记录相对官方基线的每个文件级决定、Blob、
    分类和验证方式。
 3. `.github/upstream-shadowed-sources.tsv` 记录从官方实现迁出的二改路径。
-4. `docs/custom/TESTING_CN.md` 记录回归和发布验收条件。
-5. `openspec/changes/` 保留适合公开的需求、设计、任务和验证证据。
-6. `.github/upgrades/` 保留已经完成的官方升级评审记录。
+4. `.github/custom-thin-bridge-contract.tsv` 为全部官方薄桥固定类型、影子要求和相对
+   Vendor 的精确增删行预算。
+5. `docs/custom/TESTING_CN.md` 记录回归和发布验收条件。
+6. `openspec/changes/` 保留适合公开的需求、设计、任务和验证证据。
+7. `.github/upgrades/` 保留已经完成的官方升级评审记录。
 
 已经废弃、回滚或只与私有运行环境有关的过程记录不进入公开仓库；其最终有效
 行为由源码和测试决定。
@@ -43,21 +45,25 @@ Issue 和生产资料不迁移。
 ```text
 backend/internal/custom/
 ├── databaseboundary/       数据库与迁移边界检查
-├── groupaccess/            分组最低余额门槛计算、错误与金额格式
+├── groupaccess/            分组最低余额资格协调、fallback、熔断与错误
 ├── moderation/             cyber_policy 范围隔离与摘要
-├── paymentchannels/        用户级支付渠道选项、个性化配置与合法组合
+├── paymentchannels/        支付渠道目录、订单/恢复策略、实例复核与个性化配置
 └── updater/                自定义 Release、更新与回退
 
 frontend/src/custom/
 ├── api-keys/               API 密钥当前页批量分组、启用、禁用与删除
-├── group-access/           分组最低余额禁用状态、问号说明浮层与错误提示
+├── group-access/           分组最低余额表单、禁用状态、问号说明浮层与错误提示
 ├── moderation/             风控二改页面与文案
-├── payment-channels/       支付渠道归一化、后台配置、选择器与备用提示
+├── payment-channels/       支付定价、渠道重选、恢复/备用提示、后台配置与选择器
 └── updater/                版本、更新与回退界面
 ```
 
 官方目录只保留必要的薄桥接和 Wire 接线。若修改官方文件，必须在差异台账中说明
-原因，并用定向测试证明没有把可隔离逻辑重新散落回官方实现。
+原因，并用定向测试证明没有把可隔离逻辑重新散落回官方实现。所有
+`official-thin-bridge` 必须逐项登记薄桥契约；`delegate`/`view` 必须指向实际 Custom
+目标，直接导入 Custom 的桥必须有影子映射，DTO/Wire/Persistence 不得承载业务循环、
+Watcher 或业务辅助函数。`delegate`/`view` 的新增函数块同样检查循环、Watcher、重试和
+协调流程；函数改名不能绕过，确属 DTO 投影的循环只允许按“路径 + 函数名”精确审核。
 
 ## 文档导航
 
@@ -90,7 +96,7 @@ frontend/src/custom/
 
 - 功能代码与定向测试同步完成；
 - 后端、前端和生成代码检查通过；
-- 差异台账及影子路径映射保持一致；
+- 差异台账、薄桥契约及影子路径映射保持一致；
 - 涉及部署、更新、版本或权限时同步更新对应文档；
 - CI 通过；Security Scan 独立运行并如实记录，不作为发布硬门禁；
 - 发布前确认准确提交、标签和官方基线关系。

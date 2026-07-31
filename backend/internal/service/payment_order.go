@@ -30,12 +30,6 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if normalized := NormalizeVisibleMethod(req.PaymentType); normalized != "" {
 		req.PaymentType = normalized
 	}
-	req.ProviderKey = strings.ToLower(strings.TrimSpace(req.ProviderKey))
-	if req.ProviderKey != "" {
-		if err := s.validateCreateOrderProviderSelection(ctx, req.PaymentType, req.ProviderKey); err != nil {
-			return nil, err
-		}
-	}
 	cfg, err := s.configService.GetPaymentConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get payment config: %w", err)
@@ -68,58 +62,21 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	} else if req.OrderType == payment.OrderTypeBalance {
 		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
 	}
-	feeRate := paymentchannels.ResolveFeeRate(
-		req.PaymentType,
-		req.ProviderKey,
-		cfg.RechargeFeeRate,
-		cfg.ChannelSettings,
+	preparation, err := paymentchannels.NewOrderCoordinator(paymentOrderLoader{service: s}).Prepare(
+		ctx,
+		customOrderPreparationRequest(req, cfg, limitAmount),
+		cfg.LoadBalanceStrategy,
 	)
-	if req.ResolvedFeeRate != nil {
-		if math.IsNaN(*req.ResolvedFeeRate) || math.IsInf(*req.ResolvedFeeRate, 0) || *req.ResolvedFeeRate < 0 || *req.ResolvedFeeRate > 100 {
-			return nil, infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume fee rate is invalid")
-		}
-		feeRate = *req.ResolvedFeeRate
-	}
-	methodCurrency := payment.DefaultPaymentCurrency
-	if s.configService != nil {
-		methodCurrency, err = s.configService.ValidateMethodProviderCurrencyConsistency(ctx, req.PaymentType, req.ProviderKey)
-		if err != nil {
-			return nil, err
-		}
-	}
-	payAmountStr, payAmount, err := calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, methodCurrency, req.OrderType, cfg.SubscriptionUSDToCNYRate)
 	if err != nil {
 		return nil, err
 	}
-	sel, err := s.selectCreateOrderInstance(ctx, req, cfg, payAmount)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.revalidateSelectedCreateOrderInstance(ctx, req, payAmount, sel); err != nil {
-		return nil, err
-	}
-	if err := s.validateSelectedCreateOrderInstance(ctx, req, sel); err != nil {
-		return nil, err
-	}
-	selectedCurrency := payment.DefaultPaymentCurrency
-	if sel != nil {
-		selectedCurrency = paymentProviderConfigCurrency(sel.ProviderKey, sel.Config)
-	}
-	if selectedCurrency != methodCurrency {
-		payAmountStr, payAmount, err = calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, selectedCurrency, req.OrderType, cfg.SubscriptionUSDToCNYRate)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if err := validateSelectedCreateOrderAmountCurrency(payAmountStr, sel); err != nil {
-		return nil, err
-	}
-	oauthResp, err := s.maybeBuildWeChatOAuthRequiredResponseForSelection(ctx, req, limitAmount, payAmount, feeRate, sel)
-	if err != nil {
-		return nil, err
-	}
-	if oauthResp != nil {
-		return oauthResp, nil
+	req.ProviderKey = preparation.ProviderKey
+	feeRate := preparation.FeeRate
+	payAmount := preparation.PayAmount
+	payAmountStr := preparation.PayAmountString
+	sel := paymentSelectionFromOrder(preparation.Selection)
+	if preparation.OAuth != nil {
+		return buildOrderOAuthResponse(req, limitAmount, preparation), nil
 	}
 	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, sel)
 	if err != nil {
@@ -367,68 +324,140 @@ func (s *PaymentService) checkDailyLimit(ctx context.Context, tx *dbent.Tx, user
 	return nil
 }
 
-func (s *PaymentService) selectCreateOrderInstance(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig, payAmount float64) (*payment.InstanceSelection, error) {
-	selectCtx, err := s.prepareCreateOrderSelectionContext(ctx, req)
+type paymentOrderLoader struct {
+	service *PaymentService
+}
+
+func customOrderPreparationRequest(req CreateOrderRequest, cfg *PaymentConfig, limitAmount float64) paymentchannels.OrderPreparationRequest {
+	return paymentchannels.OrderPreparationRequest{
+		PaymentType:              req.PaymentType,
+		ProviderKey:              req.ProviderKey,
+		OrderType:                req.OrderType,
+		Amount:                   req.Amount,
+		LimitAmount:              limitAmount,
+		GlobalFeeRate:            cfg.RechargeFeeRate,
+		ChannelSettings:          cfg.ChannelSettings,
+		ResolvedFeeRate:          req.ResolvedFeeRate,
+		SubscriptionUSDToCNYRate: cfg.SubscriptionUSDToCNYRate,
+		IsWeChatBrowser:          req.IsWeChatBrowser,
+		OpenID:                   req.OpenID,
+		PlanID:                   req.PlanID,
+		SourceURL:                req.SrcURL,
+	}
+}
+
+func (loader paymentOrderLoader) HasConfiguredSelection(ctx context.Context, paymentType, providerKey string) (bool, error) {
+	if loader.service == nil || loader.service.configService == nil {
+		return false, nil
+	}
+	return loader.service.configService.HasConfiguredProviderPaymentType(ctx, paymentType, providerKey)
+}
+
+func (loader paymentOrderLoader) LoadMethodCurrency(ctx context.Context, paymentType, providerKey string) (string, error) {
+	if loader.service == nil || loader.service.configService == nil {
+		return payment.DefaultPaymentCurrency, nil
+	}
+	return loader.service.configService.ValidateMethodProviderCurrencyConsistency(ctx, paymentType, providerKey)
+}
+
+func (paymentOrderLoader) CalculatePayAmount(limitAmount, feeRate float64, currency, orderType string, usdToCNYRate float64) (string, float64, error) {
+	return calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, currency, orderType, usdToCNYRate)
+}
+
+func (loader paymentOrderLoader) SelectOrderInstance(ctx context.Context, request paymentchannels.OrderSelectionRequest) (*paymentchannels.OrderSelection, error) {
+	if request.WeChatJSAPIAppID != "" {
+		ctx = payment.WithWxpayJSAPIAppID(ctx, request.WeChatJSAPIAppID)
+	}
+	selection, err := loader.service.loadBalancer.SelectInstance(
+		ctx,
+		request.ProviderKey,
+		request.PaymentType,
+		payment.Strategy(request.Strategy),
+		request.PayAmount,
+	)
+	return customOrderSelection(selection), err
+}
+
+func (loader paymentOrderLoader) RevalidateOrderInstance(ctx context.Context, selection *paymentchannels.OrderSelection, paymentType string, payAmount float64) (bool, error) {
+	return loader.service.loadBalancer.RevalidateSelection(ctx, paymentSelectionFromOrder(selection), paymentType, payAmount)
+}
+
+func (paymentOrderLoader) ValidatePayAmountCurrency(payAmount string, selection *paymentchannels.OrderSelection) error {
+	return validateSelectedCreateOrderAmountCurrency(payAmount, paymentSelectionFromOrder(selection))
+}
+
+func (loader paymentOrderLoader) UsesOfficialWeChatVisibleMethod(ctx context.Context) bool {
+	return loader.service.usesOfficialWxpayVisibleMethod(ctx)
+}
+
+func (loader paymentOrderLoader) LoadWeChatOAuthAppID(ctx context.Context) (string, error) {
+	appID, _, err := loader.service.getWeChatPaymentOAuthCredential(ctx)
+	return appID, err
+}
+
+func (loader paymentOrderLoader) BuildWeChatOAuth(ctx context.Context, request paymentchannels.OrderOAuthRequest) (*paymentchannels.OrderOAuth, error) {
+	response, err := loader.service.buildWeChatOAuthRequiredResponse(ctx, CreateOrderRequest{
+		Amount:      request.Amount,
+		PaymentType: request.PaymentType,
+		ProviderKey: request.ProviderKey,
+		SrcURL:      request.SourceURL,
+		OrderType:   request.OrderType,
+		PlanID:      request.PlanID,
+	}, request.DisplayAmount, request.PayAmount, request.FeeRate)
 	if err != nil {
 		return nil, err
 	}
-	sel, err := s.loadBalancer.SelectInstance(selectCtx, req.ProviderKey, req.PaymentType, payment.Strategy(cfg.LoadBalanceStrategy), payAmount)
-	if err != nil {
-		return nil, infraerrors.ServiceUnavailable("PAYMENT_GATEWAY_ERROR", "method_not_configured").
-			WithMetadata(map[string]string{
-				"payment_type": req.PaymentType,
-				"provider_key": req.ProviderKey,
-			})
-	}
-	if sel == nil {
-		return nil, infraerrors.TooManyRequests("NO_AVAILABLE_INSTANCE", "no_available_instance")
-	}
-	return sel, nil
+	return &paymentchannels.OrderOAuth{
+		AuthorizeURL: response.OAuth.AuthorizeURL,
+		AppID:        response.OAuth.AppID,
+		Scope:        response.OAuth.Scope,
+		RedirectURL:  response.OAuth.RedirectURL,
+	}, nil
 }
 
-func (s *PaymentService) validateCreateOrderProviderSelection(ctx context.Context, paymentType, providerKey string) error {
-	validSelection := paymentchannels.IsValidSelection(paymentType, providerKey)
-	if !validSelection && s.configService != nil {
-		configuredSelection, err := s.configService.HasConfiguredProviderPaymentType(ctx, paymentType, providerKey)
-		if err != nil {
-			return err
-		}
-		validSelection = configuredSelection
-	}
-	if validSelection {
+func customOrderSelection(selection *payment.InstanceSelection) *paymentchannels.OrderSelection {
+	if selection == nil {
 		return nil
 	}
-	return infraerrors.BadRequest(
-		"INVALID_PAYMENT_PROVIDER_SELECTION",
-		"invalid payment provider selection",
-	).WithMetadata(map[string]string{
-		"payment_type": paymentType,
-		"provider_key": providerKey,
-	})
+	return &paymentchannels.OrderSelection{
+		InstanceID:       selection.InstanceID,
+		ProviderKey:      selection.ProviderKey,
+		Config:           selection.Config,
+		SupportedTypes:   selection.SupportedTypes,
+		PaymentMode:      selection.PaymentMode,
+		InstanceRevision: selection.InstanceRevision,
+	}
 }
 
-func (s *PaymentService) prepareCreateOrderSelectionContext(ctx context.Context, req CreateOrderRequest) (context.Context, error) {
-	if !requestNeedsWeChatJSAPICompatibility(req) {
-		return ctx, nil
+func paymentSelectionFromOrder(selection *paymentchannels.OrderSelection) *payment.InstanceSelection {
+	if selection == nil {
+		return nil
 	}
-	if req.ProviderKey != "" && req.ProviderKey != payment.TypeWxpay {
-		return ctx, nil
+	return &payment.InstanceSelection{
+		InstanceID:       selection.InstanceID,
+		ProviderKey:      selection.ProviderKey,
+		Config:           selection.Config,
+		SupportedTypes:   selection.SupportedTypes,
+		PaymentMode:      selection.PaymentMode,
+		InstanceRevision: selection.InstanceRevision,
 	}
-	if req.ProviderKey == "" && !s.usesOfficialWxpayVisibleMethod(ctx) {
-		return ctx, nil
-	}
-	expectedAppID, _, err := s.getWeChatPaymentOAuthCredential(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return payment.WithWxpayJSAPIAppID(ctx, expectedAppID), nil
 }
 
-func requestNeedsWeChatJSAPICompatibility(req CreateOrderRequest) bool {
-	if payment.GetBasePaymentType(req.PaymentType) != payment.TypeWxpay {
-		return false
+func buildOrderOAuthResponse(req CreateOrderRequest, amount float64, preparation *paymentchannels.OrderPreparation) *CreateOrderResponse {
+	return &CreateOrderResponse{
+		Amount:      amount,
+		PayAmount:   preparation.PayAmount,
+		FeeRate:     preparation.FeeRate,
+		ResultType:  payment.CreatePaymentResultOAuthRequired,
+		PaymentType: req.PaymentType,
+		ProviderKey: payment.TypeWxpay,
+		OAuth: &payment.WechatOAuthInfo{
+			AuthorizeURL: preparation.OAuth.AuthorizeURL,
+			AppID:        preparation.OAuth.AppID,
+			Scope:        preparation.OAuth.Scope,
+			RedirectURL:  preparation.OAuth.RedirectURL,
+		},
 	}
-	return req.IsWeChatBrowser || strings.TrimSpace(req.OpenID) != ""
 }
 
 func (s *PaymentService) usesOfficialWxpayVisibleMethod(ctx context.Context) bool {
@@ -446,7 +475,12 @@ func (s *PaymentService) usesOfficialWxpayVisibleMethod(ctx context.Context) boo
 }
 
 func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.PaymentOrder, req CreateOrderRequest, cfg *PaymentConfig, limitAmount float64, payAmountStr string, payAmount float64, plan *dbent.SubscriptionPlan, sel *payment.InstanceSelection) (*CreateOrderResponse, error) {
-	if err := s.revalidateSelectedCreateOrderInstance(ctx, req, 0, sel); err != nil {
+	if err := paymentchannels.NewOrderCoordinator(paymentOrderLoader{service: s}).RevalidateBeforeProvider(
+		ctx,
+		req.PaymentType,
+		req.ProviderKey,
+		customOrderSelection(sel),
+	); err != nil {
 		return nil, err
 	}
 	prov, err := provider.CreateProvider(sel.ProviderKey, sel.InstanceID, sel.Config)
@@ -619,23 +653,6 @@ func applyPaymentProductNameAffix(productName string, cfg *PaymentConfig) string
 	return strings.TrimSpace(pf + " " + productName + " " + sf)
 }
 
-func (s *PaymentService) maybeBuildWeChatOAuthRequiredResponse(ctx context.Context, req CreateOrderRequest, amount, payAmount, feeRate float64) (*CreateOrderResponse, error) {
-	return s.maybeBuildWeChatOAuthRequiredResponseForSelection(ctx, req, amount, payAmount, feeRate, nil)
-}
-
-func (s *PaymentService) maybeBuildWeChatOAuthRequiredResponseForSelection(ctx context.Context, req CreateOrderRequest, amount, payAmount, feeRate float64, sel *payment.InstanceSelection) (*CreateOrderResponse, error) {
-	if req.ProviderKey != "" && req.ProviderKey != payment.TypeWxpay {
-		return nil, nil
-	}
-	if sel != nil && sel.ProviderKey != "" && sel.ProviderKey != payment.TypeWxpay {
-		return nil, nil
-	}
-	if strings.TrimSpace(req.OpenID) != "" || !req.IsWeChatBrowser || payment.GetBasePaymentType(req.PaymentType) != payment.TypeWxpay {
-		return nil, nil
-	}
-	return s.buildWeChatOAuthRequiredResponse(ctx, req, amount, payAmount, feeRate)
-}
-
 func (s *PaymentService) buildWeChatOAuthRequiredResponse(ctx context.Context, req CreateOrderRequest, amount, payAmount, feeRate float64) (*CreateOrderResponse, error) {
 	appID, _, err := s.getWeChatPaymentOAuthCredential(ctx)
 	if err != nil {
@@ -675,36 +692,6 @@ func (s *PaymentService) buildWeChatOAuthRequiredResponse(ctx context.Context, r
 			RedirectURL:  "/auth/wechat/payment/callback",
 		},
 	}, nil
-}
-
-func (s *PaymentService) revalidateSelectedCreateOrderInstance(ctx context.Context, req CreateOrderRequest, payAmount float64, sel *payment.InstanceSelection) error {
-	valid, err := s.loadBalancer.RevalidateSelection(ctx, sel, req.PaymentType, payAmount)
-	if err != nil {
-		return infraerrors.ServiceUnavailable("PAYMENT_GATEWAY_ERROR", "payment_instance_revalidation_failed").
-			WithMetadata(map[string]string{
-				"payment_type": req.PaymentType,
-				"provider_key": req.ProviderKey,
-			})
-	}
-	if !valid {
-		return infraerrors.TooManyRequests("NO_AVAILABLE_INSTANCE", "no_available_instance")
-	}
-	return nil
-}
-
-func (s *PaymentService) validateSelectedCreateOrderInstance(ctx context.Context, req CreateOrderRequest, sel *payment.InstanceSelection) error {
-	if !requiresWeChatJSAPICompatibleSelection(req, sel) {
-		return nil
-	}
-	expectedAppID, _, err := s.getWeChatPaymentOAuthCredential(ctx)
-	if err != nil {
-		return err
-	}
-	selectedAppID := provider.ResolveWxpayJSAPIAppID(sel.Config)
-	if selectedAppID == "" || selectedAppID != expectedAppID {
-		return infraerrors.TooManyRequests("NO_AVAILABLE_INSTANCE", "selected payment instance is not compatible with the current WeChat OAuth app")
-	}
-	return nil
 }
 
 func calculateCreateOrderPayAmount(limitAmount, feeRate float64, currency string) (string, float64, error) {
@@ -765,13 +752,6 @@ func validateSelectedCreateOrderAmountCurrency(payAmount string, sel *payment.In
 			WithMetadata(map[string]string{"currency": currency})
 	}
 	return nil
-}
-
-func requiresWeChatJSAPICompatibleSelection(req CreateOrderRequest, sel *payment.InstanceSelection) bool {
-	if sel == nil || sel.ProviderKey != payment.TypeWxpay || payment.GetBasePaymentType(req.PaymentType) != payment.TypeWxpay {
-		return false
-	}
-	return req.IsWeChatBrowser || strings.TrimSpace(req.OpenID) != ""
 }
 
 func (s *PaymentService) getWeChatPaymentOAuthCredential(ctx context.Context) (string, string, error) {

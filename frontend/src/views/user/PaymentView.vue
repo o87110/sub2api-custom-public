@@ -257,7 +257,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -265,7 +265,7 @@ import { usePaymentStore } from '@/stores/payment'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
-import { extractApiErrorCode, extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
+import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
 import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
@@ -286,28 +286,20 @@ import { platformAccentBarClass, platformBadgeLightClass, platformBadgeClass, pl
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { DEFAULT_PAYMENT_CURRENCY, formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
 import { planValiditySuffix as validitySuffixOf } from '@/components/payment/validity'
 import PaymentChannelSelector from '@/custom/payment-channels/PaymentChannelSelector.vue'
 import {
   ALIPAY_MOBILE_PRECREATE_DEEP_LINK,
-  findBackupPaymentChannel,
   findPaymentChannel,
-  isGatewayChannelFailureCode,
-  normalizePaymentChannelOptions,
-  paymentChannelLabel,
   paymentChannelSupports,
-  type PaymentChannelOption,
 } from '@/custom/payment-channels/paymentChannels'
+import { usePaymentChannelPricing } from '@/custom/payment-channels/usePaymentChannelPricing'
 import {
-  isPaymentAmountRepresentable,
-  multiplyAndRoundPaymentAmount,
-  paymentCurrencyFractionDigits,
-  paymentFeeAmount,
-  roundPaymentAmount,
-} from '@/custom/payment-channels/paymentMoney'
+  usePaymentChannelRecovery,
+  type BackupChannelHintContext,
+} from '@/custom/payment-channels/usePaymentChannelRecovery'
+import { hasWechatResumeQuery } from '@/custom/payment-channels/paymentRecoveryRoute'
 import { buildPaymentErrorToastMessage, describePaymentScenarioError } from './paymentUx'
-import { hasWechatResumeQuery, parseWechatResumeRoute, stripWechatResumeQuery } from './paymentWechatResume'
 
 const i18n = useI18n()
 const { t } = i18n
@@ -354,12 +346,6 @@ interface CreateOrderOptions {
   paymentChannelId?: string
   isResume?: boolean
   mobileQrFallbackAttempted?: boolean
-}
-
-interface BackupChannelHintContext {
-  attemptedChannelId?: string
-  orderType: OrderType
-  orderAmount: number
 }
 
 interface WeixinJSBridgeLike {
@@ -465,48 +451,6 @@ async function redirectToPaymentResult(state: PaymentRecoverySnapshot): Promise<
   })
 }
 
-function buildWechatOAuthAuthorizeUrl(
-  authorizeUrl: string,
-  context: { paymentType: string; providerKey?: string; orderType: OrderType; planId?: number; orderAmount: number },
-): string {
-  const normalizedUrl = authorizeUrl.trim()
-  if (!normalizedUrl || typeof window === 'undefined') {
-    return normalizedUrl
-  }
-
-  try {
-    const targetUrl = new URL(normalizedUrl, window.location.origin)
-    const redirectPath = targetUrl.searchParams.get('redirect') || '/purchase'
-    const redirectUrl = new URL(redirectPath, window.location.origin)
-    const paymentType = normalizeVisibleMethod(context.paymentType) || context.paymentType.trim() || 'wxpay'
-
-    redirectUrl.searchParams.set('payment_type', paymentType)
-    redirectUrl.searchParams.set('order_type', context.orderType)
-
-    if (context.planId) {
-      redirectUrl.searchParams.set('plan_id', String(context.planId))
-    } else {
-      redirectUrl.searchParams.delete('plan_id')
-    }
-
-    if (context.orderAmount > 0) {
-      redirectUrl.searchParams.set('amount', String(context.orderAmount))
-    } else {
-      redirectUrl.searchParams.delete('amount')
-    }
-
-    if (context.providerKey?.trim()) {
-      const providerKey = context.providerKey.trim().toLowerCase()
-      targetUrl.searchParams.set('provider_key', providerKey)
-      redirectUrl.searchParams.set('provider_key', providerKey)
-    }
-    targetUrl.searchParams.set('redirect', `${redirectUrl.pathname}${redirectUrl.search}`)
-    return targetUrl.toString()
-  } catch {
-    return normalizedUrl
-  }
-}
-
 function onPaymentDone() {
   const wasSubscription = paymentState.value.orderType === 'subscription'
   resetPayment()
@@ -543,24 +487,68 @@ const tabs = computed(() => {
   return result
 })
 
-const channelOptions = computed(() => normalizePaymentChannelOptions(checkout.value))
-const enabledChannelIds = computed(() =>
-  channelOptions.value.filter(option => option.available).map(option => option.id),
-)
-const selectedChannel = computed(() =>
-  channelOptions.value.find(option => option.id === selectedChannelId.value),
-)
-const validAmount = computed(() => amount.value ?? 0)
-const balanceRechargeMultiplier = computed(() => {
-  const multiplier = checkout.value.balance_recharge_multiplier
-  return Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1
+const {
+  channelOptions,
+  enabledChannelIds,
+  selectedChannel,
+  validAmount,
+  balanceRechargeMultiplier,
+  creditedAmount,
+  globalMinAmount,
+  globalMaxAmount,
+  selectedCurrency,
+  methodOptions,
+  feeRate,
+  feeAmount,
+  totalAmount,
+  amountError,
+  canSubmit,
+  subPaymentAmount,
+  subFeeAmount,
+  subTotalAmount,
+  subMethodOptions,
+  canSubmitSubscription,
+  balanceAmountFitsChannel,
+  subscriptionAmountFitsChannel,
+  formatSelectedPaymentAmount,
+  formatSelectedSubscriptionPaymentAmount,
+} = usePaymentChannelPricing({
+  checkout,
+  activeTab,
+  amount,
+  selectedPlan,
+  selectedChannelId,
+  locale: () => i18n.locale,
+  t,
 })
-// 订阅 CNY 换算汇率（1 USD = X CNY）。0 = 未配置，订阅保持 price 直付（与后端 opt-in 条件严格镜像）。
-const subscriptionUsdToCnyRate = computed(() => {
-  const rate = checkout.value.subscription_usd_to_cny_rate
-  return Number.isFinite(rate) && rate > 0 ? rate : 0
+
+const {
+  appendBackupChannelHint,
+  attemptMobileQrFallback,
+  buildWechatOAuthAuthorizeUrl,
+  resumeWechatPaymentFromQuery,
+} = usePaymentChannelRecovery({
+  channelOptions,
+  selectedChannelId,
+  amount,
+  selectedPlan,
+  paymentState,
+  paymentPhase,
+  errorMessage,
+  errorHintMessage,
+  balanceAmountFitsChannel,
+  subscriptionAmountFitsChannel,
+  createPaymentOrder: payload => paymentStore.createOrder(payload),
+  submitOrder: (orderAmount, orderType, planId, options) =>
+    createOrder(orderAmount, orderType, planId, options),
+  resolveRoute: (path, query) => router.resolve({ path, query }).href,
+  replaceRoute: (path, query) => router.replace({ path, query }),
+  persistRecoverySnapshot,
+  isMobile: isMobileDevice,
+  origin: () => typeof window !== 'undefined' ? window.location.origin : '',
+  showWarning: message => appStore.showWarning(message),
+  t,
 })
-const creditedAmount = computed(() => Math.round((validAmount.value * balanceRechargeMultiplier.value) * 100) / 100)
 
 // Adaptive grid: center single card, 2-col for 2 plans, 3-col for 3+
 const planGridClass = computed(() => {
@@ -568,259 +556,6 @@ const planGridClass = computed(() => {
   if (n <= 2) return 'grid grid-cols-1 gap-5 sm:grid-cols-2'
   return 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'
 })
-
-// Check if an amount fits a method's [min, max]. 0 = no limit.
-function amountFitsChannel(amt: number, channelId: string): boolean {
-  if (amt <= 0) return true
-  const channel = channelOptions.value.find(option => option.id === channelId)
-  if (!channel) return false
-  if (channel.amount_ranges?.length) {
-    return channel.amount_ranges.some(range =>
-      (range.single_min <= 0 || amt >= range.single_min)
-      && (range.single_max <= 0 || amt <= range.single_max),
-    )
-  }
-  if (channel.single_min > 0 && amt < channel.single_min) return false
-  if (channel.single_max > 0 && amt > channel.single_max) return false
-  return true
-}
-
-// Visible methods decide the principal range shown to users. Gateway limits include fees.
-const balancePrincipalLimits = computed(() => channelOptions.value.flatMap((channel) => {
-  const ranges = channel.amount_ranges?.length
-    ? channel.amount_ranges
-    : [{ single_min: channel.single_min, single_max: channel.single_max }]
-  return ranges.map(range => ({
-    min: balancePrincipalAmountForGatewayLimit(channel, range.single_min, 'min'),
-    max: balancePrincipalAmountForGatewayLimit(channel, range.single_max, 'max'),
-  }))
-}))
-const globalMinAmount = computed(() => {
-  const limits = balancePrincipalLimits.value
-  if (limits.length === 0) return 0
-  if (limits.some(limit => limit.min <= 0)) return 0
-  return Math.min(...limits.map(limit => limit.min))
-})
-const globalMaxAmount = computed(() => {
-  const limits = balancePrincipalLimits.value
-  if (limits.length === 0) return 0
-  if (limits.some(limit => limit.max <= 0)) return 0
-  return Math.max(...limits.map(limit => limit.max))
-})
-
-// Selected method's limits (for validation and error messages)
-const selectedLimit = computed(() => selectedChannel.value)
-const selectedCurrency = computed(() => normalizePaymentCurrency(selectedLimit.value?.currency))
-const localeCode = computed(() => {
-  const raw = i18n.locale as unknown
-  if (typeof raw === 'string') return raw
-  if (raw && typeof raw === 'object' && 'value' in raw) {
-    return String((raw as { value?: string }).value || '')
-  }
-  return undefined
-})
-
-function subscriptionPaymentAmountForCurrency(value: number, currency: string): number {
-  const rate = subscriptionUsdToCnyRate.value
-  if (rate <= 0 || currency !== DEFAULT_PAYMENT_CURRENCY) return value
-  return multiplyAndRoundPaymentAmount(value, rate, currency)
-}
-
-function formatSelectedPaymentAmount(value: number): string {
-  return formatPaymentAmount(value, selectedCurrency.value, localeCode.value)
-}
-
-function formatSelectedSubscriptionPaymentAmount(value: number): string {
-  return formatSelectedPaymentAmount(subscriptionPaymentAmountForCurrency(value, selectedCurrency.value))
-}
-
-function paymentChannelFeeRate(channel: PaymentChannelOption | undefined): number {
-  const rate = channel?.fee_rate
-  if (Number.isFinite(rate) && rate! >= 0) return rate!
-  return checkout.value.recharge_fee_rate ?? 0
-}
-
-function balanceTotalAmountForChannel(value: number, channel: PaymentChannelOption): number {
-  const currency = normalizePaymentCurrency(channel.currency)
-  const rate = paymentChannelFeeRate(channel)
-  if (rate <= 0 || value <= 0) return value
-  const fee = paymentFeeAmount(value, rate, currency)
-  return roundPaymentAmount(value + fee, currency)
-}
-
-function balancePrincipalAmountForGatewayLimit(
-  channel: PaymentChannelOption,
-  limit: number,
-  boundary: 'min' | 'max',
-): number {
-  if (!Number.isFinite(limit) || limit <= 0) return 0
-  const rawRate = paymentChannelFeeRate(channel)
-  const rate = Number.isFinite(rawRate) && rawRate > 0 ? rawRate : 0
-  const estimate = limit / (1 + rate / 100)
-  const currency = normalizePaymentCurrency(channel.currency)
-  const currencyDigits = paymentCurrencyFractionDigits(currency)
-  const inputScale = 10 ** Math.max(2, currencyDigits)
-  const stepUnits = 10 ** Math.max(0, Math.max(2, currencyDigits) - currencyDigits)
-  const estimatedUnits = estimate * inputScale
-  let units = boundary === 'min'
-    ? Math.ceil((estimatedUnits - 1e-9) / stepUnits) * stepUnits
-    : Math.floor((estimatedUnits + 1e-9) / stepUnits) * stepUnits
-  units = Math.max(boundary === 'min' ? stepUnits : 0, units)
-  if (!Number.isSafeInteger(units)) return estimate
-
-  const totalAt = (candidateUnits: number) =>
-    balanceTotalAmountForChannel(candidateUnits / inputScale, channel)
-  const tolerance = Number.EPSILON * Math.max(1, Math.abs(limit))
-
-  if (boundary === 'min') {
-    while (units > stepUnits && totalAt(units - stepUnits) + tolerance >= limit) units -= stepUnits
-    while (totalAt(units) + tolerance < limit) units += stepUnits
-  } else {
-    while (units > 0 && totalAt(units) > limit + tolerance) units -= stepUnits
-    while (totalAt(units + stepUnits) <= limit + tolerance) units += stepUnits
-  }
-
-  return units / inputScale
-}
-
-function balanceAmountFitsChannel(channel: PaymentChannelOption, value = validAmount.value): boolean {
-  const currency = normalizePaymentCurrency(channel.currency)
-  if (!isPaymentAmountRepresentable(value, currency)) return false
-  return amountFitsChannel(
-    balanceTotalAmountForChannel(value, channel),
-    channel.id,
-  )
-}
-
-const methodOptions = computed<PaymentChannelOption[]>(() =>
-  channelOptions.value.map(channel => ({
-    ...channel,
-    available: channel.available && balanceAmountFitsChannel(channel),
-  }))
-)
-
-const feeRate = computed(() => paymentChannelFeeRate(selectedChannel.value))
-const feeAmount = computed(() =>
-  feeRate.value > 0
-    && validAmount.value > 0
-    && isPaymentAmountRepresentable(validAmount.value, selectedCurrency.value)
-    ? paymentFeeAmount(validAmount.value, feeRate.value, selectedCurrency.value)
-    : 0
-)
-const totalAmount = computed(() =>
-  selectedChannel.value && isPaymentAmountRepresentable(validAmount.value, selectedCurrency.value)
-    ? balanceTotalAmountForChannel(validAmount.value, selectedChannel.value)
-    : validAmount.value
-)
-
-const amountError = computed(() => {
-  if (validAmount.value <= 0) return ''
-  // No method can handle this amount
-  if (!channelOptions.value.some(channel => channel.available && balanceAmountFitsChannel(channel))) {
-    return t('payment.amountNoMethod')
-  }
-  // Selected method can't handle this amount (but others can)
-  const ml = selectedLimit.value
-  if (ml) {
-    if (ml.amount_ranges?.length) return ''
-    const currency = normalizePaymentCurrency(ml.currency)
-    if (!isPaymentAmountRepresentable(validAmount.value, currency)) return ''
-    const payAmount = balanceTotalAmountForChannel(validAmount.value, ml)
-    if (ml.single_min > 0 && payAmount < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
-    if (ml.single_max > 0 && payAmount > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
-  }
-  return ''
-})
-
-const canSubmit = computed(() =>
-  validAmount.value > 0
-    && !!selectedChannel.value
-    && balanceAmountFitsChannel(selectedChannel.value)
-    && selectedLimit.value?.available !== false
-)
-
-const subPaymentAmount = computed(() => {
-  const price = selectedPlan.value?.price ?? 0
-  return subscriptionPaymentAmountForCurrency(price, selectedCurrency.value)
-})
-
-const subFeeAmount = computed(() => {
-  if (
-    feeRate.value <= 0
-    || subPaymentAmount.value <= 0
-    || !isPaymentAmountRepresentable(subPaymentAmount.value, selectedCurrency.value)
-  ) return 0
-  return paymentFeeAmount(subPaymentAmount.value, feeRate.value, selectedCurrency.value)
-})
-
-const subTotalAmount = computed(() => {
-  if (feeRate.value <= 0 || subPaymentAmount.value <= 0) return subPaymentAmount.value
-  return roundPaymentAmount(subPaymentAmount.value + subFeeAmount.value, selectedCurrency.value)
-})
-
-function subscriptionTotalAmountForCurrency(value: number, currency: string, rate = feeRate.value): number {
-  const paymentAmount = subscriptionPaymentAmountForCurrency(value, currency)
-  if (rate <= 0 || paymentAmount <= 0) return paymentAmount
-  const fee = paymentFeeAmount(paymentAmount, rate, currency)
-  return roundPaymentAmount(paymentAmount + fee, currency)
-}
-
-function subscriptionAmountFitsChannel(
-  channel: PaymentChannelOption,
-  price = selectedPlan.value?.price ?? 0,
-): boolean {
-  const currency = normalizePaymentCurrency(channel.currency)
-  const paymentAmount = subscriptionPaymentAmountForCurrency(price, currency)
-  if (!isPaymentAmountRepresentable(paymentAmount, currency)) return false
-  return amountFitsChannel(
-    subscriptionTotalAmountForCurrency(price, currency, paymentChannelFeeRate(channel)),
-    channel.id,
-  )
-}
-
-// Subscription-specific: method options based on gateway pay amount
-const subMethodOptions = computed<PaymentChannelOption[]>(() => {
-  return channelOptions.value.map((channel) => {
-    return {
-      ...channel,
-      available: channel.available && subscriptionAmountFitsChannel(channel),
-    }
-  })
-})
-
-const canSubmitSubscription = computed(() =>
-  selectedPlan.value !== null
-    && !!selectedChannel.value
-    && subscriptionAmountFitsChannel(selectedChannel.value)
-    && selectedLimit.value?.available !== false
-)
-
-// Auto-switch only for the active tab so recharge and subscription constraints cannot fight.
-watch(
-  () => [activeTab.value, validAmount.value, selectedChannelId.value] as const,
-  ([tab, amt, channelId]) => {
-    if (tab !== 'recharge' || amt <= 0) return
-    const current = channelOptions.value.find(channel => channel.id === channelId)
-    if (current && current.available && balanceAmountFitsChannel(current)) return
-    const available = channelOptions.value.find(channel =>
-      channel.available && balanceAmountFitsChannel(channel),
-    )
-    if (available) selectedChannelId.value = available.id
-  },
-)
-
-watch(
-  () => [activeTab.value, selectedPlan.value?.price ?? 0, selectedChannelId.value] as const,
-  ([tab, price, channelId]) => {
-    if (tab !== 'subscription' || price <= 0) return
-    const current = channelOptions.value.find(channel => channel.id === channelId)
-    if (current && current.available && subscriptionAmountFitsChannel(current)) return
-    const available = channelOptions.value.find(channel =>
-      channel.available && subscriptionAmountFitsChannel(channel),
-    )
-    if (available) selectedChannelId.value = available.id
-  },
-)
 
 // Payment button class: follows selected payment method color
 const paymentButtonClass = computed(() => {
@@ -1119,106 +854,6 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
   }
 }
 
-interface MobileQrFallbackContext {
-  orderAmount: number
-  orderType: OrderType
-  planId?: number
-  paymentType: string
-  providerKey?: string
-  paymentChannelId?: string
-  attempted: boolean
-}
-
-function shouldFallbackToDesktopQr(err: unknown, paymentMethod: string, attempted: boolean): boolean {
-  if (attempted || !isMobileDevice()) {
-    return false
-  }
-
-  const normalizedMethod = normalizeVisibleMethod(paymentMethod) || paymentMethod
-  const reason = typeof err === 'object' && err && 'reason' in err && typeof err.reason === 'string'
-    ? err.reason
-    : ''
-  const message = err instanceof Error
-    ? err.message
-    : (typeof err === 'object' && err && 'message' in err && typeof err.message === 'string'
-      ? err.message
-      : '')
-  const normalizedMessage = message.toLowerCase()
-
-  if (normalizedMethod === 'wxpay') {
-    return reason === 'WECHAT_H5_NOT_AUTHORIZED'
-      || reason === 'WECHAT_PAYMENT_MP_NOT_CONFIGURED'
-      || reason === 'WECHAT_JSAPI_FAILED'
-      || reason === 'PAYMENT_GATEWAY_ERROR'
-      || reason === 'UNHANDLED_PAYMENT_SCENARIO'
-      || normalizedMessage.includes('weixinjsbridge is unavailable')
-      || normalizedMessage.includes('wechat_jsapi_unavailable')
-  }
-
-  if (normalizedMethod === 'alipay') {
-    return reason === 'PAYMENT_GATEWAY_ERROR' || reason === 'UNHANDLED_PAYMENT_SCENARIO'
-  }
-
-  return false
-}
-
-async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackContext): Promise<boolean> {
-  if (!shouldFallbackToDesktopQr(err, context.paymentType, context.attempted)) {
-    return false
-  }
-
-  try {
-    const visibleMethod = normalizeVisibleMethod(context.paymentType) || context.paymentType
-    const payload = buildCreateOrderPayload({
-      amount: context.orderAmount,
-      paymentType: visibleMethod,
-      providerKey: context.providerKey,
-      orderType: context.orderType,
-      planId: context.planId,
-      origin: typeof window !== 'undefined' ? window.location.origin : '',
-      isMobile: false,
-      isWechatBrowser: false,
-    })
-    const result = await paymentStore.createOrder(payload) as CreateOrderResult & { resume_token?: string }
-    const stripeMethod = visibleMethod === 'wxpay' ? 'wechat_pay' : 'alipay'
-    const stripeRouteUrl = result.client_secret
-      ? router.resolve({
-        path: '/payment/stripe',
-        query: {
-          order_id: String(result.order_id),
-          client_secret: result.client_secret,
-          method: stripeMethod,
-          resume_token: result.resume_token || undefined,
-        },
-      }).href
-      : ''
-    const decision = decidePaymentLaunch(result, {
-      visibleMethod,
-      paymentChannelId: context.paymentChannelId,
-      providerKey: context.providerKey,
-      orderType: context.orderType,
-      isMobile: false,
-      isWechatBrowser: false,
-      stripePopupUrl: stripeRouteUrl,
-      stripeRouteUrl,
-    })
-
-    if (decision.kind !== 'qr_waiting' || !decision.paymentState.qrCode) {
-      return false
-    }
-
-    errorMessage.value = ''
-    errorHintMessage.value = ''
-    paymentState.value = decision.paymentState
-    paymentPhase.value = 'paying'
-    persistRecoverySnapshot(decision.recovery)
-    appStore.showWarning(t('payment.errors.mobilePaymentFallbackToQr'))
-    return true
-  } catch {
-    return false
-  }
-}
-
 function applyScenarioError(
   err: unknown,
   paymentMethod: string,
@@ -1243,76 +878,6 @@ function applyScenarioError(
   )
   appStore.showError(buildPaymentErrorToastMessage(errorMessage.value, errorHintMessage.value))
   return true
-}
-
-function appendBackupChannelHint(
-  err: unknown,
-  currentHint: string,
-  paymentMethod: string,
-  context: BackupChannelHintContext,
-): string {
-  if (!isGatewayChannelFailure(err)) return currentHint
-  const backup = findBackupPaymentChannel(
-    channelOptions.value,
-    context.attemptedChannelId || '',
-    paymentMethod,
-    channel => context.orderType === 'subscription'
-      ? subscriptionAmountFitsChannel(channel, context.orderAmount)
-      : balanceAmountFitsChannel(channel, context.orderAmount),
-  )
-  if (!backup) return currentHint
-  const switchHint = t('payment.errors.switchChannelHint', {
-    channel: paymentChannelLabel(backup, t),
-  })
-  return currentHint ? `${currentHint} ${switchHint}` : switchHint
-}
-
-function isGatewayChannelFailure(err: unknown): boolean {
-  return isGatewayChannelFailureCode(extractApiErrorCode(err))
-}
-
-async function resumeWechatPaymentFromQuery() {
-  const resume = parseWechatResumeRoute(route.query, checkout.value.plans, validAmount.value)
-  if (!resume) {
-    return
-  }
-
-  const resumeChannel = findPaymentChannel(
-    channelOptions.value,
-    '',
-    resume.paymentType,
-    resume.providerKey,
-  )
-  if (resumeChannel) {
-    selectedChannelId.value = resumeChannel.id
-  }
-  if (resume.orderType === 'balance' && resume.orderAmount > 0) {
-    amount.value = resume.orderAmount
-  }
-  if (resume.orderType === 'subscription' && resume.planId) {
-    selectedPlan.value = checkout.value.plans.find(plan => plan.id === resume.planId) ?? null
-  }
-
-  await router.replace({ path: route.path, query: stripWechatResumeQuery(route.query) })
-
-  if (resume.wechatResumeToken) {
-    await createOrder(0, resume.orderType, resume.planId, {
-      wechatResumeToken: resume.wechatResumeToken,
-      paymentType: resume.paymentType,
-      providerKey: resume.providerKey,
-      isResume: true,
-    })
-    return
-  }
-
-  if (resume.orderAmount > 0 && resume.openid) {
-    await createOrder(resume.orderAmount, resume.orderType, resume.planId, {
-      openid: resume.openid,
-      paymentType: resume.paymentType,
-      providerKey: resume.providerKey,
-      isResume: true,
-    })
-  }
 }
 
 onMounted(async () => {
@@ -1351,7 +916,11 @@ onMounted(async () => {
         removeRecoverySnapshot()
       }
     }
-    await resumeWechatPaymentFromQuery()
+    await resumeWechatPaymentFromQuery(
+      { path: route.path, query: route.query },
+      checkout.value.plans,
+      validAmount.value,
+    )
     if (checkout.value.balance_disabled) {
       activeTab.value = 'subscription'
     }
