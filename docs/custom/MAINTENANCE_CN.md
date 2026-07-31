@@ -27,7 +27,11 @@ docs/custom/
 ```
 
 官方目录中的薄桥接文件必须保持最小化。新增二改文件或修改分类时，同步更新
-`.github/custom-upstream-delta.tsv` 和必要的影子来源映射。
+`.github/custom-upstream-delta.tsv`、`.github/custom-thin-bridge-contract.tsv` 和必要的
+影子来源映射。薄桥契约的增删预算必须由准确 Vendor Commit 与 Candidate Tree 计算，
+不能用扩大预算掩盖业务职责回流。`delegate`/`view` 新增函数块中的循环、Watcher、
+重试或协调流程默认失败；仅 DTO 投影循环可以按路径和函数名加入最小允许列表，并须
+有正向与改名绕过负向夹具。
 
 ## 3. 开发流程
 
@@ -77,7 +81,7 @@ Custom Tag 与目标提交生成变更比较、Migration/Ent Schema 差异、备
 | Release、Tag、GHCR | `REPOSITORY_RELEASE_CN.md` |
 | Compose、runtime、回退 | `OPERATIONS_CN.md` |
 | 官方升级流程 | `UPSTREAM_SYNC_CN.md` |
-| 文件边界 | 差异台账、影子来源映射 |
+| 文件边界 | 差异台账、薄桥契约、影子来源映射 |
 | 数据库语义 | 数据库例外表、升级评审记录 |
 
 ## 6. 定期检查
@@ -85,6 +89,7 @@ Custom Tag 与目标提交生成变更比较、Migration/Ent Schema 差异、备
 ### 每次 PR
 
 - Custom 目录边界是否保持；
+- 80 个官方薄桥路径是否与契约精确一致，新增 Custom 导入是否有影子映射；
 - 是否出现新密钥、绝对路径、服务器地址或生产数据；
 - 第三方 Action 是否固定完整提交；
 - Workflow 权限是否为最小集合；

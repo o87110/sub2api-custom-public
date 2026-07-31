@@ -2,13 +2,11 @@ package payment
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -44,9 +42,10 @@ type LoadBalancer interface {
 
 // DefaultLoadBalancer implements LoadBalancer using database queries.
 type DefaultLoadBalancer struct {
-	db            *dbent.Client
-	encryptionKey []byte
-	counter       atomic.Uint64
+	db              *dbent.Client
+	encryptionKey   []byte
+	coordinatorOnce sync.Once
+	coordinator     *paymentchannels.InstanceCoordinator
 }
 
 type contextKey string
@@ -55,7 +54,11 @@ const wxpayJSAPIAppIDContextKey contextKey = "payment.wxpay.jsapi_app_id"
 
 // NewDefaultLoadBalancer creates a new load balancer.
 func NewDefaultLoadBalancer(db *dbent.Client, encryptionKey []byte) *DefaultLoadBalancer {
-	return &DefaultLoadBalancer{db: db, encryptionKey: encryptionKey}
+	return &DefaultLoadBalancer{
+		db:            db,
+		encryptionKey: encryptionKey,
+		coordinator:   paymentchannels.NewInstanceCoordinator(),
+	}
 }
 
 func WithWxpayJSAPIAppID(ctx context.Context, appID string) context.Context {
@@ -95,33 +98,28 @@ func (lb *DefaultLoadBalancer) SelectInstance(
 	strategy Strategy,
 	orderAmount float64,
 ) (*InstanceSelection, error) {
-	// Step 1: query enabled instances matching payment type.
-	instances, err := lb.queryEnabledInstances(ctx, providerKey, paymentType)
+	result, err := lb.instanceCoordinator().Select(ctx, lb, paymentchannels.InstanceSelectionRequest{
+		ProviderKey:      providerKey,
+		PaymentType:      paymentType,
+		Strategy:         string(strategy),
+		OrderAmount:      orderAmount,
+		WeChatJSAPIAppID: wxpayJSAPIAppIDFromContext(ctx),
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	// Step 2: batch-fetch daily usage for all candidates.
-	candidates := lb.attachDailyUsage(ctx, instances)
-
-	// Step 3: filter by limits.
-	available := filterByLimits(candidates, paymentType, orderAmount)
-	if len(available) == 0 {
-		if paymentchannels.ShouldFailClosedOnNoAvailableInstance(providerKey) {
-			slog.Warn("all explicitly selected provider instances exceeded limits",
-				"provider", providerKey, "payment_type", paymentType,
-				"order_amount", orderAmount, "count", len(candidates))
-			return nil, nil
-		}
-		slog.Warn("all instances exceeded limits, using full candidate list",
-			"provider", providerKey, "payment_type", paymentType,
-			"order_amount", orderAmount, "count", len(candidates))
-		available = candidates
+	if result.UsageLoadError != nil {
+		slog.Warn("batch daily usage query failed, treating all as zero", "error", result.UsageLoadError)
 	}
-
-	// Step 4: pick by strategy.
-	selected := lb.pickByStrategy(available, strategy)
-	return lb.buildSelection(selected.inst)
+	for _, rejection := range result.LimitRejections {
+		slog.Info("payment instance rejected by custom limit policy",
+			"instance_id", rejection.InstanceID,
+			"reason", rejection.Reason,
+			"used", rejection.DailyUsed,
+			"order", orderAmount,
+			"limit", rejection.Limit)
+	}
+	return paymentSelectionFromCustom(result.Selection), nil
 }
 
 // RevalidateSelection fails closed when the selected instance changed after
@@ -135,37 +133,123 @@ func (lb *DefaultLoadBalancer) RevalidateSelection(
 	paymentType PaymentType,
 	orderAmount float64,
 ) (bool, error) {
+	return lb.instanceCoordinator().Revalidate(ctx, lb, customSelectionFromPayment(selection), paymentType, orderAmount)
+}
+
+func (lb *DefaultLoadBalancer) instanceCoordinator() *paymentchannels.InstanceCoordinator {
+	lb.coordinatorOnce.Do(func() {
+		if lb.coordinator == nil {
+			lb.coordinator = paymentchannels.NewInstanceCoordinator()
+		}
+	})
+	return lb.coordinator
+}
+
+func paymentSelectionFromCustom(selection *paymentchannels.OrderSelection) *InstanceSelection {
 	if selection == nil {
-		return false, nil
+		return nil
 	}
-	instanceID, err := strconv.ParseInt(strings.TrimSpace(selection.InstanceID), 10, 64)
-	if err != nil || instanceID <= 0 {
-		return false, nil
+	return &InstanceSelection{
+		InstanceID:       selection.InstanceID,
+		ProviderKey:      selection.ProviderKey,
+		Config:           selection.Config,
+		SupportedTypes:   selection.SupportedTypes,
+		PaymentMode:      selection.PaymentMode,
+		InstanceRevision: selection.InstanceRevision,
 	}
-	inst, err := lb.db.PaymentProviderInstance.Get(ctx, instanceID)
+}
+
+func customSelectionFromPayment(selection *InstanceSelection) *paymentchannels.OrderSelection {
+	if selection == nil {
+		return nil
+	}
+	return &paymentchannels.OrderSelection{
+		InstanceID:       selection.InstanceID,
+		ProviderKey:      selection.ProviderKey,
+		Config:           selection.Config,
+		SupportedTypes:   selection.SupportedTypes,
+		PaymentMode:      selection.PaymentMode,
+		InstanceRevision: selection.InstanceRevision,
+	}
+}
+
+// LoadEnabledInstances is the Ent/config adapter for the Custom instance
+// coordinator. Channel matching and selection policy remain in Custom.
+func (lb *DefaultLoadBalancer) LoadEnabledInstances(ctx context.Context, providerKey string) ([]paymentchannels.InstanceRecord, error) {
+	query := lb.db.PaymentProviderInstance.Query().Where(paymentproviderinstance.Enabled(true))
+	if providerKey != "" {
+		query = query.Where(paymentproviderinstance.ProviderKey(providerKey))
+	}
+	instances, err := query.Order(dbent.Asc(paymentproviderinstance.FieldSortOrder)).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query provider instances: %w", err)
+	}
+	records := make([]paymentchannels.InstanceRecord, 0, len(instances))
+	for _, instance := range instances {
+		record, err := lb.paymentInstanceRecord(instance)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
+
+func (lb *DefaultLoadBalancer) LoadInstance(ctx context.Context, instanceID int64) (*paymentchannels.InstanceRecord, error) {
+	instance, err := lb.db.PaymentProviderInstance.Get(ctx, instanceID)
 	if err != nil {
 		if dbent.IsNotFound(err) {
-			return false, nil
+			return nil, nil
 		}
-		return false, fmt.Errorf("revalidate payment instance %d: %w", instanceID, err)
+		return nil, fmt.Errorf("load payment instance %d: %w", instanceID, err)
 	}
-	if !inst.Enabled ||
-		!strings.EqualFold(strings.TrimSpace(inst.ProviderKey), strings.TrimSpace(selection.ProviderKey)) ||
-		!InstanceSupportsType(inst.SupportedTypes, paymentType) ||
-		selection.InstanceRevision == "" ||
-		instanceRevision(inst) != selection.InstanceRevision {
-		return false, nil
+	record, err := lb.paymentInstanceRecord(instance)
+	return &record, err
+}
+
+func (lb *DefaultLoadBalancer) LoadDailyUsage(ctx context.Context, instanceIDs []string) (map[string]float64, error) {
+	todayStart := startOfDay(time.Now())
+	type row struct {
+		InstanceID string  `json:"provider_instance_id"`
+		Sum        float64 `json:"sum"`
 	}
-	if orderAmount > 0 {
-		candidates, err := lb.queryDailyUsage(ctx, []*dbent.PaymentProviderInstance{inst})
-		if err != nil {
-			return false, fmt.Errorf("revalidate payment instance %d limits: %w", instanceID, err)
-		}
-		if len(filterByLimits(candidates, paymentType, orderAmount)) == 0 {
-			return false, nil
-		}
+	var rows []row
+	if err := lb.db.PaymentOrder.Query().
+		Where(
+			paymentorder.ProviderInstanceIDIn(instanceIDs...),
+			paymentorder.StatusIn(OrderStatusPending, OrderStatusPaid, OrderStatusCompleted, OrderStatusRecharging),
+			paymentorder.CreatedAtGTE(todayStart),
+		).
+		GroupBy(paymentorder.FieldProviderInstanceID).
+		Aggregate(dbent.Sum(paymentorder.FieldPayAmount)).
+		Scan(ctx, &rows); err != nil {
+		return nil, err
 	}
-	return true, nil
+	usage := make(map[string]float64, len(rows))
+	for _, item := range rows {
+		usage[item.InstanceID] = item.Sum
+	}
+	return usage, nil
+}
+
+func (lb *DefaultLoadBalancer) paymentInstanceRecord(instance *dbent.PaymentProviderInstance) (paymentchannels.InstanceRecord, error) {
+	if instance == nil {
+		return paymentchannels.InstanceRecord{}, nil
+	}
+	config, err := lb.decryptConfig(instance.Config)
+	if err != nil {
+		return paymentchannels.InstanceRecord{}, fmt.Errorf("decrypt instance %d config: %w", instance.ID, err)
+	}
+	return paymentchannels.InstanceRecord{
+		ID:             instance.ID,
+		ProviderKey:    instance.ProviderKey,
+		ConfigRaw:      instance.Config,
+		Config:         config,
+		SupportedTypes: instance.SupportedTypes,
+		PaymentMode:    instance.PaymentMode,
+		LimitsJSON:     instance.Limits,
+		Enabled:        instance.Enabled,
+	}, nil
 }
 
 // queryEnabledInstances returns enabled instances that support paymentType.
@@ -220,23 +304,25 @@ func (lb *DefaultLoadBalancer) queryEnabledInstances(
 
 // attachDailyUsage queries daily usage for each instance in a single pass.
 // Usage includes PENDING orders to avoid over-committing capacity.
-func (lb *DefaultLoadBalancer) queryDailyUsage(
+func (lb *DefaultLoadBalancer) attachDailyUsage(
 	ctx context.Context,
 	instances []*dbent.PaymentProviderInstance,
-) ([]instanceCandidate, error) {
+) []instanceCandidate {
 	todayStart := startOfDay(time.Now())
 
+	// Collect instance IDs.
 	ids := make([]string, len(instances))
 	for i, inst := range instances {
 		ids[i] = fmt.Sprintf("%d", inst.ID)
 	}
 
+	// Batch query: sum pay_amount grouped by provider_instance_id.
 	type row struct {
 		InstanceID string  `json:"provider_instance_id"`
 		Sum        float64 `json:"sum"`
 	}
 	var rows []row
-	if err := lb.db.PaymentOrder.Query().
+	err := lb.db.PaymentOrder.Query().
 		Where(
 			paymentorder.ProviderInstanceIDIn(ids...),
 			paymentorder.StatusIn(
@@ -247,8 +333,9 @@ func (lb *DefaultLoadBalancer) queryDailyUsage(
 		).
 		GroupBy(paymentorder.FieldProviderInstanceID).
 		Aggregate(dbent.Sum(paymentorder.FieldPayAmount)).
-		Scan(ctx, &rows); err != nil {
-		return nil, err
+		Scan(ctx, &rows)
+	if err != nil {
+		slog.Warn("batch daily usage query failed, treating all as zero", "error", err)
 	}
 
 	usageMap := make(map[string]float64, len(rows))
@@ -262,23 +349,6 @@ func (lb *DefaultLoadBalancer) queryDailyUsage(
 			inst:      inst,
 			dailyUsed: usageMap[fmt.Sprintf("%d", inst.ID)],
 		}
-	}
-	return candidates, nil
-}
-
-func (lb *DefaultLoadBalancer) attachDailyUsage(
-	ctx context.Context,
-	instances []*dbent.PaymentProviderInstance,
-) []instanceCandidate {
-	candidates, err := lb.queryDailyUsage(ctx, instances)
-	if err == nil {
-		return candidates
-	}
-
-	slog.Warn("batch daily usage query failed, treating all as zero", "error", err)
-	candidates = make([]instanceCandidate, len(instances))
-	for i, inst := range instances {
-		candidates[i] = instanceCandidate{inst: inst}
 	}
 	return candidates
 }
@@ -338,16 +408,6 @@ func getInstanceChannelLimits(inst *dbent.PaymentProviderInstance, paymentType P
 	return ChannelLimits{}
 }
 
-// pickByStrategy selects one instance from the available candidates.
-func (lb *DefaultLoadBalancer) pickByStrategy(candidates []instanceCandidate, strategy Strategy) instanceCandidate {
-	if strategy == StrategyLeastAmount && len(candidates) > 1 {
-		return pickLeastAmount(candidates)
-	}
-	// Default: round-robin.
-	idx := lb.counter.Add(1) % uint64(len(candidates))
-	return candidates[idx]
-}
-
 // pickLeastAmount selects the instance with the lowest daily usage.
 // No extra DB queries — usage was pre-fetched in attachDailyUsage.
 func pickLeastAmount(candidates []instanceCandidate) instanceCandidate {
@@ -358,22 +418,6 @@ func pickLeastAmount(candidates []instanceCandidate) instanceCandidate {
 		}
 	}
 	return best
-}
-
-func instanceRevision(instance *dbent.PaymentProviderInstance) string {
-	if instance == nil {
-		return ""
-	}
-	payload := strings.Join([]string{
-		strings.TrimSpace(instance.ProviderKey),
-		instance.Config,
-		instance.SupportedTypes,
-		instance.PaymentMode,
-		instance.Limits,
-		strconv.FormatBool(instance.Enabled),
-	}, "\x00")
-	sum := sha256.Sum256([]byte(payload))
-	return fmt.Sprintf("%x", sum)
 }
 
 func (lb *DefaultLoadBalancer) buildSelection(selected *dbent.PaymentProviderInstance) (*InstanceSelection, error) {
@@ -390,12 +434,11 @@ func (lb *DefaultLoadBalancer) buildSelection(selected *dbent.PaymentProviderIns
 	}
 
 	return &InstanceSelection{
-		InstanceID:       fmt.Sprintf("%d", selected.ID),
-		ProviderKey:      selected.ProviderKey,
-		Config:           config,
-		SupportedTypes:   selected.SupportedTypes,
-		PaymentMode:      selected.PaymentMode,
-		InstanceRevision: instanceRevision(selected),
+		InstanceID:     fmt.Sprintf("%d", selected.ID),
+		ProviderKey:    selected.ProviderKey,
+		Config:         config,
+		SupportedTypes: selected.SupportedTypes,
+		PaymentMode:    selected.PaymentMode,
 	}, nil
 }
 

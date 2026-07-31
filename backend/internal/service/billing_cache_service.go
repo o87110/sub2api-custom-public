@@ -103,6 +103,26 @@ type groupMinimumBalanceLoader interface {
 	GetGroupByIDForMinimumBalance(ctx context.Context, groupID int64) (*Group, error)
 }
 
+type minimumBalanceGroupLoaderAdapter struct {
+	loader groupMinimumBalanceLoader
+}
+
+func (a minimumBalanceGroupLoaderAdapter) LoadMinimumBalanceGroup(ctx context.Context, groupID int64) (*groupaccess.GroupSnapshot, error) {
+	group, err := a.loader.GetGroupByIDForMinimumBalance(ctx, groupID)
+	if err != nil || group == nil {
+		return nil, err
+	}
+	return minimumBalanceGroupSnapshot(group), nil
+}
+
+type minimumBalanceBalanceLoaderAdapter struct {
+	service *BillingCacheService
+}
+
+func (a minimumBalanceBalanceLoaderAdapter) LoadCurrentBalance(ctx context.Context, userID int64) (float64, error) {
+	return a.service.getUserBalanceFromDB(ctx, userID)
+}
+
 type subscriptionCacheInvalidationPubSub interface {
 	PublishSubscriptionCacheInvalidation(ctx context.Context, cacheKey string) error
 	SubscribeSubscriptionCacheInvalidation(ctx context.Context, handler func(cacheKey string)) error
@@ -740,18 +760,9 @@ func (s *BillingCacheService) IncrementUserPlatformQuotaUsage(userID int64, plat
 // 订阅模式：检查缓存用量未超过限额（Group限额从参数传入）
 // platform 为请求的目标平台（如 "anthropic"），传空串 "" 时跳过 user × platform quota 检查。
 func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription, platform string) error {
-	minimumBalanceGroups, err := s.minimumBalanceGroupsForRequest(ctx, group)
+	groupMinimumBalanceEnabled, err := s.checkCustomMinimumBalanceEligibility(ctx, user, group)
 	if err != nil {
-		return ErrBillingServiceUnavailable.WithCause(err)
-	}
-	groupMinimumBalanceEnabled := len(minimumBalanceGroups) > 0
-	if groupMinimumBalanceEnabled {
-		if s.circuitBreaker != nil && !s.circuitBreaker.Allow() {
-			return ErrBillingServiceUnavailable
-		}
-		if err := s.checkGroupMinimumBalanceEligibility(ctx, user, minimumBalanceGroups); err != nil {
-			return err
-		}
+		return err
 	}
 
 	// 简易模式：跳过所有计费检查
@@ -797,74 +808,59 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 	return nil
 }
 
-func (s *BillingCacheService) minimumBalanceGroupsForRequest(ctx context.Context, group *Group) ([]*Group, error) {
-	groups := make([]*Group, 0, 2)
-	if group == nil {
-		return groups, nil
+func (s *BillingCacheService) checkCustomMinimumBalanceEligibility(ctx context.Context, user *User, group *Group) (bool, error) {
+	var groupLoader groupaccess.GroupLoader
+	if loader, ok := s.apiKeyRateLimitLoader.(groupMinimumBalanceLoader); ok {
+		groupLoader = minimumBalanceGroupLoaderAdapter{loader: loader}
 	}
-	if group.MinimumBalance > 0 {
-		groups = append(groups, group)
+	var breaker groupaccess.CircuitBreaker
+	if s.circuitBreaker != nil {
+		breaker = s.circuitBreaker
+	}
+	checker := groupaccess.NewEligibilityChecker(
+		groupLoader,
+		minimumBalanceBalanceLoaderAdapter{service: s},
+		breaker,
+	)
+	request := groupaccess.EligibilityRequest{
+		Group:            minimumBalanceGroupSnapshot(group),
+		ClaudeCodeClient: IsClaudeCodeClient(ctx),
+	}
+	if user != nil {
+		request.UserID = user.ID
 	}
 	if forcePlatform, ok := ctx.Value(ctxkey.ForcePlatform).(string); ok && forcePlatform != "" {
-		return groups, nil
-	}
-	if !group.ClaudeCodeOnly || IsClaudeCodeClient(ctx) || group.FallbackGroupID == nil {
-		return groups, nil
-	}
-	groupLoader, ok := s.apiKeyRateLimitLoader.(groupMinimumBalanceLoader)
-	if !ok {
-		return nil, errors.New("group loader is required to resolve minimum-balance fallback")
+		request.ForcePlatform = true
 	}
 
-	currentID := *group.FallbackGroupID
-	visited := map[int64]struct{}{group.ID: {}}
-	for {
-		if _, seen := visited[currentID]; seen {
-			return nil, errors.New("fallback group cycle detected")
-		}
-		visited[currentID] = struct{}{}
-
-		fallbackGroup, err := groupLoader.GetGroupByIDForMinimumBalance(ctx, currentID)
-		if err != nil {
-			return nil, fmt.Errorf("resolve fallback group %d: %w", currentID, err)
-		}
-		if !fallbackGroup.ClaudeCodeOnly || IsClaudeCodeClient(ctx) {
-			if fallbackGroup.MinimumBalance > 0 {
-				groups = append(groups, fallbackGroup)
-			}
-			return groups, nil
-		}
-		if fallbackGroup.FallbackGroupID == nil {
-			return groups, nil
-		}
-		currentID = *fallbackGroup.FallbackGroupID
+	applied, err := checker.Check(ctx, request)
+	if err == nil {
+		return applied, nil
 	}
+	if errors.Is(err, groupaccess.ErrCircuitOpen) {
+		return applied, ErrBillingServiceUnavailable
+	}
+	var dependencyErr *groupaccess.DependencyError
+	if errors.As(err, &dependencyErr) {
+		if dependencyErr.Kind == groupaccess.DependencyBalanceLoad && user != nil {
+			logger.LegacyPrintf("service.billing_cache", "ALERT: group minimum-balance check failed for user %d: %v", user.ID, dependencyErr)
+		}
+		return applied, ErrBillingServiceUnavailable.WithCause(dependencyErr)
+	}
+	return applied, err
 }
 
-func (s *BillingCacheService) checkGroupMinimumBalanceEligibility(ctx context.Context, user *User, groups []*Group) error {
-	if len(groups) == 0 {
+func minimumBalanceGroupSnapshot(group *Group) *groupaccess.GroupSnapshot {
+	if group == nil {
 		return nil
 	}
-	if user == nil {
-		return ErrBillingServiceUnavailable.WithCause(errors.New("group minimum-balance check requires a user"))
+	return &groupaccess.GroupSnapshot{
+		ID:              group.ID,
+		Name:            group.Name,
+		MinimumBalance:  group.MinimumBalance,
+		ClaudeCodeOnly:  group.ClaudeCodeOnly,
+		FallbackGroupID: group.FallbackGroupID,
 	}
-	balance, err := s.getUserBalanceFromDB(ctx, user.ID)
-	if err != nil {
-		if s.circuitBreaker != nil {
-			s.circuitBreaker.OnFailure(err)
-		}
-		logger.LegacyPrintf("service.billing_cache", "ALERT: group minimum-balance check failed for user %d: %v", user.ID, err)
-		return ErrBillingServiceUnavailable.WithCause(err)
-	}
-	if s.circuitBreaker != nil {
-		s.circuitBreaker.OnSuccess()
-	}
-	for _, group := range groups {
-		if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, balance, group.MinimumBalance); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // checkRPM 执行并行 RPM 限流，所有适用的限制同时生效，任一超限即拒绝：

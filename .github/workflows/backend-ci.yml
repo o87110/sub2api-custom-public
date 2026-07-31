@@ -111,8 +111,10 @@ jobs:
         env:
           CUSTOM_ACTIONS_REQUIRE_ACTIONLINT: 'true'
         run: /bin/bash deploy/tests/custom-actions-supply-chain-test.sh
-      - name: Test pnpm audit report validation
-        run: python -m unittest discover -s tools -p 'test_validate_pnpm_audit.py' -v
+      - name: Test custom Python validators
+        run: |
+          python -m unittest discover -s tools -p 'test_validate_pnpm_audit.py' -v
+          python -m unittest discover -s tools -p 'test_validate_custom_thin_bridges.py' -v
 
   shell:
     needs: [verify-target, boundaries]

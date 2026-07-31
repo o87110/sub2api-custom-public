@@ -202,6 +202,12 @@ backend/internal/custom/paymentchannels/
 frontend/src/custom/payment-channels/
 ```
 
+后端渠道目录、订单准备、实例选择、订单/恢复策略和实例修订复核由 Custom 协调器
+负责；前端定价、渠道重选、同渠道二维码回退和手动备用提示由 Custom composable
+负责。官方 Service 与页面只保留查询/签名/DTO 适配，以及在“持久化前准备”和“网关
+调用前复核”两个生命周期点分别委托 Custom。provider-agnostic 微信请求最终选中官方
+`wxpay` 时，会补载 OAuth AppID 后再执行实例兼容性校验。
+
 ## 10. 渠道监控分组名称与展示倍率
 
 `group_name` 保持原有自定义标签语义：显示在用户监控卡片的模型后方、参与管理后台
@@ -258,6 +264,10 @@ frontend/src/custom/channel-monitor/
 backend/internal/custom/groupaccess/
 frontend/src/custom/group-access/
 ```
+
+普通计费资格由 Custom `EligibilityChecker` 通过加载器与熔断接口统一协调 fallback
+遍历、环检测、实时余额和门槛判断；管理页最低余额输入、规范化与校验位于 Custom
+表单组件/适配器，官方 Service 和页面只保留字段与持久化 DTO 接入。
 
 ## 12. 明确没有改变的行为
 

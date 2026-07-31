@@ -1214,6 +1214,7 @@ import type { ApiKeyBulkCompletedResult } from '@/custom/api-keys/bulkActions'
 import { customApiKeyBulkText } from '@/custom/api-keys/i18n'
 import {
   groupBalanceRequirement,
+  groupBalanceRequirementsByID,
   minimumBalanceErrorToast,
   type GroupBalanceRequirement
 } from '@/custom/group-access/minimumBalance'
@@ -1509,14 +1510,7 @@ const groupOptions = computed(() =>
   })
 )
 
-const balanceRequirementsByGroupID = computed(() => {
-  const result = new Map<number, GroupBalanceRequirement>()
-  for (const group of groups.value) {
-    const requirement = groupBalanceRequirement(group)
-    if (requirement) result.set(group.id, requirement)
-  }
-  return result
-})
+const balanceRequirementsByGroupID = computed(() => groupBalanceRequirementsByID(groups.value))
 
 const balanceRequirementForGroup = (groupId: number): GroupBalanceRequirement | null =>
   balanceRequirementsByGroupID.value.get(groupId) ?? null
