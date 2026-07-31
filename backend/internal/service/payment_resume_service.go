@@ -8,13 +8,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -35,9 +35,6 @@ const (
 	VisibleMethodSourceOfficialWechat = "official_wxpay"
 	VisibleMethodSourceEasyPayWechat  = "easypay_wxpay"
 
-	wechatPaymentOAuthTokenType  = "wechat_payment_oauth"
-	wechatPaymentResumeTokenType = "wechat_payment_resume"
-
 	paymentResumeNotConfiguredCode    = "PAYMENT_RESUME_NOT_CONFIGURED"
 	paymentResumeNotConfiguredMessage = "payment resume tokens require a configured signing key"
 
@@ -56,32 +53,9 @@ type ResumeTokenClaims struct {
 	ExpiresAt          int64  `json:"exp,omitempty"`
 }
 
-type WeChatPaymentOAuthClaims struct {
-	TokenType   string   `json:"tk,omitempty"`
-	PaymentType string   `json:"pt,omitempty"`
-	ProviderKey string   `json:"pk,omitempty"`
-	Amount      string   `json:"amt,omitempty"`
-	OrderType   string   `json:"ot,omitempty"`
-	PlanID      int64    `json:"pid,omitempty"`
-	FeeRate     *float64 `json:"fr,omitempty"`
-	IssuedAt    int64    `json:"iat"`
-	ExpiresAt   int64    `json:"exp,omitempty"`
-}
+type WeChatPaymentOAuthClaims = paymentchannels.WeChatPaymentOAuthClaims
 
-type WeChatPaymentResumeClaims struct {
-	TokenType   string   `json:"tk,omitempty"`
-	OpenID      string   `json:"openid"`
-	PaymentType string   `json:"pt,omitempty"`
-	ProviderKey string   `json:"pk,omitempty"`
-	Amount      string   `json:"amt,omitempty"`
-	OrderType   string   `json:"ot,omitempty"`
-	PlanID      int64    `json:"pid,omitempty"`
-	FeeRate     *float64 `json:"fr,omitempty"`
-	RedirectTo  string   `json:"rd,omitempty"`
-	Scope       string   `json:"scp,omitempty"`
-	IssuedAt    int64    `json:"iat"`
-	ExpiresAt   int64    `json:"exp,omitempty"`
-}
+type WeChatPaymentResumeClaims = paymentchannels.WeChatPaymentResumeClaims
 
 type PaymentResumeService struct {
 	signingKey []byte
@@ -386,30 +360,11 @@ func (s *PaymentResumeService) CreateWeChatPaymentOAuthToken(claims WeChatPaymen
 	if err := s.ensureSigningKey(); err != nil {
 		return "", err
 	}
-	if err := validateWeChatPaymentFeeRate(claims.FeeRate); err != nil {
+	prepared, err := paymentchannels.PrepareWeChatOAuthClaims(claims, time.Now(), wechatPaymentResumeTokenTTL)
+	if err != nil {
 		return "", err
 	}
-	if claims.IssuedAt == 0 {
-		claims.IssuedAt = time.Now().Unix()
-	}
-	if claims.ExpiresAt == 0 {
-		claims.ExpiresAt = time.Now().Add(wechatPaymentResumeTokenTTL).Unix()
-	}
-	if normalized := NormalizeVisibleMethod(claims.PaymentType); normalized != "" {
-		claims.PaymentType = normalized
-	}
-	if claims.PaymentType == "" {
-		claims.PaymentType = payment.TypeWxpay
-	}
-	claims.ProviderKey = strings.ToLower(strings.TrimSpace(claims.ProviderKey))
-	if claims.ProviderKey != "" && claims.ProviderKey != payment.TypeWxpay {
-		return "", fmt.Errorf("wechat payment oauth token provider must be wxpay")
-	}
-	if claims.OrderType == "" {
-		claims.OrderType = payment.OrderTypeBalance
-	}
-	claims.TokenType = wechatPaymentOAuthTokenType
-	return s.createSignedToken(claims)
+	return s.createSignedToken(prepared)
 }
 
 func (s *PaymentResumeService) ParseWeChatPaymentOAuthToken(token string) (*WeChatPaymentOAuthClaims, error) {
@@ -420,71 +375,28 @@ func (s *PaymentResumeService) ParseWeChatPaymentOAuthToken(token string) (*WeCh
 	if err := s.parseSignedToken(token, &claims); err != nil {
 		return nil, infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_OAUTH_TOKEN", "wechat payment oauth token payload is invalid")
 	}
-	if claims.TokenType != wechatPaymentOAuthTokenType {
+	if claims.TokenType != paymentchannels.WeChatPaymentOAuthTokenType {
 		return nil, infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_OAUTH_TOKEN", "wechat payment oauth token type mismatch")
 	}
 	if err := validatePaymentResumeExpiry(claims.ExpiresAt, "INVALID_WECHAT_PAYMENT_OAUTH_TOKEN", "wechat payment oauth token has expired"); err != nil {
 		return nil, err
 	}
-	if err := validateWeChatPaymentFeeRate(claims.FeeRate); err != nil {
+	validated, err := paymentchannels.ValidateWeChatOAuthClaims(claims)
+	if err != nil {
 		return nil, infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_OAUTH_TOKEN", err.Error())
 	}
-	if normalized := NormalizeVisibleMethod(claims.PaymentType); normalized != "" {
-		claims.PaymentType = normalized
-	}
-	if claims.PaymentType == "" {
-		claims.PaymentType = payment.TypeWxpay
-	}
-	claims.ProviderKey = strings.ToLower(strings.TrimSpace(claims.ProviderKey))
-	if claims.ProviderKey != "" && claims.ProviderKey != payment.TypeWxpay {
-		return nil, infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_OAUTH_TOKEN", "wechat payment oauth token provider is invalid")
-	}
-	if claims.OrderType == "" {
-		claims.OrderType = payment.OrderTypeBalance
-	}
-	return &claims, nil
-}
-
-func validateWeChatPaymentFeeRate(feeRate *float64) error {
-	if feeRate == nil {
-		return fmt.Errorf("wechat payment context requires fee rate")
-	}
-	if math.IsNaN(*feeRate) || math.IsInf(*feeRate, 0) || *feeRate < 0 || *feeRate > 100 {
-		return fmt.Errorf("wechat payment context fee rate must be between 0 and 100")
-	}
-	return nil
+	return &validated, nil
 }
 
 func (s *PaymentResumeService) CreateWeChatPaymentResumeToken(claims WeChatPaymentResumeClaims) (string, error) {
 	if err := s.ensureSigningKey(); err != nil {
 		return "", err
 	}
-	claims.OpenID = strings.TrimSpace(claims.OpenID)
-	if claims.OpenID == "" {
-		return "", fmt.Errorf("wechat payment resume token requires openid")
+	prepared, err := paymentchannels.PrepareWeChatResumeClaims(claims, time.Now(), wechatPaymentResumeTokenTTL)
+	if err != nil {
+		return "", err
 	}
-	if claims.FeeRate != nil {
-		if err := validateWeChatPaymentFeeRate(claims.FeeRate); err != nil {
-			return "", err
-		}
-	}
-	if claims.IssuedAt == 0 {
-		claims.IssuedAt = time.Now().Unix()
-	}
-	if claims.ExpiresAt == 0 {
-		claims.ExpiresAt = time.Now().Add(wechatPaymentResumeTokenTTL).Unix()
-	}
-	if normalized := NormalizeVisibleMethod(claims.PaymentType); normalized != "" {
-		claims.PaymentType = normalized
-	}
-	if claims.PaymentType == "" {
-		claims.PaymentType = payment.TypeWxpay
-	}
-	if claims.OrderType == "" {
-		claims.OrderType = payment.OrderTypeBalance
-	}
-	claims.TokenType = wechatPaymentResumeTokenType
-	return s.createSignedToken(claims)
+	return s.createSignedToken(prepared)
 }
 
 func (s *PaymentResumeService) ParseWeChatPaymentResumeToken(token string) (*WeChatPaymentResumeClaims, error) {
@@ -495,31 +407,17 @@ func (s *PaymentResumeService) ParseWeChatPaymentResumeToken(token string) (*WeC
 	if err := s.parseSignedToken(token, &claims); err != nil {
 		return nil, infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume token payload is invalid")
 	}
-	if claims.TokenType != wechatPaymentResumeTokenType {
+	if claims.TokenType != paymentchannels.WeChatPaymentResumeTokenType {
 		return nil, infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume token type mismatch")
 	}
-	claims.OpenID = strings.TrimSpace(claims.OpenID)
-	if claims.OpenID == "" {
-		return nil, infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume token missing openid")
-	}
-	if claims.FeeRate != nil {
-		if err := validateWeChatPaymentFeeRate(claims.FeeRate); err != nil {
-			return nil, infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", err.Error())
-		}
+	validated, err := paymentchannels.ValidateWeChatResumeClaims(claims)
+	if err != nil {
+		return nil, infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", err.Error())
 	}
 	if err := validatePaymentResumeExpiry(claims.ExpiresAt, "INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume token has expired"); err != nil {
 		return nil, err
 	}
-	if normalized := NormalizeVisibleMethod(claims.PaymentType); normalized != "" {
-		claims.PaymentType = normalized
-	}
-	if claims.PaymentType == "" {
-		claims.PaymentType = payment.TypeWxpay
-	}
-	if claims.OrderType == "" {
-		claims.OrderType = payment.OrderTypeBalance
-	}
-	return &claims, nil
+	return &validated, nil
 }
 
 func (s *PaymentResumeService) createSignedToken(claims any) (string, error) {

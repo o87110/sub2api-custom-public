@@ -144,6 +144,8 @@
 /frontend/src/types/index.ts @o87110
 /frontend/src/views/admin/GroupsView.vue @o87110
 /frontend/src/views/admin/SettingsView.vue @o87110
+/frontend/src/views/admin/__tests__/GroupsView.columnSettings.spec.ts @o87110
+/frontend/src/views/admin/__tests__/GroupsView.duplicate.spec.ts @o87110
 /frontend/src/views/admin/__tests__/SettingsView.spec.ts @o87110
 /frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts @o87110
 /frontend/src/views/user/KeysView.vue @o87110
@@ -154,3 +156,5 @@
 /frontend/src/views/user/paymentWechatResume.ts @o87110
 /tools/validate_pnpm_audit.py @o87110
 /tools/test_validate_pnpm_audit.py @o87110
+/tools/validate_custom_thin_bridges.py @o87110
+/tools/test_validate_custom_thin_bridges.py @o87110

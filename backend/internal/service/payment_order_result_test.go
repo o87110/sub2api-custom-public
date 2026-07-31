@@ -8,6 +8,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -383,7 +384,7 @@ func TestMaybeBuildWeChatOAuthRequiredResponse(t *testing.T) {
 		SettingKeyWeChatConnectFrontendRedirectURL: "/auth/wechat/callback",
 	})
 
-	resp, err := svc.maybeBuildWeChatOAuthRequiredResponse(context.Background(), CreateOrderRequest{
+	resp, err := svc.buildWeChatOAuthRequiredResponse(context.Background(), CreateOrderRequest{
 		Amount:          12.5,
 		PaymentType:     payment.TypeWxpay,
 		IsWeChatBrowser: true,
@@ -440,7 +441,7 @@ func TestMaybeBuildWeChatOAuthRequiredResponseKeepsOfficialProvider(t *testing.T
 		SettingKeyWeChatConnectAppSecret: "wechat-secret",
 		SettingKeyWeChatConnectMode:      "mp",
 	})
-	resp, err := svc.maybeBuildWeChatOAuthRequiredResponse(context.Background(), CreateOrderRequest{
+	resp, err := svc.buildWeChatOAuthRequiredResponse(context.Background(), CreateOrderRequest{
 		Amount:          12.5,
 		PaymentType:     payment.TypeWxpay,
 		ProviderKey:     payment.TypeWxpay,
@@ -458,37 +459,20 @@ func TestMaybeBuildWeChatOAuthRequiredResponseKeepsOfficialProvider(t *testing.T
 	}
 }
 
-func TestMaybeBuildWeChatOAuthRequiredResponseSkipsEasyPayProvider(t *testing.T) {
-	svc := &PaymentService{}
-	resp, err := svc.maybeBuildWeChatOAuthRequiredResponse(context.Background(), CreateOrderRequest{
-		Amount:          12.5,
-		PaymentType:     payment.TypeWxpay,
-		ProviderKey:     payment.TypeEasyPay,
-		IsWeChatBrowser: true,
-		OrderType:       payment.OrderTypeBalance,
-	}, 12.5, 12.5, 0)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp != nil {
-		t.Fatalf("EasyPay WeChat must not enter official OAuth: %+v", resp)
-	}
-}
-
 func TestSelectCreateOrderInstanceUsesExplicitProviderKey(t *testing.T) {
 	loadBalancer := &createOrderCaptureLoadBalancer{}
 	svc := &PaymentService{loadBalancer: loadBalancer}
-	selection, err := svc.selectCreateOrderInstance(
+	selection, err := (paymentOrderLoader{service: svc}).SelectOrderInstance(
 		context.Background(),
-		CreateOrderRequest{
+		paymentchannels.OrderSelectionRequest{
 			PaymentType: payment.TypeAlipay,
 			ProviderKey: payment.TypeEasyPay,
+			Strategy:    string(payment.StrategyRoundRobin),
+			PayAmount:   50,
 		},
-		&PaymentConfig{LoadBalanceStrategy: string(payment.StrategyRoundRobin)},
-		50,
 	)
 	if err != nil {
-		t.Fatalf("selectCreateOrderInstance returned error: %v", err)
+		t.Fatalf("SelectOrderInstance returned error: %v", err)
 	}
 	if loadBalancer.lastProviderKey != payment.TypeEasyPay {
 		t.Fatalf("provider key = %q, want %q", loadBalancer.lastProviderKey, payment.TypeEasyPay)
@@ -501,14 +485,11 @@ func TestSelectCreateOrderInstanceUsesExplicitProviderKey(t *testing.T) {
 func TestRevalidateSelectedCreateOrderInstanceFailsClosed(t *testing.T) {
 	loadBalancer := &createOrderCaptureLoadBalancer{revalidateValid: false}
 	svc := &PaymentService{loadBalancer: loadBalancer}
-	err := svc.revalidateSelectedCreateOrderInstance(
+	err := paymentchannels.NewOrderCoordinator(paymentOrderLoader{service: svc}).RevalidateBeforeProvider(
 		context.Background(),
-		CreateOrderRequest{
-			PaymentType: payment.TypeAlipay,
-			ProviderKey: payment.TypeEasyPay,
-		},
-		50,
-		&payment.InstanceSelection{ProviderKey: payment.TypeEasyPay},
+		payment.TypeAlipay,
+		payment.TypeEasyPay,
+		&paymentchannels.OrderSelection{ProviderKey: payment.TypeEasyPay},
 	)
 	if infraerrors.Reason(err) != "NO_AVAILABLE_INSTANCE" {
 		t.Fatalf("reason = %q, want NO_AVAILABLE_INSTANCE", infraerrors.Reason(err))
@@ -526,12 +507,7 @@ func TestValidateCreateOrderProviderSelectionRejectsInvalidCombination(t *testin
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := &PaymentService{}
-			err := svc.validateCreateOrderProviderSelection(
-				context.Background(),
-				tt.paymentType,
-				tt.providerKey,
-			)
+			err := (paymentchannels.OrderPolicy{}).ValidateSelection(tt.paymentType, tt.providerKey, false)
 			if err == nil {
 				t.Fatal("expected invalid provider selection error")
 			}
@@ -568,7 +544,7 @@ func TestMaybeBuildWeChatOAuthRequiredResponseRequiresMPConfigInWeChat(t *testin
 
 	svc := newWeChatPaymentOAuthTestService(nil)
 
-	resp, err := svc.maybeBuildWeChatOAuthRequiredResponse(context.Background(), CreateOrderRequest{
+	resp, err := svc.buildWeChatOAuthRequiredResponse(context.Background(), CreateOrderRequest{
 		Amount:          12.5,
 		PaymentType:     payment.TypeWxpay,
 		IsWeChatBrowser: true,
@@ -607,7 +583,7 @@ func TestMaybeBuildWeChatOAuthRequiredResponseRequiresResumeSigningKey(t *testin
 		},
 	}
 
-	resp, err := svc.maybeBuildWeChatOAuthRequiredResponse(context.Background(), CreateOrderRequest{
+	resp, err := svc.buildWeChatOAuthRequiredResponse(context.Background(), CreateOrderRequest{
 		Amount:          12.5,
 		PaymentType:     payment.TypeWxpay,
 		IsWeChatBrowser: true,
@@ -644,7 +620,7 @@ func TestMaybeBuildWeChatOAuthRequiredResponseFallsBackToConfiguredLegacySigning
 		},
 	}
 
-	resp, err := svc.maybeBuildWeChatOAuthRequiredResponse(context.Background(), CreateOrderRequest{
+	resp, err := svc.buildWeChatOAuthRequiredResponse(context.Background(), CreateOrderRequest{
 		Amount:          12.5,
 		PaymentType:     payment.TypeWxpay,
 		IsWeChatBrowser: true,
@@ -662,33 +638,6 @@ func TestMaybeBuildWeChatOAuthRequiredResponseFallsBackToConfiguredLegacySigning
 	}
 	if resp.OAuth == nil || strings.TrimSpace(resp.OAuth.AuthorizeURL) == "" {
 		t.Fatalf("expected oauth redirect payload, got %+v", resp.OAuth)
-	}
-}
-
-func TestMaybeBuildWeChatOAuthRequiredResponseForSelectionSkipsEasyPayProvider(t *testing.T) {
-	svc := newWeChatPaymentOAuthTestService(map[string]string{
-		SettingKeyWeChatConnectEnabled:             "true",
-		SettingKeyWeChatConnectAppID:               "wx123456",
-		SettingKeyWeChatConnectAppSecret:           "wechat-secret",
-		SettingKeyWeChatConnectMode:                "mp",
-		SettingKeyWeChatConnectScopes:              "snsapi_base",
-		SettingKeyWeChatConnectRedirectURL:         "https://api.example.com/api/v1/auth/oauth/wechat/callback",
-		SettingKeyWeChatConnectFrontendRedirectURL: "/auth/wechat/callback",
-	})
-
-	resp, err := svc.maybeBuildWeChatOAuthRequiredResponseForSelection(context.Background(), CreateOrderRequest{
-		Amount:          12.5,
-		PaymentType:     payment.TypeWxpay,
-		IsWeChatBrowser: true,
-		OrderType:       payment.OrderTypeBalance,
-	}, 12.5, 12.88, 0.03, &payment.InstanceSelection{
-		ProviderKey: payment.TypeEasyPay,
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp != nil {
-		t.Fatalf("expected nil response, got %+v", resp)
 	}
 }
 

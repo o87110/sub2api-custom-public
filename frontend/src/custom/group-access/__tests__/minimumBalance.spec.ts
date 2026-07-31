@@ -3,7 +3,10 @@ import type { Group } from '@/types'
 import {
   formatGroupBalance,
   groupBalanceRequirement,
-  minimumBalanceErrorToast
+  groupBalanceRequirementsByID,
+  minimumBalanceFormValue,
+  minimumBalanceErrorToast,
+  normalizeMinimumBalanceFormValue
 } from '../minimumBalance'
 
 function group(overrides: Partial<Group> = {}): Group {
@@ -26,6 +29,14 @@ function group(overrides: Partial<Group> = {}): Group {
 }
 
 describe('minimum balance helpers', () => {
+  it('normalizes create, edit, reset, and invalid form values', () => {
+    expect(minimumBalanceFormValue()).toBe(0)
+    expect(minimumBalanceFormValue(12.5)).toBe(12.5)
+    expect(normalizeMinimumBalanceFormValue('')).toBe(0)
+    expect(normalizeMinimumBalanceFormValue(0)).toBe(0)
+    expect(normalizeMinimumBalanceFormValue(-1)).toBeNull()
+  })
+
   it('does not expose a warning when the gate is disabled or eligible', () => {
     expect(groupBalanceRequirement(group())).toBeNull()
     expect(
@@ -58,6 +69,17 @@ describe('minimum balance helpers', () => {
       balanceGap: 20,
       eligible: false
     })
+  })
+
+  it('indexes only unavailable requirements by group id', () => {
+    const requirements = groupBalanceRequirementsByID([
+      group({ id: 1, minimum_balance: 0 }),
+      group({ id: 2, minimum_balance: 100, current_balance: 120, balance_eligible: true }),
+      group({ id: 3, minimum_balance: 100, current_balance: 80, balance_eligible: false })
+    ])
+
+    expect([...requirements.keys()]).toEqual([3])
+    expect(requirements.get(3)?.balanceGap).toBe(20)
   })
 
   it('uses two decimals normally and preserves sub-cent differences', () => {

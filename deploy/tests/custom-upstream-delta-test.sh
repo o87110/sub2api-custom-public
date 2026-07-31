@@ -5,6 +5,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 baseline_file="${CUSTOM_UPSTREAM_BASELINE_FILE:-$repo_root/.github/custom-upstream-baseline.env}"
 ledger="${CUSTOM_UPSTREAM_DELTA_LEDGER:-$repo_root/.github/custom-upstream-delta.tsv}"
 shadow_map="$repo_root/.github/upstream-shadowed-sources.tsv"
+thin_bridge_contract="$repo_root/.github/custom-thin-bridge-contract.tsv"
+thin_bridge_validator="$repo_root/tools/validate_custom_thin_bridges.py"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -35,6 +37,8 @@ git -C "$repo_root" cat-file -e "${candidate_tree}^{tree}" ||
 [[ -s "$baseline_file" ]] || fail "explicit upstream baseline file is missing"
 [[ -s "$ledger" ]] || fail "custom upstream delta ledger is missing"
 [[ -s "$shadow_map" ]] || fail "upstream shadow map is missing"
+[[ -s "$thin_bridge_contract" ]] || fail "custom thin bridge contract is missing"
+[[ -s "$thin_bridge_validator" ]] || fail "custom thin bridge validator is missing"
 
 baseline_lines=()
 baseline_line=""
@@ -340,5 +344,18 @@ if ! cmp -s "$seen_actual" "$tmp_dir/actual-paths.txt"; then
   comm -3 "$seen_actual" "$tmp_dir/actual-paths.txt" >&2
   exit 1
 fi
+
+python_bin="${PYTHON:-python}"
+if ! command -v "$python_bin" >/dev/null 2>&1; then
+  python_bin=python3
+fi
+command -v "$python_bin" >/dev/null 2>&1 || fail "python is required for thin bridge validation"
+"$python_bin" "$thin_bridge_validator" \
+  --repo-root "$repo_root" \
+  --baseline "$CUSTOM_UPSTREAM_BASE_COMMIT" \
+  --candidate-tree "$candidate_tree" \
+  --contract "$thin_bridge_contract" \
+  --ledger "$ledger" \
+  --shadow-map "$shadow_map"
 
 echo "custom upstream delta ledger passed ($(wc -l < "$rows" | tr -d ' ') decisions, baseline $CUSTOM_UPSTREAM_BASE_COMMIT, tree $candidate_tree)"
