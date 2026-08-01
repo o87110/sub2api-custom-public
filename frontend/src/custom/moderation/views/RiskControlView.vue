@@ -705,23 +705,25 @@
           <div v-else-if="activeSettingsTab === 'scope'" class="space-y-5">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('admin.riskControl.groupScope') }}</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.groupScopeHint') }}</p>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ customT('overallAuditScope') }}</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ customT('overallAuditScopeHint') }}</p>
               </div>
               <div class="inline-flex rounded-lg bg-gray-100 p-1 dark:bg-dark-700">
                 <button
                   type="button"
-                  class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                  class="min-h-11 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                  :aria-pressed="configForm.all_groups"
                   :class="configForm.all_groups ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-800 dark:text-white' : 'text-gray-500 dark:text-gray-400'"
-                  @click="configForm.all_groups = true"
+                  @click="setAllGroups(true)"
                 >
                   {{ t('admin.riskControl.allGroups') }}
                 </button>
                 <button
                   type="button"
-                  class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                  class="min-h-11 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                  :aria-pressed="!configForm.all_groups"
                   :class="!configForm.all_groups ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-800 dark:text-white' : 'text-gray-500 dark:text-gray-400'"
-                  @click="configForm.all_groups = false"
+                  @click="setAllGroups(false)"
                 >
                   {{ t('admin.riskControl.selectedGroups') }}
                 </button>
@@ -738,6 +740,8 @@
                   v-for="group in filteredGroups"
                   :key="group.id"
                   type="button"
+                  :data-test="`overall-audit-group-${group.id}`"
+                  :aria-pressed="isGroupSelected(group.id)"
                   class="flex min-h-20 items-center justify-between rounded-lg border p-4 text-left transition-colors"
                   :class="isGroupSelected(group.id) ? 'border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/20' : 'border-gray-100 hover:bg-gray-50 dark:border-dark-700 dark:hover:bg-dark-700/60'"
                   @click="toggleGroup(group.id)"
@@ -755,6 +759,86 @@
                 </button>
                 <p v-if="filteredGroups.length === 0" class="text-sm text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.noGroups') }}</p>
               </div>
+            </div>
+
+            <div data-test="api-audit-scope" class="space-y-4 rounded-lg border border-gray-100 p-4 dark:border-dark-700">
+              <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ customT('apiAuditScope') }}</h3>
+                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ customT('apiAuditScopeHint') }}</p>
+                </div>
+                <div class="inline-flex rounded-lg bg-gray-100 p-1 dark:bg-dark-700">
+                  <button
+                    type="button"
+                    data-test="api-audit-all-in-scope"
+                    class="min-h-11 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                    :aria-pressed="configForm.api_audit_all_in_scope"
+                    :disabled="!apiAuditScopeEnabled"
+                    :class="configForm.api_audit_all_in_scope ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-800 dark:text-white' : 'text-gray-500 dark:text-gray-400'"
+                    @click="setAPIAuditAllInScope(true)"
+                  >
+                    {{ customT('apiAuditAllInScope') }}
+                  </button>
+                  <button
+                    type="button"
+                    data-test="api-audit-selected-in-scope"
+                    class="min-h-11 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                    :aria-pressed="!configForm.api_audit_all_in_scope"
+                    :disabled="!apiAuditScopeEnabled"
+                    :class="!configForm.api_audit_all_in_scope ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-800 dark:text-white' : 'text-gray-500 dark:text-gray-400'"
+                    @click="setAPIAuditAllInScope(false)"
+                  >
+                    {{ customT('apiAuditSelectedInScope') }}
+                  </button>
+                </div>
+              </div>
+
+              <p v-if="!apiAuditScopeEnabled" class="rounded-lg bg-sky-50 p-3 text-sm text-sky-700 dark:bg-sky-900/20 dark:text-sky-300">
+                {{ customT('apiAuditInactive') }}
+              </p>
+
+              <div v-if="!configForm.api_audit_all_in_scope" class="space-y-4" :class="{ 'opacity-60': !apiAuditScopeEnabled }">
+                <div class="relative">
+                  <Icon name="search" size="sm" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    v-model.trim="apiAuditGroupSearch"
+                    type="search"
+                    class="input pl-9"
+                    :disabled="!apiAuditScopeEnabled"
+                    :aria-label="customT('apiAuditSearchGroups')"
+                    :placeholder="customT('apiAuditSearchGroups')"
+                  />
+                </div>
+                <div class="grid max-h-[420px] grid-cols-1 gap-3 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
+                  <button
+                    v-for="group in filteredAPIAuditGroups"
+                    :key="group.id"
+                    type="button"
+                    :data-test="`api-audit-group-${group.id}`"
+                    class="flex min-h-20 items-center justify-between rounded-lg border p-4 text-left transition-colors disabled:cursor-not-allowed"
+                    :aria-pressed="isAPIAuditGroupSelected(group.id)"
+                    :disabled="!apiAuditScopeEnabled"
+                    :class="isAPIAuditGroupSelected(group.id) ? 'border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/20' : 'border-gray-100 hover:bg-gray-50 dark:border-dark-700 dark:hover:bg-dark-700/60'"
+                    @click="toggleAPIAuditGroup(group.id)"
+                  >
+                    <span class="min-w-0">
+                      <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">{{ group.name }}</span>
+                      <span class="mt-1 inline-flex rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-dark-700 dark:text-gray-400">{{ group.platform }}</span>
+                    </span>
+                    <span
+                      class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border"
+                      :class="isAPIAuditGroupSelected(group.id) ? 'border-primary-500 bg-primary-500 text-white' : 'border-gray-300 text-transparent dark:border-dark-500'"
+                    >
+                      <Icon name="check" size="xs" :stroke-width="2" />
+                    </span>
+                  </button>
+                  <p v-if="filteredAPIAuditGroups.length === 0" class="text-sm text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.noGroups') }}</p>
+                </div>
+              </div>
+
+              <p v-if="apiAuditScopeError" role="alert" class="text-sm font-medium text-red-600 dark:text-red-300">
+                {{ apiAuditScopeError }}
+              </p>
             </div>
 
             <div class="space-y-4 rounded-lg border border-gray-100 p-4 dark:border-dark-700">
@@ -1123,6 +1207,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import {
+  customRiskControlAPI,
+  type CustomContentModerationConfig,
+  type CustomUpdateContentModerationConfig,
+} from '@/custom/moderation/api'
 import { customModerationText, type CustomModerationTextKey } from '@/custom/moderation/i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -1135,7 +1224,6 @@ import { adminAPI } from '@/api/admin'
 import type {
   ContentModerationAPIKeyLoad,
   ContentModerationAPIKeyStatus,
-  ContentModerationConfig,
   ContentModerationLog,
   ContentModerationModelFilter,
   ContentModerationModelFilterType,
@@ -1143,7 +1231,6 @@ import type {
   ContentModerationTestAuditResult,
   KeywordBlockingMode,
   ModerationMode,
-  UpdateContentModerationConfig,
 } from '@/api/admin/riskControl'
 import type { AdminGroup, SelectOption } from '@/types'
 import { useAppStore } from '@/stores/app'
@@ -1213,6 +1300,7 @@ const unbanningUserID = ref<number | null>(null)
 const settingsOpen = ref(false)
 const activeSettingsTab = ref<SettingsTab>('basic')
 const groupSearch = ref('')
+const apiAuditGroupSearch = ref('')
 const flaggedHashInput = ref('')
 const groups = ref<AdminGroup[]>([])
 const logs = ref<ContentModerationLog[]>([])
@@ -1244,6 +1332,8 @@ const configForm = reactive({
   sample_rate: 100,
   all_groups: true,
   group_ids: [] as number[],
+  api_audit_all_in_scope: true,
+  api_audit_group_ids: [] as number[],
   record_non_hits: false,
   worker_count: 4,
   queue_size: 32768,
@@ -1414,6 +1504,39 @@ const groupFilterOptions = computed<SelectOption[]>(() => [
 
 const selectedGroupCount = computed(() => String(configForm.group_ids.length))
 
+const apiAuditScopeEnabled = computed(() => (
+  configForm.mode === 'observe' || configForm.keyword_blocking_mode !== 'keyword_only'
+))
+
+const apiAuditCandidateGroups = computed(() => {
+  if (configForm.all_groups) return groups.value
+  const overallGroupIDs = new Set(configForm.group_ids)
+  return groups.value.filter((group) => overallGroupIDs.has(group.id))
+})
+
+const filteredAPIAuditGroups = computed(() => {
+  const keyword = apiAuditGroupSearch.value.trim().toLowerCase()
+  if (!keyword) return apiAuditCandidateGroups.value
+  return apiAuditCandidateGroups.value.filter((group) => (
+    group.name.toLowerCase().includes(keyword)
+    || String(group.platform).toLowerCase().includes(keyword)
+  ))
+})
+
+const apiAuditScopeError = computed(() => {
+  if (!apiAuditScopeEnabled.value) return ''
+  if (!configForm.api_audit_all_in_scope && configForm.api_audit_group_ids.length === 0) {
+    return customT('apiAuditEmpty')
+  }
+  return ''
+})
+
+const apiAuditScopeSummary = computed(() => (
+  configForm.api_audit_all_in_scope
+    ? customT('apiAuditAllSummary')
+    : customT('apiAuditSelectedSummary').replace('{count}', String(configForm.api_audit_group_ids.length))
+))
+
 const modelFilterModelCount = computed(() => configForm.model_filter_models.length)
 
 const modelFilterSummary = computed(() => {
@@ -1548,7 +1671,7 @@ const overviewItems = computed<OverviewItem[]>(() => [
     key: 'scope',
     label: t('admin.riskControl.overview.groupScope'),
     value: configForm.all_groups ? t('admin.riskControl.allGroups') : selectedGroupCount.value,
-    meta: modelFilterSummary.value,
+    meta: `${apiAuditScopeSummary.value} · ${modelFilterSummary.value}`,
     icon: 'users',
     iconClass: 'bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-300',
   },
@@ -1707,7 +1830,7 @@ const runtimeBadgeClass = computed(() => {
   return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
 })
 
-function applyConfig(config: ContentModerationConfig) {
+function applyConfig(config: CustomContentModerationConfig) {
   configForm.enabled = config.enabled
   configForm.mode = config.mode
   configForm.base_url = config.base_url || 'https://api.openai.com'
@@ -1728,6 +1851,11 @@ function applyConfig(config: ContentModerationConfig) {
   configForm.sample_rate = config.sample_rate ?? 100
   configForm.all_groups = config.all_groups
   configForm.group_ids = Array.isArray(config.group_ids) ? [...config.group_ids] : []
+  configForm.api_audit_all_in_scope = config.api_audit_scope?.all_in_scope ?? true
+  configForm.api_audit_group_ids = Array.isArray(config.api_audit_scope?.group_ids)
+    ? [...config.api_audit_scope.group_ids]
+    : []
+  pruneAPIAuditGroupIDs()
   configForm.record_non_hits = config.record_non_hits
   configForm.worker_count = config.worker_count || 4
   configForm.queue_size = config.queue_size || 32768
@@ -1753,7 +1881,7 @@ async function loadAll() {
   loading.value = true
   try {
     const [config, groupItems, runtimeStatus] = await Promise.all([
-      adminAPI.riskControl.getConfig(),
+      customRiskControlAPI.getConfig(),
       adminAPI.groups.getAll(),
       adminAPI.riskControl.getStatus(),
     ])
@@ -1798,7 +1926,12 @@ async function saveConfig() {
       appStore.showError(t('admin.riskControl.modelFilterModelsRequired'))
       return
     }
-    const payload: UpdateContentModerationConfig = {
+    if (apiAuditScopeError.value) {
+      activeSettingsTab.value = 'scope'
+      appStore.showError(apiAuditScopeError.value)
+      return
+    }
+    const payload: CustomUpdateContentModerationConfig = {
       enabled: configForm.enabled,
       mode: configForm.mode,
       base_url: configForm.base_url,
@@ -1808,6 +1941,10 @@ async function saveConfig() {
       sample_rate: Number(configForm.sample_rate) || 0,
       all_groups: configForm.all_groups,
       group_ids: configForm.all_groups ? [] : [...configForm.group_ids],
+      api_audit_scope: {
+        all_in_scope: configForm.api_audit_all_in_scope,
+        group_ids: configForm.api_audit_all_in_scope ? [] : [...configForm.api_audit_group_ids],
+      },
       record_non_hits: configForm.record_non_hits,
       clear_api_key: configForm.clear_api_key,
       worker_count: Number(configForm.worker_count) || 4,
@@ -1841,7 +1978,7 @@ async function saveConfig() {
       payload.delete_api_key_hashes = [...pendingDeleteApiKeyHashes.value]
     }
 
-    const updated = await adminAPI.riskControl.updateConfig(payload)
+    const updated = await customRiskControlAPI.updateConfig(payload)
     applyConfig(updated)
     settingsOpen.value = false
     appStore.showSuccess(t('admin.riskControl.saved'))
@@ -2104,10 +2241,46 @@ function fileToDataURL(file: File): Promise<string> {
   })
 }
 
+function setAllGroups(value: boolean) {
+  configForm.all_groups = value
+  pruneAPIAuditGroupIDs()
+}
+
+function setAPIAuditAllInScope(value: boolean) {
+  if (!apiAuditScopeEnabled.value) return
+  configForm.api_audit_all_in_scope = value
+  if (value) {
+    configForm.api_audit_group_ids = []
+  } else {
+    pruneAPIAuditGroupIDs()
+  }
+}
+
+function pruneAPIAuditGroupIDs() {
+  if (configForm.all_groups) return
+  const overallGroupIDs = new Set(configForm.group_ids)
+  configForm.api_audit_group_ids = configForm.api_audit_group_ids.filter((id) => overallGroupIDs.has(id))
+}
+
+function toggleAPIAuditGroup(groupID: number) {
+  if (!apiAuditScopeEnabled.value) return
+  const index = configForm.api_audit_group_ids.indexOf(groupID)
+  if (index >= 0) {
+    configForm.api_audit_group_ids.splice(index, 1)
+  } else {
+    configForm.api_audit_group_ids.push(groupID)
+  }
+}
+
+function isAPIAuditGroupSelected(groupID: number): boolean {
+  return configForm.api_audit_group_ids.includes(groupID)
+}
+
 function toggleGroup(groupID: number) {
   const index = configForm.group_ids.indexOf(groupID)
   if (index >= 0) {
     configForm.group_ids.splice(index, 1)
+    pruneAPIAuditGroupIDs()
   } else {
     configForm.group_ids.push(groupID)
   }

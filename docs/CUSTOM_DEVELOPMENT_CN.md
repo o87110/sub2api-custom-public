@@ -46,7 +46,7 @@ Issue 和生产资料不迁移。
 backend/internal/custom/
 ├── databaseboundary/       数据库与迁移边界检查
 ├── groupaccess/            分组最低余额资格协调、fallback、熔断与错误
-├── moderation/             cyber_policy 范围隔离与摘要
+├── moderation/             内容审计范围隔离与摘要
 ├── paymentchannels/        支付渠道目录、订单/恢复策略、实例复核与个性化配置
 └── updater/                自定义 Release、更新与回退
 

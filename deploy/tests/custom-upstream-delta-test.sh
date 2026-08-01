@@ -178,6 +178,7 @@ blob_at() {
 thin_bridge_allowed() {
   case "$1" in
     backend/cmd/server/wire.go | \
+      backend/internal/handler/admin/content_moderation_handler.go | \
       backend/internal/handler/admin/group_handler.go | \
       backend/internal/handler/admin/payment_handler.go | \
       backend/internal/handler/admin/channel_monitor_handler.go | \
