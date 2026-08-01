@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import validate_custom_thin_bridges as validator
 
@@ -254,20 +255,187 @@ class ThinBridgeContractTests(unittest.TestCase):
         with self.assertRaisesRegex(validator.ContractError, "unapproved new function"):
             validator.validate(fixture.args())
 
+    def test_rejects_sequential_calls_added_to_an_existing_view_function(self) -> None:
+        fixture = self.fixture(
+            bridge_path="frontend/src/views/user/PaymentView.vue",
+            base_content=(
+                "<template />\n"
+                "<script setup lang=\"ts\">\n"
+                "async function processCheckout() {\n"
+                "  await trackCheckout()\n"
+                "}\n"
+                "</script>\n"
+            ),
+            candidate_content=(
+                "<template />\n"
+                "<script setup lang=\"ts\">\n"
+                "async function processCheckout() {\n"
+                "  await trackCheckout()\n"
+                "  await submitOrder()\n"
+                "  await confirmOrder()\n"
+                "}\n"
+                "</script>\n"
+            ),
+            kind="view",
+            shadow_required=True,
+        )
+        with self.assertRaisesRegex(validator.ContractError, "unapproved executable call"):
+            validator.validate(fixture.args())
+
+    def test_rejects_indirect_calls_added_to_an_existing_view_function(self) -> None:
+        fixture = self.fixture(
+            bridge_path="frontend/src/views/user/PaymentView.vue",
+            base_content=(
+                "<template />\n"
+                "<script setup lang=\"ts\">\n"
+                "async function processCheckout() {\n"
+                "  await trackCheckout()\n"
+                "}\n"
+                "</script>\n"
+            ),
+            candidate_content=(
+                "<template />\n"
+                "<script setup lang=\"ts\">\n"
+                "async function processCheckout() {\n"
+                "  await trackCheckout()\n"
+                "  await (submitOrder)()\n"
+                "  await confirmOrder?.()\n"
+                "}\n"
+                "</script>\n"
+            ),
+            kind="view",
+            shadow_required=True,
+        )
+        with self.assertRaisesRegex(validator.ContractError, "unapproved executable call"):
+            validator.validate(fixture.args())
+
+    def test_rejects_computed_calls_added_to_an_existing_view_function(self) -> None:
+        fixture = self.fixture(
+            bridge_path="frontend/src/views/user/PaymentView.vue",
+            base_content=(
+                "<template />\n"
+                "<script setup lang=\"ts\">\n"
+                "async function processCheckout() {\n"
+                "  await trackCheckout()\n"
+                "}\n"
+                "</script>\n"
+            ),
+            candidate_content=(
+                "<template />\n"
+                "<script setup lang=\"ts\">\n"
+                "async function processCheckout() {\n"
+                "  await trackCheckout()\n"
+                "  await actions[\"submitOrder\"]()\n"
+                "  await actions[\"confirmOrder\"]()\n"
+                "}\n"
+                "</script>\n"
+            ),
+            kind="view",
+            shadow_required=True,
+        )
+        with patch.dict(
+            validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS,
+            {fixture.bridge_path: ()},
+        ):
+            with self.assertRaisesRegex(validator.ContractError, "unapproved executable call"):
+                validator.validate(fixture.args())
+
+    def test_computed_call_surface_covers_conservative_variants(self) -> None:
+        surface = validator.delegate_view_call_surface(
+            "async function processCheckout() {\n"
+            "  await actions[\"submitOrder\"]()\n"
+            "  await (actions[dynamicKey])?.()\n"
+            "  await actions[keys[0]]()\n"
+            "  await actions[\n"
+            "    nextAction\n"
+            "  ]()\n"
+            "}\n"
+        )
+        self.assertEqual(surface[("processCheckout", 'actions["submitOrder"]')], 1)
+        self.assertEqual(surface[("processCheckout", "actions[dynamicKey]")], 1)
+        self.assertEqual(surface[("processCheckout", "actions[nextAction]")], 1)
+        self.assertEqual(surface[("processCheckout", "[<computed>]")], 1)
+
+    def test_rejects_bare_vue_template_event_handlers(self) -> None:
+        fixture = self.fixture(
+            bridge_path="frontend/src/views/user/PaymentView.vue",
+            base_content=(
+                '<template><button @click="legacyHandler">Pay</button></template>\n'
+            ),
+            candidate_content=(
+                '<template><button @click="submitOrder" '
+                'v-on:keyup="confirmOrder">Pay</button></template>\n'
+            ),
+            kind="view",
+            shadow_required=True,
+        )
+        with patch.dict(
+            validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS,
+            {fixture.bridge_path: ()},
+        ):
+            with self.assertRaisesRegex(validator.ContractError, "unapproved executable call"):
+                validator.validate(fixture.args())
+
     def test_accepts_an_explicitly_approved_adapter_function(self) -> None:
         fixture = self.fixture(
             bridge_path="backend/internal/payment/load_balancer.go",
             base_content="package payment\n",
             candidate_content=(
                 "package payment\n"
-                "func paymentSelectionFromCustom() {\n"
-                "  mapCustomSelection()\n"
+                "func instanceCoordinator() {\n"
+                "  paymentchannels.NewInstanceCoordinator()\n"
                 "}\n"
             ),
             kind="delegate",
             shadow_required=True,
         )
-        validator.validate(fixture.args())
+        approved = (("instanceCoordinator", "paymentchannels.NewInstanceCoordinator"),)
+        with patch.dict(
+            validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS,
+            {fixture.bridge_path: approved},
+        ):
+            validator.validate(fixture.args())
+
+    def test_rejects_an_extra_approved_delegate_call(self) -> None:
+        fixture = self.fixture(
+            bridge_path="backend/internal/payment/load_balancer.go",
+            base_content="package payment\n",
+            candidate_content=(
+                "package payment\n"
+                "func instanceCoordinator() {\n"
+                "  paymentchannels.NewInstanceCoordinator()\n"
+                "  paymentchannels.NewInstanceCoordinator()\n"
+                "}\n"
+            ),
+            kind="delegate",
+            shadow_required=True,
+        )
+        approved = (("instanceCoordinator", "paymentchannels.NewInstanceCoordinator"),)
+        with patch.dict(
+            validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS,
+            {fixture.bridge_path: approved},
+        ):
+            with self.assertRaisesRegex(validator.ContractError, "unapproved executable call"):
+                validator.validate(fixture.args())
+
+    def test_rejects_a_missing_approved_delegate_call(self) -> None:
+        fixture = self.fixture(
+            bridge_path="backend/internal/payment/load_balancer.go",
+            base_content="package payment\n",
+            candidate_content=(
+                "package payment\n"
+                "func instanceCoordinator() {}\n"
+            ),
+            kind="delegate",
+            shadow_required=True,
+        )
+        approved = (("instanceCoordinator", "paymentchannels.NewInstanceCoordinator"),)
+        with patch.dict(
+            validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS,
+            {fixture.bridge_path: approved},
+        ):
+            with self.assertRaisesRegex(validator.ContractError, "missing an approved executable call"):
+                validator.validate(fixture.args())
 
     def test_accepts_an_allowlisted_dto_projection_loop(self) -> None:
         fixture = self.fixture(
@@ -287,7 +455,34 @@ class ThinBridgeContractTests(unittest.TestCase):
             kind="delegate",
             shadow_required=True,
         )
-        validator.validate(fixture.args())
+        with patch.dict(
+            validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS,
+            {fixture.bridge_path: ()},
+        ):
+            validator.validate(fixture.args())
+
+    def test_admin_group_minimum_balance_bridge_is_explicitly_scoped(self) -> None:
+        path = "backend/internal/service/admin_group.go"
+        self.assertEqual(
+            validator.APPROVED_NEW_BRIDGE_FUNCTIONS[path],
+            frozenset({"checkGroupMinimumBalanceForUser"}),
+        )
+
+        approved_calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[path]
+        for call in (
+            ("AdminUpdateAPIKeyGroupID", "s.checkGroupMinimumBalanceForUser"),
+            ("ReplaceUserGroup", "s.checkGroupMinimumBalanceForUser"),
+            ("checkGroupMinimumBalanceForUser", "s.userRepo.GetByID"),
+            ("checkGroupMinimumBalanceForUser", "groupaccess.CheckMinimumBalance"),
+        ):
+            self.assertEqual(approved_calls.count(call), 1)
+
+        approved_control = validator.APPROVED_DELEGATE_VIEW_CONTROL[path]
+        self.assertIn(("ReplaceUserGroup", "if migrated > 0 {"), approved_control)
+        self.assertIn(
+            ("checkGroupMinimumBalanceForUser", "if group == nil || group.MinimumBalance <= 0 {"),
+            approved_control,
+        )
 
 
 if __name__ == "__main__":

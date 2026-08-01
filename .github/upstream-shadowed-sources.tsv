@@ -11,7 +11,7 @@ backend/internal/handler/auth_wechat_oauth_test.go	backend/internal/custom/payme
 backend/internal/handler/payment_handler.go	backend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go
 backend/internal/handler/payment_handler_resume_test.go	backend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go
 backend/internal/handler/openai_gateway_handler.go	backend/internal/custom/moderation/cyber_policy.go
-backend/internal/handler/channel_monitor_user_handler.go	backend/internal/custom/channelmonitor/group_rate_resolver.go|backend/internal/custom/channelmonitor/group_rate_lookup.go
+backend/internal/handler/channel_monitor_user_handler.go	backend/internal/custom/channelmonitor/group_rate_resolver.go|backend/internal/custom/channelmonitor/group_rate_lookup.go|backend/internal/custom/channelmonitor/runtime_eligibility.go
 backend/internal/service/channel_monitor_service.go	backend/internal/custom/channelmonitor/ratedisplay/config.go
 backend/internal/handler/admin/setting_handler.go	backend/internal/custom/paymentchannels/channel_settings.go
 backend/internal/handler/admin/setting_handler_update.go	backend/internal/custom/paymentchannels/channel_settings.go
@@ -35,6 +35,7 @@ backend/internal/service/payment_resume_service_test.go	backend/internal/custom/
 backend/internal/service/payment_service.go	backend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go
 backend/internal/handler/api_key_handler.go	backend/internal/custom/groupaccess/minimum_balance.go
 backend/internal/handler/gateway_handler.go	backend/internal/custom/groupaccess/minimum_balance.go
+backend/internal/service/admin_group.go	backend/internal/custom/groupaccess/minimum_balance.go
 backend/internal/service/api_key_service.go	backend/internal/custom/groupaccess/minimum_balance.go
 backend/internal/service/batch_image_public.go	backend/internal/custom/groupaccess/minimum_balance.go
 backend/internal/service/billing_cache_service.go	backend/internal/custom/groupaccess/minimum_balance.go|backend/internal/custom/groupaccess/eligibility.go

@@ -419,10 +419,10 @@ const requestConfirmation = (action: 'enable' | 'disable' | 'delete') => {
   }
 
   const eligibleIds = rows
-    .filter((row) => action === 'enable' ? row.status === 'inactive' : row.status !== 'inactive')
+    .filter((row) => action === 'enable' ? row.status === 'inactive' : row.status === 'active')
     .map((row) => row.id)
   const skippedIds = rows
-    .filter((row) => action === 'enable' ? row.status !== 'inactive' : row.status === 'inactive')
+    .filter((row) => action === 'enable' ? row.status !== 'inactive' : row.status !== 'active')
     .map((row) => row.id)
   if (eligibleIds.length === 0) {
     completeWithoutRequests(action, skippedIds)

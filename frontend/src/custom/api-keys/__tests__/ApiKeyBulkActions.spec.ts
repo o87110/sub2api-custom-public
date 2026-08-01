@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApiKey, Group } from '@/types'
 import ApiKeyBulkActions from '../ApiKeyBulkActions.vue'
+import { customApiKeyBulkText } from '../i18n'
 
 const {
   updateKey,
@@ -306,7 +307,7 @@ describe('ApiKeyBulkActions', () => {
     await wrapper.get('[data-test="bulk-disable"]').trigger('click')
     expect(toggleStatus).not.toHaveBeenCalled()
     expect(wrapper.get('[data-test="confirm-message"]').text()).toContain('1 个 API 密钥')
-    expect(wrapper.get('[data-test="confirm-message"]').text()).toContain('1 个已禁用项')
+    expect(wrapper.get('[data-test="confirm-message"]').text()).toContain('1 项会跳过')
     expect(wrapper.get('[data-test="bulk-confirm-dialog"]').attributes('data-danger')).toBe('true')
 
     await wrapper.get('[data-test="confirm-action"]').trigger('click')
@@ -322,6 +323,16 @@ describe('ApiKeyBulkActions', () => {
     })
   })
 
+  it('describes skipped disable rows without assuming their status', () => {
+    const zhMessage = customApiKeyBulkText('zh-CN', 'disableConfirmMessage', { count: 1, skipped: 3 })
+    const enMessage = customApiKeyBulkText('en', 'disableConfirmMessage', { count: 1, skipped: 3 })
+
+    expect(zhMessage).toContain('另有 3 项会跳过')
+    expect(zhMessage).not.toContain('已禁用项')
+    expect(enMessage).toContain('skip 3 other items')
+    expect(enMessage).not.toContain('already disabled')
+  })
+
   it('disables every selected key when all rows are active', async () => {
     const wrapper = mountActions([createApiKey(1), createApiKey(2)], [1, 2])
 
@@ -332,6 +343,50 @@ describe('ApiKeyBulkActions', () => {
     expect(toggleStatus).toHaveBeenCalledTimes(2)
     expect(toggleStatus).toHaveBeenCalledWith(1, 'inactive')
     expect(toggleStatus).toHaveBeenCalledWith(2, 'inactive')
+  })
+
+  it('disables only active keys and preserves recoverable runtime states', async () => {
+    const wrapper = mountActions([
+      createApiKey(1),
+      createApiKey(2, { status: 'inactive' }),
+      createApiKey(3, { status: 'expired' }),
+      createApiKey(4, { status: 'quota_exhausted' })
+    ], [1, 2, 3, 4])
+
+    await wrapper.get('[data-test="bulk-disable"]').trigger('click')
+    expect(wrapper.get('[data-test="confirm-message"]').text()).toContain('1 个 API 密钥')
+    expect(wrapper.get('[data-test="confirm-message"]').text()).toContain('3 项会跳过')
+    expect(wrapper.get('[data-test="confirm-message"]').text()).not.toContain('已禁用项')
+
+    await wrapper.get('[data-test="confirm-action"]').trigger('click')
+    await flushPromises()
+
+    expect(toggleStatus).toHaveBeenCalledOnce()
+    expect(toggleStatus).toHaveBeenCalledWith(1, 'inactive')
+    expect(wrapper.emitted('completed')?.at(-1)?.[0]).toEqual({
+      action: 'disable',
+      succeededIds: [1],
+      failedIds: [],
+      skippedIds: [2, 3, 4]
+    })
+  })
+
+  it('does not send disable requests for recoverable runtime states', async () => {
+    const wrapper = mountActions([
+      createApiKey(1, { status: 'expired' }),
+      createApiKey(2, { status: 'quota_exhausted' })
+    ], [1, 2])
+
+    await wrapper.get('[data-test="bulk-disable"]').trigger('click')
+
+    expect(toggleStatus).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-test="bulk-confirm-dialog"]').exists()).toBe(false)
+    expect(wrapper.emitted('completed')?.at(-1)?.[0]).toEqual({
+      action: 'disable',
+      succeededIds: [],
+      failedIds: [],
+      skippedIds: [1, 2]
+    })
   })
 
   it('changes the status action to enable when all selected rows are inactive', async () => {
