@@ -57,7 +57,7 @@ const zhMessages: Record<ApiKeyBulkTextKey, TextFactory> = {
     `${action}失败，共 ${failed} 项；失败项已保留选中，可重试。`,
   disableConfirmTitle: () => '确认批量禁用',
   disableConfirmMessage: ({ count, skipped }) =>
-    `将禁用 ${count} 个 API 密钥${Number(skipped) > 0 ? `，另有 ${skipped} 个已禁用项会跳过` : ''}。禁用后这些密钥的调用将立即失败。`,
+    `将禁用 ${count} 个 API 密钥${Number(skipped) > 0 ? `，另有 ${skipped} 项会跳过` : ''}。禁用后这些密钥的调用将立即失败。`,
   disableConfirm: ({ count }) => `确认禁用 ${count} 个`,
   enableConfirmTitle: () => '确认批量启用',
   enableConfirmMessage: ({ count }) =>
@@ -95,7 +95,7 @@ const enMessages: Record<ApiKeyBulkTextKey, TextFactory> = {
     `${action} failed for ${failed} items. Failed items remain selected for retry.`,
   disableConfirmTitle: () => 'Confirm bulk disable',
   disableConfirmMessage: ({ count, skipped }) =>
-    `Disable ${count} API keys${Number(skipped) > 0 ? ` and skip ${skipped} already disabled` : ''}? Their requests will fail immediately.`,
+    `Disable ${count} API keys${Number(skipped) > 0 ? ` and skip ${skipped} other items` : ''}? Their requests will fail immediately.`,
   disableConfirm: ({ count }) => `Disable ${count}`,
   enableConfirmTitle: () => 'Confirm bulk enable',
   enableConfirmMessage: ({ count }) =>

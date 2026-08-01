@@ -10,6 +10,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupaccess"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -1037,6 +1038,16 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 	if *groupID < 0 {
 		return nil, infraerrors.BadRequest("INVALID_GROUP_ID", "group_id must be non-negative")
 	}
+	if (*groupID == 0 && apiKey.GroupID == nil) ||
+		(apiKey.GroupID != nil && *apiKey.GroupID == *groupID) {
+		if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {
+			return nil, fmt.Errorf("update api key: %w", err)
+		}
+		if s.authCacheInvalidator != nil {
+			s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
+		}
+		return &AdminUpdateAPIKeyGroupIDResult{APIKey: apiKey}, nil
+	}
 
 	result := &AdminUpdateAPIKeyGroupIDResult{}
 
@@ -1064,6 +1075,9 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 				}
 				return nil, err
 			}
+		}
+		if err := s.checkGroupMinimumBalanceForUser(ctx, apiKey.UserID, group); err != nil {
+			return nil, err
 		}
 
 		gid := *groupID
@@ -1182,15 +1196,20 @@ func (s *adminServiceImpl) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 	defer func() { _ = tx.Rollback() }()
 	opCtx := dbent.NewTxContext(ctx, tx)
 
-	// 1. 授予新分组权限
-	if err := s.userRepo.AddGroupToAllowedGroups(opCtx, userID, newGroupID); err != nil {
-		return nil, fmt.Errorf("add new group to allowed groups: %w", err)
-	}
-
-	// 2. 迁移绑定旧分组的 Key 到新分组
+	// 1. 先迁移并以实际受影响行数作为最低余额校验开关；后续失败会回滚事务。
 	migrated, err := s.apiKeyRepo.UpdateGroupIDByUserAndGroup(opCtx, userID, oldGroupID, newGroupID)
 	if err != nil {
 		return nil, fmt.Errorf("migrate api keys: %w", err)
+	}
+	if migrated > 0 {
+		if err := s.checkGroupMinimumBalanceForUser(opCtx, userID, newGroup); err != nil {
+			return nil, err
+		}
+	}
+
+	// 2. 授予新分组权限
+	if err := s.userRepo.AddGroupToAllowedGroups(opCtx, userID, newGroupID); err != nil {
+		return nil, fmt.Errorf("add new group to allowed groups: %w", err)
 	}
 
 	// 3. 移除旧分组权限
@@ -1213,4 +1232,18 @@ func (s *adminServiceImpl) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 	}
 
 	return &ReplaceUserGroupResult{MigratedKeys: migrated}, nil
+}
+
+func (s *adminServiceImpl) checkGroupMinimumBalanceForUser(ctx context.Context, userID int64, group *Group) error {
+	if group == nil || group.MinimumBalance <= 0 {
+		return nil
+	}
+	if s.userRepo == nil {
+		return infraerrors.InternalServer("USER_REPOSITORY_UNAVAILABLE", "user repository is not configured")
+	}
+	currentUser, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	return groupaccess.CheckMinimumBalance(group.ID, group.Name, currentUser.Balance, group.MinimumBalance)
 }

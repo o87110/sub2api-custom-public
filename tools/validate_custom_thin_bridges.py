@@ -31,6 +31,32 @@ ORCHESTRATION_RE = re.compile(
     r"\b(?:orchestrat|coordinat|workflow|pipeline|fallback|retry)\w*\s*\(",
     re.IGNORECASE,
 )
+CALL_SURFACE_PATTERNS = (
+    re.compile(
+        r"(?<![\w$])(?P<callee>[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)"
+        r"\s*(?:\?\.)?\s*\("
+    ),
+    re.compile(
+        r"\(\s*(?P<callee>[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)"
+        r"\s*\)\s*(?:\?\.)?\s*\("
+    ),
+)
+COMPUTED_CALL_SURFACE_RE = re.compile(
+    r"(?:(?P<object>[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*)?"
+    r"(?:\?\.)?\[\s*(?P<key>[^\]\r\n]+?)\s*\]\s*\)*\s*(?:\?\.)?\s*\("
+)
+COMPUTED_CALL_FALLBACK_RE = re.compile(r"\]\s*\)*\s*(?:\?\.)?\s*\(")
+VUE_EVENT_BINDING_RE = re.compile(
+    r"(?P<binding>"
+    r"@(?:\[[^\]\r\n]+\]|[A-Za-z_][\w:-]*)(?:\.[A-Za-z_][\w-]*)*"
+    r"|v-on:(?:\[[^\]\r\n]+\]|[A-Za-z_][\w:-]*)(?:\.[A-Za-z_][\w-]*)*"
+    r")\s*=\s*(?P<quote>[\"'])(?P<expression>.*?)(?P=quote)",
+    re.DOTALL,
+)
+CALL_SURFACE_IGNORED = frozenset({
+    "async", "await", "catch", "delete", "for", "func", "function", "if", "len",
+    "make", "new", "return", "switch", "typeof", "while",
+})
 DELEGATE_VIEW_CONTROL_FLOW_RE = re.compile(
     r"^\s*(?:}\s*)?(?:else\s+)?(?:if\b|switch\b|select\b|for\b|while\b|"
     r"do\b|try\b|catch\b)|\bv-(?:if|else-if|for)\s*=",
@@ -91,6 +117,7 @@ APPROVED_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
         "LoadDailyUsage",
         "paymentInstanceRecord",
     }),
+    "backend/internal/service/admin_group.go": frozenset({"checkGroupMinimumBalanceForUser"}),
     "backend/internal/service/api_key_service.go": frozenset({
         "GetAvailableGroupOptions",
         "availableGroupsForUser",
@@ -139,6 +166,187 @@ APPROVED_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
         "handleTableSelectionChange",
         "handleBulkCompleted",
     }),
+}
+
+
+def _approved_call_deltas(
+    *groups: tuple[str, dict[str, int]],
+) -> tuple[tuple[str, str], ...]:
+    result: list[tuple[str, str]] = []
+    for function_name, calls in groups:
+        for callee, count in calls.items():
+            result.extend((function_name, callee) for _ in range(count))
+    return tuple(result)
+
+
+# Positive call-surface deltas are exact per path, owning function, callee and
+# count. Updating a ledger Blob or line budget cannot authorize an additional
+# delegate/view operation without an explicit structural review here.
+APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
+    'backend/internal/handler/admin/setting_handler.go': _approved_call_deltas(
+        ('GetSettings', {'response.ErrorFrom': 1}),
+    ),
+    'backend/internal/handler/admin/setting_handler_update.go': _approved_call_deltas(
+        ('UpdateSettings', {'response.ErrorFrom': 1}),
+    ),
+    'backend/internal/handler/admin/system_handler.go': _approved_call_deltas(
+        ('Rollback', {'response.Error': 1}),
+    ),
+    'backend/internal/handler/api_key_handler.go': _approved_call_deltas(
+        ('GetAvailableGroups', {'h.apiKeyService.GetAvailableGroupOptions': 1}),
+    ),
+    'backend/internal/handler/auth_wechat_oauth.go': _approved_call_deltas(
+        ('WeChatPaymentOAuthCallback', {'redirectOAuthError': 1, 'strings.ToLower': 1, 'strings.TrimSpace': 1}),
+        ('WeChatPaymentOAuthStart', {'ParseWeChatPaymentOAuthToken': 1, 'c.Query': 2, 'h.wechatPaymentResumeService': 1, 'response.BadRequest': 1, 'response.ErrorFrom': 1, 'strings.ToLower': 1, 'strings.TrimSpace': 2}),
+    ),
+    'backend/internal/handler/channel_monitor_user_handler.go': _approved_call_deltas(
+        ('<top-level>', {'Resolve': 1}),
+        ('List', {'c.Request.Context': 1, 'h.groupRateResolver.Resolve': 1}),
+    ),
+    'backend/internal/handler/gateway_handler.go': _approved_call_deltas(
+        ('billingErrorDetails', {'pkgerrors.Message': 1, 'pkgerrors.Reason': 1}),
+    ),
+    'backend/internal/handler/openai_gateway_handler.go': _approved_call_deltas(
+        ('recordCyberPolicyIfMarked', {'c.Request.Context': 1, 'cmSvc.CyberPolicyGroupInScope': 1}),
+        ('rejectIfCyberSessionBlocked', {'c.Request.Context': 1, 'h.contentModerationService.CyberPolicyGroupInScope': 1}),
+    ),
+    'backend/internal/handler/payment_handler.go': _approved_call_deltas(
+        ('GetCheckoutInfo', {'h.configService.GetAvailableMethodOptions': 1, 'response.ErrorFrom': 1}),
+        ('applyWeChatPaymentResumeClaims', {'infraerrors.BadRequest': 3, 'math.IsInf': 1, 'math.IsNaN': 1, 'paymentchannels.IsValidSelection': 1, 'strings.EqualFold': 1, 'strings.ToLower': 1, 'strings.TrimSpace': 2}),
+    ),
+    'backend/internal/payment/load_balancer.go': _approved_call_deltas(
+        ('<top-level>', {'RevalidateSelection': 1}),
+        ('LoadDailyUsage', {'Aggregate': 1, 'GroupBy': 1, 'Scan': 1, 'Where': 1, 'dbent.Sum': 1, 'lb.db.PaymentOrder.Query': 1, 'paymentorder.CreatedAtGTE': 1, 'paymentorder.ProviderInstanceIDIn': 1, 'paymentorder.StatusIn': 1, 'startOfDay': 1, 'time.Now': 1}),
+        ('LoadEnabledInstances', {'All': 1, 'Where': 1, 'append': 1, 'dbent.Asc': 1, 'fmt.Errorf': 1, 'lb.db.PaymentProviderInstance.Query': 1, 'lb.paymentInstanceRecord': 1, 'paymentproviderinstance.Enabled': 1, 'paymentproviderinstance.ProviderKey': 1, 'query.Order': 1, 'query.Where': 1}),
+        ('LoadInstance', {'dbent.IsNotFound': 1, 'fmt.Errorf': 1, 'lb.db.PaymentProviderInstance.Get': 1, 'lb.paymentInstanceRecord': 1}),
+        ('NewDefaultLoadBalancer', {'paymentchannels.NewInstanceCoordinator': 1}),
+        ('RevalidateSelection', {'Revalidate': 1, 'customSelectionFromPayment': 1, 'lb.instanceCoordinator': 1}),
+        ('SelectInstance', {'Select': 1, 'lb.instanceCoordinator': 1, 'paymentSelectionFromCustom': 1, 'slog.Info': 1, 'string': 1, 'wxpayJSAPIAppIDFromContext': 1}),
+        ('instanceCoordinator', {'lb.coordinatorOnce.Do': 1, 'paymentchannels.NewInstanceCoordinator': 1}),
+        ('paymentInstanceRecord', {'fmt.Errorf': 1, 'lb.decryptConfig': 1}),
+    ),
+    'backend/internal/service/admin_group.go': _approved_call_deltas(
+        ('AdminUpdateAPIKeyGroupID', {'fmt.Errorf': 1, 's.apiKeyRepo.Update': 1, 's.authCacheInvalidator.InvalidateAuthCacheByKey': 1, 's.checkGroupMinimumBalanceForUser': 1}),
+        ('CreateGroup', {'infraerrors.BadRequest': 1, 'math.IsInf': 1, 'math.IsNaN': 1}),
+        ('ReplaceUserGroup', {'s.checkGroupMinimumBalanceForUser': 1}),
+        ('UpdateGroup', {'infraerrors.BadRequest': 1, 'math.IsInf': 1, 'math.IsNaN': 1}),
+        ('checkGroupMinimumBalanceForUser', {'groupaccess.CheckMinimumBalance': 1, 'infraerrors.InternalServer': 1, 's.userRepo.GetByID': 1}),
+    ),
+    'backend/internal/service/api_key_service.go': _approved_call_deltas(
+        ('Create', {'groupaccess.CheckMinimumBalance': 1}),
+        ('GetAvailableGroupOptions', {'append': 1, 'groupaccess.EvaluateMinimumBalance': 1, 's.availableGroupsForUser': 1}),
+        ('GetAvailableGroups', {'s.availableGroupsForUser': 1}),
+        ('Update', {'groupaccess.CheckMinimumBalance': 1}),
+        ('availableGroupsForUser', {'append': 1, 'fmt.Errorf': 3, 's.canUserBindGroupInternal': 1, 's.groupRepo.ListActive': 1, 's.userRepo.GetByID': 1, 's.userSubRepo.ListActiveByUserID': 1}),
+    ),
+    'backend/internal/service/batch_image_public.go': _approved_call_deltas(
+        ('Submit', {'ErrBillingServiceUnavailable.WithCause': 1, 'groupaccess.CheckMinimumBalance': 1, 's.UserRepo.GetByID': 1}),
+    ),
+    'backend/internal/service/billing_cache_service.go': _approved_call_deltas(
+        ('<top-level>', {'GetGroupByIDForMinimumBalance': 1}),
+        ('CheckBillingEligibility', {'s.checkCustomMinimumBalanceEligibility': 1}),
+        ('LoadCurrentBalance', {'a.service.getUserBalanceFromDB': 1}),
+        ('LoadMinimumBalanceGroup', {'a.loader.GetGroupByIDForMinimumBalance': 1, 'minimumBalanceGroupSnapshot': 1}),
+        ('checkCustomMinimumBalanceEligibility', {'ErrBillingServiceUnavailable.WithCause': 1, 'IsClaudeCodeClient': 1, 'checker.Check': 1, 'ctx.Value': 1, 'errors.As': 1, 'errors.Is': 1, 'groupaccess.NewEligibilityChecker': 1, 'logger.LegacyPrintf': 1, 'minimumBalanceGroupSnapshot': 1}),
+    ),
+    'backend/internal/service/channel_monitor_service.go': _approved_call_deltas(
+        ('Create', {'cloneFloat64Pointer': 1, 'normalizeGroupRateDisplayTemplate': 1}),
+        ('Duplicate', {'cloneFloat64Pointer': 1}),
+        ('applyMonitorUpdate', {'cloneFloat64Pointer': 1, 'normalizeGroupRateDisplayTemplate': 1, 'validateGroupRateDisplayTemplate': 1, 'validateGroupRateOverride': 1}),
+        ('normalizeGroupRateDisplayTemplate', {'channelmonitorratedisplay.NormalizeTemplate': 1}),
+        ('validateCreateParams', {'validateGroupRateDisplayTemplate': 1, 'validateGroupRateOverride': 1}),
+        ('validateGroupRateDisplayTemplate', {'channelmonitorratedisplay.NormalizeTemplate': 1}),
+        ('validateGroupRateOverride', {'channelmonitorratedisplay.ValidOverride': 1}),
+    ),
+    'backend/internal/service/content_moderation.go': _approved_call_deltas(
+        ('Check', {'applyCustomContentModerationKeywordExcerpt': 1, 'content.ExcerptText': 1}),
+        ('RecordCyberPolicyEvent', {'s.tryRecordCustomCyberPolicyEvent': 1}),
+        ('applyFlaggedAccountSideEffects', {'s.countFlaggedByUserSince': 1}),
+    ),
+    'backend/internal/service/payment_config_limits.go': _approved_call_deltas(
+        ('GetAvailableMethodOptions', {'All': 1, 'BuildOptions': 1, 'Where': 1, 'fmt.Errorf': 1, 'paymentproviderinstance.EnabledEQ': 1, 's.entClient.PaymentProviderInstance.Query': 1, 's.pcPaymentProviderRecords': 1}),
+        ('HasConfiguredProviderPaymentType', {'All': 1, 'HasConfiguredSelection': 1, 'NormalizeVisibleMethod': 1, 'fmt.Errorf': 1, 's.entClient.PaymentProviderInstance.Query': 1, 's.pcPaymentProviderRecords': 1, 'strings.ToLower': 1, 'strings.TrimSpace': 1}),
+        ('ValidateMethodProviderCurrencyConsistency', {'All': 1, 'NormalizeVisibleMethod': 1, 'ValidateCurrency': 1, 'Where': 1, 'WithMetadata': 1, 'fmt.Errorf': 1, 'infraerrors.ServiceUnavailable': 1, 'paymentproviderinstance.EnabledEQ': 1, 's.ValidateMethodCurrencyConsistency': 1, 's.entClient.PaymentProviderInstance.Query': 1, 's.pcPaymentProviderRecords': 1, 'strings.ToLower': 1, 'strings.TrimSpace': 1}),
+        ('pcPaymentProviderRecords', {'append': 1, 'int64': 1, 'paymentProviderConfigCurrency': 1, 's.decryptConfig': 1}),
+    ),
+    'backend/internal/service/payment_config_service.go': _approved_call_deltas(
+        ('GetPaymentConfig', {'fmt.Errorf': 1, 'paymentchannels.ParseChannelSettings': 1}),
+        ('UpdatePaymentConfig', {'err.Error': 1, 'infraerrors.BadRequest': 1, 'paymentchannels.SerializeChannelSettings': 1, 'setPaymentConfigValue': 26}),
+    ),
+    'backend/internal/service/payment_order.go': _approved_call_deltas(
+        ('BuildWeChatOAuth', {'loader.service.buildWeChatOAuthRequiredResponse': 1}),
+        ('CalculatePayAmount', {'calculateCreateOrderPayAmountForOrderType': 1}),
+        ('CreateOrder', {'Prepare': 1, 'buildOrderOAuthResponse': 1, 'customOrderPreparationRequest': 1, 'paymentSelectionFromOrder': 1, 'paymentchannels.NewOrderCoordinator': 1}),
+        ('HasConfiguredSelection', {'loader.service.configService.HasConfiguredProviderPaymentType': 1}),
+        ('LoadMethodCurrency', {'loader.service.configService.ValidateMethodProviderCurrencyConsistency': 1}),
+        ('LoadWeChatOAuthAppID', {'loader.service.getWeChatPaymentOAuthCredential': 1}),
+        ('RevalidateOrderInstance', {'loader.service.loadBalancer.RevalidateSelection': 1, 'paymentSelectionFromOrder': 1}),
+        ('SelectOrderInstance', {'customOrderSelection': 1, 'loader.service.loadBalancer.SelectInstance': 1, 'payment.Strategy': 1, 'payment.WithWxpayJSAPIAppID': 1}),
+        ('UsesOfficialWeChatVisibleMethod', {'loader.service.usesOfficialWxpayVisibleMethod': 1}),
+        ('ValidatePayAmountCurrency', {'paymentSelectionFromOrder': 1, 'validateSelectedCreateOrderAmountCurrency': 1}),
+        ('buildWeChatOAuthRequiredResponse', {'CreateWeChatPaymentOAuthToken': 1, 'fmt.Errorf': 1, 's.paymentResume': 1, 'strconv.FormatFloat': 1}),
+        ('buildWeChatPaymentOAuthStartURL', {'q.Set': 2, 'strings.TrimSpace': 2}),
+        ('invokeProvider', {'RevalidateBeforeProvider': 1, 'customOrderSelection': 1, 'paymentchannels.NewOrderCoordinator': 1}),
+    ),
+    'backend/internal/service/payment_resume_service.go': _approved_call_deltas(
+        ('CreateWeChatPaymentOAuthToken', {'paymentchannels.PrepareWeChatOAuthClaims': 1, 's.createSignedToken': 1, 's.ensureSigningKey': 1, 'time.Now': 1}),
+        ('CreateWeChatPaymentResumeToken', {'paymentchannels.PrepareWeChatResumeClaims': 1}),
+        ('ParseWeChatPaymentOAuthToken', {'err.Error': 1, 'infraerrors.BadRequest': 3, 'paymentchannels.ValidateWeChatOAuthClaims': 1, 's.ensureSigningKey': 1, 's.parseSignedToken': 1, 'validatePaymentResumeExpiry': 1}),
+        ('ParseWeChatPaymentResumeToken', {'err.Error': 1, 'paymentchannels.ValidateWeChatResumeClaims': 1}),
+        ('RevalidateSelection', {'lb.inner.RevalidateSelection': 1}),
+    ),
+    'frontend/src/components/admin/monitor/MonitorFormDialog.vue': _approved_call_deltas(
+        ('<top-level>', {'createEmptyMonitorGroupRateFormState': 1, 'ref': 1, 't': 1}),
+        ('buildPayload', {'buildMonitorGroupRateCreateFields': 1}),
+        ('handleSubmit', {'appStore.showError': 1, 'buildMonitorGroupRateUpdateFields': 1, 't': 1, 'validateMonitorGroupRateForm': 1}),
+        ('loadFromMonitor', {'monitorGroupRateFormStateFromSource': 1}),
+        ('resetForm', {'createEmptyMonitorGroupRateFormState': 1}),
+    ),
+    'frontend/src/components/payment/AmountInput.vue': _approved_call_deltas(
+        ('<top-level>', {'RegExp': 1, 'computed': 3, 'currencySymbol': 1, 'normalizePaymentCurrency': 1, 'paymentCurrencyFractionDigits': 1}),
+        ('handleInput', {'amountPattern.value.test': 1}),
+    ),
+    'frontend/src/components/payment/PaymentProviderDialog.vue': _approved_call_deltas(
+        ('<top-level>', {'t': 1}),
+    ),
+    'frontend/src/components/payment/paymentFlow.ts': _approved_call_deltas(
+        ('buildCreateOrderPayload', {'input.providerKey.trim': 1, 'toLowerCase': 1, 'trim': 1}),
+        ('decidePaymentLaunch', {'toLowerCase': 1, 'trim': 1}),
+    ),
+    'frontend/src/components/user/monitor/MonitorCard.vue': _approved_call_deltas(
+        ('<top-level>', {'statusLabel': 1}),
+    ),
+    'frontend/src/views/admin/GroupsView.vue': _approved_call_deltas(
+        ('<top-level>', {'minimumBalanceFormValue': 2, 'ref': 2}),
+        ('closeCreateModal', {'minimumBalanceFormValue': 1}),
+        ('closeEditModal', {'minimumBalanceFormValue': 1}),
+        ('handleCreateGroup', {'appStore.showError': 1, 'normalizeMinimumBalanceFormValue': 1, 't': 1}),
+        ('handleEdit', {'minimumBalanceFormValue': 1}),
+        ('handleUpdateGroup', {'appStore.showError': 1, 'normalizeMinimumBalanceFormValue': 1, 't': 1}),
+    ),
+    'frontend/src/views/admin/SettingsView.vue': _approved_call_deltas(
+        ('<top-level>', {'Number': 1}),
+        ('saveSettings', {'appStore.showError': 1, 'localText': 1, 'paymentChannelSettingsRef.value.validate': 1}),
+    ),
+    'frontend/src/views/user/KeysView.vue': _approved_call_deltas(
+        ('<top-level>', {'balanceRequirementForGroup': 2, 'balanceRequirementsByGroupID.value.get': 1, 'computed': 1, 'customApiKeyBulkText': 1, 'groupBalanceRequirement': 1, 'groupBalanceRequirementsByID': 1, 'ref': 1}),
+        ('<template:@busy-change>', {'bulkActionBusy = $event': 1}),
+        ('<template:@click>', {'refreshApiKeys': 1}),
+        ('<template:@completed>', {'handleBulkCompleted': 1}),
+        ('<template:@update:selected-ids>', {'selectedKeyIds = $event': 1}),
+        ('<template:@update:selected-keys>', {'handleTableSelectionChange': 1}),
+        ('changeGroup', {'balanceRequirementForGroup': 1, 'minimumBalanceErrorToast': 1}),
+        ('handleBulkCompleted', {'loadApiKeys': 1}),
+        ('handleSubmit', {'minimumBalanceErrorToast': 1}),
+        ('handleTableSelectionChange', {'Set': 1, 'apiKeys.value.map': 1, 'keys.filter': 1, 'visibleKeyIds.has': 1}),
+        ('loadApiKeys', {'Set': 1, 'response.items.map': 1, 'selectedKeyIds.value.filter': 1, 'visibleKeyIds.has': 1}),
+        ('refreshApiKeys', {'loadApiKeys': 1}),
+    ),
+    'frontend/src/views/user/PaymentView.vue': _approved_call_deltas(
+        ('<top-level>', {'appStore.showWarning': 1, 'appendBackupChannelHint': 1, 'createOrder': 1, 'findPaymentChannel': 3, 'paymentChannelSupports': 2, 'paymentStore.createOrder': 1, 'router.replace': 1, 'router.resolve': 1, 'usePaymentChannelPricing': 1, 'usePaymentChannelRecovery': 1}),
+        ('<template:@select>', {'selectedChannelId = $event': 2}),
+        ('applyScenarioError', {'appendBackupChannelHint': 1}),
+    ),
 }
 
 # Control-flow additions in delegate/view bridges use an exact structural
@@ -204,6 +412,21 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
         ("LoadDailyUsage", "for _, item := range rows {"),
         ("paymentInstanceRecord", "if instance == nil {"),
         ("paymentInstanceRecord", "if err != nil {"),
+    ),
+    "backend/internal/service/admin_group.go": (
+        ("AdminUpdateAPIKeyGroupID", "if (*groupID == 0 && apiKey.GroupID == nil) ||"),
+        ("AdminUpdateAPIKeyGroupID", "if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {"),
+        ("AdminUpdateAPIKeyGroupID", "if s.authCacheInvalidator != nil {"),
+        ("AdminUpdateAPIKeyGroupID", "if err := s.checkGroupMinimumBalanceForUser(ctx, apiKey.UserID, group); err != nil {"),
+        ("CreateGroup", "if math.IsNaN(input.MinimumBalance) || math.IsInf(input.MinimumBalance, 0) || input.MinimumBalance < 0 {"),
+        ("ReplaceUserGroup", "if migrated > 0 {"),
+        ("ReplaceUserGroup", "if err := s.checkGroupMinimumBalanceForUser(opCtx, userID, newGroup); err != nil {"),
+        ("ReplaceUserGroup", "if err := s.userRepo.AddGroupToAllowedGroups(opCtx, userID, newGroupID); err != nil {"),
+        ("UpdateGroup", "if input.MinimumBalance != nil {"),
+        ("UpdateGroup", "if math.IsNaN(*input.MinimumBalance) || math.IsInf(*input.MinimumBalance, 0) || *input.MinimumBalance < 0 {"),
+        ("checkGroupMinimumBalanceForUser", "if group == nil || group.MinimumBalance <= 0 {"),
+        ("checkGroupMinimumBalanceForUser", "if s.userRepo == nil {"),
+        ("checkGroupMinimumBalanceForUser", "if err != nil {"),
     ),
     "backend/internal/service/api_key_service.go": (
         ("Create", "if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {"),
@@ -641,6 +864,82 @@ def containing_function(blocks: list[FunctionBlock], line_number: int) -> Functi
     return min(matches, key=lambda block: block.end_line - block.start_line)
 
 
+def delegate_view_call_surface(content: str) -> Counter[tuple[str, str]]:
+    """Return executable call-like references grouped by their owning function.
+
+    This intentionally uses a small language-neutral lexer instead of external
+    Go/Vue parsers. The reviewed allowlist is a positive delta from the exact
+    Vendor baseline, so conservative matches in templates or interface method
+    declarations remain stable and cannot create an unreviewed runtime call.
+    """
+    def executable_callees(fragment: str) -> list[str]:
+        callees: list[str] = []
+        for pattern in CALL_SURFACE_PATTERNS:
+            for match in pattern.finditer(fragment):
+                callee = match.group("callee")
+                if callee in CALL_SURFACE_IGNORED or callee.rsplit(".", 1)[-1] in CALL_SURFACE_IGNORED:
+                    continue
+                callees.append(callee)
+        return callees
+
+    lines = content.splitlines()
+    blocks = function_blocks(content)
+    surface: Counter[tuple[str, str]] = Counter()
+    for line_number, line in enumerate(lines, 1):
+        if line.lstrip().startswith(("//", "#", "*")):
+            continue
+        block = containing_function(blocks, line_number)
+        function_name = block.name if block else "<top-level>"
+        declared_names = {
+            match.group("name")
+            for pattern in FUNCTION_START_PATTERNS
+            for match in pattern.finditer(line)
+        }
+        for callee in executable_callees(line):
+            if callee in declared_names:
+                continue
+            surface[(function_name, callee)] += 1
+
+    detailed_computed_closings: set[int] = set()
+    for match in COMPUTED_CALL_SURFACE_RE.finditer(content):
+        line_number = content.count("\n", 0, match.start()) + 1
+        line = lines[line_number - 1]
+        if line.lstrip().startswith(("//", "#", "*")):
+            continue
+        block = containing_function(blocks, line_number)
+        function_name = block.name if block else "<top-level>"
+        owner = match.group("object") or ""
+        key = " ".join(match.group("key").split())
+        callee = f"{owner}[{key}]" if owner else f"[{key}]"
+        surface[(function_name, callee)] += 1
+        detailed_computed_closings.add(content.rfind("]", match.start(), match.end()))
+
+    for match in COMPUTED_CALL_FALLBACK_RE.finditer(content):
+        if match.start() in detailed_computed_closings:
+            continue
+        line_number = content.count("\n", 0, match.start()) + 1
+        line = lines[line_number - 1]
+        if line.lstrip().startswith(("//", "#", "*")):
+            continue
+        block = containing_function(blocks, line_number)
+        function_name = block.name if block else "<top-level>"
+        surface[(function_name, "[<computed>]")] += 1
+
+    for match in VUE_EVENT_BINDING_RE.finditer(content):
+        expression = " ".join(match.group("expression").split())
+        if (
+            not expression
+            or executable_callees(expression)
+            or COMPUTED_CALL_FALLBACK_RE.search(expression)
+        ):
+            continue
+        binding = match.group("binding")
+        if binding.startswith("v-on:"):
+            binding = f"@{binding.removeprefix('v-on:')}"
+        surface[(f"<template:{binding}>", expression)] += 1
+    return surface
+
+
 def validate_delegate_view_structure(
     row: ContractRow,
     baseline_content: str,
@@ -662,6 +961,21 @@ def validate_delegate_view_structure(
         raise ContractError(
             f"{row.kind} bridge introduces orchestration through an unapproved "
             f"new function in {row.path}: {unexpected_functions}"
+        )
+
+    approved_calls = Counter(APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()))
+    added_calls = delegate_view_call_surface(content) - delegate_view_call_surface(baseline_content)
+    unexpected_calls = added_calls - approved_calls
+    if unexpected_calls:
+        raise ContractError(
+            f"{row.kind} bridge introduces an unapproved executable call in {row.path}: "
+            f"{sorted(unexpected_calls.elements())}"
+        )
+    missing_calls = approved_calls - added_calls
+    if missing_calls:
+        raise ContractError(
+            f"{row.kind} bridge is missing an approved executable call in {row.path}: "
+            f"{sorted(missing_calls.elements())}"
         )
 
     approved_control = Counter(APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()))

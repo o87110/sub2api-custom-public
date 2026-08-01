@@ -25,7 +25,7 @@ backend/internal/repository/api_key_minimum_balance_repo.go	persistence	false	11
 backend/internal/repository/api_key_repo.go	persistence	false	1	0
 backend/internal/repository/channel_monitor_repo.go	persistence	false	32	20
 backend/internal/repository/group_repo.go	persistence	false	2	0
-backend/internal/service/admin_group.go	persistence	false	11	0
+backend/internal/service/admin_group.go	delegate	true	50	6
 backend/internal/service/admin_group_duplicate.go	persistence	false	1	0
 backend/internal/service/admin_service.go	persistence	false	2	0
 backend/internal/service/api_key_auth_cache.go	persistence	false	1	0
