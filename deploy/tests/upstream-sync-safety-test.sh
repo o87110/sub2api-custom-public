@@ -374,6 +374,7 @@ done <<'EOF'
 /backend/internal/handler/wire.go
 /backend/internal/handler/channel_monitor_user_handler.go
 /backend/internal/handler/admin/channel_monitor_handler.go
+/backend/internal/handler/admin/content_moderation_handler.go
 /backend/internal/handler/admin/payment_handler.go
 /backend/internal/handler/admin/setting_handler.go
 /backend/internal/handler/admin/setting_handler_update.go
@@ -610,9 +611,9 @@ expect_map_success \
 grep -Fqx $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go' "$shadow_map"
 grep -Fqx $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go' "$shadow_map"
 grep -Fqx $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go' "$shadow_map"
-grep -Fqx $'backend/internal/service/content_moderation.go\tbackend/internal/custom/moderation/cyber_policy.go|backend/internal/custom/moderation/excerpt.go' "$shadow_map"
+grep -Fqx $'backend/internal/service/content_moderation.go\tbackend/internal/custom/moderation/api_audit_scope.go|backend/internal/custom/moderation/cyber_policy.go|backend/internal/custom/moderation/excerpt.go' "$shadow_map"
 grep -Fqx $'backend/internal/service/content_moderation_cyber_test.go\tbackend/internal/custom/moderation/cyber_policy_test.go|backend/internal/service/custom_moderation_bridge_test.go' "$shadow_map"
-grep -Fqx $'backend/internal/service/content_moderation_test.go\tbackend/internal/custom/moderation/excerpt_test.go|backend/internal/service/custom_moderation_bridge_test.go' "$shadow_map"
+grep -Fqx $'backend/internal/service/content_moderation_test.go\tbackend/internal/custom/moderation/api_audit_scope_test.go|backend/internal/custom/moderation/excerpt_test.go|backend/internal/service/custom_moderation_bridge_test.go' "$shadow_map"
 grep -Fqx $'frontend/src/utils/releaseNotes.ts|@removed\tfrontend/src/custom/updater/releaseNotes.ts' "$shadow_map"
 grep -Fqx $'frontend/src/utils/__tests__/releaseNotes.spec.ts|@removed\tfrontend/src/custom/updater/__tests__/releaseNotes.spec.ts' "$shadow_map"
 grep -Fqx $'frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts|@removed\tfrontend/src/custom/updater/components/__tests__/VersionBadge.rollback.spec.ts' "$shadow_map"

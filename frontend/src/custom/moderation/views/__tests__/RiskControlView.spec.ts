@@ -5,10 +5,13 @@ import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
 
 import RiskControlView from '../RiskControlView.vue'
 import type {
-  ContentModerationConfig,
   ContentModerationLog,
-  UpdateContentModerationConfig,
 } from '@/api/admin/riskControl'
+import type {
+  CustomContentModerationConfig,
+  CustomUpdateContentModerationConfig,
+} from '@/custom/moderation/api'
+import type { AdminGroup } from '@/types'
 
 const {
   getConfig,
@@ -73,7 +76,7 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-const baseConfig = (): ContentModerationConfig => ({
+const baseConfig = (): CustomContentModerationConfig => ({
   enabled: true,
   mode: 'pre_block',
   base_url: 'https://api.openai.com',
@@ -111,6 +114,12 @@ const baseConfig = (): ContentModerationConfig => ({
     models: [],
   },
 })
+
+const groupFixture = (id: number, name: string): AdminGroup => ({
+  id,
+  name,
+  platform: 'openai',
+} as AdminGroup)
 
 const runtimeStatus = () => ({
   enabled: true,
@@ -221,6 +230,22 @@ function findButtonByText(wrapper: VueWrapper, text: string): DOMWrapper<HTMLBut
   return button
 }
 
+function mountRiskControlView(): VueWrapper {
+  return mount(RiskControlView, {
+    global: {
+      stubs: {
+        AppLayout: AppLayoutStub,
+        BaseDialog: BaseDialogStub,
+        Icon: true,
+        Select: true,
+        Toggle: true,
+        Pagination: true,
+        ModelWhitelistSelector: ModelWhitelistSelectorStub,
+      },
+    },
+  })
+}
+
 describe('admin RiskControlView', () => {
   beforeEach(() => {
     getConfig.mockReset()
@@ -235,7 +260,7 @@ describe('admin RiskControlView', () => {
     getStatus.mockResolvedValue(runtimeStatus())
     listLogs.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20, pages: 1 })
     getGroups.mockResolvedValue([])
-    updateConfig.mockImplementation(async (payload: UpdateContentModerationConfig) => ({
+    updateConfig.mockImplementation(async (payload: CustomUpdateContentModerationConfig) => ({
       ...baseConfig(),
       ...payload,
       model_filter: payload.model_filter ?? baseConfig().model_filter,
@@ -245,6 +270,171 @@ describe('admin RiskControlView', () => {
       api_key_masks: [],
       api_key_statuses: [],
     }))
+  })
+
+  it('preserves legacy API audit behavior when the response omits api_audit_scope', async () => {
+    const wrapper = mountRiskControlView()
+
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      api_audit_scope: {
+        all_in_scope: true,
+        group_ids: [],
+      },
+    }))
+    expect(showError).not.toHaveBeenCalled()
+  })
+
+  it('allows saving a legacy empty overall audit scope', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      all_groups: false,
+      group_ids: [],
+    })
+    const wrapper = mountRiskControlView()
+
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      all_groups: false,
+      group_ids: [],
+      api_audit_scope: {
+        all_in_scope: true,
+        group_ids: [],
+      },
+    }))
+    expect(showError).not.toHaveBeenCalled()
+  })
+
+  it('saves an explicit API audit group subset', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      all_groups: false,
+      group_ids: [1, 2],
+      api_audit_scope: {
+        all_in_scope: true,
+        group_ids: [],
+      },
+    })
+    getGroups.mockResolvedValue([
+      groupFixture(1, 'Group One'),
+      groupFixture(2, 'Group Two'),
+      groupFixture(3, 'Group Three'),
+    ])
+    const wrapper = mountRiskControlView()
+
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.tabs.scope').trigger('click')
+    await wrapper.get('[data-test="api-audit-selected-in-scope"]').trigger('click')
+    await wrapper.get('[data-test="api-audit-group-2"]').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="api-audit-group-3"]').exists()).toBe(false)
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      api_audit_scope: {
+        all_in_scope: false,
+        group_ids: [2],
+      },
+    }))
+    expect(showError).not.toHaveBeenCalled()
+  })
+
+  it('removes API audit groups that leave the overall audit scope', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      all_groups: false,
+      group_ids: [1, 2],
+      api_audit_scope: {
+        all_in_scope: false,
+        group_ids: [1, 2],
+      },
+    })
+    getGroups.mockResolvedValue([
+      groupFixture(1, 'Group One'),
+      groupFixture(2, 'Group Two'),
+    ])
+    const wrapper = mountRiskControlView()
+
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.tabs.scope').trigger('click')
+    await wrapper.get('[data-test="overall-audit-group-2"]').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      group_ids: [1],
+      api_audit_scope: {
+        all_in_scope: false,
+        group_ids: [1],
+      },
+    }))
+  })
+
+  it('blocks saving when an active explicit API audit scope is empty', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      api_audit_scope: {
+        all_in_scope: false,
+        group_ids: [],
+      },
+    })
+    const wrapper = mountRiskControlView()
+
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(updateConfig).not.toHaveBeenCalled()
+    expect(showError).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables API audit controls for keyword-only pre-blocking and preserves the scope', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      keyword_blocking_mode: 'keyword_only',
+      api_audit_scope: {
+        all_in_scope: false,
+        group_ids: [1],
+      },
+    })
+    getGroups.mockResolvedValue([groupFixture(1, 'Group One')])
+    const wrapper = mountRiskControlView()
+
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.tabs.scope').trigger('click')
+
+    expect(wrapper.get('[data-test="api-audit-all-in-scope"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-test="api-audit-selected-in-scope"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-test="api-audit-group-1"]').attributes('disabled')).toBeDefined()
+
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      api_audit_scope: {
+        all_in_scope: false,
+        group_ids: [1],
+      },
+    }))
+    expect(showError).not.toHaveBeenCalled()
   })
 
   it('saves the selected model filter mode and models', async () => {

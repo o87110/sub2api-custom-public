@@ -148,6 +148,7 @@ type ContentModerationConfig struct {
 	SampleRate           int                          `json:"sample_rate"`
 	AllGroups            bool                         `json:"all_groups"`
 	GroupIDs             []int64                      `json:"group_ids"`
+	APIAuditScope        *APIAuditScope               `json:"api_audit_scope"`
 	RecordNonHits        bool                         `json:"record_non_hits"`
 	Thresholds           map[string]float64           `json:"thresholds"`
 	WorkerCount          int                          `json:"worker_count"`
@@ -185,6 +186,7 @@ type ContentModerationConfigView struct {
 	SampleRate                     int                             `json:"sample_rate"`
 	AllGroups                      bool                            `json:"all_groups"`
 	GroupIDs                       []int64                         `json:"group_ids"`
+	APIAuditScope                  APIAuditScope                   `json:"api_audit_scope"`
 	RecordNonHits                  bool                            `json:"record_non_hits"`
 	Thresholds                     map[string]float64              `json:"thresholds"`
 	WorkerCount                    int                             `json:"worker_count"`
@@ -273,6 +275,7 @@ type UpdateContentModerationConfigInput struct {
 	SampleRate                     *int                          `json:"sample_rate"`
 	AllGroups                      *bool                         `json:"all_groups"`
 	GroupIDs                       *[]int64                      `json:"group_ids"`
+	APIAuditScope                  *APIAuditScope                `json:"api_audit_scope"`
 	RecordNonHits                  *bool                         `json:"record_non_hits"`
 	Thresholds                     *map[string]float64           `json:"thresholds"`
 	WorkerCount                    *int                          `json:"worker_count"`
@@ -674,6 +677,9 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 	if input.GroupIDs != nil {
 		cfg.GroupIDs = normalizeInt64IDs(*input.GroupIDs)
 	}
+	if input.APIAuditScope != nil {
+		cfg.APIAuditScope = normalizeContentModerationAPIAuditScope(input.APIAuditScope)
+	}
 	if input.RecordNonHits != nil {
 		cfg.RecordNonHits = *input.RecordNonHits
 	}
@@ -815,6 +821,7 @@ func (s *ContentModerationService) Check(ctx context.Context, input ContentModer
 	}
 	cfg := runtimeSnapshot.config
 	inGroupScope := cfg.includesGroup(input.GroupID)
+	inAPIAuditScope := cfg.includesAPIAuditGroup(input.GroupID)
 	inModelScope := cfg.includesModel(input.Model)
 	slog.Info("content_moderation.config_loaded",
 		"user_id", input.UserID,
@@ -830,6 +837,9 @@ func (s *ContentModerationService) Check(ctx context.Context, input ContentModer
 		"all_groups", cfg.AllGroups,
 		"configured_group_ids", cfg.GroupIDs,
 		"in_group_scope", inGroupScope,
+		"api_audit_all_in_scope", cfg.APIAuditScope.AllInScope,
+		"configured_api_audit_group_ids", cfg.APIAuditScope.GroupIDs,
+		"in_api_audit_scope", inAPIAuditScope,
 		"model_filter_type", cfg.ModelFilter.Type,
 		"configured_models", cfg.ModelFilter.Models,
 		"in_model_scope", inModelScope,
@@ -940,6 +950,21 @@ func (s *ContentModerationService) Check(ctx context.Context, input ContentModer
 				"protocol", input.Protocol)
 			return allow, nil
 		}
+	}
+	if !inAPIAuditScope {
+		if cfg.Mode == ContentModerationModePreBlock {
+			s.recordPreBlockSyncMetric(0, ContentModerationActionAllow)
+		}
+		slog.Info("content_moderation.skip_api_group_out_of_scope",
+			"user_id", input.UserID,
+			"api_key_id", input.APIKeyID,
+			"group_id", contentModerationLogGroupID(input.GroupID),
+			"group_name", input.GroupName,
+			"endpoint", input.Endpoint,
+			"protocol", input.Protocol,
+			"api_audit_all_in_scope", cfg.APIAuditScope.AllInScope,
+			"configured_api_audit_group_ids", cfg.APIAuditScope.GroupIDs)
+		return allow, nil
 	}
 	if cfg.PreHashCheckEnabled && s.hashCache != nil {
 		matched, err := s.hashCache.HasFlaggedInputHash(ctx, hashText)
@@ -1228,10 +1253,13 @@ func (s *ContentModerationService) worker(id int) {
 				s.asyncProcessed.Add(1)
 				return
 			}
+			if latestSnapshot, latestErr := s.loadRuntimeSnapshot(ctx); latestErr == nil && latestSnapshot != nil && latestSnapshot.config != nil {
+				cfg = latestSnapshot.config
+			}
 			if !cfg.Enabled || cfg.Mode == ContentModerationModeOff || len(cfg.apiKeys()) == 0 {
 				return
 			}
-			if !cfg.includesGroup(task.input.GroupID) {
+			if !cfg.includesAPIAuditGroup(task.input.GroupID) {
 				return
 			}
 			if !cfg.includesModel(task.input.Model) {
@@ -1638,10 +1666,22 @@ func (s *ContentModerationService) validateConfig(ctx context.Context, cfg *Cont
 	if cfg.ModelFilter.Type != ContentModerationModelFilterAll && len(cfg.ModelFilter.Models) == 0 {
 		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_MODEL_FILTER", "指定或排除模型时至少需要配置 1 个模型")
 	}
+	requireAPIAuditScope := cfg.Mode == ContentModerationModeObserve ||
+		cfg.KeywordBlockingMode != ContentModerationKeywordModeKeywordOnly
+	if err := validateContentModerationAPIAuditScope(cfg, requireAPIAuditScope); err != nil {
+		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_API_AUDIT_SCOPE", "API 审计范围无效: "+err.Error())
+	}
 	if !cfg.AllGroups && len(cfg.GroupIDs) > 0 && s.groupRepo != nil {
 		for _, groupID := range cfg.GroupIDs {
 			if _, err := s.groupRepo.GetByIDLite(ctx, groupID); err != nil {
 				return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_GROUP", fmt.Sprintf("审计分组不存在: %d", groupID))
+			}
+		}
+	}
+	if !cfg.APIAuditScope.AllInScope && s.groupRepo != nil {
+		for _, groupID := range cfg.APIAuditScope.GroupIDs {
+			if _, err := s.groupRepo.GetByIDLite(ctx, groupID); err != nil {
+				return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_API_AUDIT_SCOPE", fmt.Sprintf("API 审计分组不存在: %d", groupID))
 			}
 		}
 	}
@@ -1985,6 +2025,7 @@ func defaultContentModerationConfig() *ContentModerationConfig {
 		SampleRate:           100,
 		AllGroups:            true,
 		GroupIDs:             []int64{},
+		APIAuditScope:        defaultContentModerationAPIAuditScope(),
 		RecordNonHits:        false,
 		Thresholds:           ContentModerationDefaultThresholds(),
 		WorkerCount:          defaultContentModerationWorkerCount,
@@ -2016,6 +2057,7 @@ func cloneContentModerationConfig(cfg *ContentModerationConfig) *ContentModerati
 	clone := *cfg
 	clone.APIKeys = append([]string(nil), cfg.APIKeys...)
 	clone.GroupIDs = append([]int64(nil), cfg.GroupIDs...)
+	clone.APIAuditScope = normalizeContentModerationAPIAuditScope(cfg.APIAuditScope)
 	clone.BlockedKeywords = append([]string(nil), cfg.BlockedKeywords...)
 	clone.Thresholds = cloneFloatMap(cfg.Thresholds)
 	clone.ModelFilter = ContentModerationModelFilter{
@@ -2099,6 +2141,7 @@ func (cfg *ContentModerationConfig) normalize() {
 		cfg.NonHitRetentionDays = maxContentModerationNonHitRetentionDays
 	}
 	cfg.GroupIDs = normalizeInt64IDs(cfg.GroupIDs)
+	cfg.APIAuditScope = normalizeContentModerationAPIAuditScope(cfg.APIAuditScope)
 	cfg.Thresholds = mergeContentModerationThresholds(ContentModerationDefaultThresholds(), cfg.Thresholds)
 	cfg.BlockedKeywords = normalizeBlockedKeywords(cfg.BlockedKeywords)
 	cfg.KeywordBlockingMode = normalizeKeywordBlockingMode(cfg.KeywordBlockingMode)
@@ -2315,6 +2358,7 @@ func (s *ContentModerationService) configView(cfg *ContentModerationConfig) *Con
 		SampleRate:                     cfg.SampleRate,
 		AllGroups:                      cfg.AllGroups,
 		GroupIDs:                       append([]int64(nil), cfg.GroupIDs...),
+		APIAuditScope:                  *normalizeContentModerationAPIAuditScope(cfg.APIAuditScope),
 		RecordNonHits:                  cfg.RecordNonHits,
 		Thresholds:                     cloneFloatMap(cfg.Thresholds),
 		WorkerCount:                    cfg.WorkerCount,

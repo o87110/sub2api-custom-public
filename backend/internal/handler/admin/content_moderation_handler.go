@@ -19,6 +19,8 @@ func NewContentModerationHandler(svc *service.ContentModerationService) *Content
 	return &ContentModerationHandler{service: svc}
 }
 
+type apiAuditScope = service.APIAuditScope
+
 type contentModerationConfigRequest struct {
 	Enabled              *bool               `json:"enabled"`
 	Mode                 *string             `json:"mode"`
@@ -33,6 +35,7 @@ type contentModerationConfigRequest struct {
 	SampleRate           *int                `json:"sample_rate"`
 	AllGroups            *bool               `json:"all_groups"`
 	GroupIDs             *[]int64            `json:"group_ids"`
+	APIAuditScope        *apiAuditScope      `json:"api_audit_scope"`
 	RecordNonHits        *bool               `json:"record_non_hits"`
 	Thresholds           *map[string]float64 `json:"thresholds"`
 	WorkerCount          *int                `json:"worker_count"`
@@ -97,6 +100,7 @@ func (h *ContentModerationHandler) UpdateConfig(c *gin.Context) {
 		SampleRate:                     req.SampleRate,
 		AllGroups:                      req.AllGroups,
 		GroupIDs:                       req.GroupIDs,
+		APIAuditScope:                  req.APIAuditScope,
 		RecordNonHits:                  req.RecordNonHits,
 		Thresholds:                     req.Thresholds,
 		WorkerCount:                    req.WorkerCount,

@@ -37,6 +37,32 @@ const (
 	contentModerationKeywordExcerptRunes         = custommoderation.MaxKeywordExcerptRunes
 )
 
+type APIAuditScope = custommoderation.APIAuditScope
+
+func defaultContentModerationAPIAuditScope() *APIAuditScope {
+	return custommoderation.DefaultAPIAuditScope()
+}
+
+func normalizeContentModerationAPIAuditScope(scope *APIAuditScope) *APIAuditScope {
+	return custommoderation.NormalizeAPIAuditScope(scope)
+}
+
+func (cfg *ContentModerationConfig) includesAPIAuditGroup(groupID *int64) bool {
+	return cfg != nil && cfg.includesGroup(groupID) && cfg.APIAuditScope.Includes(groupID)
+}
+
+func validateContentModerationAPIAuditScope(cfg *ContentModerationConfig, requireNonEmpty bool) error {
+	if cfg == nil {
+		return nil
+	}
+	return custommoderation.ValidateAPIAuditScope(
+		cfg.AllGroups,
+		cfg.GroupIDs,
+		cfg.APIAuditScope,
+		requireNonEmpty,
+	)
+}
+
 func buildContentModerationKeywordExcerptFromRedacted(redacted, keyword string, maxRunes int) string {
 	return custommoderation.BuildKeywordExcerptFromRedacted(redacted, keyword, maxRunes)
 }
