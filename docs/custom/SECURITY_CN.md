@@ -6,15 +6,19 @@
 Token、密码、Cookie、数据库、服务器地址和用户数据不得进入任何 Git 对象或公开
 GitHub 内容。
 
-当前仓库和 `custom-release-publish` Environment 不配置自定义 Secrets。自动发布
-只使用 GitHub 为 Job 临时签发的 `GITHUB_TOKEN`；任何可执行公开 PR 代码的 Job
-仍不得获得写权限。
+`custom-release-publish` Environment 不配置自定义 Secrets，普通自动发布只使用
+GitHub 为 Job 临时签发的 `GITHUB_TOKEN`。Repository 可选配置
+`UPGRADE_FINALIZER_TOKEN`，仅用于官方 Commit 含 Workflow 变化时更新受控镜像和
+Vendor Tag；任何可执行公开 PR 代码的 Job 仍不得获得该 Secret 或写权限。
 
 ## 2. 当前权限与运行凭据边界
 
 - CI 使用只读的临时 `GITHUB_TOKEN`，无需维护者创建或保存 Token。
 - Release Job 使用同一机制临时取得 `contents: write` 和 `packages: write`，权限不
   进入构建 Job 或应用容器。
+- `UPGRADE_FINALIZER_TOKEN` 若配置，必须使用最小仓库范围和更新 Workflow 引用所需
+  权限，只注入受信任 `main` 的最终器；候选门禁、构建、发布及
+  `pull_request_target` 候选执行 Job 均不得取得。
 - 公开 Release 与当前 Public GHCR Package 均支持匿名访问，正常部署不需要 GitHub
   或 GHCR 拉取凭据。
 - PostgreSQL、Redis、JWT、TOTP 和管理员密码属于各部署自己的应用运行凭据，不是
@@ -62,7 +66,7 @@ SHA256。
 - 自动 Release 写操作只接受成功 CI 所绑定的准确 `main` SHA；首次发布和恢复重试
   才使用手动调度。
 - 官方升级的最终收尾只能从受信任 `main` 手动调度，并重新验证 PR、Head SHA、
-  基线和检查状态。
+  base SHA、merge SHA、基线和检查状态；可选最终器 Token 只能在这些门禁成功后使用。
 - Fork PR 不能直接触发 Release 或 GHCR 发布。
 
 ## 6. Release 供应链
@@ -100,6 +104,8 @@ SHA256。
   策略，且不设置 `Required reviewer`；
 - 官方 Tag 必须从隔离的上游 Remote 获取；
 - `vendor-*` 只能由通过门禁的收尾任务创建。
+- 创建 `vendor-*` 前必须临时停用 `release.yml` 并在退出时恢复原 active 状态，防止
+  Tag 所指官方 Commit 中宽泛的 `v*` 触发器发布官方资产；原本已停用的状态保持不变。
 
 ## 9. 泄露处置
 

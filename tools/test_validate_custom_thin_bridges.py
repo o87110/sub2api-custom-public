@@ -216,15 +216,71 @@ class ThinBridgeContractTests(unittest.TestCase):
         with self.assertRaisesRegex(validator.ContractError, "delegate bridge introduces orchestration"):
             validator.validate(fixture.args())
 
+    def test_rejects_a_renamed_view_conditional_orchestrator(self) -> None:
+        fixture = self.fixture(
+            bridge_path="frontend/src/views/user/PaymentView.vue",
+            base_content="<template />\n",
+            candidate_content=(
+                "<template />\n"
+                "<script setup lang=\"ts\">\n"
+                "async function processCheckout() {\n"
+                "  if (enabled) await submitOrder()\n"
+                "  await confirmOrder()\n"
+                "}\n"
+                "</script>\n"
+            ),
+            kind="view",
+            shadow_required=True,
+        )
+        with self.assertRaisesRegex(validator.ContractError, "view bridge introduces orchestration"):
+            validator.validate(fixture.args())
+
+    def test_rejects_a_new_multistep_view_helper_without_control_flow(self) -> None:
+        fixture = self.fixture(
+            bridge_path="frontend/src/views/user/PaymentView.vue",
+            base_content="<template />\n",
+            candidate_content=(
+                "<template />\n"
+                "<script setup lang=\"ts\">\n"
+                "async function processCheckout() {\n"
+                "  await submitOrder()\n"
+                "  await confirmOrder()\n"
+                "}\n"
+                "</script>\n"
+            ),
+            kind="view",
+            shadow_required=True,
+        )
+        with self.assertRaisesRegex(validator.ContractError, "unapproved new function"):
+            validator.validate(fixture.args())
+
+    def test_accepts_an_explicitly_approved_adapter_function(self) -> None:
+        fixture = self.fixture(
+            bridge_path="backend/internal/payment/load_balancer.go",
+            base_content="package payment\n",
+            candidate_content=(
+                "package payment\n"
+                "func paymentSelectionFromCustom() {\n"
+                "  mapCustomSelection()\n"
+                "}\n"
+            ),
+            kind="delegate",
+            shadow_required=True,
+        )
+        validator.validate(fixture.args())
+
     def test_accepts_an_allowlisted_dto_projection_loop(self) -> None:
         fixture = self.fixture(
             bridge_path="backend/internal/handler/api_key_handler.go",
-            base_content="package handler\n",
+            base_content=(
+                "package handler\n"
+                "func (h *APIKeyHandler) GetAvailableGroups() {}\n"
+            ),
             candidate_content=(
                 "package handler\n"
                 "func (h *APIKeyHandler) GetAvailableGroups() {\n"
-                "  for index := range options {\n"
-                "    _ = index\n"
+                "  for i := range options {\n"
+                "    _ = i\n"
                 "  }\n"
                 "}\n"
             ),

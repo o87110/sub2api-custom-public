@@ -27,6 +27,11 @@ on:
         description: 'Exact upgrade pull request Head SHA that must be checked'
         required: true
         type: string
+      resume_finalization:
+        description: 'Resume an already-merged exact Head after a partial trusted finalization failure'
+        required: false
+        type: boolean
+        default: false
       approve_database_changes:
         description: 'Approve this PR after database-copy, backup, and rollback review'
         required: false
@@ -66,8 +71,11 @@ jobs:
       pull-requests: write
     outputs:
       pr_number: ${{ steps.resolve.outputs.pr_number }}
+      base_sha: ${{ steps.resolve.outputs.base_sha }}
       head_ref: ${{ steps.resolve.outputs.head_ref }}
       head_sha: ${{ steps.resolve.outputs.head_sha }}
+      merge_commit_sha: ${{ steps.resolve.outputs.merge_commit_sha }}
+      recovery_mode: ${{ steps.resolve.outputs.recovery_mode }}
       official_tag: ${{ steps.resolve.outputs.official_tag }}
       version: ${{ steps.resolve.outputs.version }}
       vendor_tag: ${{ steps.resolve.outputs.vendor_tag }}
@@ -76,6 +84,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       INPUT_PR_NUMBER: ${{ inputs.pr_number }}
       INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+      INPUT_RESUME_FINALIZATION: ${{ inputs.resume_finalization || false }}
       INPUT_APPROVE_DATABASE_CHANGES: ${{ inputs.approve_database_changes || false }}
       INPUT_APPROVE_PROTECTED_CHANGES: ${{ inputs.approve_protected_changes || false }}
       INPUT_APPROVED_OFFICIAL_TAG: ${{ inputs.approved_official_tag }}
@@ -92,7 +101,7 @@ jobs:
             pr_number="$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")"
             details="$(
               jq -r \
-                '[.pull_request.base.ref, .pull_request.head.ref, .pull_request.head.sha, .pull_request.head.repo.full_name, .pull_request.state] | @tsv' \
+                '[.pull_request.base.ref, .pull_request.base.sha, .pull_request.head.ref, .pull_request.head.sha, .pull_request.head.repo.full_name, .pull_request.state, (.pull_request.merged // false), (.pull_request.merge_commit_sha // "")] | @tsv' \
                 "$GITHUB_EVENT_PATH"
             )"
           else
@@ -108,15 +117,11 @@ jobs:
             details="$(
               gh api \
                 "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" \
-                --jq '[.base.ref, .head.ref, .head.sha, .head.repo.full_name, .state] | @tsv'
+                --jq '[.base.ref, .base.sha, .head.ref, .head.sha, .head.repo.full_name, .state, (.merged // false), (.merge_commit_sha // "")] | @tsv'
             )"
           fi
 
-          IFS=$'\t' read -r base_ref head_ref head_sha head_repo state <<<"$details"
-          if [[ "$state" != "open" ]]; then
-            echo "Upgrade PR #${pr_number} is not open." >&2
-            exit 1
-          fi
+          IFS=$'\t' read -r base_ref base_sha head_ref head_sha head_repo state merged merge_commit_sha <<<"$details"
           if [[ "$base_ref" != "main" ]]; then
             echo "Upgrade PR #${pr_number} must target main." >&2
             exit 1
@@ -124,6 +129,23 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" &&
                 "$head_sha" != "$INPUT_EXPECTED_HEAD_SHA" ]]; then
             echo "Upgrade PR #${pr_number} is now at ${head_sha}, expected ${INPUT_EXPECTED_HEAD_SHA}." >&2
+            exit 1
+          fi
+          if [[ ! "$base_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Upgrade PR #${pr_number} has an invalid trusted base SHA." >&2
+            exit 1
+          fi
+          recovery_mode=false
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" &&
+                "$INPUT_RESUME_FINALIZATION" == "true" ]]; then
+            if [[ "$state" != "closed" || "$merged" != "true" ||
+                  ! "$merge_commit_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Finalization recovery requires an already-merged upgrade PR with an exact merge commit." >&2
+              exit 1
+            fi
+            recovery_mode=true
+          elif [[ "$state" != "open" ]]; then
+            echo "Upgrade PR #${pr_number} is not open; use explicit finalization recovery only after a partial trusted failure." >&2
             exit 1
           fi
           is_upgrade=false
@@ -163,8 +185,11 @@ jobs:
 
           {
             echo "pr_number=$pr_number"
+            echo "base_sha=$base_sha"
             echo "head_ref=$head_ref"
             echo "head_sha=$head_sha"
+            echo "merge_commit_sha=$merge_commit_sha"
+            echo "recovery_mode=$recovery_mode"
             echo "official_tag=$official_tag"
             echo "version=$version"
             echo "vendor_tag=$vendor_tag"
@@ -303,7 +328,10 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ needs.context.outputs.pr_number }}
+      TRUSTED_BASE_SHA: ${{ needs.context.outputs.base_sha }}
       HEAD_SHA: ${{ needs.context.outputs.head_sha }}
+      MERGE_COMMIT_SHA: ${{ needs.context.outputs.merge_commit_sha }}
+      RECOVERY_MODE: ${{ needs.context.outputs.recovery_mode }}
       OFFICIAL_TAG: ${{ needs.context.outputs.official_tag }}
       VERSION: ${{ needs.context.outputs.version }}
       VENDOR_TAG: ${{ needs.context.outputs.vendor_tag }}
@@ -339,6 +367,21 @@ jobs:
             '+refs/tags/*:refs/origin-tags/*' \
             --force
 
+          git rev-parse --verify "${TRUSTED_BASE_SHA}^{commit}" >/dev/null
+          if [[ "$RECOVERY_MODE" == "true" ]]; then
+            git rev-parse --verify "${MERGE_COMMIT_SHA}^{commit}" >/dev/null
+            if ! git merge-base --is-ancestor "$TRUSTED_BASE_SHA" "$HEAD_SHA" ||
+               ! git merge-base --is-ancestor "$HEAD_SHA" "$MERGE_COMMIT_SHA" ||
+               ! git merge-base --is-ancestor "$MERGE_COMMIT_SHA" origin/main; then
+              echo "Merged upgrade PR history no longer matches its trusted base, Head, and merge commit." >&2
+              exit 1
+            fi
+          elif [[ "$(git rev-parse origin/main)" != "$TRUSTED_BASE_SHA" ]]; then
+            echo "Upgrade PR base changed after context resolution; merge the latest main before validation." >&2
+            exit 1
+          fi
+          trusted_main_ref="$TRUSTED_BASE_SHA"
+
           if [[ ! "$OFFICIAL_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Invalid official tag derived from upgrade branch: $OFFICIAL_TAG" >&2
             exit 1
@@ -346,14 +389,19 @@ jobs:
           official_ref="refs/upstream-tags/${OFFICIAL_TAG}"
           vendor_ref="refs/origin-tags/${VENDOR_TAG}"
           git rev-parse --verify "${official_ref}^{commit}" >/dev/null
+
           if git show-ref --verify --quiet "$vendor_ref"; then
-            echo "${VENDOR_TAG} already exists; this upgrade PR is stale." >&2
-            exit 1
+            if [[ "$RECOVERY_MODE" != "true" ||
+                  "$(git rev-parse "${vendor_ref}^{commit}")" != "$(git rev-parse "${official_ref}^{commit}")" ||
+                  "$(git cat-file -t "$vendor_ref")" != "tag" ]]; then
+              echo "${VENDOR_TAG} already exists outside an exact annotated recovery state; refusing stale or moved baseline reuse." >&2
+              exit 1
+            fi
           fi
 
           base_ref=""
           while IFS= read -r candidate_ref; do
-            if git merge-base --is-ancestor "${candidate_ref}^{commit}" origin/main; then
+            if git merge-base --is-ancestor "${candidate_ref}^{commit}" "$trusted_main_ref"; then
               base_ref="$candidate_ref"
               break
             fi
@@ -365,7 +413,7 @@ jobs:
           )
           if [[ -z "$base_ref" ]]; then
             while IFS= read -r candidate_ref; do
-              if git merge-base --is-ancestor "${candidate_ref}^{commit}" origin/main; then
+              if git merge-base --is-ancestor "${candidate_ref}^{commit}" "$trusted_main_ref"; then
                 base_ref="$candidate_ref"
                 break
               fi
@@ -401,7 +449,7 @@ jobs:
             echo "Upgrade PR does not contain ${OFFICIAL_TAG}. Resolve the merge conflict on the persistent branch first." >&2
             exit 1
           fi
-          if ! git merge-base --is-ancestor origin/main "$HEAD_SHA"; then
+          if ! git merge-base --is-ancestor "$trusted_main_ref" "$HEAD_SHA"; then
             echo "Upgrade PR is behind main. Merge the latest main before validation." >&2
             exit 1
           fi
@@ -418,15 +466,15 @@ jobs:
 
           git diff --name-only --no-renames "${base_ref}^{commit}" "${official_ref}^{commit}" |
             sort -u > /tmp/official-files.txt
-          git diff --name-only --no-renames "${base_ref}^{commit}" origin/main |
+          git diff --name-only --no-renames "${base_ref}^{commit}" "$trusted_main_ref" |
             sort -u > /tmp/custom-files.txt
-          git diff --name-only --no-renames origin/main "$HEAD_SHA" |
+          git diff --name-only --no-renames "$trusted_main_ref" "$HEAD_SHA" |
             sort -u > /tmp/upgrade-head-files.txt
           comm -12 /tmp/official-files.txt /tmp/custom-files.txt > /tmp/overlap-files.txt
 
           : > /tmp/unexpected-upgrade-tree-files.txt
           set +e
-          git merge-tree --write-tree origin/main "${official_ref}^{commit}" \
+          git merge-tree --write-tree "$trusted_main_ref" "${official_ref}^{commit}" \
             > /tmp/expected-merge-tree.txt \
             2> /tmp/expected-merge-tree-errors.txt
           merge_tree_status=$?
@@ -467,7 +515,7 @@ jobs:
           fi
 
           shadow_map="/tmp/upstream-shadowed-sources.tsv"
-          git show origin/main:.github/upstream-shadowed-sources.tsv > "$shadow_map"
+          git show "${trusted_main_ref}:.github/upstream-shadowed-sources.tsv" > "$shadow_map"
           if [[ ! -s "$shadow_map" ]]; then
             echo "Shadowed upstream source map is missing or empty: $shadow_map" >&2
             exit 1
@@ -482,7 +530,7 @@ jobs:
 
           base_tree="$(git rev-parse "${base_ref}^{tree}")"
           official_tree="$(git rev-parse "${official_ref}^{tree}")"
-          custom_tree="$(git rev-parse "origin/main^{tree}")"
+          custom_tree="$(git rev-parse "${trusted_main_ref}^{tree}")"
           candidate_tree="$(git rev-parse "${HEAD_SHA}^{tree}")"
           official_commit="$(git rev-parse "${official_ref}^{commit}")"
           expected_candidate_baseline_ref="${VENDOR_TAG}^{commit}"
@@ -515,7 +563,7 @@ jobs:
             --candidate-tree "$candidate_tree"
 
           trusted_baseline_file="/tmp/custom-upstream-baseline.env"
-          git show origin/main:.github/custom-upstream-baseline.env \
+          git show "${trusted_main_ref}:.github/custom-upstream-baseline.env" \
             > "$trusted_baseline_file"
           database_report="$(
             CUSTOM_UPSTREAM_BASELINE_FILE="$trusted_baseline_file" \
@@ -903,10 +951,14 @@ jobs:
       issues: write
       pull-requests: write
     env:
-      GH_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ secrets.UPGRADE_FINALIZER_TOKEN || github.token }}
+      HAS_FINALIZER_TOKEN: ${{ secrets.UPGRADE_FINALIZER_TOKEN != '' }}
       PR_NUMBER: ${{ needs.context.outputs.pr_number }}
+      TRUSTED_BASE_SHA: ${{ needs.context.outputs.base_sha }}
       HEAD_REF: ${{ needs.context.outputs.head_ref }}
       HEAD_SHA: ${{ needs.context.outputs.head_sha }}
+      MERGE_COMMIT_SHA: ${{ needs.context.outputs.merge_commit_sha }}
+      RECOVERY_MODE: ${{ needs.context.outputs.recovery_mode }}
       OFFICIAL_TAG: ${{ needs.context.outputs.official_tag }}
       VERSION: ${{ needs.context.outputs.version }}
       VENDOR_TAG: ${{ needs.context.outputs.vendor_tag }}
@@ -936,48 +988,76 @@ jobs:
             '+refs/heads/main:refs/remotes/origin/main' \
             '+refs/tags/*:refs/origin-tags/*' \
             --force
-          git fetch origin \
-            --no-tags \
-            "+refs/heads/${HEAD_REF}:refs/remotes/origin/${HEAD_REF}"
+          if [[ "$RECOVERY_MODE" != "true" ]]; then
+            git fetch origin \
+              --no-tags \
+              "+refs/heads/${HEAD_REF}:refs/remotes/origin/${HEAD_REF}"
+          fi
 
           official_ref="refs/upstream-tags/${OFFICIAL_TAG}"
           vendor_ref="refs/origin-tags/${VENDOR_TAG}"
           git rev-parse --verify "${official_ref}^{commit}" >/dev/null
 
+          official_workflows_changed=false
+          if ! git diff --quiet origin/upstream/main "${official_ref}^{commit}" -- .github/workflows; then
+            official_workflows_changed=true
+          fi
+          if [[ "$RECOVERY_MODE" != "true" &&
+                "$official_workflows_changed" == "true" &&
+                "$HAS_FINALIZER_TOKEN" != "true" ]]; then
+            echo "Official Workflow files changed; configure UPGRADE_FINALIZER_TOKEN with workflow scope before merging." >&2
+            exit 1
+          fi
+
           current="$(
             gh api \
               "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
-              --jq '[.state, .head.sha, .base.ref] | @tsv'
+              --jq '[.state, (.merged // false), .head.sha, .base.ref, (.merge_commit_sha // "")] | @tsv'
           )"
-          IFS=$'\t' read -r state current_head base_ref <<<"$current"
-          if [[ "$state" != "open" || "$current_head" != "$HEAD_SHA" || "$base_ref" != "main" ]]; then
+          IFS=$'\t' read -r state merged current_head base_ref current_merge_sha <<<"$current"
+          if [[ "$current_head" != "$HEAD_SHA" || "$base_ref" != "main" ]]; then
             echo "Upgrade PR changed after validation; refusing stale finalization." >&2
             exit 1
           fi
-          if ! git merge-base --is-ancestor "${official_ref}^{commit}" "origin/${HEAD_REF}"; then
-            echo "Checked upgrade revision no longer contains ${OFFICIAL_TAG}." >&2
-            exit 1
-          fi
-          if ! git merge-base --is-ancestor origin/main "origin/${HEAD_REF}"; then
-            echo "main changed after validation; update the upgrade PR and rerun all gates." >&2
-            exit 1
-          fi
-          if git show-ref --verify --quiet "$vendor_ref"; then
-            echo "${VENDOR_TAG} already exists; refusing to overwrite or move it." >&2
-            exit 1
-          fi
+          if [[ "$RECOVERY_MODE" == "true" ]]; then
+            if [[ "$state" != "closed" || "$merged" != "true" ||
+                  "$current_merge_sha" != "$MERGE_COMMIT_SHA" ]]; then
+              echo "Merged PR state changed after recovery validation; refusing stale finalization." >&2
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$TRUSTED_BASE_SHA" "$HEAD_SHA" ||
+               ! git merge-base --is-ancestor "$HEAD_SHA" "$MERGE_COMMIT_SHA" ||
+               ! git merge-base --is-ancestor "$MERGE_COMMIT_SHA" origin/main; then
+              echo "Current main does not contain the exact trusted upgrade merge history." >&2
+              exit 1
+            fi
+          else
+            if [[ "$state" != "open" ]]; then
+              echo "Upgrade PR is no longer open; explicit recovery is required after a partial merge." >&2
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "${official_ref}^{commit}" "origin/${HEAD_REF}"; then
+              echo "Checked upgrade revision no longer contains ${OFFICIAL_TAG}." >&2
+              exit 1
+            fi
+            if [[ "$(git rev-parse origin/main)" != "$TRUSTED_BASE_SHA" ]] ||
+               ! git merge-base --is-ancestor origin/main "origin/${HEAD_REF}"; then
+              echo "main changed after validation; update the upgrade PR and rerun all gates." >&2
+              exit 1
+            fi
 
-          gh pr merge "$PR_NUMBER" \
-            --repo "$GITHUB_REPOSITORY" \
-            --merge \
-            --delete-branch \
-            --match-head-commit "$HEAD_SHA"
+            gh pr merge "$PR_NUMBER" \
+              --repo "$GITHUB_REPOSITORY" \
+              --merge \
+              --delete-branch \
+              --match-head-commit "$HEAD_SHA"
 
-          git fetch origin \
-            --no-tags \
-            '+refs/heads/main:refs/remotes/origin/main' \
-            '+refs/tags/*:refs/origin-tags/*' \
-            --force
+            git fetch origin \
+              --no-tags \
+              '+refs/heads/main:refs/remotes/origin/main' \
+              '+refs/tags/*:refs/origin-tags/*' \
+              --force
+          fi
           if ! git merge-base --is-ancestor "${official_ref}^{commit}" origin/main; then
             echo "Merged main does not contain ${OFFICIAL_TAG}; refusing baseline publication." >&2
             exit 1
@@ -988,10 +1068,88 @@ jobs:
             echo "Official mirror main cannot fast-forward to ${OFFICIAL_TAG}; refusing downgrade or history rewrite." >&2
             exit 1
           fi
-          git tag -a "$VENDOR_TAG" "$official_commit" -m "$VENDOR_TAG"
-          git push --atomic origin \
-            "${official_commit}:refs/heads/upstream/main" \
-            "refs/tags/${VENDOR_TAG}:refs/tags/${VENDOR_TAG}"
+
+          if git show-ref --verify --quiet "$vendor_ref"; then
+            if [[ "$(git rev-parse "${vendor_ref}^{commit}")" != "$official_commit" ||
+                  "$(git cat-file -t "$vendor_ref")" != "tag" ]]; then
+              echo "${VENDOR_TAG} already exists with a different or non-annotated target; refusing to move it." >&2
+              exit 1
+            fi
+          fi
+
+          mirror_commit="$(git rev-parse origin/upstream/main)"
+          if [[ "$mirror_commit" != "$official_commit" &&
+                "$official_workflows_changed" == "true" &&
+                "$HAS_FINALIZER_TOKEN" != "true" ]]; then
+            echo "Official Workflow refs require UPGRADE_FINALIZER_TOKEN; refusing an unprivileged partial recovery." >&2
+            exit 1
+          fi
+          if [[ "$mirror_commit" != "$official_commit" ]]; then
+            gh api \
+              --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/git/refs/heads/upstream%2Fmain" \
+              -f sha="$official_commit" \
+              -F force=false \
+              >/dev/null
+          fi
+
+          if ! git show-ref --verify --quiet "$vendor_ref"; then
+            release_workflow_api="repos/${GITHUB_REPOSITORY}/actions/workflows/release.yml"
+            restore_release_workflow=false
+            restore_vendor_release_workflow() {
+              if [[ "$restore_release_workflow" == "true" ]]; then
+                gh api --method PUT "${release_workflow_api}/enable" >/dev/null
+                restore_release_workflow=false
+              fi
+            }
+            trap restore_vendor_release_workflow EXIT
+
+            release_workflow_state="$(gh api "$release_workflow_api" --jq .state)"
+            if [[ "$release_workflow_state" == "active" ]]; then
+              gh api --method PUT "${release_workflow_api}/disable" >/dev/null
+              restore_release_workflow=true
+            elif [[ "$release_workflow_state" != "disabled_manually" &&
+                    "$release_workflow_state" != "disabled_inactivity" ]]; then
+              echo "Release Workflow has an unsupported state: ${release_workflow_state}" >&2
+              exit 1
+            fi
+
+            tag_object="$(
+              gh api \
+                --method POST \
+                "repos/${GITHUB_REPOSITORY}/git/tags" \
+                -f tag="$VENDOR_TAG" \
+                -f message="$VENDOR_TAG" \
+                -f object="$official_commit" \
+                -f type=commit \
+                -f 'tagger[name]=github-actions[bot]' \
+                -f 'tagger[email]=41898282+github-actions[bot]@users.noreply.github.com' \
+                -f "tagger[date]=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                --jq .sha
+            )"
+            [[ "$tag_object" =~ ^[0-9a-f]{40,64}$ ]]
+            gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref="refs/tags/${VENDOR_TAG}" \
+              -f sha="$tag_object" \
+              >/dev/null
+
+            restore_vendor_release_workflow
+            trap - EXIT
+          fi
+
+          git fetch origin \
+            --no-tags \
+            '+refs/heads/upstream/main:refs/remotes/origin/upstream/main' \
+            "+refs/tags/${VENDOR_TAG}:${vendor_ref}" \
+            --force
+          if [[ "$(git rev-parse origin/upstream/main)" != "$official_commit" ||
+                "$(git rev-parse "${vendor_ref}^{commit}")" != "$official_commit" ||
+                "$(git cat-file -t "$vendor_ref")" != "tag" ]]; then
+            echo "Controlled official mirror and Vendor Tag publication did not converge exactly." >&2
+            exit 1
+          fi
 
           merged_sha="$(git rev-parse origin/main)"
           for workflow in backend-ci.yml security-scan.yml; do
@@ -1043,7 +1201,7 @@ jobs:
           set -euo pipefail
 
           title="Official ${{ needs.context.outputs.official_tag }} upgrade blocked: finalize"
-          body="All source gates passed, but exact-head status publication, PR merge, atomic main/vendor baseline update, or Publish Custom Build dispatch failed. Do not overwrite or move any existing tag; inspect remote PR, branch, main, vendor, and custom tag state before retrying.
+          body="All source gates passed, but exact-head status publication, PR merge, controlled mirror/vendor baseline publication, or Publish Custom Build dispatch failed. Do not overwrite or move any existing tag; inspect remote PR, branch, main, vendor, and custom tag state before retrying with explicit finalization recovery.
 
           Workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           existing="$(

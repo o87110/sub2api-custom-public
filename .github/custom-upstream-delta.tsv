@@ -10,14 +10,14 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.1.165.md	A	keep	A	custom-docs-ops	@absent	c9f7a078a051aa1f8da541d78815349437ab9dd5	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.165 升级、数据库评审、冲突解决与验证证据
 .github/upgrades/0.1.166.md	A	keep	A	custom-docs-ops	@absent	f7fb9a4c36102e7fa22d01a74d88fd4aab257820	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.166 升级、数据库语义评审、冲突解决与验证证据
 .github/upgrades/0.1.168.md	A	keep	A	custom-docs-ops	@absent	2fca0759a35c9ebd24c64c60787e8987f911f13e	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.168 升级、Passkey 数据库评审、冲突解决与验证证据
-.github/upgrades/0.1.169.md	A	keep	A	custom-docs-ops	@absent	00b8f70957e8fe384f0c22e63a761e7e16645e06	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.169 升级、数据库语义评审、冲突解决与验证证据
+.github/upgrades/0.1.169.md	A	keep	A	custom-docs-ops	@absent	f8f6cf71a4dbb9612107e1e0ff9e77c4d2e9cba1	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.169 升级、数据库语义评审、冲突解决与验证证据
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	01491c5dfd6b5868c7bc970f4885e4f7f6962734	-	-	candidate-tree+targeted-CI	登记全部官方薄接入点到当前 Custom 实现及测试的影子关系
 .github/workflows/backend-ci.yml	M	keep	M	fixed-path	21a4fea79caf01d1f2bfce16976fa30883b495c2	f9dfd36af52b8b973d866864929bee07d2289e61	-	-	yaml-parse+action-pin+actionlint+container-safety	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	97b245d2b141a9f3c465eb901d548cb18b0c17d5	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/release.yml	M	keep	M	fixed-path	2ba01833c112a2653155953314fc7b8a3fbf3def	45c12de4976ee4b52c3de6f481efe9c843d97e80	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	96a7ae4edd5873207a013aa827a6ea09f6f18821	30044abe5606dad7dc66edb3fb88fcf2193c717a	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	3f3618a639ba7f4d5a8672a223000d3d4234f2f6	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	将渠道监控倍率展示和分组最低余额的官方桥接、测试、生成及 Migration 路径纳入上游同步保护
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	c19938e8b72d2275188bab8a10ff6a9d5f0ac682	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	将渠道监控倍率展示和分组最低余额的官方桥接、测试、生成及 Migration 路径纳入升级人工复核
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	3acec2d70b8250547eebb20962ae4cea3e398c89	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	将渠道监控倍率展示和分组最低余额的官方桥接、测试、生成及 Migration 路径纳入升级人工复核
 .gitignore	M	keep	M	fixed-path	8c7e67f7e2592a5a42b45964c8ab6574d4cd6256	d149b1f716c1d3d85f152876f60e6d09b32f3708	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .goreleaser.simple.yaml	M	restore	RESTORED	whole-file-restore	b25df6e3bd20eba93cd94c96e047d18222534899	b25df6e3bd20eba93cd94c96e047d18222534899	-	-	baseline-blob-equality	非二改需求，整文件恢复官方基线
 .goreleaser.yaml	M	keep	M	fixed-path	19adfdf6dc489acd4af4ed82bdf63f64e16b8e33	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
@@ -208,16 +208,16 @@ deploy/tests/docker-runtime-resources-test.sh	M	keep	M	custom-test	4e7480d4d59c6
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	faa8c1b33f1a0476c3026f21a5a3aaec2abb28f9	-	-	shadow-map+runtime-boundary-test	验证 81 条官方薄接入点到 Custom 实现及测试的精确影子映射
-deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	4970a567d0ba820b5b4c3e447bdda5b32e659936	-	-	upstream-sync+crlf-ledger-test	验证渠道监控倍率展示桥接和测试始终受工作流保护与 CODEOWNERS 覆盖
+deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	2867e5e27448d1a0d9e971f8c2aad340d1f05a08	-	-	upstream-sync+crlf-ledger-test	验证渠道监控倍率展示桥接和测试始终受工作流保护与 CODEOWNERS 覆盖
 deploy/upstream/validate-upgrade-report-maintenance.sh	A	keep	A	fixed-path	@absent	f5a53260391239668e82cadba98d48d814a3d803	-	-	upstream-sync+candidate-tree	固定工具路径中的二改上游升级控制面最小差异
-docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	5b3ee173f5df0f2ee834443425bc265cf438388b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	29674c7df60a99e38d6d0071dc7f4851f231207a	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	2f188b22effd97b6fd14d9a985200f9feeeb8052	-	-	documentation-consistency-review	记录渠道监控倍率、最低余额和支付协调边界与兼容行为
-docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	f6b00df3f58b81c6db3a6e35e71d99188e78a70c	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	d2e33bf83a06209cff3d1046327335dcd963d278	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	6184e81f44c383f2154c6f5d4809bb765ca75349	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	a6c216decfdf9097a720c18b9dccca19e0172799	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	79660432a64bb9bd9b99ddede3d4e91d0355c1c2	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	d0767edc6e9ee344df954beb8910dd941479794c	-	-	documentation-consistency-review	记录支付、最低余额及 delegate/view 改名绕过负向验证
-docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	87762fdbf10756e7383c1617c1d6d481e493e6b2	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	387aa119eec04a3b1a099149395f4d1560f3cea8	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	ec3fdff21172ae3f3573326c30a9ff7ad897b92f	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	8959ec9bb40da21ccbe5f815b77b11416c6f5b19	-	-	documentation-consistency-review	记录支付、最低余额及 delegate/view 改名绕过负向验证
+docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	48644ef47bf0c78f1daeba1ff99bca5f82592f99	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 frontend/package.json	M	keep	M	fixed-path	1d4aaf3aeffb7660beb42b12c25ccace0ae56cf6	b09bc12977e039deadebdd57c50ab8b7bc058b27	-	-	frontend-security+pnpm-audit+build	升级 PostCSS 至修复高危路径读取漏洞的安全版本
 frontend/pnpm-lock.yaml	M	keep	M	fixed-path	afd53708fa0c8d3d32966a698e1d385436872075	dafe751ce043953121fd8e4c6fbf0e0acf9c4ffb	-	-	frontend-security+pnpm-audit+build	锁定 PostCSS 安全修复及对应依赖图
 frontend/src/api/__tests__/admin.system.rollback.spec.ts	M	keep	M	custom-test	15d0989ffbbe3bb4fbc2a1fc10b9d27ca0f56012	bccdbe696e22d0ea67657a08deaca23328525a82	frontend/src/api/__tests__/admin.system.rollback.spec.ts	frontend/src/custom/updater/__tests__/api.rollback.spec.ts	updater-unit+security-tests	验证二改回退超时边界
@@ -300,7 +300,7 @@ frontend/src/views/user/__tests__/KeysView.spec.ts	M	keep	M	custom-test	b66072e9
 frontend/src/views/user/__tests__/PaymentView.spec.ts	M	keep	M	official-thin-bridge	a3d688d5a9d326e64efe44162419fe80d5181283	bc5c83184989a54f097f3004edca536da4ad2e71	frontend/src/views/user/__tests__/PaymentView.spec.ts	frontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/paymentMoney.spec.ts|frontend/src/custom/payment-channels/usePaymentChannelPricing.spec.ts|frontend/src/custom/payment-channels/usePaymentChannelRecovery.spec.ts	payment-channel-vitest+typecheck+build	验证默认易支付、官方载荷、不连续区间、精确换算与手续费、零至三位小数币种、请求级手动备用和渠道恢复
 frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	M	keep	M	official-thin-bridge	85b2b0fd7040ed44f8940073061c2e5fbde8b795	70cb86b322dc890bd84ccf7f8631c2cda9d415fd	frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	frontend/src/custom/payment-channels/usePaymentChannelRecovery.spec.ts	payment-channel-vitest+typecheck+build	验证微信恢复查询保留并清理原服务商
 frontend/src/views/user/paymentWechatResume.ts	M	keep	M	official-thin-bridge	8121bc56fc4bd590385ad4780422dc95584aa0b1	9e753cd42ca8b0672e7b793fbadadf9d4c208091	frontend/src/views/user/paymentWechatResume.ts	frontend/src/custom/payment-channels/paymentRecoveryRoute.ts	payment-channel-vitest+typecheck+build	微信支付恢复查询的服务商薄适配
-tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	1cb63449bdce235024d4345f171da1932cfa356e	-	-	thin-bridge-contract-unit+candidate-tree-test	验证漏登记、缺影子、预算漂移、控制流和改名编排回流均失败
+tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	2275ad786a95475ffa9b2558ef39a1194d6d10cf	-	-	thin-bridge-contract-unit+candidate-tree-test	验证漏登记、缺影子、预算漂移、控制流和改名编排回流均失败
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
-tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	aaf885a321d67825ce107564495b09ffc9b7f247	-	-	thin-bridge-contract-unit+candidate-tree-test	无外部依赖校验全部薄桥路径、预算、影子目标及 delegate/view 函数块职责
+tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	c5a8eb78f0c98f4e79aa848065daef1fa6cb88b2	-	-	thin-bridge-contract-unit+candidate-tree-test	无外部依赖校验全部薄桥路径、预算、影子目标及 delegate/view 函数块职责
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异

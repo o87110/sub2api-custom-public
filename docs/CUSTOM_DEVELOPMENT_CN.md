@@ -62,8 +62,9 @@ frontend/src/custom/
 原因，并用定向测试证明没有把可隔离逻辑重新散落回官方实现。所有
 `official-thin-bridge` 必须逐项登记薄桥契约；`delegate`/`view` 必须指向实际 Custom
 目标，直接导入 Custom 的桥必须有影子映射，DTO/Wire/Persistence 不得承载业务循环、
-Watcher 或业务辅助函数。`delegate`/`view` 的新增函数块同样检查循环、Watcher、重试和
-协调流程；函数改名不能绕过，确属 DTO 投影的循环只允许按“路径 + 函数名”精确审核。
+Watcher 或业务辅助函数。`delegate`/`view` 相对 Vendor 新增的函数默认拒绝，只允许
+逐项登记的查询、DTO 或单次委托适配器；新增控制流按“路径 + 所属函数 + 完整语句”
+精确审核，函数改名、普通条件分支和无控制流的多步骤辅助函数均不能绕过。
 
 ## 文档导航
 

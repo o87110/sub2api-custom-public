@@ -29,9 +29,9 @@ docs/custom/
 官方目录中的薄桥接文件必须保持最小化。新增二改文件或修改分类时，同步更新
 `.github/custom-upstream-delta.tsv`、`.github/custom-thin-bridge-contract.tsv` 和必要的
 影子来源映射。薄桥契约的增删预算必须由准确 Vendor Commit 与 Candidate Tree 计算，
-不能用扩大预算掩盖业务职责回流。`delegate`/`view` 新增函数块中的循环、Watcher、
-重试或协调流程默认失败；仅 DTO 投影循环可以按路径和函数名加入最小允许列表，并须
-有正向与改名绕过负向夹具。
+不能用扩大预算掩盖业务职责回流。`delegate`/`view` 新增函数默认失败，只有已审核的
+查询、DTO 或单次委托适配器可以按路径和函数名登记；新增控制流还必须匹配路径、所属
+函数和完整语句。门禁须同时覆盖改名、普通条件分支及无控制流多步骤函数的负向夹具。
 
 ## 3. 开发流程
 

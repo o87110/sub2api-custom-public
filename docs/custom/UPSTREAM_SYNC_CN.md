@@ -93,8 +93,8 @@ UPSTREAM_SYNC_ENABLED=true
 - 冲突与保护路径检查；
 - 差异台账和 Candidate Tree；
 - 全量薄桥契约、精确增删预算和禁止高风险业务符号回流断言；
-- `delegate/view` 新增函数块的循环、Watcher、重试与改名协调流程检查，以及精确到
-  路径和函数名的 DTO 投影允许结构；
+- `delegate/view` 未登记新函数、改名循环、普通条件分支、Watcher、重试、协调流程和
+  无控制流多步骤函数检查，以及精确到路径、所属函数和完整语句的允许结构；
 - 影子来源映射检查；
 - 数据库语义门禁；
 - 后端 Unit、Integration 和生产构建；
@@ -140,8 +140,29 @@ UPSTREAM_SYNC_ENABLED=true
 5. 从受信任 `main` 调度准确合并 SHA 的 CI 与 Security Scan。
 6. CI 成功后才允许发布 `vX.Y.Z-custom.1`。
 
-`refs/heads/upstream/main` 与 `vendor-*` 的更新必须是同一次受控收尾，避免产生
-“代码已合并但基线未登记”的中间状态。
+`refs/heads/upstream/main` 与 `vendor-*` 的更新必须由同一次受控收尾负责。官方
+Commit 可能包含 Workflow 文件变化，临时 `GITHUB_TOKEN` 不通过 Git Push 上传这类
+对象；最终器应在确认对象已经随已合并 PR 进入仓库后，使用 Git Database API 先做
+镜像分支的非强制快进，再创建指向同一 Commit 的不可移动注释 Tag，并重新抓取验证
+分支、Tag 类型和 peeled Commit。任何一步失败都不得移动已有 Tag。
+
+若希望这类升级也全自动收尾，可配置 Repository Secret
+`UPGRADE_FINALIZER_TOKEN`，其权限只用于更新包含 Workflow 变化的受控引用。Secret
+仅注入从受信任 `main` 手动调度、且全部候选门禁已成功的最终器，不进入候选代码、
+构建、测试或发布 Job。未配置时，最终器必须在合并前识别 Workflow 差异并失败关闭；
+维护者可在门禁证据仍精确绑定时通过本机受信任 SSH 恢复引用，再运行显式恢复模式。
+
+若 PR 已合并但上述引用或精确 SHA 调度未完成，只允许从受信任 `main` 显式启用
+`resume_finalization`。恢复任务必须重新绑定原 PR 的 base SHA、Head SHA 和 merge SHA，
+确认三者仍在当前 `main` 历史中，重跑同一候选门禁，并仅补齐缺失引用或调度。镜像已
+快进但 Tag 尚未创建、或 Tag 已正确创建但后续调度失败，均按相同验证规则恢复；不同
+目标或轻量 `vendor-*` Tag 必须失败关闭。
+
+创建新的 `vendor-*` Tag 前，最终器必须读取仓库 `release.yml` 的当前状态。若其处于
+active，先通过 Actions API 临时停用，再创建注释 Tag，并在成功路径和异常退出路径
+恢复原状态。原因是官方 Workflow 的 `v*` 模式也会匹配 `vendor-*`，而 Tag 事件读取
+的是 Tag 所指官方 Commit 中的 Workflow；仅收紧 `main` 上的 Custom Tag 模式不能阻止
+该官方 Release 误触发。原本已停用的 Workflow 不得被最终器擅自启用。
 
 ## 10. 阻断恢复
 
@@ -151,7 +172,7 @@ UPSTREAM_SYNC_ENABLED=true
 | `protected_overlap` | 先审查官方变化如何映射到 Custom 路径 |
 | `database_review` | 完成人工数据库评审和回滚说明 |
 | `tests` | 修复候选分支，不能关闭检查绕过 |
-| 收尾失败 | 核对 `main`、`origin/upstream/main`、`vendor-*` 后从可信分支重试 |
+| 收尾失败 | 核对 `main`、`origin/upstream/main`、`vendor-*` 后，从可信 `main` 对准确已合并 PR 启用 `resume_finalization` |
 | Release/GHCR 失败 | 保持 Tag 不变，按发布恢复流程处理 |
 
 AI 或维护者修复后继续使用同一个 `upgrade/vX.Y.Z`，确保历史和讨论可追溯。

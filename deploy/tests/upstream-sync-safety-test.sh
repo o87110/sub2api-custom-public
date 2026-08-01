@@ -847,6 +847,12 @@ grep -Fq "needs.required_validation.result == 'success'" "$tmp_dir/finalize.yml"
 grep -Fq -- '- context' "$tmp_dir/finalize.yml"
 grep -Fq -- '- publish_validation_status' "$tmp_dir/finalize.yml"
 grep -Fq -- '- required_validation' "$tmp_dir/finalize.yml"
+grep -Fq 'GH_TOKEN: ${{ secrets.UPGRADE_FINALIZER_TOKEN || github.token }}' "$tmp_dir/finalize.yml"
+grep -Fq "HAS_FINALIZER_TOKEN: \${{ secrets.UPGRADE_FINALIZER_TOKEN != '' }}" "$tmp_dir/finalize.yml"
+test "$(grep -Fc 'secrets.UPGRADE_FINALIZER_TOKEN' "$gate_workflow")" -eq 2
+grep -Fq \
+  'Official Workflow files changed; configure UPGRADE_FINALIZER_TOKEN with workflow scope before merging.' \
+  "$tmp_dir/finalize.yml"
 
 grep -Fq 'statuses: write' "$sync_workflow"
 grep -Fq 'dispatch_missing_upgrade_checks()' "$sync_workflow"
@@ -957,7 +963,22 @@ grep -Fq \
   'Trusted upgrade dispatch must run from refs/heads/main.' \
   "$gate_workflow"
 grep -Fq \
+  'resume_finalization:' \
+  "$gate_workflow"
+grep -Fq \
+  'INPUT_RESUME_FINALIZATION: ${{ inputs.resume_finalization || false }}' \
+  "$gate_workflow"
+grep -Fq \
   'is_upgrade: ${{ steps.resolve.outputs.is_upgrade }}' \
+  "$gate_workflow"
+grep -Fq \
+  'base_sha: ${{ steps.resolve.outputs.base_sha }}' \
+  "$gate_workflow"
+grep -Fq \
+  'recovery_mode: ${{ steps.resolve.outputs.recovery_mode }}' \
+  "$gate_workflow"
+grep -Fq \
+  'Finalization recovery requires an already-merged upgrade PR with an exact merge commit.' \
   "$gate_workflow"
 grep -Fq \
   'Reject official upgrades on non-standard branches' \
@@ -991,7 +1012,7 @@ grep -Fq \
   'git merge-base --is-ancestor "${base_ref}^{commit}" "${official_ref}^{commit}"' \
   "$gate_workflow"
 grep -Fq \
-  'git merge-base --is-ancestor origin/main "$HEAD_SHA"' \
+  'git merge-base --is-ancestor "$trusted_main_ref" "$HEAD_SHA"' \
   "$gate_workflow"
 grep -Fq \
   'upgrade:database-approved' \
@@ -1014,8 +1035,110 @@ grep -Fq \
 grep -Fq -- \
   '--match-head-commit "$HEAD_SHA"' \
   "$gate_workflow"
-grep -Fq \
+fail_if_present \
+  "GitHub App finalization must not push official workflow objects through Git" \
   'git push --atomic origin' \
+  "$gate_workflow"
+grep -Fq \
+  '"repos/${GITHUB_REPOSITORY}/git/refs/heads/upstream%2Fmain"' \
+  "$gate_workflow"
+grep -Fq \
+  '"repos/${GITHUB_REPOSITORY}/git/tags"' \
+  "$gate_workflow"
+grep -Fq \
+  '"repos/${GITHUB_REPOSITORY}/git/refs"' \
+  "$gate_workflow"
+grep -Fq \
+  'release_workflow_api="repos/${GITHUB_REPOSITORY}/actions/workflows/release.yml"' \
+  "$tmp_dir/finalize.yml"
+grep -Fq \
+  'trap restore_vendor_release_workflow EXIT' \
+  "$tmp_dir/finalize.yml"
+grep -Fq \
+  'gh api --method PUT "${release_workflow_api}/disable"' \
+  "$tmp_dir/finalize.yml"
+grep -Fq \
+  'gh api --method PUT "${release_workflow_api}/enable"' \
+  "$tmp_dir/finalize.yml"
+grep -Fq \
+  'release_workflow_state" != "disabled_inactivity"' \
+  "$tmp_dir/finalize.yml"
+disable_release_line="$(grep -nF 'gh api --method PUT "${release_workflow_api}/disable"' "$tmp_dir/finalize.yml" | cut -d: -f1)"
+create_vendor_ref_line="$(grep -nF '"repos/${GITHUB_REPOSITORY}/git/refs"' "$tmp_dir/finalize.yml" | cut -d: -f1)"
+restore_release_line="$(grep -nF 'restore_vendor_release_workflow' "$tmp_dir/finalize.yml" | tail -n 1 | cut -d: -f1)"
+if [[ -z "$disable_release_line" || -z "$create_vendor_ref_line" || -z "$restore_release_line" ||
+      "$disable_release_line" -ge "$create_vendor_ref_line" ||
+      "$create_vendor_ref_line" -ge "$restore_release_line" ]]; then
+  fail "Vendor Tag publication is not enclosed by Release Workflow disable/restore protection"
+fi
+awk '
+  /release_workflow_api="repos\/\$\{GITHUB_REPOSITORY\}\/actions\/workflows\/release.yml"/ { capture=1 }
+  capture {
+    sub(/^            /, "")
+    print
+  }
+  capture && /trap - EXIT/ { exit }
+' "$tmp_dir/finalize.yml" > "$tmp_dir/vendor-tag-publication.sh"
+cat > "$tmp_dir/mock-bin/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$GH_CAPTURE"
+if [[ "$*" == *'--jq .state'* ]]; then
+  printf '%s\n' "${GH_WORKFLOW_STATE:-active}"
+elif [[ "$*" == *'/git/tags'* ]]; then
+  if [[ "${GH_FAIL_VENDOR_TAG:-false}" == "true" ]]; then
+    exit 1
+  fi
+  printf '%s\n' 0123456789abcdef0123456789abcdef01234567
+fi
+EOF
+chmod +x "$tmp_dir/mock-bin/gh"
+
+run_vendor_tag_publication_case() {
+  local failure_mode="$1"
+  local capture="$tmp_dir/vendor-tag-${failure_mode}.txt"
+  rm -f "$capture"
+  if [[ "$failure_mode" == "success" ]]; then
+    env \
+      PATH="$tmp_dir/mock-bin:$PATH" \
+      GH_CAPTURE="$capture" \
+      GITHUB_REPOSITORY=o87110/sub2api-custom-public \
+      VENDOR_TAG=vendor-9.9.9 \
+      official_commit=0123456789abcdef0123456789abcdef01234567 \
+      /bin/bash -euo pipefail "$tmp_dir/vendor-tag-publication.sh"
+  elif [[ "$failure_mode" == "disabled" ]]; then
+    env \
+      PATH="$tmp_dir/mock-bin:$PATH" \
+      GH_CAPTURE="$capture" \
+      GH_WORKFLOW_STATE=disabled_manually \
+      GITHUB_REPOSITORY=o87110/sub2api-custom-public \
+      VENDOR_TAG=vendor-9.9.9 \
+      official_commit=0123456789abcdef0123456789abcdef01234567 \
+      /bin/bash -euo pipefail "$tmp_dir/vendor-tag-publication.sh"
+  elif env \
+      PATH="$tmp_dir/mock-bin:$PATH" \
+      GH_CAPTURE="$capture" \
+      GH_FAIL_VENDOR_TAG=true \
+      GITHUB_REPOSITORY=o87110/sub2api-custom-public \
+      VENDOR_TAG=vendor-9.9.9 \
+      official_commit=0123456789abcdef0123456789abcdef01234567 \
+      /bin/bash -euo pipefail "$tmp_dir/vendor-tag-publication.sh" >/dev/null 2>&1; then
+    fail "Vendor Tag publication fixture did not exercise its failure path"
+  fi
+  if [[ "$failure_mode" == "disabled" ]]; then
+    test "$(grep -Fc '/actions/workflows/release.yml/disable' "$capture")" -eq 0
+    test "$(grep -Fc '/actions/workflows/release.yml/enable' "$capture")" -eq 0
+  else
+    test "$(grep -Fc '/actions/workflows/release.yml/disable' "$capture")" -eq 1
+    test "$(grep -Fc '/actions/workflows/release.yml/enable' "$capture")" -eq 1
+  fi
+}
+
+run_vendor_tag_publication_case success
+run_vendor_tag_publication_case failure
+run_vendor_tag_publication_case disabled
+grep -Fq \
+  '"$(git cat-file -t "$vendor_ref")" != "tag"' \
   "$gate_workflow"
 grep -Fq \
   'git merge-base --is-ancestor origin/upstream/main "$official_commit"' \
@@ -1024,19 +1147,25 @@ grep -Fq \
   'git merge-base --is-ancestor origin/main "origin/${HEAD_REF}"' \
   "$gate_workflow"
 grep -Fq \
+  'git merge-base --is-ancestor "$HEAD_SHA" "$MERGE_COMMIT_SHA"' \
+  "$gate_workflow"
+grep -Fq \
+  'git merge-base --is-ancestor "$MERGE_COMMIT_SHA" origin/main' \
+  "$gate_workflow"
+grep -Fq \
   'upgrade blocked: finalize' \
   "$gate_workflow"
 grep -Fq \
   'shadow_map="/tmp/upstream-shadowed-sources.tsv"' \
   "$gate_workflow"
 grep -Fq \
-  'git show origin/main:.github/upstream-shadowed-sources.tsv > "$shadow_map"' \
+  'git show "${trusted_main_ref}:.github/upstream-shadowed-sources.tsv" > "$shadow_map"' \
   "$gate_workflow"
 grep -Fq -- \
-  'git diff --name-only --no-renames origin/main "$HEAD_SHA"' \
+  'git diff --name-only --no-renames "$trusted_main_ref" "$HEAD_SHA"' \
   "$gate_workflow"
 grep -Fq \
-  'git merge-tree --write-tree origin/main "${official_ref}^{commit}"' \
+  'git merge-tree --write-tree "$trusted_main_ref" "${official_ref}^{commit}"' \
   "$gate_workflow"
 grep -Fq \
   '/tmp/unexpected-upgrade-tree-files.txt' \
