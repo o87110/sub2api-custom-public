@@ -69,6 +69,7 @@
 /backend/internal/service/admin_group.go @o87110
 /backend/internal/service/admin_group_duplicate.go @o87110
 /backend/internal/service/admin_group_duplicate_test.go @o87110
+/backend/internal/service/admin_group_minimum_balance_custom_test.go @o87110
 /backend/internal/service/admin_service.go @o87110
 /backend/internal/service/admin_service_group_test.go @o87110
 /backend/internal/service/api_key_auth_cache.go @o87110
