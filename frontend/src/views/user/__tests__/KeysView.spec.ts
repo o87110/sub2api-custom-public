@@ -106,7 +106,7 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-const createApiKey = (): ApiKey => ({
+const createApiKey = (overrides: Partial<ApiKey> = {}): ApiKey => ({
   id: 1,
   user_id: 1,
   key: 'sk-test-key',
@@ -135,6 +135,7 @@ const createApiKey = (): ApiKey => ({
   reset_5h_at: null,
   reset_1d_at: null,
   reset_7d_at: null,
+  ...overrides,
 })
 
 const AppLayoutStub = {
@@ -332,6 +333,36 @@ describe('user KeysView column settings', () => {
     expect(visibleColumnKeys(wrapper)).not.toContain('last_used_at')
     expect(visibleColumnKeys(wrapper)).not.toContain('last_used_ip')
     expect(visibleColumnKeys(wrapper)).not.toContain('id')
+  })
+
+  it('hides the multi-group summary while the global switch is disabled', async () => {
+    listKeys.mockResolvedValueOnce({
+      items: [createApiKey({ group_ids: [1, 2] })],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+    getPublicSettings.mockResolvedValueOnce({ api_key_multi_group_enabled: false })
+
+    const wrapper = await mountView()
+
+    expect(wrapper.find('[data-test="api-key-group-count"]').exists()).toBe(false)
+  })
+
+  it('shows the multi-group summary only while the global switch is enabled', async () => {
+    listKeys.mockResolvedValueOnce({
+      items: [createApiKey({ group_ids: [1, 2, 3] })],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+    getPublicSettings.mockResolvedValueOnce({ api_key_multi_group_enabled: true })
+
+    const wrapper = await mountView()
+
+    expect(wrapper.get('[data-test="api-key-group-count"]').text()).toBe('+2')
   })
 
   it('shows a hidden column when toggled and persists the preference', async () => {

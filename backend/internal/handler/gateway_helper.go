@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
@@ -18,6 +19,8 @@ import (
 
 // claudeCodeValidator is a singleton validator for Claude Code client detection
 var claudeCodeValidator = service.NewClaudeCodeValidator()
+
+var errAccountCapacityUnavailable = errors.New("no available account capacity")
 
 // SetClaudeCodeClientContext 检查请求是否来自 Claude Code 客户端，并设置到 context 中
 // 返回更新后的 context
@@ -235,6 +238,66 @@ func (h *ConcurrencyHelper) TryAcquireAccountSlot(ctx context.Context, accountID
 		return nil, false, nil
 	}
 	return result.ReleaseFunc, true, nil
+}
+
+// acquireSelectedAccountSlot consumes an already selected account result without
+// writing a client response. Callers can therefore fail over to another group
+// before committing a protocol-specific error.
+func (h *ConcurrencyHelper) acquireSelectedAccountSlot(
+	c *gin.Context,
+	selection *service.AccountSelectionResult,
+	isStream bool,
+	streamStarted *bool,
+) (func(), error) {
+	if selection == nil || selection.Account == nil || selection.WaitPlan == nil && !selection.Acquired {
+		return nil, errAccountCapacityUnavailable
+	}
+
+	ctx := c.Request.Context()
+	if selection.Acquired {
+		return wrapReleaseOnDone(ctx, selection.ReleaseFunc), nil
+	}
+
+	account := selection.Account
+	fastRelease, fastAcquired, err := h.TryAcquireAccountSlot(
+		ctx,
+		account.ID,
+		selection.WaitPlan.MaxConcurrency,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if fastAcquired {
+		return wrapReleaseOnDone(ctx, fastRelease), nil
+	}
+
+	canWait, waitErr := h.IncrementAccountWaitCount(ctx, account.ID, selection.WaitPlan.MaxWaiting)
+	if waitErr == nil && !canWait {
+		return nil, &WaitQueueFullError{SlotType: "account"}
+	}
+
+	waitCounted := waitErr == nil && canWait
+	releaseWait := func() {
+		if waitCounted {
+			h.DecrementAccountWaitCount(ctx, account.ID)
+			waitCounted = false
+		}
+	}
+	defer releaseWait()
+
+	release, err := h.AcquireAccountSlotWithWaitTimeout(
+		c,
+		account.ID,
+		selection.WaitPlan.MaxConcurrency,
+		selection.WaitPlan.Timeout,
+		isStream,
+		streamStarted,
+	)
+	if err != nil {
+		return nil, err
+	}
+	releaseWait()
+	return wrapReleaseOnDone(ctx, release), nil
 }
 
 // AcquireUserSlotWithWait acquires a user concurrency slot, waiting if necessary.

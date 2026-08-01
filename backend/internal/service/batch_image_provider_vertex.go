@@ -655,6 +655,10 @@ func mapVertexClientError(err error) error {
 		case http.StatusNotFound:
 			return vertexProviderError("VERTEX_BATCH_NOT_FOUND", "Vertex batch resource was not found", nil)
 		default:
+			if apiErr.StatusCode >= http.StatusBadRequest && apiErr.StatusCode < http.StatusInternalServerError &&
+				apiErr.StatusCode != http.StatusRequestTimeout {
+				return ErrBatchImageProviderInvalidInput
+			}
 			return vertexProviderError("VERTEX_INVALID_RESPONSE", "Vertex API request failed", nil)
 		}
 	}

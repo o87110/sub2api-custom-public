@@ -875,6 +875,9 @@ func (s *GatewayService) resolveGatewayGroup(ctx context.Context, groupID *int64
 		if !group.ClaudeCodeOnly || IsClaudeCodeClient(ctx) {
 			return group, &currentID, nil
 		}
+		if IsMultiGroupRouting(ctx) {
+			return nil, nil, ErrClaudeCodeOnly
+		}
 
 		if group.FallbackGroupID == nil {
 			return nil, nil, ErrClaudeCodeOnly

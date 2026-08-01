@@ -7,6 +7,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 )
 
+type compositeRouteEndpointContextKey struct{}
+
 // WithResolvedTargetPlatform stores the concrete provider chosen for a request
 // made through a composite group.
 func WithResolvedTargetPlatform(ctx context.Context, platform string) context.Context {
@@ -45,7 +47,25 @@ func WithCompositeRouteDecision(ctx context.Context, decision CompositeRouteDeci
 	if source := strings.TrimSpace(decision.Source); source != "" {
 		ctx = context.WithValue(ctx, ctxkey.CompositeRouteSource, source)
 	}
+	if endpoint := normalizeCompositeRouteEndpoint(decision.Endpoint); endpoint != "" {
+		ctx = context.WithValue(ctx, compositeRouteEndpointContextKey{}, endpoint)
+	}
 	return ctx
+}
+
+// WithoutCompositeRouteDecision clears candidate-specific composite routing
+// values while preserving request-wide context such as the public model.
+// Multi-group routing calls this before resolving every candidate so a
+// previous group's target platform or upstream model cannot leak into the
+// next group.
+func WithoutCompositeRouteDecision(ctx context.Context) context.Context {
+	if ctx == nil {
+		return ctx
+	}
+	ctx = context.WithValue(ctx, ctxkey.ResolvedTargetPlatform, "")
+	ctx = context.WithValue(ctx, ctxkey.ResolvedUpstreamModel, "")
+	ctx = context.WithValue(ctx, ctxkey.CompositeRouteSource, "")
+	return context.WithValue(ctx, compositeRouteEndpointContextKey{}, "")
 }
 
 func ResolvedUpstreamModelFromContext(ctx context.Context) (string, bool) {
@@ -82,6 +102,41 @@ func CompositeRouteSourceFromContext(ctx context.Context) (string, bool) {
 		return "", false
 	}
 	return source, true
+}
+
+func CompositeRouteEndpointFromContext(ctx context.Context) (string, bool) {
+	if ctx == nil {
+		return "", false
+	}
+	endpoint, ok := ctx.Value(compositeRouteEndpointContextKey{}).(string)
+	if !ok || strings.TrimSpace(endpoint) == "" {
+		return "", false
+	}
+	endpoint = normalizeCompositeRouteEndpoint(endpoint)
+	return endpoint, true
+}
+
+// ResolveCompositeRouteCandidate resolves one candidate independently from any
+// decision already stored in the request context. Multi-group routing uses it
+// so each composite group can own a distinct explicit model route.
+func (s *GatewayService) ResolveCompositeRouteCandidate(
+	ctx context.Context,
+	group *Group,
+	publicModel string,
+	endpoint string,
+) (CompositeRouteDecision, bool, error) {
+	if group == nil || group.Platform != PlatformComposite {
+		return CompositeRouteDecision{}, false, nil
+	}
+	resolver := s.compositeResolver
+	if resolver == nil {
+		resolver = NewCompositeRouteResolver(nil)
+	}
+	decision, err := resolver.Resolve(ctx, group.ID, publicModel, endpoint)
+	if err != nil {
+		return decision, false, err
+	}
+	return decision, decision.Matched, nil
 }
 
 // DetectModelPlatform maps common public model IDs to the concrete provider

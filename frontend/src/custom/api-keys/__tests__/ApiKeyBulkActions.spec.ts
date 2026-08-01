@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import Select from '@/components/common/Select.vue'
 import type { ApiKey, Group } from '@/types'
 import ApiKeyBulkActions from '../ApiKeyBulkActions.vue'
 
@@ -119,22 +120,15 @@ const createGroup = (id: number): Group => ({
   updated_at: '2026-07-25T00:00:00Z'
 })
 
-const SelectStub = {
-  name: 'Select',
-  props: ['modelValue', 'options', 'disabled'],
-  emits: ['update:modelValue'],
+const ApiKeyGroupPriorityEditorStub = {
+  name: 'ApiKeyGroupPriorityEditor',
+  props: ['modelValue', 'groups', 'selectedGroups', 'userGroupRates', 'busy', 'error', 'showActions'],
+  emits: ['save', 'cancel'],
   template: `
-    <select
-      data-test="bulk-group-select-stub"
-      :value="modelValue ?? ''"
-      :disabled="disabled"
-      @change="$emit('update:modelValue', Number($event.target.value))"
-    >
-      <option value="">select</option>
-      <option v-for="option in options" :key="option.value" :value="option.value">
-        {{ option.label }}
-      </option>
-    </select>
+    <div data-test="bulk-group-editor-stub" :aria-busy="String(busy)">
+      <span data-test="bulk-group-error">{{ error }}</span>
+      <button data-test="bulk-group-cancel-stub" @click="$emit('cancel')">cancel</button>
+    </div>
   `
 }
 
@@ -161,11 +155,12 @@ const mountActions = (
     rows,
     selectedIds,
     groups,
-    userGroupRates: {}
+    userGroupRates: {},
+    multiGroupEnabled: true
   },
   global: {
     stubs: {
-      Select: SelectStub,
+      ApiKeyGroupPriorityEditor: ApiKeyGroupPriorityEditorStub,
       ConfirmDialog: ConfirmDialogStub,
       GroupBadge: true,
       GroupOptionItem: true,
@@ -199,16 +194,35 @@ describe('ApiKeyBulkActions', () => {
     expect(wrapper.emitted('update:selectedIds')?.at(-1)?.[0]).toEqual([])
   })
 
-  it('requires a target group before applying a group change', async () => {
+  it('opens and cancels the group editor without applying changes', async () => {
     const wrapper = mountActions([createApiKey(1)], [1])
 
-    expect(wrapper.get('[data-test="bulk-apply-group"]').attributes('disabled')).toBeDefined()
-    await wrapper.get('[data-test="bulk-apply-group"]').trigger('click')
+    await wrapper.get('[data-test="bulk-open-group-editor"]').trigger('click')
+    expect(wrapper.get('[data-test="bulk-group-editor-stub"]').exists()).toBe(true)
+
+    await wrapper.get('[data-test="bulk-group-cancel-stub"]').trigger('click')
 
     expect(updateKey).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-test="bulk-group-editor-stub"]').exists()).toBe(false)
   })
 
-  it('disables only groups that currently fail the minimum-balance gate', () => {
+  it('preserves the legacy single-group bulk flow when multi-group routing is disabled', async () => {
+    const wrapper = mountActions([createApiKey(1)], [1])
+    await wrapper.setProps({ multiGroupEnabled: false })
+
+    expect(wrapper.find('[data-test="bulk-open-group-editor"]').exists()).toBe(false)
+    expect(wrapper.get('[data-test="bulk-clear"]').exists()).toBe(true)
+
+    wrapper.findComponent(Select).vm.$emit('update:modelValue', 7)
+    await nextTick()
+    await wrapper.get('[data-test="bulk-apply-group"]').trigger('click')
+    await flushPromises()
+
+    expect(updateKey).toHaveBeenCalledWith(1, { group_id: 7 })
+    expect(updateKey).not.toHaveBeenCalledWith(1, expect.objectContaining({ group_ids: expect.anything() }))
+  })
+
+  it('passes all candidate groups to the priority editor', async () => {
     const healthy = createGroup(7)
     const blocked = {
       ...createGroup(8),
@@ -219,38 +233,82 @@ describe('ApiKeyBulkActions', () => {
       balance_eligible: false
     }
     const wrapper = mountActions([createApiKey(1)], [1], [healthy, blocked])
-    const options = wrapper.findComponent({ name: 'Select' }).props('options') as Array<{
-      value: number
-      disabled: boolean
-      balanceRequirement: unknown
-    }>
+    await wrapper.get('[data-test="bulk-open-group-editor"]').trigger('click')
 
-    expect(options.find((option) => option.value === 7)).toMatchObject({
-      disabled: false,
-      balanceRequirement: null
-    })
-    expect(options.find((option) => option.value === 8)).toMatchObject({
-      disabled: true,
-      balanceRequirement: expect.objectContaining({
-        minimumBalance: 100,
-        currentBalance: 80,
-        balanceGap: 20
-      })
-    })
+    expect(wrapper.findComponent({ name: 'ApiKeyGroupPriorityEditor' }).props('groups'))
+      .toEqual([healthy, blocked])
   })
 
-  it('changes groups without confirmation and skips rows already in the target group', async () => {
+  it('prefills a shared ordered list and preserves common assigned low-balance groups', async () => {
+    const healthy = createGroup(7)
+    const blocked = {
+      ...createGroup(8),
+      minimum_balance: 100,
+      current_balance: 80,
+      usable_balance: 0,
+      balance_gap: 20,
+      balance_eligible: false
+    }
+    const rows = [
+      createApiKey(1, { group_id: 7, group_ids: [7, 8], groups: [healthy, blocked] }),
+      createApiKey(2, { group_id: 7, group_ids: [7, 8], groups: [healthy, blocked] })
+    ]
+    const wrapper = mountActions(rows, [1, 2], [healthy, blocked])
+
+    await wrapper.get('[data-test="bulk-open-group-editor"]').trigger('click')
+
+    const editor = wrapper.findComponent({ name: 'ApiKeyGroupPriorityEditor' })
+    expect(editor.props('modelValue')).toEqual([7, 8])
+    expect(editor.props('selectedGroups')).toEqual([healthy, blocked])
+  })
+
+  it('treats only groups assigned to every selected key as existing', async () => {
+    const group7 = createGroup(7)
+    const group8 = createGroup(8)
+    const group9 = createGroup(9)
+    const rows = [
+      createApiKey(1, { group_id: 7, group_ids: [7, 8], groups: [group7, group8] }),
+      createApiKey(2, { group_id: 7, group_ids: [7, 9], groups: [group7, group9] })
+    ]
+    const wrapper = mountActions(rows, [1, 2], [group7, group8, group9])
+
+    await wrapper.get('[data-test="bulk-open-group-editor"]').trigger('click')
+
+    const editor = wrapper.findComponent({ name: 'ApiKeyGroupPriorityEditor' })
+    expect(editor.props('modelValue')).toEqual([])
+    expect(editor.props('selectedGroups')).toEqual([group7])
+  })
+
+  it('resets an open draft when the idle selection changes', async () => {
+    const wrapper = mountActions([
+      createApiKey(1, { group_id: 7, group_ids: [7] }),
+      createApiKey(2, { group_id: 8, group_ids: [8] })
+    ], [1], [createGroup(7), createGroup(8)])
+
+    await wrapper.get('[data-test="bulk-open-group-editor"]').trigger('click')
+    expect(wrapper.findComponent({ name: 'ApiKeyGroupPriorityEditor' }).props('modelValue'))
+      .toEqual([7])
+
+    await wrapper.setProps({ selectedIds: [2] })
+
+    expect(wrapper.find('[data-test="bulk-group-editor-stub"]').exists()).toBe(false)
+    await wrapper.get('[data-test="bulk-open-group-editor"]').trigger('click')
+    expect(wrapper.findComponent({ name: 'ApiKeyGroupPriorityEditor' }).props('modelValue'))
+      .toEqual([8])
+  })
+
+  it('replaces the complete group list without confirmation and skips matching rows', async () => {
     const wrapper = mountActions([
       createApiKey(1),
-      createApiKey(2, { group_id: 7 })
-    ], [1, 2])
+      createApiKey(2, { group_id: 7, group_ids: [7, 8] })
+    ], [1, 2], [createGroup(7), createGroup(8)])
 
-    await wrapper.get('[data-test="bulk-group-select"]').setValue('7')
-    await wrapper.get('[data-test="bulk-apply-group"]').trigger('click')
+    await wrapper.get('[data-test="bulk-open-group-editor"]').trigger('click')
+    wrapper.findComponent({ name: 'ApiKeyGroupPriorityEditor' }).vm.$emit('save', [7, 8])
     await flushPromises()
 
     expect(updateKey).toHaveBeenCalledTimes(1)
-    expect(updateKey).toHaveBeenCalledWith(1, { group_id: 7 })
+    expect(updateKey).toHaveBeenCalledWith(1, { group_ids: [7, 8] })
     expect(wrapper.find('[data-test="bulk-confirm-dialog"]').exists()).toBe(false)
     expect(wrapper.emitted('completed')?.at(-1)?.[0]).toEqual({
       action: 'group',
@@ -267,8 +325,8 @@ describe('ApiKeyBulkActions', () => {
     )
     const wrapper = mountActions([createApiKey(1), createApiKey(2)], [1, 2])
 
-    await wrapper.get('[data-test="bulk-group-select"]').setValue('7')
-    await wrapper.get('[data-test="bulk-apply-group"]').trigger('click')
+    await wrapper.get('[data-test="bulk-open-group-editor"]').trigger('click')
+    wrapper.findComponent({ name: 'ApiKeyGroupPriorityEditor' }).vm.$emit('save', [7])
     await flushPromises()
 
     expect(wrapper.emitted('update:selectedIds')?.at(-1)?.[0]).toEqual([2])
@@ -287,8 +345,8 @@ describe('ApiKeyBulkActions', () => {
     })
     const wrapper = mountActions([createApiKey(1)], [1])
 
-    await wrapper.get('[data-test="bulk-group-select"]').setValue('7')
-    await wrapper.get('[data-test="bulk-apply-group"]').trigger('click')
+    await wrapper.get('[data-test="bulk-open-group-editor"]').trigger('click')
+    wrapper.findComponent({ name: 'ApiKeyGroupPriorityEditor' }).vm.$emit('save', [7])
     await flushPromises()
 
     expect(showError).toHaveBeenCalledWith(
@@ -405,12 +463,14 @@ describe('ApiKeyBulkActions', () => {
     }))
     const wrapper = mountActions([createApiKey(1)], [1])
 
-    await wrapper.get('[data-test="bulk-group-select"]').setValue('7')
-    await wrapper.get('[data-test="bulk-apply-group"]').trigger('click')
-    await wrapper.get('[data-test="bulk-apply-group"]').trigger('click')
+    await wrapper.get('[data-test="bulk-open-group-editor"]').trigger('click')
+    const editor = wrapper.findComponent({ name: 'ApiKeyGroupPriorityEditor' })
+    editor.vm.$emit('save', [7])
+    editor.vm.$emit('save', [7])
+    await nextTick()
 
     expect(updateKey).toHaveBeenCalledTimes(1)
-    expect(wrapper.get('[data-test="bulk-apply-group"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.findComponent({ name: 'ApiKeyGroupPriorityEditor' }).props('busy')).toBe(true)
 
     resolveUpdate?.()
     await flushPromises()

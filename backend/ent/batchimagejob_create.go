@@ -48,6 +48,20 @@ func (_c *BatchImageJobCreate) SetNillableAPIKeyID(v *int64) *BatchImageJobCreat
 	return _c
 }
 
+// SetGroupID sets the "group_id" field.
+func (_c *BatchImageJobCreate) SetGroupID(v int64) *BatchImageJobCreate {
+	_c.mutation.SetGroupID(v)
+	return _c
+}
+
+// SetNillableGroupID sets the "group_id" field if the given value is not nil.
+func (_c *BatchImageJobCreate) SetNillableGroupID(v *int64) *BatchImageJobCreate {
+	if v != nil {
+		_c.SetGroupID(*v)
+	}
+	return _c
+}
+
 // SetAccountID sets the "account_id" field.
 func (_c *BatchImageJobCreate) SetAccountID(v int64) *BatchImageJobCreate {
 	_c.mutation.SetAccountID(v)
@@ -792,6 +806,10 @@ func (_c *BatchImageJobCreate) createSpec() (*BatchImageJob, *sqlgraph.CreateSpe
 		_spec.SetField(batchimagejob.FieldAPIKeyID, field.TypeInt64, value)
 		_node.APIKeyID = &value
 	}
+	if value, ok := _c.mutation.GroupID(); ok {
+		_spec.SetField(batchimagejob.FieldGroupID, field.TypeInt64, value)
+		_node.GroupID = &value
+	}
 	if value, ok := _c.mutation.AccountID(); ok {
 		_spec.SetField(batchimagejob.FieldAccountID, field.TypeInt64, value)
 		_node.AccountID = &value
@@ -1031,6 +1049,30 @@ func (u *BatchImageJobUpsert) AddAPIKeyID(v int64) *BatchImageJobUpsert {
 // ClearAPIKeyID clears the value of the "api_key_id" field.
 func (u *BatchImageJobUpsert) ClearAPIKeyID() *BatchImageJobUpsert {
 	u.SetNull(batchimagejob.FieldAPIKeyID)
+	return u
+}
+
+// SetGroupID sets the "group_id" field.
+func (u *BatchImageJobUpsert) SetGroupID(v int64) *BatchImageJobUpsert {
+	u.Set(batchimagejob.FieldGroupID, v)
+	return u
+}
+
+// UpdateGroupID sets the "group_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsert) UpdateGroupID() *BatchImageJobUpsert {
+	u.SetExcluded(batchimagejob.FieldGroupID)
+	return u
+}
+
+// AddGroupID adds v to the "group_id" field.
+func (u *BatchImageJobUpsert) AddGroupID(v int64) *BatchImageJobUpsert {
+	u.Add(batchimagejob.FieldGroupID, v)
+	return u
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (u *BatchImageJobUpsert) ClearGroupID() *BatchImageJobUpsert {
+	u.SetNull(batchimagejob.FieldGroupID)
 	return u
 }
 
@@ -1758,6 +1800,34 @@ func (u *BatchImageJobUpsertOne) UpdateAPIKeyID() *BatchImageJobUpsertOne {
 func (u *BatchImageJobUpsertOne) ClearAPIKeyID() *BatchImageJobUpsertOne {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.ClearAPIKeyID()
+	})
+}
+
+// SetGroupID sets the "group_id" field.
+func (u *BatchImageJobUpsertOne) SetGroupID(v int64) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetGroupID(v)
+	})
+}
+
+// AddGroupID adds v to the "group_id" field.
+func (u *BatchImageJobUpsertOne) AddGroupID(v int64) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.AddGroupID(v)
+	})
+}
+
+// UpdateGroupID sets the "group_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsertOne) UpdateGroupID() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateGroupID()
+	})
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (u *BatchImageJobUpsertOne) ClearGroupID() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearGroupID()
 	})
 }
 
@@ -2756,6 +2826,34 @@ func (u *BatchImageJobUpsertBulk) UpdateAPIKeyID() *BatchImageJobUpsertBulk {
 func (u *BatchImageJobUpsertBulk) ClearAPIKeyID() *BatchImageJobUpsertBulk {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.ClearAPIKeyID()
+	})
+}
+
+// SetGroupID sets the "group_id" field.
+func (u *BatchImageJobUpsertBulk) SetGroupID(v int64) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetGroupID(v)
+	})
+}
+
+// AddGroupID adds v to the "group_id" field.
+func (u *BatchImageJobUpsertBulk) AddGroupID(v int64) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.AddGroupID(v)
+	})
+}
+
+// UpdateGroupID sets the "group_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsertBulk) UpdateGroupID() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateGroupID()
+	})
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (u *BatchImageJobUpsertBulk) ClearGroupID() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearGroupID()
 	})
 }
 

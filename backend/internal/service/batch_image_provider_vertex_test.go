@@ -39,6 +39,14 @@ func TestVertexProvider_MissingServiceAccountRejected(t *testing.T) {
 	require.ErrorIs(t, err, ErrBatchImageProviderMissingServiceAccount)
 }
 
+func TestMapVertexClientErrorClassifiesNonRetryable4xx(t *testing.T) {
+	err := mapVertexClientError(&VertexAPIError{StatusCode: 422, Message: "invalid request"})
+	require.ErrorIs(t, err, ErrBatchImageProviderInvalidInput)
+
+	err = mapVertexClientError(&VertexAPIError{StatusCode: 408, Message: "timeout"})
+	require.NotErrorIs(t, err, ErrBatchImageProviderInvalidInput)
+}
+
 func TestVertexProvider_MissingManagedGCSBucketRejected(t *testing.T) {
 	provider := NewVertexBatchImageProvider(VertexBatchImageProviderOptions{ProjectID: "proj", Environment: "test"}, &fakeVertexBatchClient{}, &fakeVertexObjectStore{}, &fakeGeminiTokenCache{token: "token"})
 	_, err := provider.Submit(context.Background(), nil, vertexServiceAccount(), validVertexBatchInput())

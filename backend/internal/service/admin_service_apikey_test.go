@@ -131,10 +131,23 @@ func (s *userRepoStubForGroupUpdate) RemoveGroupFromUserAllowedGroups(context.Co
 
 // apiKeyRepoStubForGroupUpdate implements APIKeyRepository for AdminUpdateAPIKeyGroupID tests.
 type apiKeyRepoStubForGroupUpdate struct {
-	key       *APIKey
-	getErr    error
-	updateErr error
-	updated   *APIKey // captures what was passed to Update
+	key               *APIKey
+	getErr            error
+	updateErr         error
+	replaceErr        error
+	updated           *APIKey // captures what was passed to Update
+	listKeys          []APIKey
+	listFilters       APIKeyListFilters
+	listByGroupCalled bool
+	listByAnyCalled   bool
+	replacedGroupIDs  []int64
+	replaceCalled     bool
+}
+
+func (s *apiKeyRepoStubForGroupUpdate) ReplaceGroups(_ context.Context, _ int64, groupIDs []int64) error {
+	s.replaceCalled = true
+	s.replacedGroupIDs = append([]int64(nil), groupIDs...)
+	return s.replaceErr
 }
 
 func (s *apiKeyRepoStubForGroupUpdate) GetByID(_ context.Context, _ int64) (*APIKey, error) {
@@ -168,8 +181,9 @@ func (s *apiKeyRepoStubForGroupUpdate) Delete(context.Context, int64) error { pa
 func (s *apiKeyRepoStubForGroupUpdate) DeleteWithAudit(context.Context, int64) error {
 	panic("unexpected")
 }
-func (s *apiKeyRepoStubForGroupUpdate) ListByUserID(context.Context, int64, pagination.PaginationParams, APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
-	panic("unexpected")
+func (s *apiKeyRepoStubForGroupUpdate) ListByUserID(_ context.Context, _ int64, _ pagination.PaginationParams, filters APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
+	s.listFilters = filters
+	return append([]APIKey(nil), s.listKeys...), &pagination.PaginationResult{Total: int64(len(s.listKeys))}, nil
 }
 func (s *apiKeyRepoStubForGroupUpdate) VerifyOwnership(context.Context, int64, []int64) ([]int64, error) {
 	panic("unexpected")
@@ -181,7 +195,13 @@ func (s *apiKeyRepoStubForGroupUpdate) ExistsByKey(context.Context, string) (boo
 	panic("unexpected")
 }
 func (s *apiKeyRepoStubForGroupUpdate) ListByGroupID(context.Context, int64, pagination.PaginationParams) ([]APIKey, *pagination.PaginationResult, error) {
-	panic("unexpected")
+	s.listByGroupCalled = true
+	return append([]APIKey(nil), s.listKeys...), &pagination.PaginationResult{Total: int64(len(s.listKeys))}, nil
+}
+
+func (s *apiKeyRepoStubForGroupUpdate) ListByAnyGroupID(context.Context, int64, pagination.PaginationParams) ([]APIKey, *pagination.PaginationResult, error) {
+	s.listByAnyCalled = true
+	return append([]APIKey(nil), s.listKeys...), &pagination.PaginationResult{Total: int64(len(s.listKeys))}, nil
 }
 func (s *apiKeyRepoStubForGroupUpdate) SearchAPIKeys(context.Context, int64, string, int) ([]APIKey, error) {
 	panic("unexpected")
@@ -220,6 +240,7 @@ func (s *apiKeyRepoStubForGroupUpdate) UpdateGroupIDByUserAndGroup(context.Conte
 // groupRepoStubForGroupUpdate implements GroupRepository for AdminUpdateAPIKeyGroupID tests.
 type groupRepoStubForGroupUpdate struct {
 	group          *Group
+	groups         map[int64]*Group
 	getErr         error
 	lastGetByIDArg int64
 }
@@ -228,6 +249,10 @@ func (s *groupRepoStubForGroupUpdate) GetByID(_ context.Context, id int64) (*Gro
 	s.lastGetByIDArg = id
 	if s.getErr != nil {
 		return nil, s.getErr
+	}
+	if group, ok := s.groups[id]; ok {
+		clone := *group
+		return &clone, nil
 	}
 	clone := *s.group
 	return &clone, nil
@@ -331,8 +356,8 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_Unbind(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, got.APIKey.GroupID, "group_id should be nil after unbind")
 	require.Nil(t, got.APIKey.Group, "group object should be nil after unbind")
-	require.NotNil(t, repo.updated, "Update should have been called")
-	require.Nil(t, repo.updated.GroupID)
+	require.True(t, repo.replaceCalled, "ReplaceGroups should have been called")
+	require.Empty(t, repo.replacedGroupIDs)
 	require.Equal(t, []string{"sk-test"}, cache.keys, "cache should be invalidated")
 }
 
@@ -347,7 +372,7 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_BindActiveGroup(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got.APIKey.GroupID)
 	require.Equal(t, int64(10), *got.APIKey.GroupID)
-	require.Equal(t, int64(10), *apiKeyRepo.updated.GroupID)
+	require.Equal(t, []int64{10}, apiKeyRepo.replacedGroupIDs)
 	require.Equal(t, []string{"sk-test"}, cache.keys)
 	// M3: verify correct group ID was passed to repo
 	require.Equal(t, int64(10), groupRepo.lastGetByIDArg)
@@ -367,8 +392,10 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_SameGroup_Idempotent(t *testing.T
 	require.NoError(t, err)
 	require.NotNil(t, got.APIKey.GroupID)
 	require.Equal(t, int64(10), *got.APIKey.GroupID)
-	// Update is still called (current impl doesn't short-circuit on same group)
-	require.NotNil(t, apiKeyRepo.updated)
+	// ReplaceGroups is still called so the compatibility alias and ordered list
+	// remain synchronized even for an idempotent legacy request.
+	require.True(t, apiKeyRepo.replaceCalled)
+	require.Equal(t, []int64{10}, apiKeyRepo.replacedGroupIDs)
 	require.Equal(t, []string{"sk-test"}, cache.keys)
 }
 
@@ -395,7 +422,7 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_GroupNotActive(t *testing.T) {
 
 func TestAdminService_AdminUpdateAPIKeyGroupID_UpdateFails(t *testing.T) {
 	existing := &APIKey{ID: 1, Key: "sk-test", GroupID: int64Ptr(3)}
-	repo := &apiKeyRepoStubForGroupUpdate{key: existing, updateErr: errors.New("db write error")}
+	repo := &apiKeyRepoStubForGroupUpdate{key: existing, replaceErr: errors.New("db write error")}
 	svc := &adminServiceImpl{apiKeyRepo: repo}
 
 	_, err := svc.AdminUpdateAPIKeyGroupID(context.Background(), 1, int64Ptr(0))
@@ -427,7 +454,7 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_PointerIsolation(t *testing.T) {
 	// Mutating the input pointer must NOT affect the stored value
 	inputGID = 999
 	require.Equal(t, int64(10), *got.APIKey.GroupID)
-	require.Equal(t, int64(10), *apiKeyRepo.updated.GroupID)
+	require.Equal(t, []int64{10}, apiKeyRepo.replacedGroupIDs)
 }
 
 func TestAdminService_AdminUpdateAPIKeyGroupID_NilCacheInvalidator(t *testing.T) {
@@ -468,6 +495,8 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_ExclusiveGroup_AddsAllowedGroup(t
 	require.NotNil(t, got.GrantedGroupID)
 	require.Equal(t, int64(10), *got.GrantedGroupID)
 	require.Equal(t, "Exclusive", got.GrantedGroupName)
+	require.Equal(t, []int64{42}, cache.userIDs, "专属分组授权会影响该用户的全部 API Key 快照")
+	require.Empty(t, cache.keys)
 }
 
 func TestAdminService_AdminUpdateAPIKeyGroupID_NonExclusiveGroup_NoAllowedGroupUpdate(t *testing.T) {
@@ -486,6 +515,41 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_NonExclusiveGroup_NoAllowedGroupU
 	require.False(t, got.AutoGrantedGroupAccess)
 }
 
+func TestAdminService_AdminUpdateAPIKeyGroups_ExclusiveGrantInvalidatesWholeUser(t *testing.T) {
+	settings := &SettingService{}
+	settings.refreshCachedSettings(&SystemSettings{APIKeyMultiGroupEnabled: true})
+	existing := &APIKey{
+		ID:       1,
+		UserID:   42,
+		Key:      "sk-test",
+		GroupID:  int64Ptr(1),
+		GroupIDs: []int64{1},
+		User:     &User{ID: 42, Balance: 100},
+	}
+	apiKeyRepo := &apiKeyRepoStubForGroupUpdate{key: existing}
+	groupRepo := &groupRepoStubForGroupUpdate{groups: map[int64]*Group{
+		1:  {ID: 1, Name: "Public", Platform: PlatformOpenAI, Status: StatusActive},
+		10: {ID: 10, Name: "Exclusive", Platform: PlatformOpenAI, Status: StatusActive, IsExclusive: true},
+	}}
+	userRepo := &userRepoStubForGroupUpdate{}
+	cache := &authCacheInvalidatorStub{}
+	svc := &adminServiceImpl{
+		apiKeyRepo:           apiKeyRepo,
+		groupRepo:            groupRepo,
+		userRepo:             userRepo,
+		authCacheInvalidator: cache,
+		settingService:       settings,
+	}
+
+	got, err := svc.AdminUpdateAPIKeyGroups(context.Background(), 1, []int64{1, 10})
+	require.NoError(t, err)
+	require.True(t, got.AutoGrantedGroupAccess)
+	require.Equal(t, []int64{1, 10}, apiKeyRepo.replacedGroupIDs)
+	require.True(t, userRepo.addGroupCalled)
+	require.Equal(t, []int64{42}, cache.userIDs)
+	require.Empty(t, cache.keys)
+}
+
 func TestAdminService_AdminUpdateAPIKeyGroupID_SubscriptionGroup_Blocked(t *testing.T) {
 	existing := &APIKey{ID: 1, UserID: 42, Key: "sk-test", GroupID: nil}
 	apiKeyRepo := &apiKeyRepoStubForGroupUpdate{key: existing}
@@ -502,6 +566,25 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_SubscriptionGroup_Blocked(t *test
 	require.Equal(t, int64(42), userSubRepo.calledUserID)
 	require.Equal(t, int64(10), userSubRepo.calledGroupID)
 	require.False(t, userRepo.addGroupCalled)
+}
+
+func TestAdminService_AdminUpdateAPIKeyGroupID_ExistingSecondarySkipsSubscriptionRevalidation(t *testing.T) {
+	existing := &APIKey{
+		ID: 1, UserID: 42, Key: "sk-test", GroupID: int64Ptr(1),
+		GroupIDs: []int64{1, 10},
+	}
+	apiKeyRepo := &apiKeyRepoStubForGroupUpdate{key: existing}
+	groupRepo := &groupRepoStubForGroupUpdate{group: &Group{
+		ID: 10, Name: "Expired subscription", Status: StatusDisabled,
+		SubscriptionType: SubscriptionTypeSubscription,
+	}}
+	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo}
+
+	got, err := svc.AdminUpdateAPIKeyGroupID(context.Background(), 1, int64Ptr(10))
+	require.NoError(t, err)
+	require.Equal(t, []int64{10}, apiKeyRepo.replacedGroupIDs)
+	require.Equal(t, []int64{10}, got.APIKey.GroupIDs)
+	require.Equal(t, int64(10), *got.APIKey.GroupID)
 }
 
 func TestAdminService_AdminUpdateAPIKeyGroupID_SubscriptionGroup_RequiresRepo(t *testing.T) {
@@ -548,7 +631,7 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_ExclusiveGroup_AllowedGroupAddFai
 	require.Contains(t, err.Error(), "add group to user allowed groups")
 	require.True(t, userRepo.addGroupCalled)
 	// apiKey 不应被更新
-	require.Nil(t, apiKeyRepo.updated)
+	require.False(t, apiKeyRepo.replaceCalled)
 }
 
 func TestAdminService_AdminUpdateAPIKeyGroupID_Unbind_NoAllowedGroupUpdate(t *testing.T) {
@@ -564,4 +647,85 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_Unbind_NoAllowedGroupUpdate(t *te
 	// 解绑时不修改 allowed_groups
 	require.False(t, userRepo.addGroupCalled)
 	require.False(t, got.AutoGrantedGroupAccess)
+}
+
+func TestAdminServiceGetUserAPIKeysFeatureDisabledUsesPrimaryOnly(t *testing.T) {
+	primaryID := int64(1)
+	secondaryID := int64(2)
+	repo := &apiKeyRepoStubForGroupUpdate{listKeys: []APIKey{{
+		ID:       7,
+		GroupID:  &primaryID,
+		GroupIDs: []int64{primaryID, secondaryID},
+		Groups:   []Group{{ID: primaryID}, {ID: secondaryID}},
+	}}}
+	svc := &adminServiceImpl{apiKeyRepo: repo}
+
+	keys, total, err := svc.GetUserAPIKeys(context.Background(), 9, 1, 20, "", "")
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.True(t, repo.listFilters.PrimaryGroupOnly)
+	require.Equal(t, []int64{primaryID}, keys[0].GroupIDs)
+	require.Len(t, keys[0].Groups, 1)
+}
+
+func TestAdminServiceGetUserAPIKeysFeatureEnabledPreservesPriorityList(t *testing.T) {
+	primaryID := int64(1)
+	secondaryID := int64(2)
+	repo := &apiKeyRepoStubForGroupUpdate{listKeys: []APIKey{{
+		ID:       7,
+		GroupID:  &primaryID,
+		GroupIDs: []int64{primaryID, secondaryID},
+		Groups:   []Group{{ID: primaryID}, {ID: secondaryID}},
+	}}}
+	settings := &SettingService{}
+	settings.apiKeyMultiGroupEnabled.Store(true)
+	svc := &adminServiceImpl{apiKeyRepo: repo, settingService: settings}
+
+	keys, _, err := svc.GetUserAPIKeys(context.Background(), 9, 1, 20, "", "")
+	require.NoError(t, err)
+	require.False(t, repo.listFilters.PrimaryGroupOnly)
+	require.Equal(t, []int64{primaryID, secondaryID}, keys[0].GroupIDs)
+	require.Len(t, keys[0].Groups, 2)
+}
+
+func TestAdminServiceGetGroupAPIKeysFeatureDisabledUsesPrimaryQuery(t *testing.T) {
+	primaryID := int64(1)
+	secondaryID := int64(2)
+	repo := &apiKeyRepoStubForGroupUpdate{listKeys: []APIKey{{
+		ID:       7,
+		GroupID:  &primaryID,
+		GroupIDs: []int64{primaryID, secondaryID},
+		Groups:   []Group{{ID: primaryID}, {ID: secondaryID}},
+	}}}
+	svc := &adminServiceImpl{apiKeyRepo: repo}
+
+	keys, total, err := svc.GetGroupAPIKeys(context.Background(), primaryID, 1, 20)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.True(t, repo.listByGroupCalled)
+	require.False(t, repo.listByAnyCalled)
+	require.Equal(t, []int64{primaryID}, keys[0].GroupIDs)
+	require.Len(t, keys[0].Groups, 1)
+}
+
+func TestAdminServiceGetGroupAPIKeysFeatureEnabledUsesAnyPriorityQuery(t *testing.T) {
+	primaryID := int64(1)
+	secondaryID := int64(2)
+	repo := &apiKeyRepoStubForGroupUpdate{listKeys: []APIKey{{
+		ID:       7,
+		GroupID:  &primaryID,
+		GroupIDs: []int64{primaryID, secondaryID},
+		Groups:   []Group{{ID: primaryID}, {ID: secondaryID}},
+	}}}
+	settings := &SettingService{}
+	settings.apiKeyMultiGroupEnabled.Store(true)
+	svc := &adminServiceImpl{apiKeyRepo: repo, settingService: settings}
+
+	keys, total, err := svc.GetGroupAPIKeys(context.Background(), secondaryID, 1, 20)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.False(t, repo.listByGroupCalled)
+	require.True(t, repo.listByAnyCalled)
+	require.Equal(t, []int64{primaryID, secondaryID}, keys[0].GroupIDs)
+	require.Len(t, keys[0].Groups, 2)
 }

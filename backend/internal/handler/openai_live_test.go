@@ -2,7 +2,9 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -100,6 +102,19 @@ func TestLiveAttestationErrorIsExplicit(t *testing.T) {
 
 	require.Equal(t, http.StatusServiceUnavailable, recorder.Code)
 	require.Contains(t, recorder.Body.String(), "Sub2API runs on macOS")
+}
+
+func TestShouldCrossLiveGroupAfterCurrentGroupTransportRetriesExhausted(t *testing.T) {
+	err := &service.LiveGroupUnavailableError{Cause: errors.New("transport failed")}
+	require.True(t, shouldCrossLiveGroup(context.Background(), err))
+
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	require.False(t, shouldCrossLiveGroup(canceled, err))
+	require.False(t, shouldCrossLiveGroup(
+		context.Background(),
+		&service.LiveAttestationUnavailableError{Reason: "provider unavailable"},
+	))
 }
 
 func jsonPathString(t *testing.T, raw json.RawMessage, keys ...string) string {

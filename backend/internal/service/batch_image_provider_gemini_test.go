@@ -39,6 +39,14 @@ func TestGeminiProvider_SupportsOnlyGeminiAPIKeyWithSecret(t *testing.T) {
 	require.False(t, provider.SupportsAccount(nil))
 }
 
+func TestMapGeminiClientErrorClassifiesNonRetryable4xx(t *testing.T) {
+	err := mapGeminiClientError(&GeminiAPIError{StatusCode: 400, Message: "invalid request"})
+	require.ErrorIs(t, err, ErrBatchImageProviderInvalidInput)
+
+	err = mapGeminiClientError(&GeminiAPIError{StatusCode: 408, Message: "timeout"})
+	require.NotErrorIs(t, err, ErrBatchImageProviderInvalidInput)
+}
+
 func TestGeminiProvider_MissingAPIKeyRejected(t *testing.T) {
 	provider := NewGeminiAPIBatchImageProvider(&fakeGeminiBatchClient{})
 	_, err := provider.Submit(context.Background(), nil, &Account{Platform: PlatformGemini, Type: AccountTypeAPIKey}, validGeminiBatchInput())

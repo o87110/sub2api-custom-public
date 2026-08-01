@@ -7,6 +7,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
 
 // AdminService interface defines admin management operations
@@ -645,6 +646,18 @@ type adminRechargeAffiliateAccruer interface {
 
 type userGroupRateBatchReader interface {
 	GetByUserIDs(ctx context.Context, userIDs []int64) (map[int64]map[int64]float64, error)
+}
+
+type apiKeyAnyGroupLister interface {
+	ListByAnyGroupID(ctx context.Context, groupID int64, params pagination.PaginationParams) ([]APIKey, *pagination.PaginationResult, error)
+}
+
+type apiKeyAnyGroupKeysLister interface {
+	ListKeysByAnyGroupID(ctx context.Context, groupID int64) ([]string, error)
+}
+
+type apiKeyAssignedGroupReplacer interface {
+	ReplaceAssignedGroupForUser(ctx context.Context, userID, oldGroupID, newGroupID int64) (int64, error)
 }
 
 // NewAdminService creates a new AdminService

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/apikeyrouting"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -71,6 +73,35 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
+	groupRoute := h.newAPIKeyGroupRoute(
+		c.Request.Context(), apiKey, groupRoutingProtocolOpenAIEmbeddings, "", false)
+	defer groupRoute.finish(c)
+	groupRoute.configureCompositeRequest(&reqModel, &body, nil)
+	groupRoute.setCandidateCheck(func(candidateContext *gin.Context, candidate *service.APIKey) error {
+		if compositeTargetPlatformAllowed(
+			candidateContext, candidate, reqModel, service.PlatformOpenAI) {
+			return nil
+		}
+		return infraerrors.BadRequest(
+			"COMPOSITE_MODEL_UNSUPPORTED",
+			"Model is not supported by this OpenAI-compatible endpoint for composite groups",
+		)
+	})
+	var subscription *service.UserSubscription
+	if groupRoute.MultiGroup() {
+		var routeErr error
+		apiKey, subscription, routeErr = groupRoute.nextCandidate(c)
+		if routeErr != nil {
+			status, code, message, retryAfter := billingErrorDetails(routeErr)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.errorResponse(c, status, code, message)
+			return
+		}
+	} else {
+		subscription, _ = middleware2.GetSubscriptionFromContext(c)
+	}
 	ensureCompositeTargetPlatform(c, apiKey, reqModel)
 	if !compositeTargetPlatformAllowed(c, apiKey, reqModel, service.PlatformOpenAI) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by this OpenAI-compatible endpoint for composite groups")
@@ -86,7 +117,6 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
 
-	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 
 	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, false, &streamStarted, reqLog)
@@ -97,18 +127,22 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 		defer userReleaseFunc()
 	}
 
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
-		reqLog.Info("openai_embeddings.billing_check_failed", zap.Error(err))
-		status, code, message, retryAfter := billingErrorDetails(err)
-		if retryAfter > 0 {
-			c.Header("Retry-After", strconv.Itoa(retryAfter))
+	if !groupRoute.MultiGroup() {
+		if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
+			reqLog.Info("openai_embeddings.billing_check_failed", zap.Error(err))
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.errorResponse(c, status, code, message)
+			return
 		}
-		h.errorResponse(c, status, code, message)
-		return
 	}
 
 	failedAccountIDs := make(map[int64]struct{})
+	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
+	var oauth429FailoverState service.OpenAIOAuth429FailoverState
 	switchCount := 0
 	maxAccountSwitches := h.maxAccountSwitches
 	if maxAccountSwitches <= 0 {
@@ -139,6 +173,20 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 				zap.Error(err),
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
+			if groupRoute.MultiGroup() {
+				groupRoute.markCurrentUnavailable(c.Request.Context())
+				nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+				if nextErr == nil {
+					apiKey, subscription = nextKey, nextSub
+					channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+					failedAccountIDs = make(map[int64]struct{})
+					sameAccountRetryCount = make(map[int64]int)
+					switchCount = 0
+					lastFailoverErr = nil
+					oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+					continue
+				}
+			}
 			if len(failedAccountIDs) == 0 {
 				cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, reqModel, reqModel, service.PlatformOpenAI)
 				if !cls.ModelNotFound {
@@ -155,6 +203,20 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 			return
 		}
 		if selection == nil || selection.Account == nil {
+			if groupRoute.MultiGroup() {
+				groupRoute.markCurrentUnavailable(c.Request.Context())
+				nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+				if nextErr == nil {
+					apiKey, subscription = nextKey, nextSub
+					channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+					failedAccountIDs = make(map[int64]struct{})
+					sameAccountRetryCount = make(map[int64]int)
+					switchCount = 0
+					lastFailoverErr = nil
+					oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+					continue
+				}
+			}
 			cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, reqModel, reqModel, service.PlatformOpenAI)
 			if !cls.ModelNotFound {
 				markOpsRoutingCapacityLimited(c)
@@ -165,8 +227,54 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 		account := selection.Account
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		accountReleaseFunc, accountAcquired := h.acquireResponsesAccountSlot(c, apiKey.GroupID, "", selection, false, &streamStarted, reqLog)
-		if !accountAcquired {
+		accountReleaseFunc, accountSlotErr := h.tryAcquireResponsesAccountSlot(c, apiKey.GroupID, "", selection, false, &streamStarted, reqLog)
+		if accountSlotErr != nil {
+			if groupRoute.MultiGroup() && isAccountCapacityUnavailable(accountSlotErr) {
+				switch accountCapacityFailoverAction(c.Request.Context(), failedAccountIDs, account.ID, &switchCount, maxAccountSwitches) {
+				case FailoverContinue:
+					continue
+				case FailoverCanceled:
+					failoverClientGone(c)
+					return
+				}
+				groupRoute.markCurrentUnavailable(c.Request.Context())
+				nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+				if nextErr == nil {
+					apiKey, subscription = nextKey, nextSub
+					channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+					failedAccountIDs = make(map[int64]struct{})
+					sameAccountRetryCount = make(map[int64]int)
+					switchCount = 0
+					lastFailoverErr = nil
+					oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+					continue
+				}
+			}
+			h.handleResponsesAccountSlotError(c, accountSlotErr, streamStarted)
+			return
+		}
+		if err := groupRoute.reserveCurrent(c.Request.Context()); err != nil {
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+			}
+			if reservationCanTryNextGroup(err) && groupRoute.MultiGroup() {
+				nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+				if nextErr == nil {
+					apiKey, subscription = nextKey, nextSub
+					channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+					failedAccountIDs = make(map[int64]struct{})
+					sameAccountRetryCount = make(map[int64]int)
+					switchCount = 0
+					lastFailoverErr = nil
+					oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+					continue
+				}
+			}
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.errorResponse(c, status, code, message)
 			return
 		}
 
@@ -210,14 +318,76 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 					)
 					return
 				}
+				if !failoverErr.ShouldRetryNextAccount() {
+					if groupRoute.MultiGroup() && apikeyrouting.ShouldCrossGroup(c.Request.Context(), failoverErr, false) {
+						groupRoute.markCurrentUnavailable(c.Request.Context())
+						nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+						if nextErr == nil {
+							apiKey, subscription = nextKey, nextSub
+							channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+							failedAccountIDs = make(map[int64]struct{})
+							sameAccountRetryCount = make(map[int64]int)
+							switchCount = 0
+							lastFailoverErr = nil
+							oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+							continue
+						}
+					}
+					h.handleFailoverExhausted(c, failoverErr, false)
+					return
+				}
+				if failoverErr.RetryableOnSameAccount {
+					retryLimit := account.GetPoolModeRetryCount()
+					if sameAccountRetryCount[account.ID] < retryLimit {
+						sameAccountRetryCount[account.ID]++
+						if !sleepWithContext(c.Request.Context(), sameAccountRetryDelay) {
+							return
+						}
+						continue
+					}
+				}
 				h.gatewayService.RecordOpenAIAccountSwitch()
 				failedAccountIDs[account.ID] = struct{}{}
 				lastFailoverErr = failoverErr
 				if switchCount >= maxAccountSwitches {
+					if groupRoute.MultiGroup() && apikeyrouting.ShouldCrossGroup(c.Request.Context(), failoverErr, false) {
+						groupRoute.markCurrentUnavailable(c.Request.Context())
+						nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+						if nextErr == nil {
+							apiKey, subscription = nextKey, nextSub
+							channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+							failedAccountIDs = make(map[int64]struct{})
+							sameAccountRetryCount = make(map[int64]int)
+							switchCount = 0
+							lastFailoverErr = nil
+							oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+							continue
+						}
+					}
 					h.handleFailoverExhausted(c, failoverErr, false)
 					return
 				}
 				switchCount++
+				if h.gatewayService.ShouldStopOpenAIOAuth429Failover(
+					account, failoverErr.StatusCode, switchCount, &oauth429FailoverState,
+				) {
+					if groupRoute.MultiGroup() && apikeyrouting.ShouldCrossGroup(c.Request.Context(), failoverErr, false) {
+						groupRoute.markCurrentUnavailable(c.Request.Context())
+						nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+						if nextErr == nil {
+							apiKey, subscription = nextKey, nextSub
+							channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+							failedAccountIDs = make(map[int64]struct{})
+							sameAccountRetryCount = make(map[int64]int)
+							switchCount = 0
+							lastFailoverErr = nil
+							oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+							continue
+						}
+					}
+					h.handleFailoverExhausted(c, failoverErr, false)
+					return
+				}
 				reqLog.Warn("openai_embeddings.upstream_failover_switching",
 					zap.Int64("account_id", account.ID),
 					zap.Int("upstream_status", failoverErr.StatusCode),

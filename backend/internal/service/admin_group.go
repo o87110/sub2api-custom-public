@@ -10,6 +10,8 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	customapikeygroups "github.com/Wei-Shaw/sub2api/internal/custom/apikeygroups"
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupaccess"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -623,7 +625,21 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.Description != nil {
 		group.Description = *input.Description
 	}
-	if input.Platform != "" {
+	if input.Platform != "" && input.Platform != group.Platform {
+		if checker, ok := s.apiKeyRepo.(interface {
+			HasMultiGroupPlatformConflict(context.Context, int64, string) (bool, error)
+		}); ok {
+			conflict, checkErr := checker.HasMultiGroupPlatformConflict(ctx, id, input.Platform)
+			if checkErr != nil {
+				return nil, checkErr
+			}
+			if conflict {
+				return nil, infraerrors.BadRequest(
+					"API_KEY_GROUP_PLATFORM_CONFLICT",
+					"cannot change group platform while it belongs to a multi-group API key with another platform",
+				)
+			}
+		}
 		group.Platform = input.Platform
 	}
 	if input.RateMultiplier != nil {
@@ -915,10 +931,11 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 func (s *adminServiceImpl) DeleteGroup(ctx context.Context, id int64) error {
 	var groupKeys []string
 	if s.authCacheInvalidator != nil {
-		keys, err := s.apiKeyRepo.ListKeysByGroupID(ctx, id)
-		if err == nil {
-			groupKeys = keys
+		keys, err := listKeysByAnyGroup(ctx, s.apiKeyRepo, id)
+		if err != nil {
+			return fmt.Errorf("list api keys for auth cache invalidation: %w", err)
 		}
+		groupKeys = keys
 	}
 
 	affectedUserIDs, err := s.groupRepo.DeleteCascade(ctx, id)
@@ -951,9 +968,22 @@ func (s *adminServiceImpl) DeleteGroup(ctx context.Context, id int64) error {
 
 func (s *adminServiceImpl) GetGroupAPIKeys(ctx context.Context, groupID int64, page, pageSize int) ([]APIKey, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
+	multiGroupEnabled := s.settingService != nil && s.settingService.APIKeyMultiGroupEnabled()
+	if multiGroupEnabled {
+		if anyGroupLister, ok := s.apiKeyRepo.(apiKeyAnyGroupLister); ok {
+			keys, result, err := anyGroupLister.ListByAnyGroupID(ctx, groupID, params)
+			if err != nil {
+				return nil, 0, err
+			}
+			return keys, result.Total, nil
+		}
+	}
 	keys, result, err := s.apiKeyRepo.ListByGroupID(ctx, groupID, params)
 	if err != nil {
 		return nil, 0, err
+	}
+	if !multiGroupEnabled {
+		normalizeAPIKeysToPrimaryGroup(keys)
 	}
 	return keys, result.Total, nil
 }
@@ -991,7 +1021,7 @@ func (s *adminServiceImpl) ClearGroupRPMOverrides(ctx context.Context, groupID i
 	if err := s.userGroupRateRepo.ClearGroupRPMOverrides(ctx, groupID); err != nil {
 		return err
 	}
-	// RPM override 已嵌入 auth cache snapshot (v7)，变更后必须失效相关缓存。
+	// RPM override 已嵌入当前 auth cache snapshot，变更后必须失效相关缓存。
 	if s.authCacheInvalidator != nil {
 		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, groupID)
 	}
@@ -1010,7 +1040,7 @@ func (s *adminServiceImpl) BatchSetGroupRPMOverrides(ctx context.Context, groupI
 	if err := s.userGroupRateRepo.SyncGroupRPMOverrides(ctx, groupID, entries); err != nil {
 		return err
 	}
-	// RPM override 已嵌入 auth cache snapshot (v7)，变更后必须失效相关缓存。
+	// RPM override 已嵌入当前 auth cache snapshot，变更后必须失效相关缓存。
 	if s.authCacheInvalidator != nil {
 		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, groupID)
 	}
@@ -1039,30 +1069,41 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 	}
 
 	result := &AdminUpdateAPIKeyGroupIDResult{}
+	existingAssignments := make(map[int64]struct{}, len(apiKey.GroupIDs)+1)
+	for _, assignedGroupID := range apiKey.GroupIDs {
+		existingAssignments[assignedGroupID] = struct{}{}
+	}
+	if apiKey.GroupID != nil {
+		existingAssignments[*apiKey.GroupID] = struct{}{}
+	}
 
 	if *groupID == 0 {
 		// 0 表示解绑分组（不修改 user_allowed_groups，避免影响用户其他 Key）
 		apiKey.GroupID = nil
 		apiKey.Group = nil
 	} else {
-		// 验证目标分组存在且状态为 active
+		// 目标分组始终需要存在。仅新增绑定执行状态/订阅资格校验；
+		// 从现有多分组列表缩减为单分组属于纯移除，不能因后来失去资格而失败。
 		group, err := s.groupRepo.GetByID(ctx, *groupID)
 		if err != nil {
 			return nil, err
 		}
-		if group.Status != StatusActive {
-			return nil, infraerrors.BadRequest("GROUP_NOT_ACTIVE", "target group is not active")
-		}
-		// 订阅类型分组：用户须持有该分组的有效订阅才可绑定
-		if group.IsSubscriptionType() {
-			if s.userSubRepo == nil {
-				return nil, infraerrors.InternalServer("SUBSCRIPTION_REPOSITORY_UNAVAILABLE", "subscription repository is not configured")
+		_, alreadyAssigned := existingAssignments[*groupID]
+		if !alreadyAssigned {
+			if group.Status != StatusActive {
+				return nil, infraerrors.BadRequest("GROUP_NOT_ACTIVE", "target group is not active")
 			}
-			if _, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, apiKey.UserID, *groupID); err != nil {
-				if errors.Is(err, ErrSubscriptionNotFound) {
-					return nil, infraerrors.BadRequest("SUBSCRIPTION_REQUIRED", "user does not have an active subscription for this group")
+			// 订阅类型分组：用户须持有该分组的有效订阅才可新增绑定。
+			if group.IsSubscriptionType() {
+				if s.userSubRepo == nil {
+					return nil, infraerrors.InternalServer("SUBSCRIPTION_REPOSITORY_UNAVAILABLE", "subscription repository is not configured")
 				}
-				return nil, err
+				if _, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, apiKey.UserID, *groupID); err != nil {
+					if errors.Is(err, ErrSubscriptionNotFound) {
+						return nil, infraerrors.BadRequest("SUBSCRIPTION_REQUIRED", "user does not have an active subscription for this group")
+					}
+					return nil, err
+				}
 			}
 		}
 
@@ -1071,7 +1112,7 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 		apiKey.Group = group
 
 		// 专属标准分组：使用事务保证「添加分组权限」与「更新 API Key」的原子性
-		if group.IsExclusive && !group.IsSubscriptionType() {
+		if !alreadyAssigned && group.IsExclusive && !group.IsSubscriptionType() {
 			opCtx := ctx
 			var tx *dbent.Tx
 			if s.entClient == nil {
@@ -1089,7 +1130,7 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 			if addErr := s.userRepo.AddGroupToAllowedGroups(opCtx, apiKey.UserID, gid); addErr != nil {
 				return nil, fmt.Errorf("add group to user allowed groups: %w", addErr)
 			}
-			if err := s.apiKeyRepo.Update(opCtx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {
+			if err := replaceSingleAPIKeyGroupCompat(opCtx, s.apiKeyRepo, apiKey, []int64{gid}); err != nil {
 				return nil, fmt.Errorf("update api key: %w", err)
 			}
 			if tx != nil {
@@ -1102,26 +1143,178 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 			result.GrantedGroupID = &gid
 			result.GrantedGroupName = group.Name
 
-			// 失效认证缓存（在事务提交后执行）
+			// 授予专属分组权限会影响该用户的所有密钥，而不只是本次编辑的密钥。
+			// 必须在事务提交后失效整位用户的认证快照。
 			if s.authCacheInvalidator != nil {
-				s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
+				s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, apiKey.UserID)
 			}
 
+			apiKey.GroupIDs = []int64{gid}
+			apiKey.Groups = []Group{*group}
 			result.APIKey = apiKey
 			return result, nil
 		}
 	}
 
 	// 非专属分组 / 解绑：无需事务，单步更新即可
-	if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {
+	groupIDs := []int64{}
+	if apiKey.GroupID != nil {
+		groupIDs = append(groupIDs, *apiKey.GroupID)
+	}
+	if err := replaceSingleAPIKeyGroupCompat(ctx, s.apiKeyRepo, apiKey, groupIDs); err != nil {
 		return nil, fmt.Errorf("update api key: %w", err)
+	}
+	apiKey.GroupIDs = groupIDs
+	if apiKey.Group != nil {
+		apiKey.Groups = []Group{*apiKey.Group}
+	} else {
+		apiKey.Groups = []Group{}
 	}
 
 	// 失效认证缓存
 	if s.authCacheInvalidator != nil {
-		s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
+		if result.AutoGrantedGroupAccess {
+			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, apiKey.UserID)
+		} else {
+			s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
+		}
 	}
 
+	result.APIKey = apiKey
+	return result, nil
+}
+
+func replaceSingleAPIKeyGroupCompat(ctx context.Context, repo APIKeyRepository, apiKey *APIKey, groupIDs []int64) error {
+	if replacer, ok := repo.(apiKeyGroupReplacer); ok {
+		return replacer.ReplaceGroups(ctx, apiKey.ID, groupIDs)
+	}
+	// Rolling-upgrade and test-double compatibility. Production repositories
+	// implement ReplaceGroups so api_keys.group_id and api_key_groups remain
+	// transactionally synchronized.
+	return repo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true})
+}
+
+// AdminUpdateAPIKeyGroups 管理员完整替换 API Key 的有序分组列表。
+func (s *adminServiceImpl) AdminUpdateAPIKeyGroups(ctx context.Context, keyID int64, groupIDs []int64) (*AdminUpdateAPIKeyGroupIDResult, error) {
+	if s.settingService == nil || !s.settingService.APIKeyMultiGroupEnabled() {
+		return nil, ErrAPIKeyMultiGroupDisabled
+	}
+	apiKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
+	if err != nil {
+		return nil, err
+	}
+	existing := make(map[int64]struct{}, len(apiKey.GroupIDs))
+	for _, groupID := range apiKey.GroupIDs {
+		existing[groupID] = struct{}{}
+	}
+	groups, err := customapikeygroups.ValidateOrderedSelection(
+		groupIDs,
+		existing,
+		func(groupID int64) (Group, string, error) {
+			group, loadErr := s.groupRepo.GetByID(ctx, groupID)
+			if loadErr != nil {
+				return Group{}, "", withAPIKeyGroupField(loadErr, "group_ids")
+			}
+			return *group, group.Platform, nil
+		},
+		func(groupID int64, group Group) error {
+			if !group.IsActive() {
+				return withAPIKeyGroupField(infraerrors.BadRequest("GROUP_NOT_ACTIVE", "target group is not active"), "group_ids")
+			}
+			if group.IsSubscriptionType() {
+				if s.userSubRepo == nil {
+					return infraerrors.InternalServer("SUBSCRIPTION_REPOSITORY_UNAVAILABLE", "subscription repository is not configured")
+				}
+				if _, loadErr := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, apiKey.UserID, groupID); loadErr != nil {
+					return withAPIKeyGroupField(infraerrors.BadRequest("SUBSCRIPTION_REQUIRED", "user does not have an active subscription for this group"), "group_ids")
+				}
+			}
+			if group.MinimumBalance > 0 {
+				if apiKey.User == nil {
+					return infraerrors.InternalServer("USER_NOT_FOUND", "API key owner is unavailable")
+				}
+				if checkErr := groupaccess.CheckMinimumBalance(group.ID, group.Name, apiKey.User.Balance, group.MinimumBalance); checkErr != nil {
+					return withAPIKeyGroupField(checkErr, "group_ids")
+				}
+			}
+			return nil
+		},
+	)
+	if errors.Is(err, customapikeygroups.ErrInvalidSelection) ||
+		errors.Is(err, customapikeygroups.ErrMixedPlatforms) {
+		return nil, withAPIKeyGroupField(
+			infraerrors.BadRequest(
+				"API_KEY_GROUPS_INVALID",
+				"group_ids must contain at most 10 positive, unique groups from one platform",
+			),
+			"group_ids",
+		)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	opCtx := ctx
+	var tx *dbent.Tx
+	if s.entClient != nil {
+		tx, err = s.entClient.Tx(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("begin transaction: %w", err)
+		}
+		defer func() { _ = tx.Rollback() }()
+		opCtx = dbent.NewTxContext(ctx, tx)
+	}
+
+	result := &AdminUpdateAPIKeyGroupIDResult{}
+	for i := range groups {
+		group := &groups[i]
+		_, alreadyAssigned := existing[group.ID]
+		if !alreadyAssigned && group.IsExclusive && !group.IsSubscriptionType() && apiKey.User != nil &&
+			!apiKey.User.CanBindGroup(group.ID, true) {
+			if err := s.userRepo.AddGroupToAllowedGroups(opCtx, apiKey.UserID, group.ID); err != nil {
+				return nil, fmt.Errorf("add group to user allowed groups: %w", err)
+			}
+			if result.GrantedGroupID == nil {
+				groupID := group.ID
+				result.AutoGrantedGroupAccess = true
+				result.GrantedGroupID = &groupID
+				result.GrantedGroupName = group.Name
+			}
+		}
+	}
+	replacer, ok := s.apiKeyRepo.(apiKeyGroupReplacer)
+	if !ok {
+		return nil, errors.New("api key repository does not support ordered groups")
+	}
+	if err := replacer.ReplaceGroups(opCtx, apiKey.ID, groupIDs); err != nil {
+		return nil, fmt.Errorf("replace api key groups: %w", err)
+	}
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit transaction: %w", err)
+		}
+	}
+
+	apiKey.GroupIDs = append([]int64(nil), groupIDs...)
+	apiKey.Groups = groups
+	apiKey.GroupID = nil
+	apiKey.Group = nil
+	if len(groups) > 0 {
+		primaryID := groups[0].ID
+		primary := groups[0]
+		apiKey.GroupID = &primaryID
+		apiKey.Group = &primary
+	}
+	if s.authCacheInvalidator != nil {
+		if result.AutoGrantedGroupAccess {
+			// Granting an exclusive group changes authorization for every API
+			// key owned by the user, including cached keys that already contain
+			// this group at a lower priority.
+			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, apiKey.UserID)
+		} else {
+			s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
+		}
+	}
 	result.APIKey = apiKey
 	return result, nil
 }
@@ -1188,7 +1381,18 @@ func (s *adminServiceImpl) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 	}
 
 	// 2. 迁移绑定旧分组的 Key 到新分组
-	migrated, err := s.apiKeyRepo.UpdateGroupIDByUserAndGroup(opCtx, userID, oldGroupID, newGroupID)
+	var migrated int64
+	if replacer, ok := s.apiKeyRepo.(apiKeyAssignedGroupReplacer); ok {
+		migrated, err = replacer.ReplaceAssignedGroupForUser(opCtx, userID, oldGroupID, newGroupID)
+	} else {
+		migrated, err = s.apiKeyRepo.UpdateGroupIDByUserAndGroup(opCtx, userID, oldGroupID, newGroupID)
+	}
+	if errors.Is(err, customapikeygroups.ErrMixedPlatforms) {
+		return nil, infraerrors.BadRequest(
+			"API_KEY_GROUP_PLATFORM_CONFLICT",
+			"replacing the group would create a mixed-platform API key group list",
+		)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("migrate api keys: %w", err)
 	}
@@ -1204,12 +1408,7 @@ func (s *adminServiceImpl) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 
 	// 失效该用户所有 Key 的认证缓存
 	if s.authCacheInvalidator != nil {
-		keys, keyErr := s.apiKeyRepo.ListKeysByUserID(ctx, userID)
-		if keyErr == nil {
-			for _, k := range keys {
-				s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, k)
-			}
-		}
+		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
 	}
 
 	return &ReplaceUserGroupResult{MigratedKeys: migrated}, nil

@@ -80,7 +80,7 @@ func TestUserRepository_RemoveGroupFromAllowedGroups_RemovesAllOccurrences(t *te
 	require.NotContains(t, u2After.AllowedGroups, targetGroup.ID)
 }
 
-func TestGroupRepository_DeleteCascade_PreservesApiKeyGroupID(t *testing.T) {
+func TestGroupRepository_DeleteCascade_CompactsAPIKeyGroupsAndPromotesPrimary(t *testing.T) {
 	ctx := context.Background()
 	tx := testEntTx(t)
 	entClient := tx.Client()
@@ -111,11 +111,11 @@ func TestGroupRepository_DeleteCascade_PreservesApiKeyGroupID(t *testing.T) {
 	require.NoError(t, userRepo.Create(ctx, u))
 
 	key := &service.APIKey{
-		UserID:  u.ID,
-		Key:     uniqueTestValue(t, "sk-test-delete-cascade"),
-		Name:    "test key",
-		GroupID: &targetGroup.ID,
-		Status:  service.StatusActive,
+		UserID:   u.ID,
+		Key:      uniqueTestValue(t, "sk-test-delete-cascade"),
+		Name:     "test key",
+		GroupIDs: []int64{targetGroup.ID, otherGroup.ID},
+		Status:   service.StatusActive,
 	}
 	require.NoError(t, apiKeyRepo.Create(ctx, key))
 
@@ -138,10 +138,13 @@ func TestGroupRepository_DeleteCascade_PreservesApiKeyGroupID(t *testing.T) {
 	require.NotContains(t, uAfter.AllowedGroups, targetGroup.ID)
 	require.Contains(t, uAfter.AllowedGroups, otherGroup.ID)
 
-	// API keys keep their group_id so auth can reject keys bound to a deleted group.
+	// Ordered assignments remove the deleted group, compact priorities, and
+	// promote the next candidate to the compatibility group_id column.
 	keyAfter, err := apiKeyRepo.GetByID(ctx, key.ID)
 	require.NoError(t, err)
 	require.NotNil(t, keyAfter.GroupID)
-	require.Equal(t, targetGroup.ID, *keyAfter.GroupID)
-	require.Nil(t, keyAfter.Group)
+	require.Equal(t, otherGroup.ID, *keyAfter.GroupID)
+	require.Equal(t, []int64{otherGroup.ID}, keyAfter.GroupIDs)
+	require.NotNil(t, keyAfter.Group)
+	require.Equal(t, otherGroup.ID, keyAfter.Group.ID)
 }

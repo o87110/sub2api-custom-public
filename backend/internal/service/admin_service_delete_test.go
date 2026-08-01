@@ -652,6 +652,21 @@ func TestAdminService_DeleteGroup_InvalidatesAuthCacheForBoundKeys(t *testing.T)
 	require.Equal(t, []string{"k1", "k2"}, invalidator.keys)
 }
 
+func TestAdminService_DeleteGroup_StopsWhenAuthCacheKeyEnumerationFails(t *testing.T) {
+	repo := &groupRepoStub{}
+	apiKeyRepo := &deleteGroupAPIKeyRepoStub{listErr: errors.New("db unavailable")}
+	svc := &adminServiceImpl{
+		groupRepo:            repo,
+		apiKeyRepo:           apiKeyRepo,
+		authCacheInvalidator: &authCacheInvalidatorStub{},
+	}
+
+	err := svc.DeleteGroup(context.Background(), 5)
+	require.ErrorContains(t, err, "list api keys for auth cache invalidation")
+	require.Empty(t, repo.deleteCalls)
+	require.Equal(t, []int64{5}, apiKeyRepo.listGroupIDs)
+}
+
 func TestAdminService_DeleteGroup_NotFound(t *testing.T) {
 	repo := &groupRepoStub{deleteErr: ErrGroupNotFound}
 	svc := &adminServiceImpl{groupRepo: repo}

@@ -129,6 +129,8 @@ func (APIKey) Edges() []ent.Edge {
 			Ref("api_keys").
 			Field("group_id").
 			Unique(),
+		edge.To("groups", Group.Type).
+			Through("group_links", APIKeyGroup.Type),
 		edge.To("usage_logs", UsageLog.Type),
 	}
 }

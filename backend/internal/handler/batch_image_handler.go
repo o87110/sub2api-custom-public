@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/apikeyrouting"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -34,23 +35,107 @@ func (h *BatchImageHandler) Submit(c *gin.Context) {
 		batchImageError(c, service.ErrBatchImageInvalidItems)
 		return
 	}
-	owner, ok := batchImageOwnerFromContext(c)
-	if !ok {
+	apiKey, hasAPIKey := middleware.GetAPIKeyFromContext(c)
+	if !hasAPIKey || apiKey == nil {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
-	if !h.checkSecurityAuditBeforeSubmit(c, &req) {
+	multiGroupRouting := len(apiKey.GroupIDs) > 1 && h.openAI != nil
+	if !multiGroupRouting && !h.checkSecurityAuditBeforeSubmit(c, &req) {
 		return
 	}
 	if sessionID := service.ExtractClientSessionID(c); sessionID != "" {
 		req.SessionID = &sessionID
 	}
-	got, err := h.service.Submit(c.Request.Context(), owner, req, c.GetHeader("Idempotency-Key"))
+	validated, err := h.service.ValidateSubmitRequest(req)
 	if err != nil {
 		batchImageError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, got)
+	req = validated
+
+	if !multiGroupRouting {
+		owner, ok := batchImageOwnerFromContext(c)
+		if !ok {
+			batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
+			return
+		}
+		got, submitErr := h.service.Submit(c.Request.Context(), owner, req, c.GetHeader("Idempotency-Key"))
+		if submitErr != nil {
+			batchImageError(c, submitErr)
+			return
+		}
+		c.JSON(http.StatusOK, got)
+		return
+	}
+
+	groupRoute := h.openAI.newAPIKeyGroupRoute(
+		c.Request.Context(), apiKey, groupRoutingProtocolBatchImages, "", false)
+	defer groupRoute.finish(c)
+	groupRoute.setCandidateCheck(func(candidateCtx *gin.Context, _ *service.APIKey) error {
+		return h.batchImageCandidateSupportsRequest(candidateCtx, req)
+	})
+	securityAuditChecked := false
+	for {
+		_, _, routeErr := groupRoute.nextCandidate(c)
+		if routeErr != nil {
+			batchImageError(c, routeErr)
+			return
+		}
+		if !securityAuditChecked {
+			// Content moderation is request-scoped and must run once, but its
+			// group targeting must observe the first actually eligible candidate
+			// rather than the API key's compatibility primary group.
+			if !h.checkSecurityAuditBeforeSubmit(c, &req) {
+				return
+			}
+			securityAuditChecked = true
+		}
+		if reserveErr := groupRoute.reserveCurrent(c.Request.Context()); reserveErr != nil {
+			if reservationCanTryNextGroup(reserveErr) {
+				groupRoute.markCurrentUnavailable(c.Request.Context())
+				continue
+			}
+			batchImageError(c, reserveErr)
+			return
+		}
+		owner, ok := batchImageOwnerFromContext(c)
+		if !ok {
+			batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
+			return
+		}
+		got, submitErr := h.service.Submit(c.Request.Context(), owner, req, c.GetHeader("Idempotency-Key"))
+		if submitErr == nil {
+			c.JSON(http.StatusOK, got)
+			return
+		}
+		if apikeyrouting.ShouldCrossBatchImageGroup(c.Request.Context(), submitErr) {
+			groupRoute.markCurrentUnavailable(c.Request.Context())
+			continue
+		}
+		batchImageError(c, submitErr)
+		return
+	}
+}
+
+func (h *BatchImageHandler) batchImageCandidateSupportsRequest(c *gin.Context, req service.BatchImageSubmitRequest) error {
+	owner, ok := batchImageOwnerFromContext(c)
+	if !ok {
+		return service.ErrGroupNotFound
+	}
+	models, err := h.service.ListModels(c.Request.Context(), owner)
+	if err != nil {
+		return err
+	}
+	for _, model := range models.Data {
+		if model.ID != req.Model {
+			continue
+		}
+		if req.Provider == "" || strings.EqualFold(model.Provider, req.Provider) {
+			return nil
+		}
+	}
+	return service.ErrBatchImageNoAccountAvailable
 }
 
 func (h *BatchImageHandler) checkSecurityAuditBeforeSubmit(c *gin.Context, req *service.BatchImageSubmitRequest) bool {
@@ -129,17 +214,70 @@ func (h *BatchImageHandler) List(c *gin.Context) {
 }
 
 func (h *BatchImageHandler) Models(c *gin.Context) {
-	owner, ok := batchImageOwnerFromContext(c)
-	if !ok {
+	apiKey, hasAPIKey := middleware.GetAPIKeyFromContext(c)
+	if !hasAPIKey || apiKey == nil {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
-	got, err := h.service.ListModels(c.Request.Context(), owner)
-	if err != nil {
-		batchImageError(c, err)
+	if len(apiKey.GroupIDs) <= 1 || h.openAI == nil {
+		owner, ok := batchImageOwnerFromContext(c)
+		if !ok {
+			batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
+			return
+		}
+		got, err := h.service.ListModels(c.Request.Context(), owner)
+		if err != nil {
+			batchImageError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, got)
 		return
 	}
-	c.JSON(http.StatusOK, got)
+
+	groupRoute := h.openAI.newAPIKeyGroupRoute(
+		c.Request.Context(), apiKey, groupRoutingProtocolBatchImages, "", false)
+	defer groupRoute.finish(c)
+	var empty *service.BatchImagePublicModelsResponse
+	var candidateErr error
+	for {
+		_, _, routeErr := groupRoute.nextCandidate(c)
+		if routeErr != nil {
+			if empty != nil {
+				c.JSON(http.StatusOK, empty)
+				return
+			}
+			if candidateErr != nil {
+				batchImageError(c, candidateErr)
+				return
+			}
+			batchImageError(c, routeErr)
+			return
+		}
+		owner, ok := batchImageOwnerFromContext(c)
+		if !ok {
+			batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
+			return
+		}
+		got, err := h.service.ListModels(c.Request.Context(), owner)
+		if err != nil {
+			if errors.Is(err, service.ErrBatchImageGroupDisabled) {
+				candidateErr = err
+				groupRoute.markCurrentUnavailable(c.Request.Context())
+				continue
+			}
+			batchImageError(c, err)
+			return
+		}
+		if len(got.Data) == 0 {
+			if empty == nil {
+				empty = got
+			}
+			groupRoute.markCurrentUnavailable(c.Request.Context())
+			continue
+		}
+		c.JSON(http.StatusOK, got)
+		return
+	}
 }
 
 func (h *BatchImageHandler) Items(c *gin.Context) {

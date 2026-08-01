@@ -464,6 +464,12 @@ type GatewayCache interface {
 	DeleteSessionAccountID(ctx context.Context, groupID int64, sessionHash string) error
 }
 
+type apiKeyGroupSessionCache interface {
+	LoadGroupBinding(ctx context.Context, apiKeyID int64, protocol, sessionHash string) (APIKeyGroupBinding, error)
+	CompareAndSetGroupBinding(ctx context.Context, apiKeyID int64, protocol, sessionHash string, oldBinding, newBinding APIKeyGroupBinding, ttl time.Duration) (bool, error)
+	CompareAndDeleteGroupBinding(ctx context.Context, apiKeyID int64, protocol, sessionHash string, oldBinding APIKeyGroupBinding) (bool, error)
+}
+
 // derefGroupID safely dereferences *int64 to int64, returning 0 if nil
 func derefGroupID(groupID *int64) int64 {
 	if groupID == nil {
@@ -552,9 +558,10 @@ type ClaudeUsage struct {
 
 // ForwardResult 转发结果
 type ForwardResult struct {
-	RequestID string
-	Usage     ClaudeUsage
-	Model     string
+	RequestID  string
+	ResponseID string // Responses API id actually emitted to the client, when applicable.
+	Usage      ClaudeUsage
+	Model      string
 	// UpstreamModel is the actual upstream model after mapping.
 	// Prefer empty when it is identical to Model; persistence normalizes equal values away as no-op mappings.
 	UpstreamModel    string
@@ -865,6 +872,21 @@ func (s *GatewayService) GenerateSessionHash(parsed *ParsedRequest) string {
 	return ""
 }
 
+// HasStableAnthropicSessionSignal reports whether GenerateSessionHash used a
+// stable client-provided or cache-control anchor rather than the growing
+// full-message fallback.
+func (s *GatewayService) HasStableAnthropicSessionSignal(parsed *ParsedRequest) bool {
+	if parsed == nil {
+		return false
+	}
+	if parsed.MetadataUserID != "" {
+		if uid := ParseMetadataUserID(parsed.MetadataUserID); uid != nil && uid.SessionID != "" {
+			return true
+		}
+	}
+	return s.extractCacheableContent(parsed) != ""
+}
+
 // BindStickySession sets session -> account binding with standard TTL.
 func (s *GatewayService) BindStickySession(ctx context.Context, groupID *int64, sessionHash string, accountID int64) error {
 	if sessionHash == "" || accountID <= 0 || s.cache == nil {
@@ -886,6 +908,42 @@ func (s *GatewayService) GetCachedSessionAccountID(ctx context.Context, groupID 
 	return accountID, nil
 }
 
+// LoadGroupBinding 读取 API Key 会话的实际分组绑定。缓存不支持或故障时由调用方 fail-open。
+func (s *GatewayService) LoadGroupBinding(ctx context.Context, apiKeyID int64, protocol, sessionHash string) (APIKeyGroupBinding, error) {
+	cache, ok := s.cache.(apiKeyGroupSessionCache)
+	if !ok || sessionHash == "" {
+		return APIKeyGroupBinding{}, nil
+	}
+	return cache.LoadGroupBinding(ctx, apiKeyID, protocol, sessionHash)
+}
+
+func (s *GatewayService) CompareAndSetGroupBinding(
+	ctx context.Context,
+	apiKeyID int64,
+	protocol, sessionHash string,
+	oldBinding, newBinding APIKeyGroupBinding,
+	ttl time.Duration,
+) (bool, error) {
+	cache, ok := s.cache.(apiKeyGroupSessionCache)
+	if !ok || sessionHash == "" {
+		return false, nil
+	}
+	return cache.CompareAndSetGroupBinding(ctx, apiKeyID, protocol, sessionHash, oldBinding, newBinding, ttl)
+}
+
+func (s *GatewayService) CompareAndDeleteGroupBinding(
+	ctx context.Context,
+	apiKeyID int64,
+	protocol, sessionHash string,
+	oldBinding APIKeyGroupBinding,
+) (bool, error) {
+	cache, ok := s.cache.(apiKeyGroupSessionCache)
+	if !ok || sessionHash == "" {
+		return false, nil
+	}
+	return cache.CompareAndDeleteGroupBinding(ctx, apiKeyID, protocol, sessionHash, oldBinding)
+}
+
 // FindGeminiSession 查找 Gemini 会话（基于内容摘要链的 Fallback 匹配）
 // 返回最长匹配的会话信息（uuid, accountID）
 func (s *GatewayService) FindGeminiSession(_ context.Context, groupID int64, prefixHash, digestChain string) (uuid string, accountID int64, matchedChain string, found bool) {
@@ -893,6 +951,37 @@ func (s *GatewayService) FindGeminiSession(_ context.Context, groupID int64, pre
 		return "", 0, "", false
 	}
 	return s.digestStore.Find(groupID, prefixHash, digestChain)
+}
+
+type DigestSessionGroupMatch struct {
+	GroupID      int64
+	UUID         string
+	AccountID    int64
+	MatchedChain string
+}
+
+// FindDigestSessionAcrossGroups returns the longest summary-chain match. Ties
+// preserve the API key priority order supplied by groupIDs.
+func (s *GatewayService) FindDigestSessionAcrossGroups(
+	groupIDs []int64,
+	prefixHash string,
+	digestChain string,
+) (DigestSessionGroupMatch, bool) {
+	var best DigestSessionGroupMatch
+	for _, groupID := range groupIDs {
+		uuid, accountID, matchedChain, found := s.FindGeminiSession(
+			context.Background(), groupID, prefixHash, digestChain)
+		if !found || len(matchedChain) <= len(best.MatchedChain) {
+			continue
+		}
+		best = DigestSessionGroupMatch{
+			GroupID:      groupID,
+			UUID:         uuid,
+			AccountID:    accountID,
+			MatchedChain: matchedChain,
+		}
+	}
+	return best, best.GroupID > 0
 }
 
 // SaveGeminiSession 保存 Gemini 会话。oldDigestChain 为 Find 返回的 matchedChain，用于删旧 key。

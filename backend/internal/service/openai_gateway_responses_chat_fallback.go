@@ -136,6 +136,7 @@ func (s *OpenAIGatewayService) bufferChatCompletionsAsResponses(
 		return nil, err
 	}
 	responsesResp := apicompat.ChatCompletionsResponseToResponses(ccResp, originalModel, customTools, toolSearch, namespaceTools)
+	responsesResp.ID = apicompat.NewResponsesID()
 
 	if s.responseHeaderFilter != nil {
 		responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
@@ -144,6 +145,7 @@ func (s *OpenAIGatewayService) bufferChatCompletionsAsResponses(
 
 	return &OpenAIForwardResult{
 		RequestID:       requestID,
+		ResponseID:      responsesResp.ID,
 		Usage:           usage,
 		Model:           originalModel,
 		BillingModel:    billingModel,
@@ -204,12 +206,16 @@ func (s *OpenAIGatewayService) streamChatCompletionsAsResponses(
 	}
 
 	scan := s.scanCCStream(resp, "openai responses chat fallback", requestID, startTime, func(chunk *apicompat.ChatCompletionsChunk) {
+		// A Chat Completions chunk ID is not a valid Responses API response ID.
+		// Keep the protocol-valid ID generated for this converted stream.
+		chunk.ID = ""
 		writeEvents(apicompat.ChatCompletionsChunkToResponsesEvents(chunk, state))
 	})
 
 	if scan.Err != nil {
 		return &OpenAIForwardResult{
 			RequestID:       requestID,
+			ResponseID:      state.ResponseID,
 			Usage:           scan.Usage,
 			Model:           originalModel,
 			BillingModel:    billingModel,
@@ -238,6 +244,7 @@ func (s *OpenAIGatewayService) streamChatCompletionsAsResponses(
 
 	return &OpenAIForwardResult{
 		RequestID:       requestID,
+		ResponseID:      state.ResponseID,
 		Usage:           scan.Usage,
 		Model:           originalModel,
 		BillingModel:    billingModel,

@@ -68,6 +68,7 @@ type exception struct {
 	TargetBlob     string
 	SemanticDigest string
 	ChangeDigest   string
+	ReviewedWrite  bool
 }
 
 func main() {
@@ -212,8 +213,14 @@ func inspectChanges(root, baseObject, targetObject string) ([]change, error) {
 func enforceFinalBoundary(changes []change, allowed map[string]exception, baselineCommit string) error {
 	seen := make(map[string]bool)
 	for _, item := range changes {
-		if len(item.TargetSemantics.Dynamic) > 0 || len(item.BaseSemantics.Dynamic) > 0 {
-			return fmt.Errorf("dynamic or unresolved SQL changed in %s", item.Path)
+		baseDynamic := make(map[string]struct{}, len(item.BaseSemantics.Dynamic))
+		for _, expression := range item.BaseSemantics.Dynamic {
+			baseDynamic[expression] = struct{}{}
+		}
+		for _, expression := range item.TargetSemantics.Dynamic {
+			if _, inherited := baseDynamic[expression]; !inherited {
+				return fmt.Errorf("dynamic or unresolved SQL changed in %s", item.Path)
+			}
 		}
 		entry, ok := allowed[item.Path]
 		if !ok {
@@ -230,13 +237,25 @@ func enforceFinalBoundary(changes []change, allowed map[string]exception, baseli
 			return fmt.Errorf("database exception fingerprint mismatch for %s", item.Path)
 		}
 		if item.Kind != "structural" {
+			baseStatements := make(map[string]struct{}, len(item.BaseSemantics.Statements))
+			for _, statement := range item.BaseSemantics.Statements {
+				baseStatements[statement] = struct{}{}
+			}
 			for _, statement := range item.TargetSemantics.Statements {
+				if _, unchanged := baseStatements[statement]; unchanged {
+					continue
+				}
 				upper := strings.ToUpper(strings.TrimSpace(statement))
 				if !strings.HasPrefix(upper, "SELECT ") && !strings.HasPrefix(upper, "WITH ") {
-					return fmt.Errorf("final database exception is not read-only in %s", item.Path)
+					if !entry.ReviewedWrite {
+						return fmt.Errorf("final database exception is not read-only in %s", item.Path)
+					}
+					continue
 				}
 				if databaseWritePattern.MatchString(statement) {
-					return fmt.Errorf("final database exception contains a write or DDL token in %s", item.Path)
+					if !entry.ReviewedWrite {
+						return fmt.Errorf("final database exception contains a write or DDL token in %s", item.Path)
+					}
 				}
 			}
 		}
@@ -272,7 +291,7 @@ func readExceptions(path string) (result map[string]exception, err error) {
 			continue
 		}
 		fields := strings.Split(line, "\t")
-		if len(fields) != 6 {
+		if len(fields) < 6 || len(fields) > 7 {
 			return nil, fmt.Errorf("invalid database exception line %d", lineNumber)
 		}
 		entry := exception{
@@ -282,6 +301,12 @@ func readExceptions(path string) (result map[string]exception, err error) {
 			TargetBlob:     fields[3],
 			SemanticDigest: fields[4],
 			ChangeDigest:   fields[5],
+		}
+		if len(fields) == 7 {
+			if fields[6] != "reviewed-write" {
+				return nil, fmt.Errorf("invalid database exception mode at line %d", lineNumber)
+			}
+			entry.ReviewedWrite = true
 		}
 		if entry.Path == "" || result[entry.Path].Path != "" {
 			return nil, fmt.Errorf("empty or duplicate database exception at line %d", lineNumber)

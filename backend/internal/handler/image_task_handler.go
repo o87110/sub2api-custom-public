@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/apikeyrouting"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -66,7 +67,7 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "Images API is not supported for this platform")
 		return
 	}
-	if !service.GroupAllowsImageGeneration(apiKey.Group) {
+	if !apiKeyHasImageGenerationGroup(apiKey) {
 		imageTaskJSONError(c, http.StatusForbidden, "permission_error", service.ImageGenerationPermissionMessage())
 		return
 	}
@@ -96,6 +97,30 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		imageTaskJSONError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
 		return
 	}
+	if len(apiKey.GroupIDs) > 1 && h.openAI != nil {
+		groupRoute := h.openAI.newAPIKeyGroupRoute(
+			c.Request.Context(), apiKey, groupRoutingProtocolOpenAIImages, "", false)
+		groupRoute.setCandidateCheck(func(_ *gin.Context, candidate *service.APIKey) error {
+			if service.GroupAllowsImageGeneration(candidate.Group) {
+				return nil
+			}
+			return infraerrors.Forbidden(
+				"IMAGE_GENERATION_DISABLED",
+				service.ImageGenerationPermissionMessage(),
+			)
+		})
+		selected, _, routeErr := groupRoute.nextCandidate(c)
+		if routeErr != nil {
+			imageTaskError(c, routeErr)
+			return
+		}
+		apiKey = selected
+		if apiKey.Group != nil {
+			platform = apiKey.Group.Platform
+		}
+		c.Request = c.Request.WithContext(apikeyrouting.WithPreferredGroup(
+			c.Request.Context(), groupIDOf(apiKey)))
+	}
 	if !h.checkSecurityAuditBeforeSubmit(c, apiKey, platform, body) {
 		return
 	}
@@ -123,6 +148,21 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 	})
 
 	go h.run(task.ID, platform, taskCtx, recorder, cancel)
+}
+
+func apiKeyHasImageGenerationGroup(apiKey *service.APIKey) bool {
+	if apiKey == nil {
+		return false
+	}
+	if service.GroupAllowsImageGeneration(apiKey.Group) {
+		return true
+	}
+	for i := range apiKey.Groups {
+		if service.GroupAllowsImageGeneration(&apiKey.Groups[i]) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *AsyncImageHandler) checkSecurityAuditBeforeSubmit(c *gin.Context, apiKey *service.APIKey, platform string, body []byte) bool {

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/apikeyrouting"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
@@ -75,16 +77,6 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
-	ensureCompositeTargetPlatform(c, apiKey, reqModel)
-	if !openAICompatibleTextTargetAllowed(c, apiKey, reqModel) {
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by this OpenAI-compatible endpoint for composite groups")
-		return
-	}
-	if apiKey.Group != nil && apiKey.Group.Platform == service.PlatformOpenAI {
-		if cappedBody, changed := service.ApplyOpenAIReasoningEffortPolicy(body, apiKey.Group.MaxReasoningEffort, apiKey.Group.ReasoningEffortMappings); changed {
-			body = cappedBody
-		}
-	}
 	reqStream, ok := parseOpenAICompatibleStream(body)
 	if !ok {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", invalidStreamFieldTypeMessage)
@@ -94,6 +86,55 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "This model is not supported on the Chat Completions endpoint")
 		return
 	}
+	sessionHash := h.gatewayService.GenerateSessionHash(c, body)
+	promptCacheKey := h.gatewayService.ExtractSessionID(c, body)
+	groupRoute := h.newAPIKeyGroupRoute(
+		c.Request.Context(), apiKey, groupRoutingProtocolOpenAIChat, sessionHash, true)
+	defer groupRoute.finish(c)
+	groupRoute.configureCompositeRequest(&reqModel, &body, nil)
+	groupRoute.setCandidateCheck(func(candidateContext *gin.Context, candidate *service.APIKey) error {
+		if !openAICompatibleTextTargetAllowed(candidateContext, candidate, reqModel) {
+			return infraerrors.BadRequest(
+				"COMPOSITE_MODEL_UNSUPPORTED",
+				"Model is not supported by this OpenAI-compatible endpoint for composite groups",
+			)
+		}
+		if candidate.Group != nil && candidate.Group.Platform == service.PlatformOpenAI {
+			if cappedBody, changed := service.ApplyOpenAIReasoningEffortPolicy(
+				body,
+				candidate.Group.MaxReasoningEffort,
+				candidate.Group.ReasoningEffortMappings,
+			); changed {
+				body = cappedBody
+			}
+		}
+		return nil
+	})
+	var subscription *service.UserSubscription
+	if groupRoute.MultiGroup() {
+		var routeErr error
+		apiKey, subscription, routeErr = groupRoute.nextCandidate(c)
+		if routeErr != nil {
+			status, code, message, retryAfter := billingErrorDetails(routeErr)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.handleStreamingAwareError(c, status, code, message, streamStarted)
+			return
+		}
+	} else {
+		subscription, _ = middleware2.GetSubscriptionFromContext(c)
+	}
+	ensureCompositeTargetPlatform(c, apiKey, reqModel)
+	if !openAICompatibleTextTargetAllowed(c, apiKey, reqModel) {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by this OpenAI-compatible endpoint for composite groups")
+		return
+	}
+	if !groupRoute.MultiGroup() && apiKey.Group != nil && apiKey.Group.Platform == service.PlatformOpenAI {
+		if cappedBody, changed := service.ApplyOpenAIReasoningEffortPolicy(body, apiKey.Group.MaxReasoningEffort, apiKey.Group.ReasoningEffortMappings); changed {
+			body = cappedBody
+		}
+	}
 
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
 
@@ -102,6 +143,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 
 	if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, reqModel, body); decision != nil && !decision.AllowNextStage {
 		h.openAISecurityAuditError(c, decision)
+		groupRoute.keepCurrentBinding(c.Request.Context())
 		return
 	}
 	if h.rejectIfCyberSessionBlocked(c, apiKey, body, reqModel, cyberBlockFormatChat) {
@@ -115,7 +157,6 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
 	}
 
-	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	requestPlatform := openAICompatibleRequestPlatform(c.Request.Context(), apiKey)
 
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
@@ -129,18 +170,17 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		defer userReleaseFunc()
 	}
 
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
-		reqLog.Info("openai_chat_completions.billing_eligibility_check_failed", zap.Error(err))
-		status, code, message, retryAfter := billingErrorDetails(err)
-		if retryAfter > 0 {
-			c.Header("Retry-After", strconv.Itoa(retryAfter))
+	if !groupRoute.MultiGroup() {
+		if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
+			reqLog.Info("openai_chat_completions.billing_eligibility_check_failed", zap.Error(err))
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.handleStreamingAwareError(c, status, code, message, streamStarted)
+			return
 		}
-		h.handleStreamingAwareError(c, status, code, message, streamStarted)
-		return
 	}
-
-	sessionHash := h.gatewayService.GenerateSessionHash(c, body)
-	promptCacheKey := h.gatewayService.ExtractSessionID(c, body)
 
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
@@ -177,6 +217,21 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				zap.Error(openAICompatibleSelectionErrorForLog(err, requestPlatform)),
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
+			if groupRoute.MultiGroup() {
+				groupRoute.markCurrentUnavailable(c.Request.Context())
+				nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+				if nextErr == nil {
+					apiKey, subscription = nextKey, nextSub
+					requestPlatform = openAICompatibleRequestPlatform(c.Request.Context(), apiKey)
+					channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+					failedAccountIDs = make(map[int64]struct{})
+					sameAccountRetryCount = make(map[int64]int)
+					switchCount = 0
+					lastFailoverErr = nil
+					oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+					continue
+				}
+			}
 			if len(failedAccountIDs) == 0 {
 				cls := classifyOpenAICompatibleNoAccountErrorFromGin(c, h.gatewayService, apiKey, reqModel, reqModel)
 				if !cls.ModelNotFound {
@@ -207,8 +262,57 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		_ = scheduleDecision
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
-		if !acquired {
+		accountReleaseFunc, accountSlotErr := h.tryAcquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
+		if accountSlotErr != nil {
+			if groupRoute.MultiGroup() && isAccountCapacityUnavailable(accountSlotErr) {
+				switch accountCapacityFailoverAction(c.Request.Context(), failedAccountIDs, account.ID, &switchCount, maxAccountSwitches) {
+				case FailoverContinue:
+					continue
+				case FailoverCanceled:
+					failoverClientGone(c)
+					return
+				}
+				groupRoute.markCurrentUnavailable(c.Request.Context())
+				nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+				if nextErr == nil {
+					apiKey, subscription = nextKey, nextSub
+					requestPlatform = openAICompatibleRequestPlatform(c.Request.Context(), apiKey)
+					channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+					failedAccountIDs = make(map[int64]struct{})
+					sameAccountRetryCount = make(map[int64]int)
+					switchCount = 0
+					lastFailoverErr = nil
+					oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+					continue
+				}
+			}
+			h.handleResponsesAccountSlotError(c, accountSlotErr, streamStarted)
+			return
+		}
+
+		if err := groupRoute.reserveCurrent(c.Request.Context()); err != nil {
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+			}
+			if reservationCanTryNextGroup(err) && groupRoute.MultiGroup() {
+				nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+				if nextErr == nil {
+					apiKey, subscription = nextKey, nextSub
+					requestPlatform = openAICompatibleRequestPlatform(c.Request.Context(), apiKey)
+					channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+					failedAccountIDs = make(map[int64]struct{})
+					sameAccountRetryCount = make(map[int64]int)
+					switchCount = 0
+					lastFailoverErr = nil
+					oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+					continue
+				}
+			}
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.handleStreamingAwareError(c, status, code, message, streamStarted)
 			return
 		}
 
@@ -262,6 +366,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 						return
 					}
 					if c.Writer.Size() != writerSizeBeforeForward {
+						groupRoute.settleTerminalError(c.Request.Context(), failoverErr)
 						h.handleFailoverExhausted(c, failoverErr, true)
 						return
 					}
@@ -269,6 +374,24 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 						h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(reqModel), false, nil)
 					}
 					if !failoverErr.ShouldRetryNextAccount() {
+						if groupRoute.MultiGroup() &&
+							apikeyrouting.ShouldCrossGroup(c.Request.Context(), failoverErr, false) {
+							groupRoute.markCurrentUnavailable(c.Request.Context())
+							nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+							if nextErr == nil {
+								apiKey, subscription = nextKey, nextSub
+								requestPlatform = openAICompatibleRequestPlatform(c.Request.Context(), apiKey)
+								channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(
+									c.Request.Context(), apiKey.GroupID, reqModel)
+								failedAccountIDs = make(map[int64]struct{})
+								sameAccountRetryCount = make(map[int64]int)
+								switchCount = 0
+								lastFailoverErr = nil
+								oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+								continue
+							}
+						}
+						groupRoute.settleTerminalError(c.Request.Context(), failoverErr)
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
@@ -295,11 +418,43 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					failedAccountIDs[account.ID] = struct{}{}
 					lastFailoverErr = failoverErr
 					if switchCount >= maxAccountSwitches {
+						if groupRoute.MultiGroup() && apikeyrouting.ShouldCrossGroup(c.Request.Context(), failoverErr, false) {
+							groupRoute.markCurrentUnavailable(c.Request.Context())
+							nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+							if nextErr == nil {
+								apiKey, subscription = nextKey, nextSub
+								requestPlatform = openAICompatibleRequestPlatform(c.Request.Context(), apiKey)
+								channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+								failedAccountIDs = make(map[int64]struct{})
+								sameAccountRetryCount = make(map[int64]int)
+								switchCount = 0
+								lastFailoverErr = nil
+								oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+								continue
+							}
+						}
+						groupRoute.settleTerminalError(c.Request.Context(), failoverErr)
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
 					switchCount++
 					if h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
+						if groupRoute.MultiGroup() && apikeyrouting.ShouldCrossGroup(c.Request.Context(), failoverErr, false) {
+							groupRoute.markCurrentUnavailable(c.Request.Context())
+							nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+							if nextErr == nil {
+								apiKey, subscription = nextKey, nextSub
+								requestPlatform = openAICompatibleRequestPlatform(c.Request.Context(), apiKey)
+								channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+								failedAccountIDs = make(map[int64]struct{})
+								sameAccountRetryCount = make(map[int64]int)
+								switchCount = 0
+								lastFailoverErr = nil
+								oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+								continue
+							}
+						}
+						groupRoute.settleTerminalError(c.Request.Context(), failoverErr)
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
@@ -326,6 +481,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					zap.Bool("upstream_error_response_already_written", upstreamErrorAlreadyCommunicated),
 					zap.Error(err),
 				)
+				groupRoute.keepCurrentBinding(c.Request.Context())
 				return
 			}
 		}
@@ -374,6 +530,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			zap.Int64("account_id", account.ID),
 			zap.Int("switch_count", switchCount),
 		)
+		groupRoute.keepCurrentBinding(c.Request.Context())
 		return
 	}
 }

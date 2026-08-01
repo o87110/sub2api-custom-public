@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/apikeyrouting"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -75,11 +77,6 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
-	ensureCompositeTargetPlatform(c, apiKey, reqModel)
-	if !compositeTargetPlatformResolved(c, apiKey, reqModel) {
-		h.responsesErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by composite groups")
-		return
-	}
 	reqStream, ok := parseOpenAICompatibleStream(body)
 	if !ok {
 		h.responsesErrorResponse(c, http.StatusBadRequest, "invalid_request_error", invalidStreamFieldTypeMessage)
@@ -90,11 +87,78 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 	setOpsRequestContext(c, reqModel, reqStream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(reqStream, false)))
 	requestCtx := c.Request.Context()
-	if service.IsImageGenerationIntentForPlatform("/v1/responses", reqModel, body, openAICompatibleRequestPlatform(c.Request.Context(), apiKey)) {
+	imageIntent := service.IsImageGenerationIntentForPlatform(
+		"/v1/responses", reqModel, body, openAICompatibleRequestPlatform(c.Request.Context(), apiKey))
+	if imageIntent {
 		requestCtx = service.WithOpenAIImageGenerationIntent(requestCtx)
+		c.Request = c.Request.WithContext(requestCtx)
 	}
 
-	// 解析渠道级模型映射
+	bodyRef := service.NewRequestBodyRef(body)
+	parsedReq, _ := service.ParseGatewayRequest(bodyRef, "responses")
+	if parsedReq == nil {
+		parsedReq = &service.ParsedRequest{Model: reqModel, Stream: reqStream, Body: bodyRef}
+	}
+	parsedReq.SessionContext = &service.SessionContext{
+		ClientIP:  ip.GetClientIP(c),
+		UserAgent: c.GetHeader("User-Agent"),
+		APIKeyID:  apiKey.ID,
+	}
+	sessionHash := h.gatewayService.GenerateSessionHash(parsedReq)
+	if failoverClientGone(c) {
+		return
+	}
+	groupRoute := h.newAPIKeyGroupRoute(
+		requestCtx, apiKey, groupRoutingProtocolOpenAIResponses, sessionHash, true)
+	defer groupRoute.finish(c)
+	groupRoute.preferResponseChain(
+		requestCtx,
+		apiKey,
+		gjson.GetBytes(body, "previous_response_id").String(),
+	)
+	groupRoute.configureCompositeRequest(&reqModel, &body, nil)
+	groupRoute.setCandidateCheck(func(candidateContext *gin.Context, candidate *service.APIKey) error {
+		if !gatewayResponsesCompositeTargetAllowed(candidateContext, candidate, reqModel) {
+			return infraerrors.BadRequest(
+				"COMPOSITE_MODEL_UNSUPPORTED",
+				"Model is not supported by this gateway handler for composite groups",
+			)
+		}
+		if candidate.Group != nil && candidate.Group.ClaudeCodeOnly {
+			return infraerrors.Forbidden(
+				"CLAUDE_CODE_ONLY",
+				"This group is restricted to Claude Code clients (/v1/messages only)",
+			)
+		}
+		if imageIntent && !service.GroupAllowsImageGeneration(candidate.Group) {
+			return infraerrors.Forbidden(
+				"IMAGE_GENERATION_DISABLED",
+				service.ImageGenerationPermissionMessage(),
+			)
+		}
+		return nil
+	})
+	var subscription *service.UserSubscription
+	if groupRoute.MultiGroup() {
+		var routeErr error
+		apiKey, subscription, routeErr = groupRoute.nextCandidate(c)
+		if routeErr != nil {
+			status, code, message, retryAfter := billingErrorDetails(routeErr)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.responsesErrorResponse(c, status, code, message)
+			return
+		}
+		requestCtx = c.Request.Context()
+	} else {
+		subscription, _ = middleware2.GetSubscriptionFromContext(c)
+	}
+	ensureCompositeTargetPlatform(c, apiKey, reqModel)
+	if !gatewayResponsesCompositeTargetAllowed(c, apiKey, reqModel) {
+		h.responsesErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by this gateway handler for composite groups")
+		return
+	}
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(requestCtx, apiKey.GroupID, reqModel)
 
 	// Claude Code only restriction:
@@ -111,6 +175,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 
 	if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIResponses, reqModel, body); decision != nil && !decision.AllowNextStage {
 		h.responsesSecurityAuditError(c, decision)
+		groupRoute.keepCurrentBinding(c.Request.Context())
 		return
 	}
 
@@ -118,8 +183,6 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
 	}
-
-	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 
@@ -135,31 +198,31 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 	}
 
 	// 2. Re-check billing
-	if err := h.billingCacheService.CheckBillingEligibility(requestCtx, apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(requestCtx, apiKey)); err != nil {
-		reqLog.Info("gateway.responses.billing_check_failed", zap.Error(err))
-		status, code, message, retryAfter := billingErrorDetails(err)
-		if retryAfter > 0 {
-			c.Header("Retry-After", strconv.Itoa(retryAfter))
+	if !groupRoute.MultiGroup() {
+		if err := h.billingCacheService.CheckBillingEligibility(requestCtx, apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(requestCtx, apiKey)); err != nil {
+			reqLog.Info("gateway.responses.billing_check_failed", zap.Error(err))
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.responsesErrorResponse(c, status, code, message)
+			return
 		}
-		h.responsesErrorResponse(c, status, code, message)
-		return
 	}
-
-	// Parse request for session hash
-	bodyRef := service.NewRequestBodyRef(body)
-	parsedReq, _ := service.ParseGatewayRequest(bodyRef, "responses")
-	if parsedReq == nil {
-		parsedReq = &service.ParsedRequest{Model: reqModel, Stream: reqStream, Body: bodyRef}
-	}
-	parsedReq.SessionContext = &service.SessionContext{
-		ClientIP:  ip.GetClientIP(c),
-		UserAgent: c.GetHeader("User-Agent"),
-		APIKeyID:  apiKey.ID,
-	}
-	sessionHash := h.gatewayService.GenerateSessionHash(parsedReq)
 
 	// 3. Account selection + failover loop
-	fs := NewFailoverState(h.maxAccountSwitches, false)
+	var fs *FailoverState
+	refreshCandidateRouting := func() {
+		singleAccountRetry := h.gatewayService.IsSingleAntigravityAccountGroup(
+			c.Request.Context(), apiKey.GroupID)
+		c.Request = c.Request.WithContext(service.WithSingleAccountRetry(
+			c.Request.Context(), singleAccountRetry, h.metadataBridgeEnabled()))
+		requestCtx = c.Request.Context()
+		channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(
+			requestCtx, apiKey.GroupID, reqModel)
+		fs = NewFailoverState(h.maxAccountSwitches, false)
+	}
+	refreshCandidateRouting()
 
 	for {
 		if requestCtx.Err() != nil {
@@ -167,6 +230,23 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		}
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(requestCtx, apiKey.GroupID, sessionHash, reqModel, fs.FailedAccountIDs, "", int64(0))
 		if err != nil {
+			action := selectionExhaustedAction(requestCtx, fs)
+			if action == FailoverContinue {
+				continue
+			}
+			if action == FailoverCanceled {
+				failoverClientGone(c)
+				return
+			}
+			if groupRoute.MultiGroup() {
+				groupRoute.markCurrentUnavailable(requestCtx)
+				nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+				if nextErr == nil {
+					apiKey, subscription = nextKey, nextSub
+					refreshCandidateRouting()
+					continue
+				}
+			}
 			if len(fs.FailedAccountIDs) == 0 {
 				cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, reqModel, reqModel, effectiveAPIKeyPlatform(c, apiKey))
 				if !cls.ModelNotFound {
@@ -179,48 +259,61 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				h.responsesErrorResponse(c, cls.Status, cls.ErrType, message)
 				return
 			}
-			action := fs.HandleSelectionExhausted(requestCtx)
-			switch action {
-			case FailoverContinue:
-				continue
-			case FailoverCanceled:
-				failoverClientGone(c)
-				return
-			default:
-				if fs.LastFailoverErr != nil {
-					h.handleResponsesFailoverExhausted(c, fs.LastFailoverErr, streamStarted)
-				} else {
-					h.responsesErrorResponse(c, http.StatusBadGateway, "server_error", "All available accounts exhausted")
-				}
-				return
+			if fs.LastFailoverErr != nil {
+				h.handleResponsesFailoverExhausted(c, fs.LastFailoverErr, streamStarted)
+			} else {
+				h.responsesErrorResponse(c, http.StatusBadGateway, "server_error", "All available accounts exhausted")
 			}
+			return
 		}
 		account := selection.Account
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		// 4. Acquire account concurrency slot
-		accountReleaseFunc := selection.ReleaseFunc
-		if !selection.Acquired {
-			if selection.WaitPlan == nil {
-				markOpsRoutingCapacityLimited(c)
-				h.responsesErrorResponse(c, http.StatusServiceUnavailable, "api_error", "No available accounts")
-				return
+		// 4. Acquire account concurrency slot without committing an error before
+		// all configured groups have been considered.
+		accountReleaseFunc, accountSlotErr := h.concurrencyHelper.acquireSelectedAccountSlot(
+			c, selection, reqStream, &streamStarted)
+		if accountSlotErr != nil {
+			reqLog.Warn("gateway.responses.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(accountSlotErr))
+			if isAccountCapacityUnavailable(accountSlotErr) && groupRoute.MultiGroup() {
+				switch fs.HandleAccountCapacityUnavailable(requestCtx, account.ID) {
+				case FailoverContinue:
+					continue
+				case FailoverCanceled:
+					failoverClientGone(c)
+					return
+				}
+				groupRoute.markCurrentUnavailable(requestCtx)
+				nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+				if nextErr == nil {
+					apiKey, subscription = nextKey, nextSub
+					refreshCandidateRouting()
+					continue
+				}
 			}
-			accountReleaseFunc, err = h.concurrencyHelper.AcquireAccountSlotWithWaitTimeout(
-				c,
-				account.ID,
-				selection.WaitPlan.MaxConcurrency,
-				selection.WaitPlan.Timeout,
-				reqStream,
-				&streamStarted,
-			)
-			if err != nil {
-				reqLog.Warn("gateway.responses.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
-				h.handleConcurrencyError(c, err, "account", streamStarted)
-				return
-			}
+			h.handleConcurrencyError(c, accountSlotErr, "account", streamStarted)
+			return
 		}
-		accountReleaseFunc = wrapReleaseOnDone(c.Request.Context(), accountReleaseFunc)
+
+		if err := groupRoute.reserveCurrent(requestCtx); err != nil {
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+			}
+			if reservationCanTryNextGroup(err) && groupRoute.MultiGroup() {
+				nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+				if nextErr == nil {
+					apiKey, subscription = nextKey, nextSub
+					refreshCandidateRouting()
+					continue
+				}
+			}
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.responsesErrorResponse(c, status, code, message)
+			return
+		}
 
 		// 5. Forward request
 		writerSizeBeforeForward := c.Writer.Size()
@@ -253,6 +346,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 			if errors.As(err, &failoverErr) {
 				// Can't failover if streaming content already sent
 				if c.Writer.Size() != writerSizeBeforeForward {
+					groupRoute.settleTerminalError(requestCtx, failoverErr)
 					h.handleResponsesFailoverExhausted(c, failoverErr, true)
 					return
 				}
@@ -261,6 +355,17 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				case FailoverContinue:
 					continue
 				case FailoverExhausted:
+					crossGroup := apikeyrouting.ShouldCrossGroup(requestCtx, failoverErr, false)
+					if groupRoute.MultiGroup() && crossGroup {
+						groupRoute.markCurrentUnavailable(requestCtx)
+						nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+						if nextErr == nil {
+							apiKey, subscription = nextKey, nextSub
+							refreshCandidateRouting()
+							continue
+						}
+					}
+					groupRoute.settleTerminalError(requestCtx, failoverErr)
 					h.handleResponsesFailoverExhausted(c, fs.LastFailoverErr, streamStarted)
 					return
 				case FailoverCanceled:
@@ -279,6 +384,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				zap.Bool("upstream_error_response_already_written", upstreamErrorAlreadyCommunicated),
 				zap.Error(err),
 			)
+			groupRoute.keepCurrentBinding(requestCtx)
 			return
 		}
 
@@ -314,6 +420,8 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				)
 			}
 		})
+		groupRoute.bindResponseChain(requestCtx, result.ResponseID)
+		groupRoute.keepCurrentBinding(requestCtx)
 		return
 	}
 }

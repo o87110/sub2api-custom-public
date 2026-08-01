@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/apikeyrouting"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -75,6 +76,24 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 		return
 	}
 	requestedModel := strings.TrimSpace(modelResult.String())
+	groupRoute := h.newAPIKeyGroupRoute(
+		c.Request.Context(), apiKey, groupRoutingProtocolOpenAIAlphaSearch, "", false)
+	defer groupRoute.finish(c)
+	var subscription *service.UserSubscription
+	if groupRoute.MultiGroup() {
+		var routeErr error
+		apiKey, subscription, routeErr = groupRoute.nextCandidate(c)
+		if routeErr != nil {
+			status, code, message, retryAfter := billingErrorDetails(routeErr)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.errorResponse(c, status, code, message)
+			return
+		}
+	} else {
+		subscription, _ = middleware2.GetSubscriptionFromContext(c)
+	}
 	reqLog = reqLog.With(zap.String("model", requestedModel))
 	setOpsRequestContext(c, requestedModel, false)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeSync))
@@ -85,7 +104,6 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, requestedModel)
 	forwardBody := openAIModelMappedBody(body, channelMapping.Mapped, channelMapping.MappedModel, h.gatewayService.ReplaceModelInBody)
-	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 
 	userRelease, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, false, &streamStarted, reqLog)
@@ -96,22 +114,50 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 		defer userRelease()
 	}
 
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
-		status, code, message, retryAfter := billingErrorDetails(err)
-		if retryAfter > 0 {
-			c.Header("Retry-After", strconv.Itoa(retryAfter))
+	if !groupRoute.MultiGroup() {
+		if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.errorResponse(c, status, code, message)
+			return
 		}
-		h.errorResponse(c, status, code, message)
-		return
 	}
 
 	searchID := strings.TrimSpace(gjson.GetBytes(body, "id").String())
 	sessionHash := h.gatewayService.GenerateSessionHashWithFallback(c, nil, searchID)
 	failedAccountIDs := make(map[int64]struct{})
+	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
 	switchCount := 0
+	maxAccountSwitches := h.maxAccountSwitches
+	if maxAccountSwitches <= 0 {
+		maxAccountSwitches = 3
+	}
 	var oauth429FailoverState service.OpenAIOAuth429FailoverState
 	routingStart := time.Now()
+	switchToNextGroup := func() bool {
+		if !groupRoute.MultiGroup() {
+			return false
+		}
+		groupRoute.markCurrentUnavailable(c.Request.Context())
+		nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+		if nextErr != nil {
+			return false
+		}
+		apiKey, subscription = nextKey, nextSub
+		channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(
+			c.Request.Context(), apiKey.GroupID, requestedModel)
+		forwardBody = openAIModelMappedBody(
+			body, channelMapping.Mapped, channelMapping.MappedModel, h.gatewayService.ReplaceModelInBody)
+		failedAccountIDs = make(map[int64]struct{})
+		sameAccountRetryCount = make(map[int64]int)
+		lastFailoverErr = nil
+		switchCount = 0
+		oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+		return true
+	}
 
 	for {
 		selection, _, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
@@ -133,6 +179,9 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 				reqLog.Info("openai_alpha_search.account_select_aborted_client_disconnected", zap.Error(err))
 				return
 			}
+			if switchToNextGroup() {
+				continue
+			}
 			if len(failedAccountIDs) == 0 {
 				cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, requestedModel, requestedModel, service.PlatformOpenAI)
 				if !cls.ModelNotFound {
@@ -151,8 +200,35 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 
 		account := selection.Account
 		setOpsSelectedAccount(c, account.ID, account.Platform)
-		accountRelease, acquired := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, false, &streamStarted, reqLog)
-		if !acquired {
+		accountRelease, accountSlotErr := h.tryAcquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, false, &streamStarted, reqLog)
+		if accountSlotErr != nil {
+			if isAccountCapacityUnavailable(accountSlotErr) && groupRoute.MultiGroup() {
+				switch accountCapacityFailoverAction(c.Request.Context(), failedAccountIDs, account.ID, &switchCount, maxAccountSwitches) {
+				case FailoverContinue:
+					continue
+				case FailoverCanceled:
+					failoverClientGone(c)
+					return
+				}
+				if switchToNextGroup() {
+					continue
+				}
+			}
+			h.handleResponsesAccountSlotError(c, accountSlotErr, streamStarted)
+			return
+		}
+		if err := groupRoute.reserveCurrent(c.Request.Context()); err != nil {
+			if accountRelease != nil {
+				accountRelease()
+			}
+			if reservationCanTryNextGroup(err) && switchToNextGroup() {
+				continue
+			}
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.errorResponse(c, status, code, message)
 			return
 		}
 		service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
@@ -197,15 +273,38 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 			)
 			return
 		}
+		if !failoverErr.ShouldRetryNextAccount() {
+			if apikeyrouting.ShouldCrossGroup(c.Request.Context(), failoverErr, false) && switchToNextGroup() {
+				continue
+			}
+			h.handleFailoverExhausted(c, failoverErr, false)
+			return
+		}
+		if failoverErr.RetryableOnSameAccount {
+			retryLimit := account.GetPoolModeRetryCount()
+			if sameAccountRetryCount[account.ID] < retryLimit {
+				sameAccountRetryCount[account.ID]++
+				if !sleepWithContext(c.Request.Context(), sameAccountRetryDelay) {
+					return
+				}
+				continue
+			}
+		}
 		h.gatewayService.RecordOpenAIAccountSwitch()
 		failedAccountIDs[account.ID] = struct{}{}
 		lastFailoverErr = failoverErr
-		if switchCount >= h.maxAccountSwitches {
+		if switchCount >= maxAccountSwitches {
+			if apikeyrouting.ShouldCrossGroup(c.Request.Context(), failoverErr, false) && switchToNextGroup() {
+				continue
+			}
 			h.handleFailoverExhausted(c, failoverErr, false)
 			return
 		}
 		switchCount++
 		if h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
+			if apikeyrouting.ShouldCrossGroup(c.Request.Context(), failoverErr, false) && switchToNextGroup() {
+				continue
+			}
 			h.handleFailoverExhausted(c, failoverErr, false)
 			return
 		}

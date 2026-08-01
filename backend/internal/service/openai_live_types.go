@@ -33,6 +33,28 @@ func (e *LiveAttestationUnavailableError) Error() string {
 	return "Live attestation is unavailable: " + e.Reason
 }
 
+// LiveGroupUnavailableError means the current group's account-level Live
+// retries were exhausted. The cause is intentionally preserved so protocol
+// handlers can distinguish this from global Redis/attestation failures and
+// safely continue with the next API-key group before writing a response.
+type LiveGroupUnavailableError struct {
+	Cause error
+}
+
+func (e *LiveGroupUnavailableError) Error() string {
+	if e == nil || e.Cause == nil {
+		return "Live is unavailable for the current group"
+	}
+	return "Live is unavailable for the current group: " + e.Cause.Error()
+}
+
+func (e *LiveGroupUnavailableError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Cause
+}
+
 // LiveCallRequest 是两个下游创建协议归一后的请求。Session 不做结构改写。
 type LiveCallRequest struct {
 	SDP     string          `json:"sdp"`

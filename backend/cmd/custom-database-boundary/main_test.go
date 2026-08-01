@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/custom/databaseboundary"
@@ -87,6 +89,143 @@ func TestEnforceFinalBoundaryStillRejectsWritableSQLException(t *testing.T) {
 		baselineCommit,
 	)
 	require.EqualError(t, err, "final database exception is not read-only in "+item.Path)
+}
+
+func TestEnforceFinalBoundaryAllowsExactReviewedWriteException(t *testing.T) {
+	item := change{
+		Status:     "M",
+		Path:       "backend/internal/repository/example.go",
+		BaseBlob:   "base-blob",
+		TargetBlob: "target-blob",
+		Kind:       "go-sql",
+		TargetSemantics: databaseboundary.Semantics{
+			Statements: []string{"UPDATE users SET active = FALSE"},
+		},
+	}
+	baselineCommit := "baseline-commit"
+	entry := exactException(item, baselineCommit)
+	entry.ReviewedWrite = true
+
+	require.NoError(t, enforceFinalBoundary(
+		[]change{item},
+		map[string]exception{item.Path: entry},
+		baselineCommit,
+	))
+}
+
+func TestEnforceFinalBoundaryAllowsUnchangedBaselineWriteSQL(t *testing.T) {
+	const existingWrite = "UPDATE users SET active = FALSE"
+	item := change{
+		Status:     "M",
+		Path:       "backend/internal/repository/example.go",
+		BaseBlob:   "base-blob",
+		TargetBlob: "target-blob",
+		Kind:       "go-sql",
+		BaseSemantics: databaseboundary.Semantics{
+			Statements: []string{existingWrite},
+		},
+		TargetSemantics: databaseboundary.Semantics{
+			Statements: []string{
+				existingWrite,
+				"SELECT id FROM users WHERE active = TRUE",
+			},
+		},
+	}
+	baselineCommit := "baseline-commit"
+
+	require.NoError(t, enforceFinalBoundary(
+		[]change{item},
+		map[string]exception{item.Path: exactException(item, baselineCommit)},
+		baselineCommit,
+	))
+}
+
+func TestEnforceFinalBoundaryRejectsTargetDynamicSQL(t *testing.T) {
+	item := change{
+		Status:     "M",
+		Path:       "backend/internal/repository/example.go",
+		BaseBlob:   "base-blob",
+		TargetBlob: "target-blob",
+		Kind:       "go-sql",
+		TargetSemantics: databaseboundary.Semantics{
+			Dynamic: []string{`Query:"SELECT * FROM " + table`},
+		},
+	}
+	baselineCommit := "baseline-commit"
+
+	err := enforceFinalBoundary(
+		[]change{item},
+		map[string]exception{item.Path: exactException(item, baselineCommit)},
+		baselineCommit,
+	)
+	require.EqualError(t, err, "dynamic or unresolved SQL changed in "+item.Path)
+}
+
+func TestEnforceFinalBoundaryAllowsUnchangedBaselineDynamicSQL(t *testing.T) {
+	const inheritedDynamic = `Query:query`
+	item := change{
+		Status:     "M",
+		Path:       "backend/internal/repository/example.go",
+		BaseBlob:   "base-blob",
+		TargetBlob: "target-blob",
+		Kind:       "go-sql",
+		BaseSemantics: databaseboundary.Semantics{
+			Dynamic: []string{inheritedDynamic},
+		},
+		TargetSemantics: databaseboundary.Semantics{
+			Statements: []string{"SELECT group_id FROM api_key_groups WHERE api_key_id = $1"},
+			Dynamic:    []string{inheritedDynamic},
+		},
+	}
+	baselineCommit := "baseline-commit"
+
+	require.NoError(t, enforceFinalBoundary(
+		[]change{item},
+		map[string]exception{item.Path: exactException(item, baselineCommit)},
+		baselineCommit,
+	))
+}
+
+func TestEnforceFinalBoundaryAllowsBaselineDynamicSQLCleanedInTarget(t *testing.T) {
+	item := change{
+		Status:     "M",
+		Path:       "backend/internal/repository/example.go",
+		BaseBlob:   "base-blob",
+		TargetBlob: "target-blob",
+		Kind:       "go-sql",
+		BaseSemantics: databaseboundary.Semantics{
+			Dynamic: []string{`Query:"SELECT * FROM " + table`},
+		},
+		TargetSemantics: databaseboundary.Semantics{
+			Statements: []string{"SELECT id FROM users WHERE active = TRUE"},
+		},
+	}
+	baselineCommit := "baseline-commit"
+
+	require.NoError(t, enforceFinalBoundary(
+		[]change{item},
+		map[string]exception{item.Path: exactException(item, baselineCommit)},
+		baselineCommit,
+	))
+}
+
+func TestReadExceptionsParsesReviewedWriteMode(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "exceptions.tsv")
+	line := "backend/internal/repository/example.go\tbaseline\tbase\ttarget\tsemantic\tchange\treviewed-write\n"
+	require.NoError(t, os.WriteFile(path, []byte(line), 0o600))
+
+	entries, err := readExceptions(path)
+	require.NoError(t, err)
+	require.True(t, entries["backend/internal/repository/example.go"].ReviewedWrite)
+}
+
+func TestReadExceptionsRejectsUnknownMode(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "exceptions.tsv")
+	line := "backend/internal/repository/example.go\tbaseline\tbase\ttarget\tsemantic\tchange\tallow-all\n"
+	require.NoError(t, os.WriteFile(path, []byte(line), 0o600))
+
+	_, err := readExceptions(path)
+	require.EqualError(t, err, "invalid database exception mode at line 1")
 }
 
 func exactException(item change, baselineCommit string) exception {

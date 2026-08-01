@@ -49,6 +49,32 @@ func TestQuotaPlatformCompositeUsesResolvedOrForceOnly(t *testing.T) {
 	require.Equal(t, PlatformAntigravity, QuotaPlatform(ctx, apiKey))
 }
 
+func TestWithoutCompositeRouteDecisionClearsOnlyCandidateValues(t *testing.T) {
+	ctx := context.WithValue(context.Background(), ctxkey.RequestedPublicModel, "public-model")
+	ctx = WithCompositeRouteDecision(ctx, CompositeRouteDecision{
+		Matched:        true,
+		Source:         CompositeRouteSourceExplicit,
+		PublicModel:    "public-model",
+		TargetPlatform: PlatformOpenAI,
+		UpstreamModel:  "group-a-model",
+		Endpoint:       "/v1/responses",
+	})
+
+	ctx = WithoutCompositeRouteDecision(ctx)
+
+	_, ok := ResolvedTargetPlatformFromContext(ctx)
+	require.False(t, ok)
+	_, ok = ResolvedUpstreamModelFromContext(ctx)
+	require.False(t, ok)
+	_, ok = CompositeRouteSourceFromContext(ctx)
+	require.False(t, ok)
+	_, ok = CompositeRouteEndpointFromContext(ctx)
+	require.False(t, ok)
+	publicModel, ok := RequestedPublicModelFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "public-model", publicModel)
+}
+
 func TestCompositeGroupSchedulerHasAllCanonicalPlatformBuckets(t *testing.T) {
 	seen := make(map[string]struct{})
 	for _, bucket := range schedulerCanonicalBuckets(99) {

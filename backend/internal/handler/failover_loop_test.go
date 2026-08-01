@@ -898,6 +898,33 @@ func TestHandleSelectionExhausted(t *testing.T) {
 	})
 }
 
+func TestSelectionExhaustedActionBeforeCrossGroup(t *testing.T) {
+	t.Run("首次选号失败可直接跨组", func(t *testing.T) {
+		fs := NewFailoverState(3, false)
+
+		require.Equal(t, FailoverExhausted,
+			selectionExhaustedAction(context.Background(), fs))
+	})
+
+	t.Run("已有失败账号先执行组内耗尽策略", func(t *testing.T) {
+		fs := NewFailoverState(3, false)
+		fs.FailedAccountIDs[100] = struct{}{}
+		fs.LastFailoverErr = newTestFailoverErr(http.StatusInternalServerError, false, false)
+
+		require.Equal(t, FailoverExhausted,
+			selectionExhaustedAction(context.Background(), fs))
+		require.Contains(t, fs.FailedAccountIDs, int64(100))
+	})
+
+	t.Run("客户端取消禁止跨组", func(t *testing.T) {
+		fs := NewFailoverState(3, false)
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		require.Equal(t, FailoverCanceled, selectionExhaustedAction(ctx, fs))
+	})
+}
+
 // ---------------------------------------------------------------------------
 // failoverClientGone 测试
 // ---------------------------------------------------------------------------
@@ -939,5 +966,112 @@ func TestFailoverClientGone(t *testing.T) {
 
 	t.Run("nil安全", func(t *testing.T) {
 		require.False(t, failoverClientGone(nil))
+	})
+}
+
+func TestMaySwitchOpenAIResponsesWSGroupStopsAfterUpstreamOutput(t *testing.T) {
+	ctx := context.Background()
+	retryable := &service.UpstreamFailoverError{StatusCode: http.StatusServiceUnavailable}
+	nonRetryable := &service.UpstreamFailoverError{StatusCode: http.StatusBadRequest}
+
+	require.True(t, maySwitchOpenAIResponsesWSGroup(ctx, true, false, true, nil))
+	require.True(t, maySwitchOpenAIResponsesWSGroup(ctx, true, false, true, retryable))
+	require.False(t, maySwitchOpenAIResponsesWSGroup(ctx, true, true, true, nil))
+	require.False(t, maySwitchOpenAIResponsesWSGroup(ctx, true, true, true, retryable))
+	require.False(t, maySwitchOpenAIResponsesWSGroup(ctx, true, false, false, retryable))
+	require.False(t, maySwitchOpenAIResponsesWSGroup(ctx, false, false, true, retryable))
+	require.False(t, maySwitchOpenAIResponsesWSGroup(ctx, true, false, true, nonRetryable))
+}
+
+func TestOpenAIResponseChainIDUsesProtocolResponseID(t *testing.T) {
+	tests := []struct {
+		name   string
+		result *service.OpenAIForwardResult
+		want   string
+	}{
+		{name: "http response id wins over request header", result: &service.OpenAIForwardResult{RequestID: "req_header", ResponseID: " resp_http "}, want: "resp_http"},
+		{name: "websocket response id compatibility", result: &service.OpenAIForwardResult{RequestID: "resp_ws"}, want: "resp_ws"},
+		{name: "request header is not a response chain id", result: &service.OpenAIForwardResult{RequestID: "req_header"}},
+		{name: "nil result"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, openAIResponseChainID(tt.result))
+		})
+	}
+}
+
+func TestResponsesAccountCapacityClassification(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "no capacity", err: errAccountCapacityUnavailable, want: true},
+		{name: "account queue full", err: &WaitQueueFullError{SlotType: "account"}, want: true},
+		{name: "account concurrency timeout", err: &ConcurrencyError{SlotType: "account", IsTimeout: true}, want: true},
+		{name: "user concurrency is global", err: &ConcurrencyError{SlotType: "user", IsTimeout: true}, want: false},
+		{name: "client canceled", err: context.Canceled, want: false},
+		{name: "selection error handled separately", err: service.ErrNoAvailableAccounts, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, isAccountCapacityUnavailable(tt.err))
+		})
+	}
+}
+
+func TestAccountCapacityFailoverAction(t *testing.T) {
+	t.Run("continues within current group before switch budget is exhausted", func(t *testing.T) {
+		failed := make(map[int64]struct{})
+		switchCount := 0
+
+		require.Equal(t, FailoverContinue,
+			accountCapacityFailoverAction(context.Background(), failed, 101, &switchCount, 2))
+		require.Equal(t, 1, switchCount)
+		require.Contains(t, failed, int64(101))
+
+		require.Equal(t, FailoverContinue,
+			accountCapacityFailoverAction(context.Background(), failed, 102, &switchCount, 2))
+		require.Equal(t, 2, switchCount)
+		require.Contains(t, failed, int64(102))
+
+		require.Equal(t, FailoverExhausted,
+			accountCapacityFailoverAction(context.Background(), failed, 103, &switchCount, 2))
+		require.Equal(t, 2, switchCount)
+		require.Contains(t, failed, int64(103))
+	})
+
+	t.Run("duplicate account cannot spin the selection loop", func(t *testing.T) {
+		failed := map[int64]struct{}{201: {}}
+		switchCount := 1
+
+		require.Equal(t, FailoverExhausted,
+			accountCapacityFailoverAction(context.Background(), failed, 201, &switchCount, 3))
+		require.Equal(t, 1, switchCount)
+	})
+
+	t.Run("canceled request never retries", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		failed := make(map[int64]struct{})
+		switchCount := 0
+
+		require.Equal(t, FailoverCanceled,
+			accountCapacityFailoverAction(ctx, failed, 301, &switchCount, 3))
+		require.Empty(t, failed)
+		require.Zero(t, switchCount)
+	})
+
+	t.Run("FailoverState uses the same policy", func(t *testing.T) {
+		state := NewFailoverState(1, false)
+		require.Equal(t, FailoverContinue,
+			state.HandleAccountCapacityUnavailable(context.Background(), 401))
+		require.Equal(t, FailoverExhausted,
+			state.HandleAccountCapacityUnavailable(context.Background(), 402))
+		require.Contains(t, state.FailedAccountIDs, int64(401))
+		require.Contains(t, state.FailedAccountIDs, int64(402))
 	})
 }

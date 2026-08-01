@@ -42,6 +42,7 @@ Issue 和生产资料不迁移。
 
 ```text
 backend/internal/custom/
+├── apikeyrouting/          API 密钥多分组优先级、会话粘性与跨组降级
 ├── databaseboundary/       数据库与迁移边界检查
 ├── groupaccess/            分组最低余额门槛计算、错误与金额格式
 ├── moderation/             cyber_policy 范围隔离与摘要
@@ -63,6 +64,7 @@ frontend/src/custom/
 
 - [代码代理项目级协作规则](../AGENTS.md)
 - [二改功能清单](custom/FEATURES_CN.md)
+- [API 密钥多分组优先级与会话粘性](custom/API_KEY_MULTI_GROUP_CN.md)
 - [日常维护](custom/MAINTENANCE_CN.md)
 - [公开部署与运维](custom/OPERATIONS_CN.md)
 - [仓库与发布](custom/REPOSITORY_RELEASE_CN.md)

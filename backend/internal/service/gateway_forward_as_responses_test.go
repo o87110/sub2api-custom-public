@@ -178,6 +178,7 @@ func TestHandleResponsesBufferedStreamingResponse_PreservesMessageStartCacheUsag
 	require.Equal(t, 7, result.Usage.OutputTokens)
 	require.Equal(t, 9, result.Usage.CacheReadInputTokens)
 	require.Equal(t, 3, result.Usage.CacheCreationInputTokens)
+	require.Equal(t, "msg_1", result.ResponseID)
 	require.Contains(t, rec.Body.String(), `"cached_tokens":9`)
 }
 
@@ -214,6 +215,7 @@ func TestHandleResponsesStreamingResponse_PreservesMessageStartCacheUsage(t *tes
 	require.Equal(t, 8, result.Usage.OutputTokens)
 	require.Equal(t, 11, result.Usage.CacheReadInputTokens)
 	require.Equal(t, 4, result.Usage.CacheCreationInputTokens)
+	require.Equal(t, "msg_2", result.ResponseID)
 	require.Contains(t, rec.Body.String(), `response.completed`)
 }
 

@@ -3439,3 +3439,35 @@ func TestGatewayService_ResolveGatewayGroup_DetectsFallbackCycle(t *testing.T) {
 	require.Nil(t, gotID)
 	require.Contains(t, err.Error(), "fallback group cycle")
 }
+
+func TestGatewayService_ResolveGatewayGroup_MultiGroupDisablesImplicitFallbackOnly(t *testing.T) {
+	groupID := int64(10)
+	fallbackID := int64(11)
+	group := &Group{
+		ID:              groupID,
+		Platform:        PlatformAnthropic,
+		Status:          StatusActive,
+		ClaudeCodeOnly:  true,
+		FallbackGroupID: &fallbackID,
+	}
+	fallback := &Group{
+		ID:       fallbackID,
+		Platform: PlatformAnthropic,
+		Status:   StatusActive,
+	}
+	svc := &GatewayService{groupRepo: &mockGroupRepoForGateway{groups: map[int64]*Group{
+		groupID: group, fallbackID: fallback,
+	}}}
+
+	gotGroup, gotID, err := svc.resolveGatewayGroup(context.Background(), &groupID)
+	require.NoError(t, err)
+	require.NotNil(t, gotGroup)
+	require.NotNil(t, gotID)
+	require.Equal(t, fallbackID, gotGroup.ID)
+	require.Equal(t, fallbackID, *gotID, "single-group requests retain the legacy implicit fallback")
+
+	gotGroup, gotID, err = svc.resolveGatewayGroup(WithMultiGroupRouting(context.Background()), &groupID)
+	require.ErrorIs(t, err, ErrClaudeCodeOnly)
+	require.Nil(t, gotGroup)
+	require.Nil(t, gotID, "multi-group requests must remain inside their explicit candidate list")
+}

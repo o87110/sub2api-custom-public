@@ -127,6 +127,20 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 	identity LiveCallIdentity,
 	userMaxConcurrency int,
 ) (*LiveCallCreated, error) {
+	return s.CreateLiveCallWithBeforeForward(ctx, request, identity, userMaxConcurrency, nil)
+}
+
+// CreateLiveCallWithBeforeForward runs beforeForward after an account and its
+// Live lease have been acquired, but before the first upstream byte is sent.
+// Multi-group routing uses this boundary to atomically reserve the actual
+// candidate group's RPM without charging read-only candidate probes.
+func (s *OpenAIGatewayService) CreateLiveCallWithBeforeForward(
+	ctx context.Context,
+	request *LiveCallRequest,
+	identity LiveCallIdentity,
+	userMaxConcurrency int,
+	beforeForward func() error,
+) (*LiveCallCreated, error) {
 	if err := ValidateLiveCallRequest(request); err != nil {
 		return nil, err
 	}
@@ -161,15 +175,23 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		)
 		if selectErr != nil {
 			if lastErr != nil {
-				return nil, lastErr
+				return nil, &LiveGroupUnavailableError{Cause: lastErr}
 			}
 			return nil, selectErr
 		}
-		if selection == nil || selection.Account == nil || !selection.Acquired {
+		if selection == nil || selection.Account == nil {
 			if selection != nil && selection.ReleaseFunc != nil {
 				selection.ReleaseFunc()
 			}
 			return nil, ErrLiveConcurrencyFull
+		}
+		if !selection.Acquired {
+			if selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			excluded[selection.Account.ID] = struct{}{}
+			lastErr = ErrLiveConcurrencyFull
+			continue
 		}
 
 		account := selection.Account
@@ -189,9 +211,18 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 			if acquireErr != nil {
 				return nil, acquireErr
 			}
-			return nil, ErrLiveConcurrencyFull
+			excluded[account.ID] = struct{}{}
+			lastErr = ErrLiveConcurrencyFull
+			continue
 		}
 
+		if beforeForward != nil {
+			if beforeErr := beforeForward(); beforeErr != nil {
+				selection.ReleaseFunc()
+				s.releaseLiveLease(account.ID, identity.UserID, identity.APIKeyID, leaseID)
+				return nil, beforeErr
+			}
+		}
 		created, createErr := s.createUpstreamLiveCall(ctx, account, request, attestation)
 		selection.ReleaseFunc()
 		if createErr != nil {
@@ -237,7 +268,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		return created, nil
 	}
 	if lastErr != nil {
-		return nil, lastErr
+		return nil, &LiveGroupUnavailableError{Cause: lastErr}
 	}
 	return nil, ErrLiveUnavailable
 }

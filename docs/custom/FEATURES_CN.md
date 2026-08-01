@@ -259,7 +259,34 @@ backend/internal/custom/groupaccess/
 frontend/src/custom/group-access/
 ```
 
-## 12. 明确没有改变的行为
+## 12. API 密钥多分组优先级与会话粘性
+
+系统设置提供默认关闭的 `api_key_multi_group_enabled` 总开关。关闭时密钥仍按
+`group_id` 单分组运行并保留旧 fallback；打开后，一个密钥可以保存最多 10 个
+同平台分组并按顺序降级。新会话从最高优先级可用分组开始，已有会话降级后保持
+当前分组，只有当前分组再次不可用才从列表顶部重扫，以减少提示缓存失效和重复计费。
+
+- 组内账号重试先于跨组，非重试型 `4xx`、内容策略、客户端取消和已提交的流不跨组；
+- 候选扫描不占 RPM，用户全局 RPM 每请求一次，实际尝试的每个分组各占一次；
+- Usage、倍率、订阅、账单和 Ops 记录始终归属最终实际分组；
+- Redis 只保存哈希会话键和分组 ID，滑动 TTL 一小时，CAS 防并发覆盖，故障
+  fail-open；
+- 用户、管理员、行内和批量入口复用同一优先级编辑器，支持拖拽、键盘/触控按钮、
+  明确保存/取消以及至少 `44×44px` 触控区；
+- 新增 Migration `193_add_api_key_groups.sql`、Ent Schema 和生成代码，发布前必须
+  完成人工数据库结构审核。
+
+完整协议、计费和运维说明见
+[API 密钥多分组优先级与会话粘性](API_KEY_MULTI_GROUP_CN.md)。
+
+主要实现：
+
+```text
+backend/internal/custom/apikeyrouting/
+frontend/src/custom/api-keys/ApiKeyGroupPriorityEditor.vue
+```
+
+## 13. 明确没有改变的行为
 
 除本文档列出的边界外，认证、计费、调度、协议兼容和官方功能应保持当前
 源码既有行为。新增需求必须先更新本清单和对应测试，不能用“二改”名义扩大隐式

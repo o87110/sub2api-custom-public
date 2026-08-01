@@ -735,11 +735,52 @@ func (s *BillingCacheService) IncrementUserPlatformQuotaUsage(userID int64, plat
 // 统一检查方法
 // ============================================
 
+func (s *BillingCacheService) isSimpleMode() bool {
+	return s != nil && s.cfg != nil && s.cfg.RunMode == config.RunModeSimple
+}
+
 // CheckBillingEligibility 检查用户是否有资格发起请求
 // 余额模式：检查缓存余额 > 0
 // 订阅模式：检查缓存用量未超过限额（Group限额从参数传入）
 // platform 为请求的目标平台（如 "anthropic"），传空串 "" 时跳过 user × platform quota 检查。
 func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription, platform string) error {
+	if err := s.checkBillingEligibilityBase(ctx, user, apiKey, group, subscription, platform); err != nil {
+		return err
+	}
+	if s.isSimpleMode() {
+		return nil
+	}
+	// 单分组兼容路径保持旧版 RPM 顺序：先占用 (user, group)，
+	// 只有分组未超限时才占用用户全局 RPM。多分组路由不会调用这里，
+	// 而是在首个实际候选前显式 ReserveUserRPM，再逐组 ReserveGroupRPM。
+	return s.reserveLegacyRPM(ctx, user, group)
+}
+
+// CheckBillingEligibilityReadOnly 执行候选分组资格探测，不递增任何 RPM 计数。
+// 多分组路由在扫描候选时使用该方法；只有确认准备发起上游请求后才调用
+// ReserveUserRPM/ReserveGroupRPM。
+func (s *BillingCacheService) CheckBillingEligibilityReadOnly(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription, platform string) error {
+	if err := s.checkBillingEligibilityBase(ctx, user, apiKey, group, subscription, platform); err != nil {
+		return err
+	}
+	if s.isSimpleMode() {
+		return nil
+	}
+	return s.checkRPMReadOnly(ctx, user, group)
+}
+
+// CheckAPIKeyRateLimitsReadOnly executes the API-key-owned rate window check
+// once before a multi-group candidate scan. Candidate eligibility then passes a
+// view with these limits cleared so switching groups cannot repeat this global
+// check. Simple mode preserves the legacy behavior of skipping billing limits.
+func (s *BillingCacheService) CheckAPIKeyRateLimitsReadOnly(ctx context.Context, apiKey *APIKey) error {
+	if s == nil || apiKey == nil || !apiKey.HasRateLimits() || s.isSimpleMode() {
+		return nil
+	}
+	return s.checkAPIKeyRateLimits(ctx, apiKey)
+}
+
+func (s *BillingCacheService) checkBillingEligibilityBase(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription, platform string) error {
 	minimumBalanceGroups, err := s.minimumBalanceGroupsForRequest(ctx, group)
 	if err != nil {
 		return ErrBillingServiceUnavailable.WithCause(err)
@@ -753,11 +794,13 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 			return err
 		}
 	}
-
-	// 简易模式：跳过所有计费检查
-	if s.cfg.RunMode == config.RunModeSimple {
+	// 简易模式沿用旧版语义：仍执行分组最低余额门槛（包括官方
+	// fallback 链），但跳过余额缓存、订阅额度、平台额度、API Key
+	// 窗口和 RPM 等计费检查。
+	if s.isSimpleMode() {
 		return nil
 	}
+
 	if !groupMinimumBalanceEnabled && s.circuitBreaker != nil && !s.circuitBreaker.Allow() {
 		return ErrBillingServiceUnavailable
 	}
@@ -789,12 +832,40 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 		}
 	}
 
-	// RPM 限流：级联回落（Override → Group → User），放在最后以避免为注定失败的请求增加计数。
-	if err := s.checkRPM(ctx, user, group); err != nil {
-		return err
-	}
-
 	return nil
+}
+
+// GetActiveSubscriptionForRouting 返回候选分组实际计费所需的完整订阅实体。
+// 资格检查仍会读取最新缓存状态；这里不能只构造 user/group 占位对象，
+// 因为后续 Usage 记账必须使用真实 subscription_id。
+func (s *BillingCacheService) GetActiveSubscriptionForRouting(
+	ctx context.Context,
+	apiKey *APIKey,
+	groupID int64,
+) (*UserSubscription, error) {
+	// Simple mode does not bill subscription usage and must not require a
+	// subscription merely because the selected group is subscription-based.
+	if s.isSimpleMode() {
+		return nil, nil
+	}
+	if apiKey == nil {
+		return nil, ErrSubscriptionInvalid.WithCause(errors.New("api key snapshot is unavailable"))
+	}
+	if resolved, known := apiKey.GroupSubscriptionsResolved[groupID]; known && resolved {
+		subscription := apiKey.GroupSubscriptions[groupID]
+		if subscription == nil {
+			return nil, ErrSubscriptionInvalid.WithCause(ErrSubscriptionNotFound)
+		}
+		return cloneUserSubscription(subscription), nil
+	}
+	if s == nil || s.subRepo == nil {
+		return nil, ErrBillingServiceUnavailable.WithCause(errors.New("subscription repository is unavailable"))
+	}
+	subscription, err := s.subRepo.GetActiveByUserIDAndGroupID(ctx, apiKey.UserID, groupID)
+	if err != nil {
+		return nil, ErrSubscriptionInvalid.WithCause(err)
+	}
+	return subscription, nil
 }
 
 func (s *BillingCacheService) minimumBalanceGroupsForRequest(ctx context.Context, group *Group) ([]*Group, error) {
@@ -808,7 +879,7 @@ func (s *BillingCacheService) minimumBalanceGroupsForRequest(ctx context.Context
 	if forcePlatform, ok := ctx.Value(ctxkey.ForcePlatform).(string); ok && forcePlatform != "" {
 		return groups, nil
 	}
-	if !group.ClaudeCodeOnly || IsClaudeCodeClient(ctx) || group.FallbackGroupID == nil {
+	if IsMultiGroupRouting(ctx) || !group.ClaudeCodeOnly || IsClaudeCodeClient(ctx) || group.FallbackGroupID == nil {
 		return groups, nil
 	}
 	groupLoader, ok := s.apiKeyRateLimitLoader.(groupMinimumBalanceLoader)
@@ -877,77 +948,133 @@ func (s *BillingCacheService) checkGroupMinimumBalanceEligibility(ctx context.Co
 // 与旧版"级联互斥"设计不同，新版确保 user.rpm_limit 作为全局天花板不会被 group 或 override 覆盖。
 // Redis 故障一律 fail-open（打 warning，不阻塞业务）。
 func (s *BillingCacheService) checkRPM(ctx context.Context, user *User, group *Group) error {
-	if s == nil || s.userRPMCache == nil || user == nil {
+	if s.isSimpleMode() {
 		return nil
 	}
+	if err := s.ReserveUserRPM(ctx, user); err != nil {
+		return err
+	}
+	return s.ReserveGroupRPM(ctx, user, group)
+}
 
-	// ── 第一层：分组级检查（override 或 group.rpm_limit） ──
+func (s *BillingCacheService) reserveLegacyRPM(ctx context.Context, user *User, group *Group) error {
+	if s == nil || s.isSimpleMode() || s.userRPMCache == nil || user == nil {
+		return nil
+	}
 	if group != nil {
-		// 解析 override：优先从 auth cache snapshot，nil 时回退 DB。
-		var override *int
-		if user.UserGroupRPMOverride != nil {
-			override = user.UserGroupRPMOverride
-		} else if s.userGroupRateRepo != nil {
-			dbOverride, err := s.userGroupRateRepo.GetRPMOverrideByUserAndGroup(ctx, user.ID, group.ID)
-			if err != nil {
-				logger.LegacyPrintf(
-					"service.billing_cache",
-					"Warning: rpm override lookup failed for user=%d group=%d: %v",
-					user.ID, group.ID, err,
-				)
-			} else {
-				override = dbOverride
-			}
-		}
-
-		if override != nil {
-			// override=0 → 该用户在该分组免检（但 user 级仍会在下面检查）。
-			if *override > 0 {
-				count, incErr := s.userRPMCache.IncrementUserGroupRPM(ctx, user.ID, group.ID)
-				if incErr != nil {
-					logger.LegacyPrintf(
-						"service.billing_cache",
-						"Warning: rpm increment (override) failed for user=%d group=%d: %v",
-						user.ID, group.ID, incErr,
-					)
-					// fail-open
-				} else if count > *override {
-					return ErrGroupRPMExceeded
-				}
-			}
-			// override 命中后跳过 group.rpm_limit（override 替代 group），但不 return——继续检查 user 级。
-		} else if group.RPMLimit > 0 {
-			// 无 override，检查 group.rpm_limit。
+		if limit := s.groupRPMLimit(ctx, user, group); limit > 0 {
 			count, err := s.userRPMCache.IncrementUserGroupRPM(ctx, user.ID, group.ID)
 			if err != nil {
-				logger.LegacyPrintf(
-					"service.billing_cache",
+				logger.LegacyPrintf("service.billing_cache",
 					"Warning: rpm increment (group) failed for user=%d group=%d: %v",
-					user.ID, group.ID, err,
-				)
-				// fail-open
-			} else if count > group.RPMLimit {
+					user.ID, group.ID, err)
+			} else if count > limit {
 				return ErrGroupRPMExceeded
 			}
 		}
 	}
+	return s.ReserveUserRPM(ctx, user)
+}
 
-	// ── 第二层：用户级全局硬上限（始终生效） ──
-	if user.RPMLimit > 0 {
-		count, err := s.userRPMCache.IncrementUserRPM(ctx, user.ID)
-		if err != nil {
-			logger.LegacyPrintf(
-				"service.billing_cache",
-				"Warning: rpm increment (user) failed for user=%d: %v",
-				user.ID, err,
-			)
-			return nil // fail-open
+func (s *BillingCacheService) resolveGroupRPMOverride(ctx context.Context, user *User, group *Group) *int {
+	if user == nil || group == nil {
+		return nil
+	}
+	if user.UserGroupRPMOverrideResolved {
+		return user.UserGroupRPMOverride
+	}
+	if user.UserGroupRPMOverride != nil {
+		return user.UserGroupRPMOverride
+	}
+	if s.userGroupRateRepo == nil {
+		return nil
+	}
+	override, err := s.userGroupRateRepo.GetRPMOverrideByUserAndGroup(ctx, user.ID, group.ID)
+	if err != nil {
+		logger.LegacyPrintf(
+			"service.billing_cache",
+			"Warning: rpm override lookup failed for user=%d group=%d: %v",
+			user.ID, group.ID, err,
+		)
+		return nil
+	}
+	return override
+}
+
+func (s *BillingCacheService) groupRPMLimit(ctx context.Context, user *User, group *Group) int {
+	if group == nil {
+		return 0
+	}
+	if override := s.resolveGroupRPMOverride(ctx, user, group); override != nil {
+		return *override
+	}
+	return group.RPMLimit
+}
+
+func (s *BillingCacheService) checkRPMReadOnly(ctx context.Context, user *User, group *Group) error {
+	if s == nil || s.isSimpleMode() || s.userRPMCache == nil || user == nil {
+		return nil
+	}
+	if group != nil {
+		if limit := s.groupRPMLimit(ctx, user, group); limit > 0 {
+			count, err := s.userRPMCache.GetUserGroupRPM(ctx, user.ID, group.ID)
+			if err != nil {
+				logger.LegacyPrintf("service.billing_cache",
+					"Warning: rpm read failed for user=%d group=%d: %v", user.ID, group.ID, err)
+			} else if count >= limit {
+				return ErrGroupRPMExceeded
+			}
 		}
-		if count > user.RPMLimit {
+	}
+	if user.RPMLimit > 0 {
+		count, err := s.userRPMCache.GetUserRPM(ctx, user.ID)
+		if err != nil {
+			logger.LegacyPrintf("service.billing_cache",
+				"Warning: rpm read (user) failed for user=%d: %v", user.ID, err)
+		} else if count >= user.RPMLimit {
 			return ErrUserRPMExceeded
 		}
 	}
+	return nil
+}
 
+// ReserveUserRPM 为一个客户端请求原子占用一次用户全局 RPM。
+// Redis 故障沿用现有 fail-open 策略。
+func (s *BillingCacheService) ReserveUserRPM(ctx context.Context, user *User) error {
+	if s == nil || s.isSimpleMode() || s.userRPMCache == nil || user == nil || user.RPMLimit <= 0 {
+		return nil
+	}
+	count, err := s.userRPMCache.IncrementUserRPM(ctx, user.ID)
+	if err != nil {
+		logger.LegacyPrintf("service.billing_cache",
+			"Warning: rpm increment (user) failed for user=%d: %v", user.ID, err)
+		return nil
+	}
+	if count > user.RPMLimit {
+		return ErrUserRPMExceeded
+	}
+	return nil
+}
+
+// ReserveGroupRPM 为真正准备发起上游请求的候选分组原子占用一次 RPM。
+func (s *BillingCacheService) ReserveGroupRPM(ctx context.Context, user *User, group *Group) error {
+	if s == nil || s.isSimpleMode() || s.userRPMCache == nil || user == nil || group == nil {
+		return nil
+	}
+	limit := s.groupRPMLimit(ctx, user, group)
+	if limit <= 0 {
+		return nil
+	}
+	count, err := s.userRPMCache.IncrementUserGroupRPM(ctx, user.ID, group.ID)
+	if err != nil {
+		logger.LegacyPrintf("service.billing_cache",
+			"Warning: rpm increment (group) failed for user=%d group=%d: %v",
+			user.ID, group.ID, err)
+		return nil
+	}
+	if count > limit {
+		return ErrGroupRPMExceeded
+	}
 	return nil
 }
 

@@ -108,6 +108,12 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
+		if IsMultiGroupRouting(ctx) {
+			return &UpstreamFailoverError{
+				StatusCode: http.StatusBadGateway,
+				Scope:      GatewayFailureScopeAccount,
+			}
+		}
 		writeAnthropicCountTokensError(c, http.StatusBadGateway, "upstream_error", "Failed to get access token")
 		return fmt.Errorf("get access token: %w", err)
 	}
@@ -124,6 +130,9 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 	}
 	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
 	if err != nil {
+		if IsMultiGroupRouting(ctx) {
+			return s.handleOpenAIUpstreamTransportError(ctx, c, account, err, true)
+		}
 		safeErr := sanitizeUpstreamErrorMessage(err.Error())
 		setOpsUpstreamError(c, 0, safeErr, "")
 		writeAnthropicCountTokensError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed")
@@ -133,6 +142,12 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		if IsMultiGroupRouting(ctx) {
+			return &UpstreamFailoverError{
+				StatusCode:   http.StatusBadGateway,
+				ResponseBody: []byte(`{"error":{"message":"Failed to read upstream response"}}`),
+			}
+		}
 		writeAnthropicCountTokensError(c, http.StatusBadGateway, "upstream_error", "Failed to read response")
 		return fmt.Errorf("read input_tokens response: %w", err)
 	}
@@ -151,6 +166,15 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 		if isOpenAIInputTokensUnsupported(resp.StatusCode, respBody) {
 			writeAnthropicCountTokensError(c, http.StatusNotFound, "not_found_error", "Token counting is not supported by upstream")
 			return nil
+		}
+		if IsMultiGroupRouting(ctx) &&
+			s.shouldFailoverOpenAIUpstreamResponse(resp.StatusCode, upstreamMsg, respBody) {
+			return &UpstreamFailoverError{
+				StatusCode:             resp.StatusCode,
+				ResponseBody:           append([]byte(nil), respBody...),
+				ResponseHeaders:        resp.Header.Clone(),
+				RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
+			}
 		}
 
 		upstreamDetail := ""
@@ -179,6 +203,12 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 
 	inputTokens := gjson.GetBytes(respBody, "input_tokens")
 	if !inputTokens.Exists() {
+		if IsMultiGroupRouting(ctx) {
+			return &UpstreamFailoverError{
+				StatusCode:   http.StatusBadGateway,
+				ResponseBody: []byte(`{"error":{"message":"Upstream response missing input_tokens"}}`),
+			}
+		}
 		writeAnthropicCountTokensError(c, http.StatusBadGateway, "upstream_error", "Upstream response missing input_tokens")
 		return fmt.Errorf("input_tokens response missing input_tokens field")
 	}

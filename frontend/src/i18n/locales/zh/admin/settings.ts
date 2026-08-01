@@ -30,6 +30,12 @@ export default {
           enabled: '启用可用渠道',
           enabledHint: '关闭后用户端侧边栏入口隐藏，接口返回空数组。',
         },
+        apiKeyMultiGroup: {
+          title: 'API 密钥多分组路由',
+          description: '为 API 密钥启用有序分组优先级、组间故障降级和会话粘性。默认关闭。',
+          enabled: '启用 API 密钥多分组',
+          enabledHint: '关闭时完整使用旧版单分组逻辑；已有多分组配置保留但仅首分组生效，重新开启后恢复。',
+        },
         modelPlaza: {
           title: '模型广场',
           description: '以分组为单位向访客展示可用模型与价格的公开页面。默认关闭。',

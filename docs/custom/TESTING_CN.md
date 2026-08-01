@@ -179,8 +179,10 @@
   变化；发布前完成人工 Migration/Schema 审核，不得自动跳过数据库门禁；
 - 人工审核通过的自定义结构变化必须逐文件登记到
   `.github/custom-database-exceptions.tsv`，并绑定 Vendor 基线提交、基线/候选 Blob、
-  目标 SQL 语义摘要和完整变更摘要。未登记、摘要漂移、动态 SQL 或非结构型写入 SQL
-  仍然失败关闭。
+  目标 SQL 语义摘要和完整变更摘要。未登记、摘要漂移和动态 SQL仍然失败关闭；
+  非结构型写入 SQL默认拒绝，只有台账显式标记 `reviewed-write` 且基线、候选 Blob、
+  目标 SQL 语义和完整变更摘要全部精确匹配时才允许。API 密钥多分组仅为异步批量
+  生图持久化实际路由分组启用该模式，其他仓储写入保持默认拒绝。
 
 ## 11. 分组最低余额门槛
 
@@ -203,7 +205,28 @@
 - Migration `192`、Ent 生成一致性和 Candidate Tree 数据库边界检查必须通过；
   发布前完成人工 Migration/Schema 审核。
 
-## 12. 同机演练
+## 12. API 密钥多分组优先级与会话粘性
+
+- 开关默认关闭；关闭时创建、编辑、查询、鉴权和隐式 fallback 与旧单分组路径一致，
+  `group_ids` 写请求失败关闭；
+- Migration 193 回填、复合主键、优先级唯一/非负约束、级联删除、删除压紧和兼容
+  `group_id` 同步通过；
+- 新旧 API 字段互斥、空列表、重复、超限、跨平台、权限、订阅、最低余额、纯重排
+  和任意位置筛选通过；
+- 新会话 A 优先，A 故障降级 B，A 恢复后原会话继续 B，B 再故障后从顶部恢复 A，
+  新会话直接使用恢复后的 A；
+- 同组账号先耗尽，同一请求每组最多一次；网络、`429`、容量和 `5xx` 跨组，非
+  重试型 `4xx`、客户端取消和已提交流不跨组；
+- 多分组不进入隐式 fallback，单分组保留旧 fallback；
+- 扫描最多 10 个候选不递增 RPM；真实尝试 A、B 时用户全局 RPM 一次、A/B 分组
+  RPM 各一次，竞争超限与 Redis fail-open 通过；
+- Anthropic Messages、OpenAI Chat/Responses HTTP/WS、Gemini、无会话入口、
+  `previous_response_id` 安全重建和 SSE/WS 提交边界通过；
+- 编辑器添加、删除、最多 10 项、同平台、拖拽、键盘/触控排序、保存/取消、批量
+  替换和管理员入口通过；
+- Ent 与 Wire 二次生成无差异，候选树数据库边界和人工 Migration 审核通过。
+
+## 13. 同机演练
 
 - 使用独立 PostgreSQL、Redis、数据目录、runtime 和端口；
 - 默认只绑定 `127.0.0.1`；
@@ -213,7 +236,7 @@
 - 匿名 Release 更新、升级和回退正常；
 - `docker compose down -v` 不作为普通清理步骤。
 
-## 13. 验收记录
+## 14. 验收记录
 
 ```markdown
 # vX.Y.Z-custom.N 验收

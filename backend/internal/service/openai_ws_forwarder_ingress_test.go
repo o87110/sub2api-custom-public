@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"net/http"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -60,6 +61,17 @@ func TestIsOpenAIWSIngressPreviousResponseNotFound(t *testing.T) {
 	require.True(t, isOpenAIWSIngressPreviousResponseNotFound(
 		wrapOpenAIWSIngressTurnError(openAIWSIngressStagePreviousResponseNotFound, errors.New("previous response not found"), false),
 	))
+}
+
+func TestOpenAIWSIngressTurnWroteDownstream(t *testing.T) {
+	t.Parallel()
+
+	cause := &UpstreamFailoverError{StatusCode: http.StatusServiceUnavailable}
+	require.False(t, OpenAIWSIngressTurnWroteDownstream(cause))
+	require.False(t, OpenAIWSIngressTurnWroteDownstream(
+		wrapOpenAIWSIngressTurnError("read_upstream", cause, false)))
+	require.True(t, OpenAIWSIngressTurnWroteDownstream(
+		wrapOpenAIWSIngressTurnError("read_upstream", cause, true)))
 }
 
 func TestOpenAIWSIngressPreviousResponseRecoveryEnabled(t *testing.T) {

@@ -60,6 +60,8 @@ type SettingService struct {
 	codexRestrictionPolicyCache atomic.Value // *cachedCodexRestrictionPolicy
 	codexRestrictionPolicySF    singleflight.Group
 
+	apiKeyMultiGroupEnabled atomic.Bool
+
 	cyberSessionBlockRuntimeCache atomic.Value // *cachedCyberSessionBlockRuntime
 	cyberSessionBlockRuntimeSF    singleflight.Group
 
@@ -210,6 +212,26 @@ func NewSettingService(settingRepo SettingRepository, cfg *config.Config) *Setti
 		settingRepo: settingRepo,
 		cfg:         cfg,
 	}
+}
+
+// LoadAPIKeyMultiGroupSetting loads the opt-in multi-group routing switch.
+// The zero value remains disabled on any read failure.
+func (s *SettingService) LoadAPIKeyMultiGroupSetting(ctx context.Context) error {
+	if s == nil || s.settingRepo == nil {
+		return nil
+	}
+	values, err := s.settingRepo.GetMultiple(ctx, []string{SettingKeyAPIKeyMultiGroupEnabled})
+	if err != nil {
+		s.apiKeyMultiGroupEnabled.Store(false)
+		return fmt.Errorf("get API key multi-group setting: %w", err)
+	}
+	s.apiKeyMultiGroupEnabled.Store(values[SettingKeyAPIKeyMultiGroupEnabled] == "true")
+	return nil
+}
+
+// APIKeyMultiGroupEnabled returns the hot-path runtime value without DB I/O.
+func (s *SettingService) APIKeyMultiGroupEnabled() bool {
+	return s != nil && s.apiKeyMultiGroupEnabled.Load()
 }
 
 // SetDefaultSubscriptionGroupReader injects an optional group reader for default subscription validation.

@@ -44,4 +44,24 @@ func TestAPIKeyFromService_MapsNilLastUsedAt(t *testing.T) {
 	require.NotNil(t, out)
 	require.Nil(t, out.LastUsedAt)
 	require.Nil(t, out.LastUsedIP)
+	require.NotNil(t, out.GroupIDs)
+	require.NotNil(t, out.Groups)
+	require.Nil(t, out.Group)
+}
+
+func TestInt64SliceFieldTracksPresenceAndNormalizesNull(t *testing.T) {
+	var omitted Int64SliceField
+	require.False(t, omitted.Set)
+	require.Nil(t, omitted.Pointer())
+
+	var nullValue Int64SliceField
+	require.NoError(t, nullValue.UnmarshalJSON([]byte("null")))
+	require.True(t, nullValue.Set)
+	require.NotNil(t, nullValue.Pointer())
+	require.Empty(t, *nullValue.Pointer())
+
+	var values Int64SliceField
+	require.NoError(t, values.UnmarshalJSON([]byte(`[3,1]`)))
+	require.True(t, values.Set)
+	require.Equal(t, []int64{3, 1}, values.Value)
 }

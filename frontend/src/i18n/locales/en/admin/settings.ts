@@ -30,6 +30,12 @@ export default {
           enabled: 'Enable Available Channels',
           enabledHint: 'When off, the sidebar entry is hidden and the endpoint returns an empty list.',
         },
+        apiKeyMultiGroup: {
+          title: 'API Key Multi-Group Routing',
+          description: 'Enable ordered group priorities, cross-group failover, and session stickiness for API keys. Disabled by default.',
+          enabled: 'Enable API Key Multi-Group',
+          enabledHint: 'When off, legacy single-group behavior is used. Existing lists are preserved but only the primary group is active until re-enabled.',
+        },
         modelPlaza: {
           title: 'Model Plaza',
           description: 'A public page showcasing available models and pricing by group. Disabled by default.',

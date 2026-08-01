@@ -28,6 +28,26 @@ type authRepoWithMinimumBalanceStub struct {
 	getGroupByIDForMinimumBalance func(ctx context.Context, groupID int64) (*Group, error)
 }
 
+type authSubscriptionRepoStub struct {
+	userSubRepoNoop
+	subscriptions []UserSubscription
+	err           error
+	calls         int32
+	getActive     *UserSubscription
+	getActiveErr  error
+	getCalls      int32
+}
+
+func (s *authSubscriptionRepoStub) ListActiveByUserID(_ context.Context, _ int64) ([]UserSubscription, error) {
+	atomic.AddInt32(&s.calls, 1)
+	return append([]UserSubscription(nil), s.subscriptions...), s.err
+}
+
+func (s *authSubscriptionRepoStub) GetActiveByUserIDAndGroupID(_ context.Context, _, _ int64) (*UserSubscription, error) {
+	atomic.AddInt32(&s.getCalls, 1)
+	return cloneUserSubscription(s.getActive), s.getActiveErr
+}
+
 func (s *authRepoWithMinimumBalanceStub) GetGroupByIDForMinimumBalance(ctx context.Context, groupID int64) (*Group, error) {
 	return s.getGroupByIDForMinimumBalance(ctx, groupID)
 }
@@ -241,6 +261,56 @@ func TestAPIKeyService_GetByKey_UsesL2Cache(t *testing.T) {
 	require.Equal(t, map[string][]int64{"claude-opus-*": {1, 2}}, apiKey.Group.ModelRouting)
 }
 
+func TestAPIKeyService_GetByKey_GlobalSwitchProjectsCachedSnapshotWithoutMutatingIt(t *testing.T) {
+	cache := &authCacheStub{}
+	repo := &authRepoStub{
+		getByKeyForAuth: func(context.Context, string) (*APIKey, error) {
+			return nil, errors.New("unexpected repo call")
+		},
+	}
+	svc := NewAPIKeyService(repo, nil, nil, nil, nil, cache, &config.Config{
+		APIKeyAuth: config.APIKeyAuthCacheConfig{L2TTLSeconds: 60},
+	})
+	settings := &SettingService{}
+	svc.SetSettingService(settings)
+
+	primary := Group{ID: 9, Name: "primary", Platform: PlatformOpenAI, Status: StatusActive}
+	backup := Group{ID: 10, Name: "backup", Platform: PlatformOpenAI, Status: StatusActive}
+	primaryID := primary.ID
+	snapshot := svc.snapshotFromAPIKey(context.Background(), &APIKey{
+		ID:       1,
+		UserID:   2,
+		GroupID:  &primaryID,
+		GroupIDs: []int64{primary.ID, backup.ID},
+		Group:    &primary,
+		Groups:   []Group{primary, backup},
+		Status:   StatusActive,
+		User:     &User{ID: 2, Status: StatusActive},
+	})
+	require.NotNil(t, snapshot)
+	require.Len(t, snapshot.Groups, 2)
+	cache.getAuthCache = func(context.Context, string) (*APIKeyAuthCacheEntry, error) {
+		return &APIKeyAuthCacheEntry{Snapshot: snapshot}, nil
+	}
+
+	disabled, err := svc.GetByKey(context.Background(), "cached-switch-key")
+	require.NoError(t, err)
+	require.Equal(t, []int64{primary.ID}, disabled.GroupIDs)
+	require.Len(t, disabled.Groups, 1)
+	require.Len(t, snapshot.Groups, 2, "disabled projection must not truncate the shared cache snapshot")
+
+	settings.refreshCachedSettings(&SystemSettings{APIKeyMultiGroupEnabled: true})
+	enabled, err := svc.GetByKey(context.Background(), "cached-switch-key")
+	require.NoError(t, err)
+	require.Equal(t, []int64{primary.ID, backup.ID}, enabled.GroupIDs)
+	require.Len(t, enabled.Groups, 2)
+
+	enabled.Groups[1].Name = "mutated request copy"
+	again, err := svc.GetByKey(context.Background(), "cached-switch-key")
+	require.NoError(t, err)
+	require.Equal(t, "backup", again.Groups[1].Name, "each request must receive an independent snapshot copy")
+}
+
 func TestAPIKeyService_SnapshotRoundTrip_PreservesMessagesDispatchModelConfig(t *testing.T) {
 	svc := NewAPIKeyService(nil, nil, nil, nil, nil, nil, &config.Config{})
 	groupID := int64(9)
@@ -285,6 +355,233 @@ func TestAPIKeyService_SnapshotRoundTrip_PreservesMessagesDispatchModelConfig(t 
 	require.Equal(t, apiKey.Name, roundTrip.Name)
 	require.NotNil(t, roundTrip.Group)
 	require.Equal(t, apiKey.Group.MessagesDispatchModelConfig, roundTrip.Group.MessagesDispatchModelConfig)
+}
+
+func TestAPIKeyService_SnapshotRoundTrip_PreservesCandidateRestrictionsAndBilling(t *testing.T) {
+	svc := NewAPIKeyService(nil, nil, nil, nil, nil, nil, &config.Config{})
+	primary := Group{
+		ID:               9,
+		Name:             "primary",
+		Platform:         PlatformOpenAI,
+		Status:           StatusActive,
+		SubscriptionType: SubscriptionTypeStandard,
+		RateMultiplier:   1,
+	}
+	backup := Group{
+		ID:                           10,
+		Name:                         "backup",
+		Platform:                     PlatformOpenAI,
+		Status:                       StatusActive,
+		SubscriptionType:             SubscriptionTypeStandard,
+		RateMultiplier:               1.2,
+		BatchImageDiscountMultiplier: 0.6,
+		BatchImageHoldMultiplier:     0.8,
+		RequireOAuthOnly:             true,
+		RequirePrivacySet:            true,
+		MessagesDispatchModelConfig: OpenAIMessagesDispatchModelConfig{
+			ExactModelMappings: map[string]string{"claude-sonnet": "gpt-5"},
+		},
+		ModelsListConfig: GroupModelsListConfig{
+			Enabled: true,
+			Models:  []string{"gpt-5"},
+		},
+	}
+	primaryID := primary.ID
+	apiKey := &APIKey{
+		ID:       1,
+		UserID:   2,
+		GroupID:  &primaryID,
+		GroupIDs: []int64{primary.ID, backup.ID},
+		Group:    &primary,
+		Groups:   []Group{primary, backup},
+		Key:      "k-candidate-roundtrip",
+		Status:   StatusActive,
+		User:     &User{ID: 2, Status: StatusActive},
+	}
+
+	snapshot := svc.snapshotFromAPIKey(context.Background(), apiKey)
+	first := svc.snapshotToAPIKey(apiKey.Key, snapshot)
+	second := svc.snapshotToAPIKey(apiKey.Key, snapshot)
+
+	require.Len(t, first.Groups, 2)
+	require.Len(t, second.Groups, 2)
+	require.Equal(t, 0.6, second.Groups[1].BatchImageDiscountMultiplier)
+	require.Equal(t, 0.8, second.Groups[1].BatchImageHoldMultiplier)
+	require.True(t, second.Groups[1].RequireOAuthOnly)
+	require.True(t, second.Groups[1].RequirePrivacySet)
+
+	first.Groups[1].MessagesDispatchModelConfig.ExactModelMappings["claude-sonnet"] = "changed"
+	first.Groups[1].ModelsListConfig.Models[0] = "changed"
+	require.Equal(t, "gpt-5", second.Groups[1].MessagesDispatchModelConfig.ExactModelMappings["claude-sonnet"])
+	require.Equal(t, "gpt-5", second.Groups[1].ModelsListConfig.Models[0])
+}
+
+func TestAPIKeyService_SnapshotRoundTrip_PreservesPerGroupSubscriptionAndIsolation(t *testing.T) {
+	now := time.Now()
+	dailyStart := now.Add(-time.Hour)
+	repo := &authSubscriptionRepoStub{subscriptions: []UserSubscription{{
+		ID:               77,
+		UserID:           2,
+		GroupID:          10,
+		StartsAt:         now.Add(-24 * time.Hour),
+		ExpiresAt:        now.Add(24 * time.Hour),
+		Status:           SubscriptionStatusActive,
+		DailyWindowStart: &dailyStart,
+	}}}
+	svc := NewAPIKeyService(nil, nil, nil, repo, nil, nil, &config.Config{})
+	primary := Group{
+		ID: 9, Platform: PlatformOpenAI, Status: StatusActive,
+		SubscriptionType: SubscriptionTypeStandard,
+	}
+	backup := Group{
+		ID: 10, Platform: PlatformOpenAI, Status: StatusActive,
+		SubscriptionType: SubscriptionTypeSubscription,
+	}
+	primaryID := primary.ID
+	apiKey := &APIKey{
+		ID: 1, UserID: 2, GroupID: &primaryID,
+		GroupIDs: []int64{primary.ID, backup.ID},
+		Group:    &primary, Groups: []Group{primary, backup},
+		Status: StatusActive, User: &User{ID: 2, Status: StatusActive},
+	}
+
+	snapshot := svc.snapshotFromAPIKey(context.Background(), apiKey)
+	require.Equal(t, int32(1), atomic.LoadInt32(&repo.calls), "all subscription candidates should use one lookup")
+	require.Len(t, snapshot.Groups, 2)
+	require.True(t, snapshot.Groups[1].SubscriptionResolved)
+	require.NotNil(t, snapshot.Groups[1].Subscription)
+	require.Equal(t, int64(77), snapshot.Groups[1].Subscription.ID)
+
+	first := svc.snapshotToAPIKey("subscription-key", snapshot)
+	second := svc.snapshotToAPIKey("subscription-key", snapshot)
+	require.True(t, first.GroupSubscriptionsResolved[backup.ID])
+	require.Equal(t, int64(77), first.GroupSubscriptions[backup.ID].ID)
+
+	first.GroupSubscriptions[backup.ID].Status = SubscriptionStatusExpired
+	*first.GroupSubscriptions[backup.ID].DailyWindowStart = time.Time{}
+	require.Equal(t, SubscriptionStatusActive, second.GroupSubscriptions[backup.ID].Status)
+	require.Equal(t, dailyStart, *second.GroupSubscriptions[backup.ID].DailyWindowStart)
+}
+
+func TestAPIKeyService_SnapshotLeavesSubscriptionUnresolvedWhenLookupFails(t *testing.T) {
+	repo := &authSubscriptionRepoStub{err: errors.New("database unavailable")}
+	svc := NewAPIKeyService(nil, nil, nil, repo, nil, nil, &config.Config{})
+	group := Group{
+		ID: 10, Platform: PlatformOpenAI, Status: StatusActive,
+		SubscriptionType: SubscriptionTypeSubscription,
+	}
+	groupID := group.ID
+	snapshot := svc.snapshotFromAPIKey(context.Background(), &APIKey{
+		ID: 1, UserID: 2, GroupID: &groupID, GroupIDs: []int64{groupID},
+		Group: &group, Groups: []Group{group}, Status: StatusActive,
+		User: &User{ID: 2, Status: StatusActive},
+	})
+
+	require.Len(t, snapshot.Groups, 1)
+	require.False(t, snapshot.Groups[0].SubscriptionResolved)
+	require.Nil(t, snapshot.Groups[0].Subscription)
+	restored := svc.snapshotToAPIKey("subscription-unresolved", snapshot)
+	require.False(t, restored.GroupSubscriptionsResolved[groupID])
+}
+
+func TestBillingCacheService_GetActiveSubscriptionForRoutingUsesResolvedSnapshot(t *testing.T) {
+	repo := &authSubscriptionRepoStub{}
+	billing := NewBillingCacheService(nil, nil, repo, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(billing.Stop)
+	subscription := &UserSubscription{
+		ID: 77, UserID: 2, GroupID: 10,
+		Status: SubscriptionStatusActive, ExpiresAt: time.Now().Add(time.Hour),
+	}
+	apiKey := &APIKey{
+		UserID:                     2,
+		GroupSubscriptions:         map[int64]*UserSubscription{10: subscription},
+		GroupSubscriptionsResolved: map[int64]bool{10: true},
+	}
+
+	got, err := billing.GetActiveSubscriptionForRouting(context.Background(), apiKey, 10)
+	require.NoError(t, err)
+	require.Equal(t, int64(77), got.ID)
+	require.Zero(t, atomic.LoadInt32(&repo.getCalls))
+
+	got.Status = SubscriptionStatusExpired
+	require.Equal(t, SubscriptionStatusActive, subscription.Status, "routing must receive a request-private subscription copy")
+}
+
+func TestBillingCacheService_GetActiveSubscriptionForRoutingFallsBackWhenSnapshotUnresolved(t *testing.T) {
+	repo := &authSubscriptionRepoStub{getActive: &UserSubscription{
+		ID: 88, UserID: 2, GroupID: 10,
+		Status: SubscriptionStatusActive, ExpiresAt: time.Now().Add(time.Hour),
+	}}
+	billing := NewBillingCacheService(nil, nil, repo, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(billing.Stop)
+	apiKey := &APIKey{UserID: 2, GroupSubscriptionsResolved: map[int64]bool{10: false}}
+
+	got, err := billing.GetActiveSubscriptionForRouting(context.Background(), apiKey, 10)
+	require.NoError(t, err)
+	require.Equal(t, int64(88), got.ID)
+	require.Equal(t, int32(1), atomic.LoadInt32(&repo.getCalls))
+}
+
+func TestBillingCacheService_GetActiveSubscriptionForRoutingSkipsLookupInSimpleMode(t *testing.T) {
+	repo := &authSubscriptionRepoStub{getActiveErr: errors.New("subscription lookup must be skipped")}
+	billing := NewBillingCacheService(
+		nil, nil, repo, nil, nil, nil,
+		&config.Config{RunMode: config.RunModeSimple}, nil,
+	)
+	t.Cleanup(billing.Stop)
+
+	got, err := billing.GetActiveSubscriptionForRouting(
+		context.Background(), &APIKey{UserID: 2}, 10,
+	)
+
+	require.NoError(t, err)
+	require.Nil(t, got)
+	require.Zero(t, atomic.LoadInt32(&repo.getCalls))
+}
+
+func TestAPIKeyService_SnapshotRoundTrip_PreservesRPMOverrideResolutionState(t *testing.T) {
+	override := 23
+	tests := []struct {
+		name         string
+		override     *int
+		err          error
+		wantResolved bool
+	}{
+		{name: "explicit override", override: &override, wantResolved: true},
+		{name: "explicit no override", wantResolved: true},
+		{name: "lookup failed remains unresolved", err: errors.New("db unavailable"), wantResolved: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &rpmOverrideRepoStub{override: tt.override, err: tt.err}
+			svc := NewAPIKeyService(nil, nil, nil, nil, repo, nil, &config.Config{})
+			group := Group{ID: 9, Status: StatusActive, Platform: PlatformOpenAI}
+			groupID := group.ID
+			apiKey := &APIKey{
+				ID:       1,
+				UserID:   2,
+				GroupID:  &groupID,
+				GroupIDs: []int64{groupID},
+				Group:    &group,
+				Groups:   []Group{group},
+				Key:      "k-rpm-resolution",
+				Status:   StatusActive,
+				User:     &User{ID: 2, Status: StatusActive},
+			}
+
+			snapshot := svc.snapshotFromAPIKey(context.Background(), apiKey)
+			require.Len(t, snapshot.Groups, 1)
+			require.Equal(t, tt.wantResolved, snapshot.Groups[0].UserGroupRPMOverrideResolved)
+			require.Equal(t, tt.override, snapshot.Groups[0].UserGroupRPMOverride)
+
+			restored := svc.snapshotToAPIKey(apiKey.Key, snapshot)
+			require.Equal(t, tt.wantResolved, restored.UserGroupRPMOverridesResolved[groupID])
+			require.Equal(t, tt.wantResolved, restored.User.UserGroupRPMOverrideResolved)
+			require.Equal(t, tt.override, restored.User.UserGroupRPMOverride)
+			require.EqualValues(t, 1, atomic.LoadInt32(&repo.calls))
+		})
+	}
 }
 
 func TestAPIKeyService_SnapshotRoundTrip_PreservesReasoningEffortPolicy(t *testing.T) {

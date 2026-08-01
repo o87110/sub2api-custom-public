@@ -1,6 +1,8 @@
 package databaseboundary
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -140,6 +142,54 @@ func query(ctx context.Context, client interface{}) {
 	require.Equal(t, []string{
 		`Builder:client.User.Query().Where(active()).All(ctx)`,
 		`Builder:client.User.Update().SetName("new").Save(ctx)`,
+	}, semantics.Dynamic)
+}
+
+func TestAnalyzeGoTreatsSQLResultScanAsDecoding(t *testing.T) {
+	source := []byte(`package fixture
+import (
+	"context"
+	"database/sql"
+)
+func query(ctx context.Context, db *sql.DB, row *sql.Row, rows *sql.Rows) {
+	var id int64
+	db.QueryRowContext(ctx, "SELECT id FROM users WHERE id = $1", 1).Scan(&id)
+	row.Scan(&id)
+	rows.Scan(&id)
+}`)
+
+	semantics, err := AnalyzeGo("backend/internal/repository/user_repo.go", source)
+	require.NoError(t, err)
+	require.Equal(t, []string{"SELECT id FROM users WHERE id = $1"}, semantics.Statements)
+	require.Empty(t, semantics.Dynamic)
+}
+
+func TestAnalyzeGoStillTracksEntBuilderScan(t *testing.T) {
+	source := []byte(`package fixture
+import "context"
+func query(ctx context.Context, client interface{}, target any) {
+	client.User.Query().Where(active()).Scan(ctx, target)
+}`)
+
+	semantics, err := AnalyzeGo("backend/internal/repository/user_repo.go", source)
+	require.NoError(t, err)
+	require.Empty(t, semantics.Statements)
+	require.Equal(t, []string{
+		`Builder:client.User.Query().Where(active()).Scan(ctx, target)`,
+	}, semantics.Dynamic)
+}
+
+func TestAnalyzeGoBatchImageRepositoryKeepsKnownVendorDynamicSQLVisible(t *testing.T) {
+	path := filepath.Join("..", "..", "repository", "batch_image_repo.go")
+	source, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	semantics, err := AnalyzeGo(path, source)
+	require.NoError(t, err)
+	require.NotEmpty(t, semantics.Statements)
+	require.ElementsMatch(t, []string{
+		"ExecContext:` UPDATE batch_image_jobs SET status = ` + statusSQL + `, last_error_code = $2, last_error_message = $3, finished_at = CASE WHEN ` + statusSQL + ` = 'failed' AND finished_at IS NULL THEN $4 ELSE finished_at END, updated_at = $4, version = version + 1 WHERE batch_id = $1`",
+		"QueryContext:query",
 	}, semantics.Dynamic)
 }
 

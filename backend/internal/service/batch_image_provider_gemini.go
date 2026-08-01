@@ -444,6 +444,10 @@ func mapGeminiClientError(err error) error {
 		case http.StatusNotFound:
 			return geminiProviderError("GEMINI_BATCH_NOT_FOUND", "Gemini batch resource was not found", nil)
 		default:
+			if apiErr.StatusCode >= http.StatusBadRequest && apiErr.StatusCode < http.StatusInternalServerError &&
+				apiErr.StatusCode != http.StatusRequestTimeout {
+				return ErrBatchImageProviderInvalidInput
+			}
 			return geminiProviderError("GEMINI_INVALID_RESPONSE", "Gemini API request failed", nil)
 		}
 	}

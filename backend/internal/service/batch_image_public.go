@@ -200,6 +200,12 @@ func NewBatchImagePublicService(repo BatchImageRepository, accountRepo AccountRe
 	}
 }
 
+// ValidateSubmitRequest exposes the canonical batch-image request validation to
+// protocol handlers that must choose an eligible API-key group before Submit.
+func (s *BatchImagePublicService) ValidateSubmitRequest(req BatchImageSubmitRequest) (BatchImageSubmitRequest, error) {
+	return s.validateSubmitRequest(req)
+}
+
 func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOwner, req BatchImageSubmitRequest, idempotencyKey string) (*BatchImagePublicBatch, error) {
 	if !s.enabled() {
 		return nil, ErrBatchImageDisabled
@@ -222,15 +228,20 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 			if batchImageDerefString(existing.RequestHash) != requestHash {
 				return nil, ErrBatchImageIdempotencyConflict
 			}
-			if existing.Status == BatchImageJobStatusSubmitted && s.Queue != nil {
-				if enqueueErr := s.Queue.Enqueue(ctx, existing.BatchID); enqueueErr != nil && !errors.Is(enqueueErr, ErrBatchImageAlreadyQueued) {
-					_ = s.Repo.RecordBatchImageJobSubmitFailure(ctx, existing.BatchID, "QUEUE_FAILED", sanitizeBatchImagePublicMessage(enqueueErr.Error()), false)
-					return nil, ErrBatchImageQueueFailed
+			// Pre-upstream failures are hidden only after their billing hold has
+			// been released. They are therefore safe to retry, including in the
+			// next API-key group. A submitted/provider-backed job remains the
+			// authoritative idempotent result and is never duplicated.
+			if !batchImageHiddenPreUpstreamFailure(existing) {
+				if existing.Status == BatchImageJobStatusSubmitted && s.Queue != nil {
+					if enqueueErr := s.Queue.Enqueue(ctx, existing.BatchID); enqueueErr != nil && !errors.Is(enqueueErr, ErrBatchImageAlreadyQueued) {
+						_ = s.Repo.RecordBatchImageJobSubmitFailure(ctx, existing.BatchID, "QUEUE_FAILED", sanitizeBatchImagePublicMessage(enqueueErr.Error()), false)
+						return nil, ErrBatchImageQueueFailed
+					}
 				}
+				return BatchImageJobToPublic(existing), nil
 			}
-			return BatchImageJobToPublic(existing), nil
-		}
-		if !errors.Is(err, ErrBatchImageJobNotFound) {
+		} else if !errors.Is(err, ErrBatchImageJobNotFound) {
 			return nil, err
 		}
 	}
@@ -277,6 +288,7 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		BatchID:                 batchID,
 		UserID:                  owner.UserID,
 		APIKeyID:                &apiKeyID,
+		GroupID:                 owner.GroupID,
 		AccountID:               &accountID,
 		Provider:                provider.Name(),
 		Model:                   normalized.Model,
@@ -415,6 +427,13 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		return nil, err
 	}
 	return BatchImageJobToPublic(created), nil
+}
+
+func batchImageHiddenPreUpstreamFailure(job *BatchImageJob) bool {
+	return job != nil &&
+		job.UserDeletedAt != nil &&
+		job.ProviderJobName == nil &&
+		job.Status == BatchImageJobStatusFailed
 }
 
 func (s *BatchImagePublicService) releaseFailedSubmitHold(ctx context.Context, job *BatchImageJob, requestHash string) error {
@@ -1342,6 +1361,8 @@ func batchImageGCSRef(provider, ref string) string {
 func batchImageProviderSubmitPublicError(err error) error {
 	reason := strings.TrimSpace(infraerrors.Reason(err))
 	switch reason {
+	case "BATCH_IMAGE_PROVIDER_INVALID_INPUT":
+		return ErrBatchImageProviderInvalidInput
 	case "VERTEX_MANAGED_GCS_BUCKET_MISSING":
 		return ErrBatchImageVertexGCSBucketMissing
 	case "BATCH_IMAGE_PROVIDER_MISSING_API_KEY":

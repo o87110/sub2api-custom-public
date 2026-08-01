@@ -174,6 +174,70 @@ func (s *FailoverState) HandleSelectionExhausted(ctx context.Context) FailoverAc
 	return FailoverExhausted
 }
 
+// selectionExhaustedAction 在跨组前完整执行当前组已有的选号耗尽策略。
+// 首次选号即失败表示当前组没有可调度账号，可以直接扫描下一组；已有失败账号时，
+// 必须先保留单账号 503 退避重试等旧有组内行为。
+func selectionExhaustedAction(ctx context.Context, state *FailoverState) FailoverAction {
+	if ctx != nil && ctx.Err() != nil {
+		return FailoverCanceled
+	}
+	if state == nil || len(state.FailedAccountIDs) == 0 {
+		return FailoverExhausted
+	}
+	return state.HandleSelectionExhausted(ctx)
+}
+
+// accountCapacityFailoverAction records an account whose concurrency slot could
+// not be acquired and decides whether the caller may continue selecting another
+// account in the same group. Capacity failures are local to the selected
+// account; treating them as a group failure before the existing account-switch
+// budget is exhausted skips otherwise usable accounts in that group.
+func accountCapacityFailoverAction(
+	ctx context.Context,
+	failedAccountIDs map[int64]struct{},
+	accountID int64,
+	switchCount *int,
+	maxSwitches int,
+) FailoverAction {
+	if ctx != nil && ctx.Err() != nil {
+		return FailoverCanceled
+	}
+	if failedAccountIDs == nil || switchCount == nil || accountID <= 0 {
+		return FailoverExhausted
+	}
+	if _, exists := failedAccountIDs[accountID]; exists {
+		return FailoverExhausted
+	}
+
+	failedAccountIDs[accountID] = struct{}{}
+	if *switchCount >= maxSwitches {
+		return FailoverExhausted
+	}
+
+	*switchCount++
+	logger.FromContext(ctx).Warn("gateway.failover_account_capacity",
+		zap.Int64("account_id", accountID),
+		zap.Int("switch_count", *switchCount),
+		zap.Int("max_switches", maxSwitches),
+	)
+	return FailoverContinue
+}
+
+// HandleAccountCapacityUnavailable applies the shared same-group capacity
+// retry policy to a FailoverState.
+func (s *FailoverState) HandleAccountCapacityUnavailable(ctx context.Context, accountID int64) FailoverAction {
+	if s == nil {
+		return FailoverExhausted
+	}
+	return accountCapacityFailoverAction(
+		ctx,
+		s.FailedAccountIDs,
+		accountID,
+		&s.SwitchCount,
+		s.MaxSwitches,
+	)
+}
+
 // needForceCacheBilling 判断 failover 时是否需要强制缓存计费。
 // 粘性会话实际切换账号、或上游明确标记时，将 input_tokens 转为 cache_read 计费。
 func needForceCacheBilling(hasBoundSession bool, failoverErr *service.UpstreamFailoverError, sameAccountRetry bool) bool {

@@ -67,10 +67,25 @@ func (s *helperConcurrencyCacheStub) GetAccountConcurrencyBatch(ctx context.Cont
 }
 
 func (s *helperConcurrencyCacheStub) IncrementAccountWaitCount(ctx context.Context, accountID int64, maxWait int) (bool, error) {
+	s.mu.Lock()
+	s.waitIncrementCalls++
+	s.waitMaxWait = maxWait
+	waitAllowed := s.waitAllowed
+	hook := s.waitIncrementHook
+	s.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
+	if !waitAllowed {
+		return false, nil
+	}
 	return true, nil
 }
 
 func (s *helperConcurrencyCacheStub) DecrementAccountWaitCount(ctx context.Context, accountID int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.waitDecrementCalls++
 	return nil
 }
 
@@ -490,6 +505,61 @@ func TestAcquireAccountSlotWithWaitTimeout_ImmediateAttemptBeforeBackoff(t *test
 	require.ErrorAs(t, err, &cErr)
 	require.True(t, cErr.IsTimeout)
 	require.GreaterOrEqual(t, cache.accountAcquireCalls, 1)
+}
+
+func TestAcquireSelectedAccountSlotReturnsUncommittedCapacityErrors(t *testing.T) {
+	t.Run("missing wait plan", func(t *testing.T) {
+		helper := NewConcurrencyHelper(nil, SSEPingFormatNone, 0)
+		c, _ := newHelperTestContext(http.MethodPost, "/v1/responses")
+		streamStarted := false
+
+		release, err := helper.acquireSelectedAccountSlot(c, &service.AccountSelectionResult{
+			Account: &service.Account{ID: 401},
+		}, false, &streamStarted)
+
+		require.Nil(t, release)
+		require.ErrorIs(t, err, errAccountCapacityUnavailable)
+	})
+
+	t.Run("wait queue full", func(t *testing.T) {
+		cache := &helperConcurrencyCacheStub{accountSeq: []bool{false}, waitAllowed: false}
+		helper := NewConcurrencyHelper(service.NewConcurrencyService(cache), SSEPingFormatNone, 0)
+		c, _ := newHelperTestContext(http.MethodPost, "/v1/responses")
+		streamStarted := false
+
+		release, err := helper.acquireSelectedAccountSlot(c, &service.AccountSelectionResult{
+			Account:  &service.Account{ID: 402},
+			WaitPlan: &service.AccountWaitPlan{MaxConcurrency: 1, MaxWaiting: 1, Timeout: 20 * time.Millisecond},
+		}, false, &streamStarted)
+
+		require.Nil(t, release)
+		var queueErr *WaitQueueFullError
+		require.ErrorAs(t, err, &queueErr)
+		require.Equal(t, 1, cache.waitIncrementCalls)
+		require.Equal(t, 0, cache.waitDecrementCalls)
+	})
+
+	t.Run("wait timeout releases queue count", func(t *testing.T) {
+		cache := &helperConcurrencyCacheStub{
+			accountSeq:  []bool{false, false, false, false, false},
+			waitAllowed: true,
+		}
+		helper := NewConcurrencyHelper(service.NewConcurrencyService(cache), SSEPingFormatNone, time.Millisecond)
+		c, _ := newHelperTestContext(http.MethodPost, "/v1/responses")
+		streamStarted := false
+
+		release, err := helper.acquireSelectedAccountSlot(c, &service.AccountSelectionResult{
+			Account:  &service.Account{ID: 403},
+			WaitPlan: &service.AccountWaitPlan{MaxConcurrency: 1, MaxWaiting: 1, Timeout: 5 * time.Millisecond},
+		}, false, &streamStarted)
+
+		require.Nil(t, release)
+		var concurrencyErr *ConcurrencyError
+		require.ErrorAs(t, err, &concurrencyErr)
+		require.True(t, concurrencyErr.IsTimeout)
+		require.Equal(t, 1, cache.waitIncrementCalls)
+		require.Equal(t, 1, cache.waitDecrementCalls)
+	})
 }
 
 type helperConcurrencyCacheStubWithError struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"html"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	customapikeygroups "github.com/Wei-Shaw/sub2api/internal/custom/apikeygroups"
 	"github.com/Wei-Shaw/sub2api/internal/custom/groupaccess"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
@@ -24,14 +26,17 @@ import (
 )
 
 var (
-	ErrAPIKeyNotFound       = infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
-	ErrGroupNotAllowed      = infraerrors.Forbidden("GROUP_NOT_ALLOWED", "user is not allowed to bind this group")
-	ErrAPIKeyExists         = infraerrors.Conflict("API_KEY_EXISTS", "api key already exists")
-	ErrAPIKeyTooShort       = infraerrors.BadRequest("API_KEY_TOO_SHORT", "api key must be at least 16 characters")
-	ErrAPIKeyInvalidChars   = infraerrors.BadRequest("API_KEY_INVALID_CHARS", "api key can only contain letters, numbers, underscores, and hyphens")
-	ErrAPIKeyRateLimited    = infraerrors.TooManyRequests("API_KEY_RATE_LIMITED", "too many failed attempts, please try again later")
-	ErrAPIKeyAuthOverloaded = infraerrors.ServiceUnavailable("API_KEY_AUTH_OVERLOADED", "api key authentication is temporarily overloaded")
-	ErrInvalidIPPattern     = infraerrors.BadRequest("INVALID_IP_PATTERN", "invalid IP or CIDR pattern")
+	ErrAPIKeyNotFound            = infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
+	ErrGroupNotAllowed           = infraerrors.Forbidden("GROUP_NOT_ALLOWED", "user is not allowed to bind this group")
+	ErrAPIKeyExists              = infraerrors.Conflict("API_KEY_EXISTS", "api key already exists")
+	ErrAPIKeyTooShort            = infraerrors.BadRequest("API_KEY_TOO_SHORT", "api key must be at least 16 characters")
+	ErrAPIKeyInvalidChars        = infraerrors.BadRequest("API_KEY_INVALID_CHARS", "api key can only contain letters, numbers, underscores, and hyphens")
+	ErrAPIKeyGroupFieldsConflict = infraerrors.BadRequest("API_KEY_GROUP_FIELDS_CONFLICT", "group_id and group_ids cannot be provided together").WithMetadata(map[string]string{"field": "group_ids"})
+	ErrAPIKeyGroupsInvalid       = infraerrors.BadRequest("API_KEY_GROUPS_INVALID", "group_ids must contain 0 to 10 unique positive IDs from the same platform").WithMetadata(map[string]string{"field": "group_ids"})
+	ErrAPIKeyMultiGroupDisabled  = infraerrors.BadRequest("API_KEY_MULTI_GROUP_DISABLED", "API key multi-group routing is disabled").WithMetadata(map[string]string{"field": "group_ids"})
+	ErrAPIKeyRateLimited         = infraerrors.TooManyRequests("API_KEY_RATE_LIMITED", "too many failed attempts, please try again later")
+	ErrAPIKeyAuthOverloaded      = infraerrors.ServiceUnavailable("API_KEY_AUTH_OVERLOADED", "api key authentication is temporarily overloaded")
+	ErrInvalidIPPattern          = infraerrors.BadRequest("INVALID_IP_PATTERN", "invalid IP or CIDR pattern")
 	// ErrAPIKeyExpired        = infraerrors.Forbidden("API_KEY_EXPIRED", "api key has expired")
 	ErrAPIKeyExpired = infraerrors.Forbidden("API_KEY_EXPIRED", "api key 已过期")
 	// ErrAPIKeyQuotaExhausted = infraerrors.TooManyRequests("API_KEY_QUOTA_EXHAUSTED", "api key quota exhausted")
@@ -110,7 +115,6 @@ type APIKeyRepository interface {
 	CountByGroupID(ctx context.Context, groupID int64) (int64, error)
 	ListKeysByUserID(ctx context.Context, userID int64) ([]string, error)
 	ListKeysByGroupID(ctx context.Context, groupID int64) ([]string, error)
-
 	// Quota methods
 	IncrementQuotaUsed(ctx context.Context, id int64, amount float64) (float64, error)
 	UpdateLastUsed(ctx context.Context, id int64, usedAt time.Time) error
@@ -123,6 +127,16 @@ type APIKeyRepository interface {
 
 type apiKeyAllByUserIDLister interface {
 	ListAllByUserID(ctx context.Context, userID int64, filters APIKeyListFilters) ([]APIKey, error)
+}
+
+type apiKeyGroupReplacer interface {
+	// ReplaceGroups atomically replaces the ordered group list and synchronizes
+	// api_keys.group_id to the first item for backwards compatibility.
+	ReplaceGroups(ctx context.Context, keyID int64, groupIDs []int64) error
+}
+
+type apiKeyGroupUpdater interface {
+	UpdateWithGroups(ctx context.Context, key *APIKey, fields APIKeyUpdateFields, groupIDs []int64) error
 }
 
 // APIKeyRateLimitData holds rate limit usage and window state for an API key.
@@ -211,6 +225,8 @@ type APIKeyAuthCacheInvalidator interface {
 type CreateAPIKeyRequest struct {
 	Name        string   `json:"name"`
 	GroupID     *int64   `json:"group_id"`
+	GroupIDSet  bool     `json:"-"`
+	GroupIDs    *[]int64 `json:"group_ids"`
 	CustomKey   *string  `json:"custom_key"`   // 可选的自定义key
 	IPWhitelist []string `json:"ip_whitelist"` // IP 白名单
 	IPBlacklist []string `json:"ip_blacklist"` // IP 黑名单
@@ -229,6 +245,8 @@ type CreateAPIKeyRequest struct {
 type UpdateAPIKeyRequest struct {
 	Name        *string   `json:"name"`
 	GroupID     *int64    `json:"group_id"`
+	GroupIDSet  bool      `json:"-"`
+	GroupIDs    *[]int64  `json:"group_ids"`
 	Status      *string   `json:"status"`
 	IPWhitelist *[]string `json:"ip_whitelist"` // IP 白名单（nil 不修改，空数组清空）
 	IPBlacklist *[]string `json:"ip_blacklist"` // IP 黑名单（nil 不修改，空数组清空）
@@ -261,6 +279,7 @@ type APIKeyService struct {
 	cache                     APIKeyCache
 	rateLimitCacheInvalid     RateLimitCacheInvalidator // optional: invalidate Redis rate limit cache
 	concurrencyService        *ConcurrencyService
+	settingService            *SettingService
 	cfg                       *config.Config
 	authCacheL1               *ristretto.Cache
 	authNegativeCacheL1       *ristretto.Cache
@@ -337,6 +356,67 @@ func (s *APIKeyService) SetRateLimitCacheInvalidator(inv RateLimitCacheInvalidat
 
 func (s *APIKeyService) SetConcurrencyService(concurrencyService *ConcurrencyService) {
 	s.concurrencyService = concurrencyService
+}
+
+func (s *APIKeyService) SetSettingService(settingService *SettingService) {
+	s.settingService = settingService
+}
+
+func (s *APIKeyService) APIKeyMultiGroupEnabled() bool {
+	return s != nil && s.settingService != nil && s.settingService.APIKeyMultiGroupEnabled()
+}
+
+func normalizeAPIKeyToPrimaryGroup(apiKey *APIKey) {
+	if apiKey == nil {
+		return
+	}
+	if apiKey.Group == nil && len(apiKey.Groups) > 0 {
+		primary := apiKey.Groups[0]
+		apiKey.Group = &primary
+	}
+	if apiKey.GroupID == nil {
+		if apiKey.Group != nil {
+			primaryID := apiKey.Group.ID
+			apiKey.GroupID = &primaryID
+		} else if len(apiKey.GroupIDs) > 0 {
+			primaryID := apiKey.GroupIDs[0]
+			apiKey.GroupID = &primaryID
+		}
+	}
+	apiKey.GroupIDs = []int64{}
+	apiKey.Groups = []Group{}
+	if apiKey.GroupID != nil {
+		apiKey.GroupIDs = []int64{*apiKey.GroupID}
+	}
+	if apiKey.Group != nil {
+		apiKey.Groups = []Group{*apiKey.Group}
+	}
+}
+
+func normalizeAPIKeysToPrimaryGroup(apiKeys []APIKey) {
+	for i := range apiKeys {
+		normalizeAPIKeyToPrimaryGroup(&apiKeys[i])
+	}
+}
+
+func withAPIKeyGroupField(err error, field string) error {
+	if err == nil {
+		return nil
+	}
+	appErr := infraerrors.FromError(err)
+	metadata := make(map[string]string, len(appErr.Metadata)+1)
+	for key, value := range appErr.Metadata {
+		metadata[key] = value
+	}
+	metadata["field"] = field
+	return appErr.WithMetadata(metadata)
+}
+
+func (s *APIKeyService) applyMultiGroupFeature(apiKey *APIKey) *APIKey {
+	if !s.APIKeyMultiGroupEnabled() {
+		normalizeAPIKeyToPrimaryGroup(apiKey)
+	}
+	return apiKey
 }
 
 func (s *APIKeyService) compileAPIKeyIPRules(apiKey *APIKey) {
@@ -427,6 +507,92 @@ func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group 
 	return user.CanBindGroup(group.ID, group.IsExclusive)
 }
 
+const maxAPIKeyGroups = customapikeygroups.MaxGroups
+
+func requestedAPIKeyGroupIDs(groupIDSet bool, groupID *int64, groupIDs *[]int64) ([]int64, bool, error) {
+	resolved, present, err := customapikeygroups.ResolveSelection(groupIDSet, groupID, groupIDs)
+	if errors.Is(err, customapikeygroups.ErrConflictingFields) {
+		return nil, false, ErrAPIKeyGroupFieldsConflict
+	}
+	return resolved, present, err
+}
+
+func (s *APIKeyService) validateAPIKeyGroups(
+	ctx context.Context,
+	user *User,
+	groupIDs []int64,
+	existing map[int64]struct{},
+) ([]Group, error) {
+	groups, err := customapikeygroups.ValidateOrderedSelection(
+		groupIDs,
+		existing,
+		func(groupID int64) (Group, string, error) {
+			group, err := s.groupRepo.GetByID(ctx, groupID)
+			if err != nil {
+				return Group{}, "", withAPIKeyGroupField(
+					fmt.Errorf("get group: %w", err), "group_ids")
+			}
+			return *group, group.Platform, nil
+		},
+		func(_ int64, group Group) error {
+			if group.Status != StatusActive || !s.canUserBindGroup(ctx, user, &group) {
+				return withAPIKeyGroupField(ErrGroupNotAllowed, "group_ids")
+			}
+			if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {
+				return withAPIKeyGroupField(err, "group_ids")
+			}
+			return nil
+		},
+	)
+	if errors.Is(err, customapikeygroups.ErrInvalidSelection) ||
+		errors.Is(err, customapikeygroups.ErrMixedPlatforms) {
+		return nil, ErrAPIKeyGroupsInvalid
+	}
+	return groups, err
+}
+
+// validateLegacyAPIKeyGroup keeps the pre-multi-group group_id binding
+// semantics. In particular, it does not add a new group-status gate when the
+// global switch is disabled or an old client sends group_id.
+func (s *APIKeyService) validateLegacyAPIKeyGroup(
+	ctx context.Context,
+	user *User,
+	groupID int64,
+) ([]Group, error) {
+	group, err := s.groupRepo.GetByID(ctx, groupID)
+	if err != nil {
+		return nil, withAPIKeyGroupField(fmt.Errorf("get group: %w", err), "group_id")
+	}
+	if !s.canUserBindGroup(ctx, user, group) {
+		return nil, withAPIKeyGroupField(ErrGroupNotAllowed, "group_id")
+	}
+	if err := groupaccess.CheckMinimumBalance(
+		group.ID,
+		group.Name,
+		user.Balance,
+		group.MinimumBalance,
+	); err != nil {
+		return nil, withAPIKeyGroupField(err, "group_id")
+	}
+	return []Group{*group}, nil
+}
+
+func applyAPIKeyGroups(apiKey *APIKey, groupIDs []int64, groups []Group) {
+	if apiKey == nil {
+		return
+	}
+	apiKey.GroupIDs = append([]int64(nil), groupIDs...)
+	apiKey.Groups = append([]Group(nil), groups...)
+	apiKey.GroupID = nil
+	apiKey.Group = nil
+	if len(groups) > 0 {
+		primaryID := groups[0].ID
+		apiKey.GroupID = &primaryID
+		primary := groups[0]
+		apiKey.Group = &primary
+	}
+}
+
 // Create 创建API Key
 func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIKeyRequest) (*APIKey, error) {
 	// 验证用户存在
@@ -449,20 +615,21 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		}
 	}
 
-	// 验证分组权限（如果指定了分组）
-	if req.GroupID != nil {
-		group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
-		if err != nil {
-			return nil, fmt.Errorf("get group: %w", err)
-		}
-
-		// 检查用户是否可以绑定该分组
-		if !s.canUserBindGroup(ctx, user, group) {
-			return nil, ErrGroupNotAllowed
-		}
-		if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {
-			return nil, err
-		}
+	groupIDs, _, err := requestedAPIKeyGroupIDs(req.GroupIDSet, req.GroupID, req.GroupIDs)
+	if err != nil {
+		return nil, err
+	}
+	if req.GroupIDs != nil && !s.APIKeyMultiGroupEnabled() {
+		return nil, ErrAPIKeyMultiGroupDisabled
+	}
+	var groups []Group
+	if req.GroupIDs == nil && len(groupIDs) == 1 {
+		groups, err = s.validateLegacyAPIKeyGroup(ctx, user, groupIDs[0])
+	} else {
+		groups, err = s.validateAPIKeyGroups(ctx, user, groupIDs, map[int64]struct{}{})
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	var key string
@@ -505,7 +672,6 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		UserID:      userID,
 		Key:         key,
 		Name:        html.EscapeString(req.Name),
-		GroupID:     req.GroupID,
 		Status:      StatusActive,
 		IPWhitelist: req.IPWhitelist,
 		IPBlacklist: req.IPBlacklist,
@@ -515,6 +681,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		RateLimit1d: req.RateLimit1d,
 		RateLimit7d: req.RateLimit7d,
 	}
+	applyAPIKeyGroups(apiKey, groupIDs, groups)
 
 	// Set expiration time if specified
 	if req.ExpiresInDays != nil && *req.ExpiresInDays > 0 {
@@ -534,6 +701,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 
 // List 获取用户的API Key列表
 func (s *APIKeyService) List(ctx context.Context, userID int64, params pagination.PaginationParams, filters APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
+	filters.PrimaryGroupOnly = !s.APIKeyMultiGroupEnabled()
 	if normalizedAPIKeySortBy(params.SortBy) == apiKeySortCurrentConcurrency {
 		return s.listByCurrentConcurrency(ctx, userID, params, filters)
 	}
@@ -541,6 +709,9 @@ func (s *APIKeyService) List(ctx context.Context, userID int64, params paginatio
 	keys, pagination, err := s.apiKeyRepo.ListByUserID(ctx, userID, params, filters)
 	if err != nil {
 		return nil, nil, fmt.Errorf("list api keys: %w", err)
+	}
+	if filters.PrimaryGroupOnly {
+		normalizeAPIKeysToPrimaryGroup(keys)
 	}
 	s.fillCurrentConcurrency(ctx, keys)
 	return keys, pagination, nil
@@ -555,6 +726,9 @@ func (s *APIKeyService) listByCurrentConcurrency(ctx context.Context, userID int
 	keys, err := repo.ListAllByUserID(ctx, userID, filters)
 	if err != nil {
 		return nil, nil, fmt.Errorf("list api keys: %w", err)
+	}
+	if filters.PrimaryGroupOnly {
+		normalizeAPIKeysToPrimaryGroup(keys)
 	}
 	s.fillCurrentConcurrency(ctx, keys)
 	sortAPIKeysByCurrentConcurrency(keys, params.NormalizedSortOrder(pagination.SortOrderDesc))
@@ -667,7 +841,7 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 	if apiKey != nil {
 		apiKey.CurrentConcurrency = s.currentConcurrencyForAPIKey(ctx, apiKey.ID)
 	}
-	return apiKey, nil
+	return s.applyMultiGroupFeature(apiKey), nil
 }
 
 // GetByKey 根据Key字符串获取API Key（用于认证）
@@ -683,7 +857,7 @@ func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, erro
 				return nil, fmt.Errorf("get api key: %w", err)
 			}
 			s.compileAPIKeyIPRules(apiKey)
-			return apiKey, nil
+			return s.applyMultiGroupFeature(apiKey), nil
 		}
 	}
 
@@ -700,7 +874,7 @@ func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, erro
 				return nil, fmt.Errorf("get api key: %w", err)
 			}
 			s.compileAPIKeyIPRules(apiKey)
-			return apiKey, nil
+			return s.applyMultiGroupFeature(apiKey), nil
 		}
 	} else {
 		entry, err := s.loadAuthCacheEntry(ctx, key, cacheKey)
@@ -712,7 +886,7 @@ func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, erro
 				return nil, fmt.Errorf("get api key: %w", err)
 			}
 			s.compileAPIKeyIPRules(apiKey)
-			return apiKey, nil
+			return s.applyMultiGroupFeature(apiKey), nil
 		}
 	}
 
@@ -722,7 +896,7 @@ func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, erro
 	}
 	apiKey.Key = key
 	s.compileAPIKeyIPRules(apiKey)
-	return apiKey, nil
+	return s.applyMultiGroupFeature(apiKey), nil
 }
 
 // Update 更新API Key
@@ -757,36 +931,61 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	// 下面若干分支会顺带把 Status 改回 active（配额扩容、清除过期等），
 	// 所以用原始值比对来决定是否写 status，而不是只看 req.Status。
 	originalStatus := apiKey.Status
+	requestedGroupIDs, groupsSet, err := requestedAPIKeyGroupIDs(req.GroupIDSet, req.GroupID, req.GroupIDs)
+	if err != nil {
+		return nil, err
+	}
+	if req.GroupIDs != nil && !s.APIKeyMultiGroupEnabled() {
+		return nil, ErrAPIKeyMultiGroupDisabled
+	}
+	legacyGroupRequest := req.GroupIDs == nil && (req.GroupIDSet || req.GroupID != nil)
+	if legacyGroupRequest && req.GroupID != nil && apiKey.GroupID != nil &&
+		*req.GroupID == *apiKey.GroupID &&
+		(!s.APIKeyMultiGroupEnabled() || len(apiKey.GroupIDs) <= 1) {
+		// An explicit no-op group_id update must retain the old behavior: no
+		// permission/balance lookup. When multi-group routing is enabled, an old
+		// client still replaces an existing multi-item list with one item.
+		groupsSet = false
+		requestedGroupIDs = nil
+	}
+	var requestedGroups []Group
+	if groupsSet {
+		if legacyGroupRequest && len(requestedGroupIDs) == 0 {
+			requestedGroups = []Group{}
+		} else {
+			user, err := s.userRepo.GetByID(ctx, userID)
+			if err != nil {
+				return nil, fmt.Errorf("get user: %w", err)
+			}
+			existing := make(map[int64]struct{}, len(apiKey.GroupIDs))
+			for _, groupID := range apiKey.GroupIDs {
+				existing[groupID] = struct{}{}
+			}
+			// Compatibility for repositories/test doubles that only hydrate GroupID.
+			if len(existing) == 0 && apiKey.GroupID != nil {
+				existing[*apiKey.GroupID] = struct{}{}
+			}
+			alreadyAssigned := false
+			if len(requestedGroupIDs) > 0 {
+				_, alreadyAssigned = existing[requestedGroupIDs[0]]
+			}
+			if legacyGroupRequest && !alreadyAssigned {
+				requestedGroups, err = s.validateLegacyAPIKeyGroup(
+					ctx, user, requestedGroupIDs[0])
+			} else {
+				requestedGroups, err = s.validateAPIKeyGroups(
+					ctx, user, requestedGroupIDs, existing)
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	// 更新字段
 	if req.Name != nil {
 		apiKey.Name = html.EscapeString(*req.Name)
 		fields.Name = true
-	}
-
-	if req.GroupID != nil {
-		groupChanged := apiKey.GroupID == nil || *apiKey.GroupID != *req.GroupID
-		if groupChanged {
-			// 验证分组权限
-			user, err := s.userRepo.GetByID(ctx, userID)
-			if err != nil {
-				return nil, fmt.Errorf("get user: %w", err)
-			}
-
-			group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
-			if err != nil {
-				return nil, fmt.Errorf("get group: %w", err)
-			}
-
-			if !s.canUserBindGroup(ctx, user, group) {
-				return nil, ErrGroupNotAllowed
-			}
-			if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {
-				return nil, err
-			}
-		}
-		apiKey.GroupID = req.GroupID
-		fields.GroupID = true
 	}
 
 	if req.Status != nil {
@@ -870,7 +1069,44 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		fields.Status = true
 	}
 
-	if err := s.apiKeyRepo.Update(ctx, apiKey, fields); err != nil {
+	if groupsSet {
+		updater, ok := s.apiKeyRepo.(apiKeyGroupUpdater)
+		if ok {
+			if err := updater.UpdateWithGroups(ctx, apiKey, fields, requestedGroupIDs); err != nil {
+				return nil, fmt.Errorf("update api key and groups: %w", err)
+			}
+		} else {
+			// 测试替身及滚动升级兼容路径；生产仓储实现 UpdateWithGroups 原子写入。
+			replacer, replaceOK := s.apiKeyRepo.(apiKeyGroupReplacer)
+			if replaceOK {
+				if err := s.apiKeyRepo.Update(ctx, apiKey, fields); err != nil {
+					return nil, fmt.Errorf("update api key: %w", err)
+				}
+				if err := replacer.ReplaceGroups(ctx, apiKey.ID, requestedGroupIDs); err != nil {
+					return nil, fmt.Errorf("update api key groups: %w", err)
+				}
+			} else {
+				if !legacyGroupRequest {
+					return nil, fmt.Errorf("api key repository does not support ordered groups")
+				}
+				apiKey.GroupID = nil
+				apiKey.Group = nil
+				if len(requestedGroupIDs) > 0 {
+					primaryID := requestedGroupIDs[0]
+					apiKey.GroupID = &primaryID
+					if len(requestedGroups) > 0 {
+						primary := requestedGroups[0]
+						apiKey.Group = &primary
+					}
+				}
+				fields.GroupID = true
+				if err := s.apiKeyRepo.Update(ctx, apiKey, fields); err != nil {
+					return nil, fmt.Errorf("update api key: %w", err)
+				}
+			}
+		}
+		applyAPIKeyGroups(apiKey, requestedGroupIDs, requestedGroups)
+	} else if err := s.apiKeyRepo.Update(ctx, apiKey, fields); err != nil {
 		return nil, fmt.Errorf("update api key: %w", err)
 	}
 
@@ -882,7 +1118,7 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		_ = s.rateLimitCacheInvalid.InvalidateAPIKeyRateLimit(ctx, apiKey.ID)
 	}
 
-	return apiKey, nil
+	return s.applyMultiGroupFeature(apiKey), nil
 }
 
 // Delete 删除API Key
@@ -1068,6 +1304,9 @@ func (s *APIKeyService) SearchAPIKeys(ctx context.Context, userID int64, keyword
 	keys, err := s.apiKeyRepo.SearchAPIKeys(ctx, userID, keyword, limit)
 	if err != nil {
 		return nil, fmt.Errorf("search api keys: %w", err)
+	}
+	if !s.APIKeyMultiGroupEnabled() {
+		normalizeAPIKeysToPrimaryGroup(keys)
 	}
 	return keys, nil
 }

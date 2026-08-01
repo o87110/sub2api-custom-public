@@ -4,16 +4,18 @@ import "time"
 
 // APIKeyAuthSnapshot API Key 认证缓存快照（仅包含认证所需字段）
 type APIKeyAuthSnapshot struct {
-	Version     int                      `json:"version"`
-	APIKeyID    int64                    `json:"api_key_id"`
-	UserID      int64                    `json:"user_id"`
-	GroupID     *int64                   `json:"group_id,omitempty"`
-	Name        string                   `json:"name"`
-	Status      string                   `json:"status"`
-	IPWhitelist []string                 `json:"ip_whitelist,omitempty"`
-	IPBlacklist []string                 `json:"ip_blacklist,omitempty"`
-	User        APIKeyAuthUserSnapshot   `json:"user"`
-	Group       *APIKeyAuthGroupSnapshot `json:"group,omitempty"`
+	Version     int                       `json:"version"`
+	APIKeyID    int64                     `json:"api_key_id"`
+	UserID      int64                     `json:"user_id"`
+	GroupID     *int64                    `json:"group_id,omitempty"`
+	Name        string                    `json:"name"`
+	Status      string                    `json:"status"`
+	IPWhitelist []string                  `json:"ip_whitelist,omitempty"`
+	IPBlacklist []string                  `json:"ip_blacklist,omitempty"`
+	User        APIKeyAuthUserSnapshot    `json:"user"`
+	Group       *APIKeyAuthGroupSnapshot  `json:"group,omitempty"`
+	Groups      []APIKeyAuthGroupSnapshot `json:"groups,omitempty"`
+	GroupIDs    []int64                   `json:"group_ids,omitempty"`
 
 	// Quota fields for API Key independent quota feature
 	Quota     float64 `json:"quota"`      // Quota limit in USD (0 = unlimited)
@@ -49,8 +51,7 @@ type APIKeyAuthUserSnapshot struct {
 	// RPMLimit 用户级每分钟请求数上限（0 = 不限制）；用于 billing_cache_service.checkRPM 兜底判断。
 	RPMLimit int `json:"rpm_limit"`
 
-	// UserGroupRPMOverride 该 API Key 对应的 (user, group) 专属 RPM 覆盖值。
-	// nil = 无 override（回退到 group/user 级）；0 = 不限流；>0 = 专属上限。
+	// UserGroupRPMOverride 保留用于读取 v18 及更早的单分组缓存快照。
 	UserGroupRPMOverride *int `json:"user_group_rpm_override,omitempty"`
 }
 
@@ -71,6 +72,8 @@ type APIKeyAuthGroupSnapshot struct {
 	AllowBatchImageGeneration       bool     `json:"allow_batch_image_generation"`
 	ImageRateIndependent            bool     `json:"image_rate_independent"`
 	ImageRateMultiplier             float64  `json:"image_rate_multiplier"`
+	BatchImageDiscountMultiplier    float64  `json:"batch_image_discount_multiplier"`
+	BatchImageHoldMultiplier        float64  `json:"batch_image_hold_multiplier"`
 	ImagePrice1K                    *float64 `json:"image_price_1k,omitempty"`
 	ImagePrice2K                    *float64 `json:"image_price_2k,omitempty"`
 	ImagePrice4K                    *float64 `json:"image_price_4k,omitempty"`
@@ -96,6 +99,8 @@ type APIKeyAuthGroupSnapshot struct {
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
 	AllowMessagesDispatch       bool                              `json:"allow_messages_dispatch"`
 	AllowLive                   bool                              `json:"allow_live"`
+	RequireOAuthOnly            bool                              `json:"require_oauth_only"`
+	RequirePrivacySet           bool                              `json:"require_privacy_set"`
 	DefaultMappedModel          string                            `json:"default_mapped_model,omitempty"`
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config,omitempty"`
 	ModelsListConfig            GroupModelsListConfig             `json:"models_list_config,omitempty"`
@@ -115,6 +120,32 @@ type APIKeyAuthGroupSnapshot struct {
 	PeakStart          string  `json:"peak_start"`
 	PeakEnd            string  `json:"peak_end"`
 	PeakRateMultiplier float64 `json:"peak_rate_multiplier"`
+
+	// UserGroupRPMOverride 是该候选分组对应的用户 RPM override。
+	// nil = 无 override；0 = 该用户在此分组免分组级 RPM；>0 = 专属上限。
+	UserGroupRPMOverride *int `json:"user_group_rpm_override,omitempty"`
+	// UserGroupRPMOverrideResolved 区分明确无覆盖与查询失败，后者必须允许实际尝试时回源重查。
+	UserGroupRPMOverrideResolved bool `json:"user_group_rpm_override_resolved"`
+
+	// Subscription 是该候选分组对应的有效订阅快照。Resolved=true 且
+	// Subscription=nil 表示已确认没有有效订阅；Resolved=false 表示缓存构建时查询失败，
+	// 实际路由必须回源重查。
+	Subscription         *APIKeyAuthSubscriptionSnapshot `json:"subscription,omitempty"`
+	SubscriptionResolved bool                            `json:"subscription_resolved"`
+}
+
+// APIKeyAuthSubscriptionSnapshot 保留路由资格检查和 Usage 归属所需的订阅字段。
+// 订阅实时用量仍由 BillingCacheService 读取，避免认证快照承载高频变化状态。
+type APIKeyAuthSubscriptionSnapshot struct {
+	ID                 int64      `json:"id"`
+	UserID             int64      `json:"user_id"`
+	GroupID            int64      `json:"group_id"`
+	StartsAt           time.Time  `json:"starts_at"`
+	ExpiresAt          time.Time  `json:"expires_at"`
+	Status             string     `json:"status"`
+	DailyWindowStart   *time.Time `json:"daily_window_start,omitempty"`
+	WeeklyWindowStart  *time.Time `json:"weekly_window_start,omitempty"`
+	MonthlyWindowStart *time.Time `json:"monthly_window_start,omitempty"`
 }
 
 // APIKeyAuthCacheEntry 缓存条目，支持负缓存

@@ -100,6 +100,7 @@
           :selected-ids="selectedKeyIds"
           :groups="groups"
           :user-group-rates="userGroupRates"
+          :multi-group-enabled="apiKeyMultiGroupEnabled"
           @update:selected-ids="selectedKeyIds = $event"
           @busy-change="bulkActionBusy = $event"
           @completed="handleBulkCompleted"
@@ -173,10 +174,9 @@
               data-test="api-key-group-cell-content"
             >
               <button
-                :ref="(el) => setGroupButtonRef(row.id, el)"
                 @click="openGroupSelector(row)"
-                class="-my-1 flex min-w-0 max-w-full cursor-pointer items-center justify-end gap-2 rounded-lg px-2 py-1 transition-all duration-200 hover:bg-gray-100 md:-mx-2 md:justify-start dark:hover:bg-dark-700"
-                :title="t('keys.clickToChangeGroup')"
+                class="-my-1 flex min-h-11 min-w-0 max-w-full cursor-pointer items-center justify-end gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 md:-mx-2 md:justify-start dark:hover:bg-dark-700"
+                :aria-label="apiKeyMultiGroupEnabled ? priorityText('edit') : t('keys.clickToChangeGroup')"
                 data-test="api-key-group-selector"
               >
                 <GroupBadge
@@ -195,7 +195,16 @@
                 <span v-else class="text-sm text-gray-400 dark:text-dark-500">{{
                   t('keys.noGroup')
                 }}</span>
-                <span class="flex-shrink-0 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{{ t('keys.selectGroup') }}</span>
+                <span
+                  v-if="apiKeyMultiGroupEnabled && (row.group_ids?.length || 0) > 1"
+                  class="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-primary-100 px-1.5 text-xs font-semibold tabular-nums text-primary-700 dark:bg-primary-900/40 dark:text-primary-200"
+                  data-test="api-key-group-count"
+                >
+                  +{{ row.group_ids.length - 1 }}
+                </span>
+                <span class="flex-shrink-0 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                  {{ apiKeyMultiGroupEnabled ? priorityText('edit') : t('keys.clickToChangeGroup') }}
+                </span>
                 <svg
                   class="h-3.5 w-3.5 flex-shrink-0 text-gray-400 opacity-60 transition-opacity group-hover/dropdown:opacity-100"
                   fill="none"
@@ -511,53 +520,28 @@
         </div>
 
         <div>
-          <label class="input-label">{{ t('keys.groupLabel') }}</label>
-          <Select
-            v-model="formData.group_id"
-            :options="groupOptions"
-            :placeholder="t('keys.selectGroup')"
-            :searchable="true"
-            :search-placeholder="t('keys.searchGroup')"
+          <ApiKeyGroupPriorityEditor
+            v-if="apiKeyMultiGroupEnabled"
+            v-model="formData.group_ids"
+            :groups="groups"
+            :selected-groups="selectedKey?.groups || []"
+            :user-group-rates="userGroupRates"
+            :error="groupFieldError"
             data-tour="key-form-group"
-          >
-            <template #selected="{ option }">
-              <span v-if="option" class="flex min-w-0 items-center">
-                <GroupBadge
-                  :name="(option as unknown as GroupOption).label"
-                  :platform="(option as unknown as GroupOption).platform"
-                  :subscription-type="(option as unknown as GroupOption).subscriptionType"
-                  :rate-multiplier="(option as unknown as GroupOption).rate"
-                  :user-rate-multiplier="(option as unknown as GroupOption).userRate"
-                  :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
-                  :peak-start="(option as unknown as GroupOption).peakStart"
-                  :peak-end="(option as unknown as GroupOption).peakEnd"
-                  :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
-                />
-              </span>
-              <span v-else class="text-gray-400">{{ t('keys.selectGroup') }}</span>
-            </template>
-            <template #option="{ option, selected }">
-              <div class="flex w-full min-w-0 items-center justify-between gap-2">
-                <GroupOptionItem
-                  :name="(option as unknown as GroupOption).label"
-                  :platform="(option as unknown as GroupOption).platform"
-                  :subscription-type="(option as unknown as GroupOption).subscriptionType"
-                  :rate-multiplier="(option as unknown as GroupOption).rate"
-                  :user-rate-multiplier="(option as unknown as GroupOption).userRate"
-                  :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
-                  :peak-start="(option as unknown as GroupOption).peakStart"
-                  :peak-end="(option as unknown as GroupOption).peakEnd"
-                  :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
-                  :description="(option as unknown as GroupOption).description"
-                  :selected="selected"
-                />
-                <GroupBalanceWarning
-                  v-if="(option as unknown as GroupOption).balanceRequirement"
-                  :requirement="(option as unknown as GroupOption).balanceRequirement!"
-                />
-              </div>
-            </template>
-          </Select>
+          />
+          <template v-else>
+            <label for="legacy-key-form-group" class="input-label">{{ t('keys.groupLabel') }}</label>
+            <Select
+              id="legacy-key-form-group"
+              :model-value="legacyFormGroupID"
+              :options="legacyGroupOptions"
+              :error="Boolean(groupFieldError)"
+              :aria-describedby="groupFieldError ? 'legacy-key-form-group-error' : undefined"
+              data-tour="key-form-group"
+              @update:model-value="setLegacyFormGroup"
+            />
+            <p v-if="groupFieldError" id="legacy-key-form-group-error" class="mt-1 text-sm text-red-500">{{ groupFieldError }}</p>
+          </template>
         </div>
 
         <!-- Custom Key Section (only for create) -->
@@ -1098,91 +1082,52 @@
       </template>
     </BaseDialog>
 
-    <!-- Group Selector Dropdown (Teleported to body to avoid overflow clipping) -->
-    <Teleport to="body">
-      <div
-        v-if="groupSelectorKeyId !== null && dropdownPosition"
-        ref="dropdownRef"
-        class="animate-in fade-in slide-in-from-top-2 fixed z-[100000020] w-max max-w-[calc(100vw-16px)] overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 duration-200 sm:min-w-[380px] dark:bg-dark-800 dark:ring-white/10"
-        style="pointer-events: auto !important;"
-        :style="{
-          top: dropdownPosition.top !== undefined ? dropdownPosition.top + 'px' : undefined,
-          bottom: dropdownPosition.bottom !== undefined ? dropdownPosition.bottom + 'px' : undefined,
-          left: dropdownPosition.left + 'px'
-        }"
-      >
-        <!-- Search box -->
-        <div class="border-b border-gray-100 p-2 dark:border-dark-700">
-          <div class="relative">
-            <svg class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              v-model="groupSearchQuery"
-              type="text"
-              class="w-full rounded-lg border border-gray-200 bg-gray-50 py-1.5 pl-8 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-primary-300 focus:ring-1 focus:ring-primary-300 dark:border-dark-600 dark:bg-dark-700 dark:text-white dark:placeholder-gray-500 dark:focus:border-primary-600 dark:focus:ring-primary-600"
-              :placeholder="t('keys.searchGroup')"
-              @click.stop
-            />
-          </div>
+    <BaseDialog
+      :show="groupSelectorKeyId !== null"
+    :title="apiKeyMultiGroupEnabled ? priorityText('edit') : t('keys.clickToChangeGroup')"
+      width="normal"
+      @close="closeGroupPriorityDialog"
+    >
+      <ApiKeyGroupPriorityEditor
+        v-if="apiKeyMultiGroupEnabled"
+        :model-value="selectedKeyForGroup?.group_ids || []"
+        :groups="groups"
+        :selected-groups="selectedKeyForGroup?.groups || []"
+        :user-group-rates="userGroupRates"
+        :busy="groupPrioritySaving"
+        :error="groupFieldError"
+        show-actions
+        @save="changeGroups"
+        @cancel="closeGroupPriorityDialog"
+      />
+      <div v-else class="space-y-4">
+        <div>
+          <label for="legacy-key-dialog-group" class="input-label">{{ t('keys.groupLabel') }}</label>
+          <Select
+            id="legacy-key-dialog-group"
+            :model-value="legacyDialogGroupID"
+            :options="legacyGroupOptions"
+            :error="Boolean(groupFieldError)"
+            :aria-describedby="groupFieldError ? 'legacy-key-dialog-group-error' : undefined"
+            @update:model-value="setLegacyDialogGroup"
+          />
+          <p v-if="groupFieldError" id="legacy-key-dialog-group-error" class="mt-1 text-sm text-red-500">{{ groupFieldError }}</p>
         </div>
-        <!-- Group list -->
-        <div class="max-h-80 overflow-y-auto p-1.5">
-          <div
-            v-for="option in filteredGroupOptions"
-            :key="option.value ?? 'null'"
-            :class="[
-              'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
-              'border-b border-gray-100 last:border-0 dark:border-dark-700',
-              selectedKeyForGroup?.group_id === option.value ||
-              (!selectedKeyForGroup?.group_id && option.value === null)
-                ? 'bg-primary-50 dark:bg-primary-900/20'
-                : option.disabled
-                  ? 'opacity-60'
-                  : 'hover:bg-gray-100 dark:hover:bg-dark-700'
-            ]"
-          >
-            <button
-              type="button"
-              class="min-w-0 flex-1 text-left disabled:cursor-not-allowed"
-              :disabled="option.disabled"
-              :title="option.description || undefined"
-              @click="changeGroup(selectedKeyForGroup!, option.value)"
-            >
-              <GroupOptionItem
-                :name="option.label"
-                :platform="option.platform"
-                :subscription-type="option.subscriptionType"
-                :rate-multiplier="option.rate"
-                :user-rate-multiplier="option.userRate"
-                :peak-rate-enabled="option.peakRateEnabled"
-                :peak-start="option.peakStart"
-                :peak-end="option.peakEnd"
-                :peak-rate-multiplier="option.peakRateMultiplier"
-                :description="option.description"
-                :selected="
-                  selectedKeyForGroup?.group_id === option.value ||
-                  (!selectedKeyForGroup?.group_id && option.value === null)
-                "
-              />
-            </button>
-            <GroupBalanceWarning
-              v-if="option.balanceRequirement"
-              :requirement="option.balanceRequirement"
-            />
-          </div>
-          <!-- Empty state when search has no results -->
-          <div v-if="filteredGroupOptions.length === 0" class="py-4 text-center text-sm text-gray-400 dark:text-gray-500">
-            {{ t('keys.noGroupFound') }}
-          </div>
+        <div class="flex justify-end gap-3">
+          <button type="button" class="btn btn-secondary min-h-11" :disabled="groupPrioritySaving" @click="closeGroupPriorityDialog">
+            {{ t('common.cancel') }}
+          </button>
+          <button type="button" class="btn btn-primary min-h-11" :disabled="groupPrioritySaving" @click="changeLegacyGroup">
+            {{ groupPrioritySaving ? t('keys.saving') : t('common.save') }}
+          </button>
         </div>
       </div>
-    </Teleport>
+    </BaseDialog>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useOnboardingStore } from '@/stores/onboarding'
@@ -1204,14 +1149,19 @@ import Icon from '@/components/icons/Icon.vue'
 import UseKeyModal from '@/components/keys/UseKeyModal.vue'
 import EndpointPopover from '@/components/keys/EndpointPopover.vue'
 import ApiKeyBulkActions from '@/custom/api-keys/ApiKeyBulkActions.vue'
+import ApiKeyGroupPriorityEditor from '@/custom/api-keys/ApiKeyGroupPriorityEditor.vue'
 import GroupBalanceWarning from '@/custom/group-access/GroupBalanceWarning.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
-import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
-import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
+import type { ApiKey, Group, PublicSettings, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
 import type { ApiKeyBulkCompletedResult } from '@/custom/api-keys/bulkActions'
 import { customApiKeyBulkText } from '@/custom/api-keys/i18n'
+import {
+  apiKeyGroupPriorityText,
+  type ApiKeyGroupPriorityTextKey
+} from '@/custom/api-keys/priorityI18n'
+import { apiKeyGroupFieldError } from '@/custom/api-keys/fieldError'
 import {
   groupBalanceRequirement,
   minimumBalanceErrorToast,
@@ -1231,26 +1181,13 @@ const formatDateTimeLocal = (isoDate: string): string => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-interface GroupOption {
-  [key: string]: unknown
-  value: number
-  label: string
-  description: string | null
-  rate: number
-  userRate: number | null
-  peakRateEnabled: boolean
-  peakStart: string
-  peakEnd: string
-  peakRateMultiplier: number
-  subscriptionType: SubscriptionType
-  platform: GroupPlatform
-  disabled: boolean
-  balanceRequirement: GroupBalanceRequirement | null
-}
-
 const appStore = useAppStore()
 const onboardingStore = useOnboardingStore()
 const { copyToClipboard: clipboardCopy } = useClipboard()
+const priorityText = (
+  key: ApiKeyGroupPriorityTextKey,
+  params: Record<string, string | number> = {}
+) => apiKeyGroupPriorityText(locale.value, key, params)
 
 const allColumns = computed<Column[]>(() => [
   { key: 'name', label: t('common.name'), sortable: true },
@@ -1385,11 +1322,11 @@ const pendingCcsRow = ref<ApiKey | null>(null)
 const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<number | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
+const groupPrioritySaving = ref(false)
+const legacyDialogGroupID = ref<number>(0)
+const groupFieldError = ref('')
 const publicSettings = ref<PublicSettings | null>(null)
-const dropdownRef = ref<HTMLElement | null>(null)
 const columnDropdownRef = ref<HTMLElement | null>(null)
-const dropdownPosition = ref<{ top?: number; bottom?: number; left: number } | null>(null)
-const groupButtonRefs = ref<Map<number, HTMLElement>>(new Map())
 let abortController: AbortController | null = null
 
 // Get the currently selected key for group change
@@ -1398,17 +1335,29 @@ const selectedKeyForGroup = computed(() => {
   return apiKeys.value.find((k) => k.id === groupSelectorKeyId.value) || null
 })
 
-const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance | null) => {
-  if (el instanceof HTMLElement) {
-    groupButtonRefs.value.set(keyId, el)
-  } else {
-    groupButtonRefs.value.delete(keyId)
-  }
+const apiKeyMultiGroupEnabled = computed(
+  () => publicSettings.value?.api_key_multi_group_enabled === true
+)
+
+const legacyGroupOptions = computed(() => [
+  { value: 0, label: t('keys.noGroup') },
+  ...groups.value.map((group) => ({ value: group.id, label: group.name }))
+])
+
+const legacyFormGroupID = computed(() => formData.value.group_ids[0] ?? 0)
+
+const setLegacyFormGroup = (value: string | number | boolean | null) => {
+  const groupID = Number(value) || 0
+  formData.value.group_ids = groupID > 0 ? [groupID] : []
+}
+
+const setLegacyDialogGroup = (value: string | number | boolean | null) => {
+  legacyDialogGroupID.value = Number(value) || 0
 }
 
 const formData = ref({
   name: '',
-  group_id: null as number | null,
+  group_ids: [] as number[],
   status: 'active' as 'active' | 'inactive',
   use_custom_key: false,
   custom_key: '',
@@ -1487,28 +1436,6 @@ const onStatusFilterChange = (value: string | number | boolean | null) => {
   onFilterChange()
 }
 
-// Convert groups to Select options format with rate multiplier and subscription type
-const groupOptions = computed(() =>
-  groups.value.map((group) => {
-    const balanceRequirement = groupBalanceRequirement(group)
-    return {
-      value: group.id,
-      label: group.name,
-      description: group.description,
-      rate: group.rate_multiplier,
-      userRate: userGroupRates.value[group.id] ?? null,
-      peakRateEnabled: group.peak_rate_enabled,
-      peakStart: group.peak_start,
-      peakEnd: group.peak_end,
-      peakRateMultiplier: group.peak_rate_multiplier,
-      subscriptionType: group.subscription_type,
-      platform: group.platform,
-      disabled: balanceRequirement !== null,
-      balanceRequirement
-    }
-  })
-)
-
 const balanceRequirementsByGroupID = computed(() => {
   const result = new Map<number, GroupBalanceRequirement>()
   for (const group of groups.value) {
@@ -1520,17 +1447,6 @@ const balanceRequirementsByGroupID = computed(() => {
 
 const balanceRequirementForGroup = (groupId: number): GroupBalanceRequirement | null =>
   balanceRequirementsByGroupID.value.get(groupId) ?? null
-
-// Group dropdown search
-const groupSearchQuery = ref('')
-const filteredGroupOptions = computed(() => {
-  const query = groupSearchQuery.value.trim().toLowerCase()
-  if (!query) return groupOptions.value
-  return groupOptions.value.filter((opt) => {
-    return opt.label.toLowerCase().includes(query) ||
-      (opt.description && opt.description.toLowerCase().includes(query))
-  })
-})
 
 const copyToClipboard = async (text: string, keyId: number) => {
   const success = await clipboardCopy(text, t('keys.copied'))
@@ -1697,7 +1613,7 @@ const editKey = (key: ApiKey) => {
   const hasExpiration = !!key.expires_at
   formData.value = {
     name: key.name,
-    group_id: key.group_id,
+    group_ids: key.group_ids?.length ? [...key.group_ids] : (key.group_id ? [key.group_id] : []),
     status: key.status === 'quota_exhausted' || key.status === 'expired' ? 'inactive' : key.status,
     use_custom_key: false,
     custom_key: '',
@@ -1731,63 +1647,63 @@ const toggleKeyStatus = async (key: ApiKey) => {
 }
 
 const openGroupSelector = (key: ApiKey) => {
-  if (groupSelectorKeyId.value === key.id) {
-    groupSelectorKeyId.value = null
-    dropdownPosition.value = null
-  } else {
-    const buttonEl = groupButtonRefs.value.get(key.id)
-    if (buttonEl) {
-      const rect = buttonEl.getBoundingClientRect()
-      const dropdownEstHeight = 400 // estimated max dropdown height
-      const dropdownEstWidth = Math.min(380, window.innerWidth - 16)
-      const spaceBelow = window.innerHeight - rect.bottom
-      const spaceAbove = rect.top
-      // 夹取 left，避免窄屏下浮层超出视口右缘
-      const left = Math.max(8, Math.min(rect.left, window.innerWidth - dropdownEstWidth - 8))
+  groupFieldError.value = ''
+  legacyDialogGroupID.value = key.group_id ?? 0
+  groupSelectorKeyId.value = key.id
+}
 
-      if (spaceBelow < dropdownEstHeight && spaceAbove > spaceBelow) {
-        // Not enough space below, pop upward
-        dropdownPosition.value = {
-          bottom: window.innerHeight - rect.top + 4,
-          left
-        }
-      } else {
-        // Default: pop downward
-        dropdownPosition.value = {
-          top: rect.bottom + 4,
-          left
-        }
-      }
-    }
-    groupSelectorKeyId.value = key.id
-    groupSearchQuery.value = ''
+const closeGroupPriorityDialog = () => {
+  if (groupPrioritySaving.value) return
+  groupSelectorKeyId.value = null
+  groupFieldError.value = ''
+}
+
+const changeGroups = async (groupIDs: number[]) => {
+  const key = selectedKeyForGroup.value
+  if (!key || groupPrioritySaving.value) return
+  groupPrioritySaving.value = true
+  groupFieldError.value = ''
+  try {
+    const updated = await keysAPI.update(key.id, { group_ids: groupIDs })
+    const index = apiKeys.value.findIndex((item) => item.id === key.id)
+    if (index >= 0) apiKeys.value[index] = updated
+    appStore.showSuccess(t('keys.groupChangedSuccess'))
+    groupSelectorKeyId.value = null
+  } catch (error: unknown) {
+    groupFieldError.value =
+      minimumBalanceErrorToast(error, locale.value) ??
+      apiKeyGroupFieldError(error) ??
+      t('keys.failedToChangeGroup')
+  } finally {
+    groupPrioritySaving.value = false
   }
 }
 
-const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
-  groupSelectorKeyId.value = null
-  dropdownPosition.value = null
-  if (key.group_id === newGroupId) return
-  if (newGroupId !== null && balanceRequirementForGroup(newGroupId)) return
-
+const changeLegacyGroup = async () => {
+  const key = selectedKeyForGroup.value
+  if (!key || groupPrioritySaving.value) return
+  groupPrioritySaving.value = true
+  groupFieldError.value = ''
   try {
-    await keysAPI.update(key.id, { group_id: newGroupId })
+    const updated = await keysAPI.update(key.id, {
+      group_id: legacyDialogGroupID.value > 0 ? legacyDialogGroupID.value : null
+    })
+    const index = apiKeys.value.findIndex((item) => item.id === key.id)
+    if (index >= 0) apiKeys.value[index] = updated
     appStore.showSuccess(t('keys.groupChangedSuccess'))
-    loadApiKeys()
+    groupSelectorKeyId.value = null
   } catch (error: unknown) {
-    appStore.showError(
-      minimumBalanceErrorToast(error, locale.value) ?? t('keys.failedToChangeGroup')
-    )
+    groupFieldError.value =
+      minimumBalanceErrorToast(error, locale.value) ??
+      apiKeyGroupFieldError(error) ??
+      t('keys.failedToChangeGroup')
+  } finally {
+    groupPrioritySaving.value = false
   }
 }
 
 const closeGroupSelector = (event: MouseEvent) => {
   const target = event.target as HTMLElement
-  // Check if click is inside the dropdown or the trigger button
-  if (!target.closest('.group\\/dropdown') && !dropdownRef.value?.contains(target)) {
-    groupSelectorKeyId.value = null
-    dropdownPosition.value = null
-  }
   if (columnDropdownRef.value && !columnDropdownRef.value.contains(target)) {
     showColumnDropdown.value = false
   }
@@ -1799,12 +1715,6 @@ const confirmDelete = (key: ApiKey) => {
 }
 
 const handleSubmit = async () => {
-  // Validate group_id is required
-  if (formData.value.group_id === null) {
-    appStore.showError(t('keys.groupRequired'))
-    return
-  }
-
   // Validate custom key if enabled
   if (!showEditModal.value && formData.value.use_custom_key) {
     if (!formData.value.custom_key) {
@@ -1857,7 +1767,6 @@ const handleSubmit = async () => {
     if (showEditModal.value && selectedKey.value) {
       const updates: UpdateApiKeyRequest = {
         name: formData.value.name,
-        group_id: formData.value.group_id,
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
         quota: quota,
@@ -1865,6 +1774,11 @@ const handleSubmit = async () => {
         rate_limit_5h: rateLimitData.rate_limit_5h,
         rate_limit_1d: rateLimitData.rate_limit_1d,
         rate_limit_7d: rateLimitData.rate_limit_7d,
+      }
+      if (apiKeyMultiGroupEnabled.value) {
+        updates.group_ids = [...formData.value.group_ids]
+      } else {
+        updates.group_id = formData.value.group_ids[0] ?? null
       }
       if (shouldSubmitEditStatus(selectedKey.value, formData.value.status)) {
         updates.status = formData.value.status
@@ -1875,13 +1789,14 @@ const handleSubmit = async () => {
       const customKey = formData.value.use_custom_key ? formData.value.custom_key : undefined
       await keysAPI.create(
         formData.value.name,
-        formData.value.group_id,
+        formData.value.group_ids,
         customKey,
         ipWhitelist,
         ipBlacklist,
         quota,
         expiresInDays,
-        rateLimitData
+        rateLimitData,
+        apiKeyMultiGroupEnabled.value
       )
       appStore.showSuccess(t('keys.keyCreatedSuccess'))
       // Only advance tour if active, on submit step, and creation succeeded
@@ -1892,9 +1807,10 @@ const handleSubmit = async () => {
     closeModals()
     loadApiKeys()
   } catch (error: any) {
+    groupFieldError.value = apiKeyGroupFieldError(error) ?? ''
     const errorMsg =
       minimumBalanceErrorToast(error, locale.value) ||
-      error.response?.data?.detail ||
+      groupFieldError.value ||
       t('keys.failedToSave')
     appStore.showError(errorMsg)
     // Don't advance tour on error
@@ -1929,7 +1845,7 @@ const closeModals = () => {
   selectedKey.value = null
   formData.value = {
     name: '',
-    group_id: null,
+    group_ids: [],
     status: 'active',
     use_custom_key: false,
     custom_key: '',
@@ -1946,6 +1862,7 @@ const closeModals = () => {
     expiration_preset: '30',
     expiration_date: ''
   }
+  groupFieldError.value = ''
 }
 
 // Show reset quota confirmation dialog

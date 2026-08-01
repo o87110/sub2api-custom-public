@@ -177,42 +177,88 @@ thin_bridge_allowed() {
       backend/internal/handler/admin/group_handler.go | \
       backend/internal/handler/admin/payment_handler.go | \
       backend/internal/handler/admin/channel_monitor_handler.go | \
+      backend/internal/handler/admin/apikey_handler.go | \
       backend/internal/handler/admin/setting_handler.go | \
+      backend/internal/handler/admin/setting_handler_audit.go | \
       backend/internal/handler/admin/setting_handler_update.go | \
       backend/internal/handler/auth_wechat_oauth.go | \
       backend/internal/handler/auth_wechat_oauth_test.go | \
       backend/internal/handler/api_key_handler.go | \
+      backend/internal/handler/api_key_group_routing.go | \
+      backend/internal/handler/batch_image_handler.go | \
       backend/internal/handler/channel_monitor_user_handler.go | \
+      backend/internal/handler/composite_platform.go | \
       backend/internal/handler/admin/system_handler.go | \
       backend/internal/handler/admin/system_handler_test.go | \
       backend/internal/handler/dto/mappers.go | \
       backend/internal/handler/dto/settings.go | \
       backend/internal/handler/dto/types.go | \
       backend/internal/handler/gateway_handler.go | \
+      backend/internal/handler/gateway_helper.go | \
+      backend/internal/handler/failover_loop.go | \
+      backend/internal/handler/gateway_handler_chat_completions.go | \
+      backend/internal/handler/gateway_handler_responses.go | \
+      backend/internal/handler/gemini_v1beta_handler.go | \
+      backend/internal/handler/grok_media.go | \
+      backend/internal/handler/image_task_handler.go | \
+      backend/internal/handler/openai_alpha_search.go | \
+      backend/internal/handler/openai_chat_completions.go | \
+      backend/internal/handler/openai_embeddings.go | \
+      backend/internal/handler/openai_gateway_count_tokens.go | \
       backend/internal/handler/openai_gateway_handler.go | \
+      backend/internal/handler/openai_images.go | \
+      backend/internal/handler/openai_live.go | \
+      backend/internal/handler/setting_handler.go | \
       backend/internal/handler/payment_handler.go | \
       backend/internal/handler/payment_handler_resume_test.go | \
       backend/internal/handler/wire.go | \
+      backend/internal/pkg/apicompat/anthropic_to_responses_response.go | \
       backend/internal/payment/load_balancer.go | \
       backend/internal/payment/types.go | \
       backend/internal/repository/api_key_minimum_balance_repo.go | \
       backend/internal/repository/api_key_repo.go | \
       backend/internal/repository/channel_monitor_repo.go | \
       backend/internal/repository/group_repo.go | \
+      backend/internal/repository/gateway_cache.go | \
+      backend/internal/server/middleware/api_key_auth.go | \
+      backend/internal/server/middleware/api_key_auth_google.go | \
       backend/internal/service/admin_group.go | \
+      backend/internal/service/admin_user.go | \
       backend/internal/service/admin_group_duplicate.go | \
       backend/internal/service/admin_service.go | \
+      backend/internal/service/antigravity_gateway_compat.go | \
+      backend/internal/service/antigravity_gateway_compat_stream.go | \
+      backend/internal/service/antigravity_gateway_streaming.go | \
       backend/internal/service/api_key_auth_cache.go | \
       backend/internal/service/api_key_auth_cache_impl.go | \
+      backend/internal/service/api_key_auth_cache_invalidate.go | \
       backend/internal/service/api_key_service.go | \
+      backend/internal/service/api_key.go | \
+      backend/internal/service/api_key_group_routing_bridge.go | \
+      backend/internal/service/batch_image.go | \
+      backend/internal/service/batch_image_provider_gemini.go | \
+      backend/internal/service/batch_image_provider_vertex.go | \
       backend/internal/service/batch_image_public.go | \
+      backend/internal/service/batch_image_settlement.go | \
       backend/internal/service/billing_cache_service.go | \
       backend/internal/service/channel_monitor_aggregator.go | \
       backend/internal/service/channel_monitor_const.go | \
       backend/internal/service/channel_monitor_service.go | \
       backend/internal/service/channel_monitor_types.go | \
       backend/internal/service/content_moderation.go | \
+      backend/internal/service/composite_platform.go | \
+      backend/internal/service/domain_constants.go | \
+      backend/internal/service/gateway_scheduling.go | \
+      backend/internal/service/gateway_count_tokens.go | \
+      backend/internal/service/gateway_forward_as_responses.go | \
+      backend/internal/service/gateway_service.go | \
       backend/internal/service/group.go | \
+      backend/internal/service/openai_api_key_group_routing.go | \
+      backend/internal/service/openai_gateway_count_tokens.go | \
+      backend/internal/service/openai_gateway_responses_chat_fallback.go | \
+      backend/internal/service/openai_live.go | \
+      backend/internal/service/openai_live_types.go | \
+      backend/internal/service/openai_ws_forwarder.go | \
       backend/internal/service/payment_config_limits.go | \
       backend/internal/service/payment_config_limits_test.go | \
       backend/internal/service/payment_config_service.go | \
@@ -222,10 +268,20 @@ thin_bridge_allowed() {
       backend/internal/service/payment_resume_service.go | \
       backend/internal/service/payment_resume_service_test.go | \
       backend/internal/service/payment_service.go | \
+      backend/internal/service/setting_parse.go | \
+      backend/internal/service/setting_public.go | \
+      backend/internal/service/setting_service.go | \
+      backend/internal/service/setting_update.go | \
+      backend/internal/service/settings_view.go | \
+      backend/internal/service/subscription_service.go | \
+      backend/internal/service/user.go | \
+      frontend/src/api/admin/apiKeys.ts | \
       frontend/src/api/admin/payment.ts | \
       frontend/src/api/admin/channelMonitor.ts | \
       frontend/src/api/admin/settings.ts | \
       frontend/src/api/channelMonitor.ts | \
+      frontend/src/api/keys.ts | \
+      frontend/src/components/admin/user/UserApiKeysModal.vue | \
       frontend/src/components/admin/monitor/MonitorFormDialog.vue | \
       frontend/src/components/payment/AmountInput.vue | \
       frontend/src/components/payment/PaymentProviderDialog.vue | \
@@ -242,6 +298,7 @@ thin_bridge_allowed() {
       frontend/src/i18n/locales/zh/admin/overview.ts | \
       frontend/src/i18n/locales/zh/misc.ts | \
       frontend/src/router/index.ts | \
+      frontend/src/stores/app.ts | \
       frontend/src/types/index.ts | \
       frontend/src/types/payment.ts | \
       frontend/src/views/admin/GroupsView.vue | \

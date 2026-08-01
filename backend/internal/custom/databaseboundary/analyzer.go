@@ -121,6 +121,11 @@ func AnalyzeGo(filename string, source []byte) (Semantics, error) {
 			if !ok {
 				return true
 			}
+			// database/sql result decoding is not a query-builder terminal. The
+			// nested QueryRow call is still visited and its SQL is analyzed.
+			if selector.Sel.Name == "Scan" && isSQLResultScan(selector.X, value.Args) {
+				return true
+			}
 			argumentIndex, ok := queryMethods[selector.Sel.Name]
 			if !ok {
 				if isDatabaseAccessPath(filename) {
@@ -159,6 +164,27 @@ func AnalyzeGo(filename string, source []byte) (Semantics, error) {
 		Dynamic:    sortedKeys(dynamic),
 	}
 	return result, nil
+}
+
+func isSQLResultScan(receiver ast.Expr, arguments []ast.Expr) bool {
+	if len(arguments) == 0 {
+		return false
+	}
+	switch value := receiver.(type) {
+	case *ast.Ident:
+		name := strings.ToLower(value.Name)
+		return name == "row" || name == "rows" || name == "scanner"
+	case *ast.CallExpr:
+		selector, ok := value.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return false
+		}
+		return selector.Sel.Name == "QueryRow" || selector.Sel.Name == "QueryRowContext"
+	case *ast.ParenExpr:
+		return isSQLResultScan(value.X, arguments)
+	default:
+		return false
+	}
 }
 
 func importsDatabasePackage(file *ast.File) bool {

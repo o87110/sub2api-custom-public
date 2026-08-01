@@ -404,6 +404,7 @@ func (r *fakeBatchImageRepository) CreateBatchImageJob(_ context.Context, params
 		BatchID:                 params.BatchID,
 		UserID:                  params.UserID,
 		APIKeyID:                params.APIKeyID,
+		GroupID:                 params.GroupID,
 		AccountID:               params.AccountID,
 		Status:                  params.Status,
 		Provider:                params.Provider,

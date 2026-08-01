@@ -175,6 +175,9 @@ func TestAntigravityCompatOAuthUsesNativeTokenAndRoute(t *testing.T) {
 				require.Equal(t, "stop", gjson.Get(recorder.Body.String(), "choices.0.finish_reason").String())
 				require.Equal(t, int64(8), gjson.Get(recorder.Body.String(), "usage.prompt_tokens").Int())
 				require.Equal(t, int64(3), gjson.Get(recorder.Body.String(), "usage.completion_tokens").Int())
+			} else {
+				require.Equal(t, gjson.Get(recorder.Body.String(), "id").String(), result.ResponseID)
+				require.NotEmpty(t, result.ResponseID)
 			}
 		})
 	}

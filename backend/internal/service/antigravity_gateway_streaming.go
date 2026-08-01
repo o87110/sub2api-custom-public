@@ -20,6 +20,7 @@ type antigravityStreamResult struct {
 	usage            *ClaudeUsage
 	firstTokenMs     *int
 	clientDisconnect bool // 客户端是否在流式传输过程中断开
+	responseID       string
 }
 
 // antigravityClientWriter 封装流式响应的客户端写入，自动检测断开并标记。

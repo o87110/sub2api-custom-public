@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/apikeyrouting"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -104,6 +106,82 @@ func TestAsyncImageHandlerSubmitAndPoll(t *testing.T) {
 	require.Equal(t, "no-store", pollWriter.Header().Get("Cache-Control"))
 	require.Empty(t, pollWriter.Header().Get("Retry-After"))
 	require.Contains(t, pollWriter.Body.String(), "https://example.test/image.png")
+}
+
+func TestAsyncImageHandlerSubmitUsesEligibleFallbackGroupForAuditAndExecution(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
+	tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+	billing := service.NewBillingCacheService(
+		nil, nil, nil, nil, nil, nil,
+		&config.Config{RunMode: config.RunModeSimple}, nil,
+	)
+	openAI := &OpenAIGatewayHandler{billingCacheService: billing}
+	h := &AsyncImageHandler{tasks: tasks, openAI: openAI}
+	executed := make(chan struct {
+		groupID          int64
+		preferredGroupID int64
+	}, 1)
+	h.execute = func(_ string, c *gin.Context) {
+		apiKey, _ := middleware2.GetAPIKeyFromContext(c)
+		executed <- struct {
+			groupID          int64
+			preferredGroupID int64
+		}{
+			groupID:          groupIDOf(apiKey),
+			preferredGroupID: apikeyrouting.PreferredGroup(c.Request.Context()),
+		}
+		c.JSON(http.StatusOK, gin.H{"created": 123, "data": []gin.H{}})
+	}
+
+	user := &service.User{ID: 7, Status: service.StatusActive}
+	primary := service.Group{
+		ID: 3, Platform: service.PlatformOpenAI, Status: service.StatusActive,
+		AllowImageGeneration: false,
+	}
+	fallback := service.Group{
+		ID: 4, Platform: service.PlatformOpenAI, Status: service.StatusActive,
+		AllowImageGeneration: true,
+	}
+	primaryID := primary.ID
+	apiKey := &service.APIKey{
+		ID:       9,
+		UserID:   user.ID,
+		User:     user,
+		GroupID:  &primaryID,
+		GroupIDs: []int64{primary.ID, fallback.ID},
+		Group:    &primary,
+		Groups:   []service.Group{primary, fallback},
+		Status:   service.StatusActive,
+	}
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set(string(middleware2.ContextKeyAPIKey), apiKey)
+		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: user.ID})
+		c.Next()
+	})
+	router.POST("/v1/images/generations/async", h.Submit)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/images/generations/async",
+		strings.NewReader(`{"model":"gpt-image-1","prompt":"cat"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusAccepted, w.Code)
+
+	select {
+	case got := <-executed:
+		require.Equal(t, fallback.ID, got.groupID,
+			"提交前审核使用的候选应复制到后台 gin 上下文")
+		require.Equal(t, fallback.ID, got.preferredGroupID,
+			"后台实际路由应优先使用已完成审核的分组")
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for async image execution")
+	}
 }
 
 // When object storage is not configured the feature is fully disabled: the

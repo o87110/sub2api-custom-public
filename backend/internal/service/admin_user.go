@@ -595,9 +595,14 @@ func (s *adminServiceImpl) tryAccrueAffiliateRebateForAdminRecharge(ctx context.
 
 func (s *adminServiceImpl) GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
-	keys, result, err := s.apiKeyRepo.ListByUserID(ctx, userID, params, APIKeyListFilters{})
+	keys, result, err := s.apiKeyRepo.ListByUserID(ctx, userID, params, APIKeyListFilters{
+		PrimaryGroupOnly: s.settingService == nil || !s.settingService.APIKeyMultiGroupEnabled(),
+	})
 	if err != nil {
 		return nil, 0, err
+	}
+	if s.settingService == nil || !s.settingService.APIKeyMultiGroupEnabled() {
+		normalizeAPIKeysToPrimaryGroup(keys)
 	}
 	return keys, result.Total, nil
 }

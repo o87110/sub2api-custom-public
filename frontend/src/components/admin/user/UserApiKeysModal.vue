@@ -21,10 +21,10 @@
             <div class="flex items-center gap-1">
               <span>{{ t('admin.users.group') }}:</span>
               <button
-                :ref="(el) => setGroupButtonRef(key.id, el)"
                 @click="openGroupSelector(key)"
-                class="-mx-1 -my-0.5 flex cursor-pointer items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:bg-gray-100 dark:hover:bg-dark-700"
+                class="-mx-1 flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-2 transition-colors hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 dark:hover:bg-dark-700"
                 :disabled="updatingKeyIds.has(key.id)"
+                :aria-label="apiKeyMultiGroupEnabled ? priorityText('edit') : t('keys.clickToChangeGroup')"
               >
                 <GroupBadge
                   v-if="key.group_id && key.group"
@@ -38,8 +38,16 @@
                   :peak-rate-multiplier="key.group.peak_rate_multiplier"
                 />
                 <span v-else class="text-gray-400 italic">{{ t('admin.users.none') }}</span>
+                <span
+                  v-if="apiKeyMultiGroupEnabled && (key.group_ids?.length || 0) > 1"
+                  class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary-100 px-1.5 font-semibold tabular-nums text-primary-700 dark:bg-primary-900/40 dark:text-primary-200"
+                >
+                  +{{ key.group_ids.length - 1 }}
+                </span>
                 <svg v-if="updatingKeyIds.has(key.id)" class="h-3 w-3 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <svg v-else class="h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" /></svg>
+                <span v-else class="text-xs text-gray-500 dark:text-dark-300">
+                  {{ apiKeyMultiGroupEnabled ? priorityText('edit') : t('keys.clickToChangeGroup') }}
+                </span>
               </button>
             </div>
             <div class="flex items-center gap-1"><span>{{ t('admin.users.columns.created') }}: {{ formatDateTime(key.created_at) }}</span></div>
@@ -49,64 +57,50 @@
     </div>
   </BaseDialog>
 
-  <!-- Group Selector Dropdown -->
-  <Teleport to="body">
-    <div
-      v-if="groupSelectorKeyId !== null && dropdownPosition"
-      ref="dropdownRef"
-      class="animate-in fade-in slide-in-from-top-2 fixed z-[100000020] w-64 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 duration-200 dark:bg-dark-800 dark:ring-white/10"
-      :style="{ top: dropdownPosition.top + 'px', left: dropdownPosition.left + 'px' }"
-    >
-      <div class="max-h-64 overflow-y-auto p-1.5">
-        <!-- Unbind option -->
-        <button
-          @click="changeGroup(selectedKeyForGroup!, null)"
-          :class="[
-            'flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors',
-            !selectedKeyForGroup?.group_id
-              ? 'bg-primary-50 dark:bg-primary-900/20'
-              : 'hover:bg-gray-100 dark:hover:bg-dark-700'
-          ]"
-        >
-          <span class="text-gray-500 italic">{{ t('admin.users.none') }}</span>
-          <svg
-            v-if="!selectedKeyForGroup?.group_id"
-            class="ml-auto h-4 w-4 shrink-0 text-primary-600 dark:text-primary-400"
-            fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"
-          ><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+  <BaseDialog
+    :show="groupSelectorKeyId !== null"
+    :title="apiKeyMultiGroupEnabled ? priorityText('edit') : t('keys.clickToChangeGroup')"
+    width="normal"
+    @close="closeGroupSelector"
+  >
+    <ApiKeyGroupPriorityEditor
+      v-if="apiKeyMultiGroupEnabled"
+      :model-value="selectedKeyForGroup?.group_ids || []"
+      :groups="allGroups"
+      :selected-groups="selectedKeyForGroup?.groups || []"
+      :busy="selectedKeyForGroup ? updatingKeyIds.has(selectedKeyForGroup.id) : false"
+      :error="groupFieldError"
+      show-actions
+      @save="changeGroups"
+      @cancel="closeGroupSelector"
+    />
+    <div v-else class="space-y-4">
+      <div>
+        <label for="legacy-admin-key-dialog-group" class="input-label">{{ t('admin.users.group') }}</label>
+        <Select
+          id="legacy-admin-key-dialog-group"
+          :model-value="legacyDialogGroupID"
+          :options="legacyGroupOptions"
+          :error="Boolean(groupFieldError)"
+          :aria-describedby="groupFieldError ? 'legacy-admin-key-dialog-group-error' : undefined"
+          @update:model-value="setLegacyDialogGroup"
+        />
+        <p v-if="groupFieldError" id="legacy-admin-key-dialog-group-error" class="mt-1 text-sm text-red-500">{{ groupFieldError }}</p>
+      </div>
+      <div class="flex justify-end gap-3">
+        <button type="button" class="btn btn-secondary min-h-11" :disabled="selectedKeyForGroup ? updatingKeyIds.has(selectedKeyForGroup.id) : false" @click="closeGroupSelector">
+          {{ t('common.cancel') }}
         </button>
-        <!-- Group options -->
-        <button
-          v-for="group in allGroups"
-          :key="group.id"
-          @click="changeGroup(selectedKeyForGroup!, group.id)"
-          :class="[
-            'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors',
-            selectedKeyForGroup?.group_id === group.id
-              ? 'bg-primary-50 dark:bg-primary-900/20'
-              : 'hover:bg-gray-100 dark:hover:bg-dark-700'
-          ]"
-        >
-          <GroupOptionItem
-            :name="group.name"
-            :platform="group.platform"
-            :subscription-type="group.subscription_type"
-            :rate-multiplier="group.rate_multiplier"
-            :peak-rate-enabled="group.peak_rate_enabled"
-            :peak-start="group.peak_start"
-            :peak-end="group.peak_end"
-            :peak-rate-multiplier="group.peak_rate_multiplier"
-            :description="group.description"
-            :selected="selectedKeyForGroup?.group_id === group.id"
-          />
+        <button type="button" class="btn btn-primary min-h-11" :disabled="selectedKeyForGroup ? updatingKeyIds.has(selectedKeyForGroup.id) : false" @click="changeLegacyGroup">
+          {{ t('common.save') }}
         </button>
       </div>
     </div>
-  </Teleport>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
@@ -114,35 +108,49 @@ import { formatDateTime } from '@/utils/format'
 import type { AdminUser, AdminGroup, ApiKey } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
-import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
+import Select from '@/components/common/Select.vue'
+import ApiKeyGroupPriorityEditor from '@/custom/api-keys/ApiKeyGroupPriorityEditor.vue'
+import {
+  apiKeyGroupPriorityText,
+  type ApiKeyGroupPriorityTextKey
+} from '@/custom/api-keys/priorityI18n'
+import { apiKeyGroupFieldError } from '@/custom/api-keys/fieldError'
 
 const props = defineProps<{ show: boolean; user: AdminUser | null }>()
 const emit = defineEmits(['close'])
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
+const priorityText = (
+  key: ApiKeyGroupPriorityTextKey,
+  params: Record<string, string | number> = {}
+) => apiKeyGroupPriorityText(locale.value, key, params)
 
 const apiKeys = ref<ApiKey[]>([])
 const allGroups = ref<AdminGroup[]>([])
 const loading = ref(false)
 const updatingKeyIds = ref(new Set<number>())
 const groupSelectorKeyId = ref<number | null>(null)
-const dropdownPosition = ref<{ top: number; left: number } | null>(null)
-const dropdownRef = ref<HTMLElement | null>(null)
 const scrollContainerRef = ref<HTMLElement | null>(null)
-const groupButtonRefs = ref<Map<number, HTMLElement>>(new Map())
+const groupFieldError = ref('')
+const legacyDialogGroupID = ref(0)
+
+const apiKeyMultiGroupEnabled = computed(
+  () => appStore.cachedPublicSettings?.api_key_multi_group_enabled === true
+)
+
+const legacyGroupOptions = computed(() => [
+  { value: 0, label: t('admin.users.none') },
+  ...allGroups.value.map((group) => ({ value: group.id, label: group.name }))
+])
+
+const setLegacyDialogGroup = (value: string | number | boolean | null) => {
+  legacyDialogGroupID.value = Number(value) || 0
+}
 
 const selectedKeyForGroup = computed(() => {
   if (groupSelectorKeyId.value === null) return null
   return apiKeys.value.find((k) => k.id === groupSelectorKeyId.value) || null
 })
-
-const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance | null) => {
-  if (el instanceof HTMLElement) {
-    groupButtonRefs.value.set(keyId, el)
-  } else {
-    groupButtonRefs.value.delete(keyId)
-  }
-}
 
 watch(() => props.show, (v) => {
   if (v && props.user) {
@@ -156,7 +164,6 @@ watch(() => props.show, (v) => {
 const load = async () => {
   if (!props.user) return
   loading.value = true
-  groupButtonRefs.value.clear()
   try {
     const res = await adminAPI.users.getUserApiKeys(props.user.id)
     apiKeys.value = res.items || []
@@ -176,39 +183,25 @@ const loadGroups = async () => {
   }
 }
 
-const DROPDOWN_HEIGHT = 272 // max-h-64 = 16rem = 256px + padding
-const DROPDOWN_GAP = 4
-
 const openGroupSelector = (key: ApiKey) => {
-  if (groupSelectorKeyId.value === key.id) {
-    closeGroupSelector()
-  } else {
-    const buttonEl = groupButtonRefs.value.get(key.id)
-    if (buttonEl) {
-      const rect = buttonEl.getBoundingClientRect()
-      const spaceBelow = window.innerHeight - rect.bottom
-      const openUpward = spaceBelow < DROPDOWN_HEIGHT && rect.top > spaceBelow
-      dropdownPosition.value = {
-        top: openUpward ? rect.top - DROPDOWN_HEIGHT - DROPDOWN_GAP : rect.bottom + DROPDOWN_GAP,
-        left: rect.left
-      }
-    }
-    groupSelectorKeyId.value = key.id
-  }
+  groupFieldError.value = ''
+  legacyDialogGroupID.value = key.group_id ?? 0
+  groupSelectorKeyId.value = key.id
 }
 
 const closeGroupSelector = () => {
+  if (selectedKeyForGroup.value && updatingKeyIds.value.has(selectedKeyForGroup.value.id)) return
   groupSelectorKeyId.value = null
-  dropdownPosition.value = null
+  groupFieldError.value = ''
 }
 
-const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
-  closeGroupSelector()
-  if (key.group_id === newGroupId || (!key.group_id && newGroupId === null)) return
-
+const changeGroups = async (groupIDs: number[]) => {
+  const key = selectedKeyForGroup.value
+  if (!key) return
   updatingKeyIds.value.add(key.id)
+  groupFieldError.value = ''
   try {
-    const result = await adminAPI.apiKeys.updateApiKeyGroup(key.id, newGroupId)
+    const result = await adminAPI.apiKeys.updateApiKeyGroups(key.id, groupIDs)
     // Update local data
     const idx = apiKeys.value.findIndex((k) => k.id === key.id)
     if (idx !== -1) {
@@ -219,28 +212,36 @@ const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
     } else {
       appStore.showSuccess(t('admin.users.groupChangedSuccess'))
     }
-  } catch (error: any) {
-    appStore.showError(error?.message || t('admin.users.groupChangeFailed'))
+    groupSelectorKeyId.value = null
+  } catch (error: unknown) {
+    groupFieldError.value =
+      apiKeyGroupFieldError(error, ['group_ids']) ||
+      t('admin.users.groupChangeFailed')
   } finally {
     updatingKeyIds.value.delete(key.id)
   }
 }
 
-const handleKeyDown = (event: KeyboardEvent) => {
-  if (event.key === 'Escape' && groupSelectorKeyId.value !== null) {
-    event.stopPropagation()
-    closeGroupSelector()
-  }
-}
-
-const handleClickOutside = (event: MouseEvent) => {
-  const target = event.target as HTMLElement
-  if (dropdownRef.value && !dropdownRef.value.contains(target)) {
-    // Check if the click is on one of the group trigger buttons
-    for (const el of groupButtonRefs.value.values()) {
-      if (el.contains(target)) return
-    }
-    closeGroupSelector()
+const changeLegacyGroup = async () => {
+  const key = selectedKeyForGroup.value
+  if (!key) return
+  updatingKeyIds.value.add(key.id)
+  groupFieldError.value = ''
+  try {
+    const result = await adminAPI.apiKeys.updateApiKeyGroup(
+      key.id,
+      legacyDialogGroupID.value > 0 ? legacyDialogGroupID.value : null
+    )
+    const idx = apiKeys.value.findIndex((item) => item.id === key.id)
+    if (idx !== -1) apiKeys.value[idx] = result.api_key
+    appStore.showSuccess(t('admin.users.groupChangedSuccess'))
+    groupSelectorKeyId.value = null
+  } catch (error: unknown) {
+    groupFieldError.value =
+      apiKeyGroupFieldError(error, ['group_id']) ||
+      t('admin.users.groupChangeFailed')
+  } finally {
+    updatingKeyIds.value.delete(key.id)
   }
 }
 
@@ -249,13 +250,4 @@ const handleClose = () => {
   emit('close')
 }
 
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-  document.addEventListener('keydown', handleKeyDown, true)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-  document.removeEventListener('keydown', handleKeyDown, true)
-})
 </script>

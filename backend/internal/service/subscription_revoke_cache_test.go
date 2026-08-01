@@ -60,6 +60,8 @@ func TestRevokeSubscription_InvalidatesL1CacheSynchronously(t *testing.T) {
 			L1TTLSeconds: 60,
 		},
 	})
+	authInvalidator := &authCacheInvalidatorStub{}
+	svc.SetAuthCacheInvalidator(authInvalidator)
 	t.Cleanup(svc.Stop)
 
 	_, err := svc.GetActiveSubscription(context.Background(), 10, 20)
@@ -73,6 +75,7 @@ func TestRevokeSubscription_InvalidatesL1CacheSynchronously(t *testing.T) {
 	_, err = svc.GetActiveSubscription(context.Background(), 10, 20)
 	require.ErrorIs(t, err, ErrSubscriptionNotFound)
 	require.Equal(t, 2, repo.getActiveCalls, "撤销后应回源确认订阅已不存在，不能命中旧 L1")
+	require.Equal(t, []int64{10}, authInvalidator.userIDs, "撤销后必须清除用户 API Key 的订阅快照")
 }
 
 type restoreUserSubRepoStub struct {
@@ -122,6 +125,8 @@ func TestRestoreSubscription_ExpiredActiveRestoresAsExpired(t *testing.T) {
 		},
 	}
 	svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, nil)
+	authInvalidator := &authCacheInvalidatorStub{}
+	svc.SetAuthCacheInvalidator(authInvalidator)
 	t.Cleanup(svc.Stop)
 
 	restored, err := svc.RestoreSubscription(context.Background(), 1)
@@ -130,6 +135,7 @@ func TestRestoreSubscription_ExpiredActiveRestoresAsExpired(t *testing.T) {
 	require.Equal(t, SubscriptionStatusExpired, repo.restoredStatus)
 	require.Equal(t, SubscriptionStatusExpired, restored.Status)
 	require.Nil(t, restored.DeletedAt)
+	require.Equal(t, []int64{10}, authInvalidator.userIDs, "恢复后必须清除用户 API Key 的订阅快照")
 }
 
 func TestRestoreSubscription_NotRevokedReturnsConflict(t *testing.T) {

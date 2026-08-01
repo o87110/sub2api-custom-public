@@ -93,6 +93,8 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		require.InDelta(t, 0.25, got.EstimatedCost, 1e-12)
 
 		job := repo.jobs[got.ID]
+		require.NotNil(t, job.GroupID)
+		require.Equal(t, groupID, *job.GroupID)
 		require.InDelta(t, 0.25, job.BaseUnitPrice, 1e-12)
 		require.InDelta(t, 0.5, job.GroupRateMultiplier, 1e-12)
 		require.InDelta(t, 1.25, job.AccountRateMultiplier, 1e-12)
@@ -355,6 +357,27 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 			require.Equal(t, "upstream provider operation failed", batchImageDerefString(job.LastErrorMessage))
 			require.NotNil(t, job.UserDeletedAt)
 		}
+	})
+
+	t.Run("hidden pre-upstream failure can retry the same idempotency key", func(t *testing.T) {
+		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
+		gemini.submitErr = errors.New("temporary upstream failure")
+
+		first, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "retryable-key")
+		require.Nil(t, first)
+		require.ErrorIs(t, err, ErrBatchImageProviderSubmitFailed)
+		require.Len(t, repo.jobs, 1)
+
+		gemini.submitErr = nil
+		second, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "retryable-key")
+		require.NoError(t, err)
+		require.NotNil(t, second)
+		require.Len(t, repo.jobs, 2)
+		require.Len(t, gemini.submits, 2)
+		require.Equal(t, []string{second.ID}, queue.enqueued)
+		billing := svc.BillingRepo.(*fakeBatchImageBillingRepo)
+		require.Len(t, billing.reserves, 2)
+		require.Len(t, billing.releases, 1)
 	})
 
 	t.Run("provider failure with release failure enqueues billing retry", func(t *testing.T) {

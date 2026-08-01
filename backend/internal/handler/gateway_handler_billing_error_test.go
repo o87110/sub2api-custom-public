@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/custom/groupaccess"
+	pkgerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
@@ -63,6 +64,18 @@ func TestBillingErrorDetails_GroupMinimumBalancePreservesDedicatedCode(t *testin
 	require.Equal(t, http.StatusForbidden, status)
 	require.Equal(t, groupaccess.MinimumBalanceNotMetReason, code)
 	require.Contains(t, message, "Add more than $20.00")
+	require.Zero(t, retryAfter)
+}
+
+func TestBillingErrorDetails_RoutingErrorPreservesAppStatusAndReason(t *testing.T) {
+	err := markAPIKeyCandidateError(
+		pkgerrors.BadRequest("unsupported_candidate", "candidate does not support this request"),
+	)
+
+	status, code, message, retryAfter := billingErrorDetails(err)
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Equal(t, "unsupported_candidate", code)
+	require.Equal(t, "candidate does not support this request", message)
 	require.Zero(t, retryAfter)
 }
 

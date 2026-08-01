@@ -36,6 +36,14 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 
 	// Bedrock 不支持 count_tokens 端点
 	if account != nil && account.IsBedrock() {
+		if IsMultiGroupRouting(ctx) {
+			return countTokensAccountUnavailableError(
+				http.StatusNotFound,
+				[]byte(`{"error":{"message":"count_tokens endpoint is not supported for Bedrock"}}`),
+				nil,
+				false,
+			)
+		}
 		s.countTokensError(c, http.StatusNotFound, "not_found_error", "count_tokens endpoint is not supported for Bedrock")
 		return nil
 	}
@@ -83,6 +91,14 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	// Antigravity 账户不支持 count_tokens，返回 404 让客户端 fallback 到本地估算。
 	// 返回 nil 避免 handler 层记录为错误，也不设置 ops 上游错误上下文。
 	if account.Platform == PlatformAntigravity {
+		if IsMultiGroupRouting(ctx) {
+			return countTokensAccountUnavailableError(
+				http.StatusNotFound,
+				[]byte(`{"error":{"message":"count_tokens endpoint is not supported for this platform"}}`),
+				nil,
+				false,
+			)
+		}
 		s.countTokensError(c, http.StatusNotFound, "not_found_error", "count_tokens endpoint is not supported for this platform")
 		return nil
 	}
@@ -120,6 +136,14 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	// 获取凭证
 	token, tokenType, err := s.GetAccessToken(ctx, account)
 	if err != nil {
+		if IsMultiGroupRouting(ctx) {
+			return countTokensAccountUnavailableError(
+				http.StatusBadGateway,
+				[]byte(`{"error":{"message":"Failed to get access token"}}`),
+				nil,
+				false,
+			)
+		}
 		s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Failed to get access token")
 		return err
 	}
@@ -127,6 +151,14 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	// 构建上游请求
 	upstreamReq, wireBody, err := s.buildCountTokensRequest(ctx, c, account, body, token, tokenType, reqModel, shouldMimicClaudeCode)
 	if err != nil {
+		if IsMultiGroupRouting(ctx) {
+			return countTokensAccountUnavailableError(
+				http.StatusBadGateway,
+				[]byte(`{"error":{"message":"Failed to build upstream request"}}`),
+				nil,
+				false,
+			)
+		}
 		s.countTokensError(c, http.StatusInternalServerError, "api_error", "Failed to build request")
 		return err
 	}
@@ -145,17 +177,31 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	resp, err := s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		setOpsUpstreamError(c, 0, sanitizeUpstreamErrorMessage(err.Error()), "")
+		if IsMultiGroupRouting(ctx) {
+			return &UpstreamFailoverError{
+				StatusCode:   http.StatusBadGateway,
+				ResponseBody: []byte(`{"error":{"message":"Upstream request failed"}}`),
+			}
+		}
 		s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Request failed")
 		return fmt.Errorf("upstream request failed: %w", err)
 	}
 
 	// 读取响应体
 	countTokensTooLarge := func(c *gin.Context) {
-		s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Upstream response too large")
+		if !IsMultiGroupRouting(ctx) {
+			s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Upstream response too large")
+		}
 	}
 	respBody, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, countTokensTooLarge)
 	_ = resp.Body.Close()
 	if err != nil {
+		if IsMultiGroupRouting(ctx) {
+			return &UpstreamFailoverError{
+				StatusCode:   http.StatusBadGateway,
+				ResponseBody: []byte(`{"error":{"message":"Failed to read upstream response"}}`),
+			}
+		}
 		if !errors.Is(err, ErrUpstreamResponseBodyTooLarge) {
 			s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Failed to read response")
 		}
@@ -223,6 +269,14 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 				truncateForLog(respBody, s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes),
 			)
 		}
+		if IsMultiGroupRouting(ctx) && s.shouldFailoverUpstreamError(resp.StatusCode) {
+			return &UpstreamFailoverError{
+				StatusCode:             resp.StatusCode,
+				ResponseBody:           append([]byte(nil), respBody...),
+				ResponseHeaders:        resp.Header.Clone(),
+				RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
+			}
+		}
 
 		// 返回简化的错误响应
 		errMsg := "Upstream request failed"
@@ -247,16 +301,40 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte) error {
 	token, tokenType, err := s.GetAccessToken(ctx, account)
 	if err != nil {
+		if IsMultiGroupRouting(ctx) {
+			return countTokensAccountUnavailableError(
+				http.StatusBadGateway,
+				[]byte(`{"error":{"message":"Failed to get access token"}}`),
+				nil,
+				false,
+			)
+		}
 		s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Failed to get access token")
 		return err
 	}
 	if tokenType != "apikey" {
+		if IsMultiGroupRouting(ctx) {
+			return countTokensAccountUnavailableError(
+				http.StatusBadGateway,
+				[]byte(`{"error":{"message":"Invalid account token type"}}`),
+				nil,
+				false,
+			)
+		}
 		s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Invalid account token type")
 		return fmt.Errorf("anthropic api key passthrough requires apikey token, got: %s", tokenType)
 	}
 
 	upstreamReq, err := s.buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx, c, account, body, token)
 	if err != nil {
+		if IsMultiGroupRouting(ctx) {
+			return countTokensAccountUnavailableError(
+				http.StatusBadGateway,
+				[]byte(`{"error":{"message":"Failed to build upstream request"}}`),
+				nil,
+				false,
+			)
+		}
 		s.countTokensError(c, http.StatusInternalServerError, "api_error", "Failed to build request")
 		return err
 	}
@@ -279,16 +357,30 @@ func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx contex
 			Kind:               "request_error",
 			Message:            sanitizeUpstreamErrorMessage(err.Error()),
 		})
+		if IsMultiGroupRouting(ctx) {
+			return &UpstreamFailoverError{
+				StatusCode:   http.StatusBadGateway,
+				ResponseBody: []byte(`{"error":{"message":"Upstream request failed"}}`),
+			}
+		}
 		s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Request failed")
 		return fmt.Errorf("upstream request failed: %w", err)
 	}
 
 	countTokensTooLarge := func(c *gin.Context) {
-		s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Upstream response too large")
+		if !IsMultiGroupRouting(ctx) {
+			s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Upstream response too large")
+		}
 	}
 	respBody, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, countTokensTooLarge)
 	_ = resp.Body.Close()
 	if err != nil {
+		if IsMultiGroupRouting(ctx) {
+			return &UpstreamFailoverError{
+				StatusCode:   http.StatusBadGateway,
+				ResponseBody: []byte(`{"error":{"message":"Failed to read upstream response"}}`),
+			}
+		}
 		if !errors.Is(err, ErrUpstreamResponseBodyTooLarge) {
 			s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Failed to read response")
 		}
@@ -335,6 +427,14 @@ func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx contex
 			Message:            upstreamMsg,
 			Detail:             upstreamDetail,
 		})
+		if IsMultiGroupRouting(ctx) && s.shouldFailoverUpstreamError(resp.StatusCode) {
+			return &UpstreamFailoverError{
+				StatusCode:             resp.StatusCode,
+				ResponseBody:           append([]byte(nil), respBody...),
+				ResponseHeaders:        resp.Header.Clone(),
+				RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
+			}
+		}
 
 		errMsg := "Upstream request failed"
 		switch resp.StatusCode {
@@ -357,6 +457,30 @@ func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx contex
 	}
 	c.Data(resp.StatusCode, contentType, respBody)
 	return nil
+}
+
+// countTokensAccountUnavailableError marks an account-local capability or
+// credential failure. The account scope is explicit so multi-group routing may
+// exhaust the remaining accounts and groups even when the synthetic client
+// status is a non-retryable 4xx such as an unsupported account capability.
+func countTokensAccountUnavailableError(
+	statusCode int,
+	responseBody []byte,
+	responseHeaders http.Header,
+	retryableOnSameAccount bool,
+) error {
+	failoverStatus := statusCode
+	if failoverStatus < http.StatusInternalServerError {
+		failoverStatus = http.StatusServiceUnavailable
+	}
+	return &UpstreamFailoverError{
+		StatusCode:             failoverStatus,
+		ResponseBody:           append([]byte(nil), responseBody...),
+		ResponseHeaders:        responseHeaders.Clone(),
+		RetryableOnSameAccount: retryableOnSameAccount,
+		Scope:                  GatewayFailureScopeAccount,
+		ClientStatusCode:       statusCode,
+	}
 }
 
 func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/apikeyrouting"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -110,6 +111,58 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		return
 	}
 
+	groupRoute := h.newAPIKeyGroupRoute(
+		c.Request.Context(), apiKey, groupRoutingProtocolGrokMedia, "", false)
+	defer groupRoute.finish(c)
+	boundLookupAccountID := int64(0)
+	boundLookupGroupID := int64(0)
+	if endpoint.IsVideoLookupRequest() && groupRoute.MultiGroup() {
+		for _, groupID := range apiKey.GroupIDs {
+			candidate, exists := apikeyrouting.APIKeyForGroup(apiKey, groupID)
+			if !exists {
+				continue
+			}
+			accountID, lookupErr := h.gatewayService.ResolveGrokMediaVideoRequestAccount(
+				c.Request.Context(), candidate.GroupID, requestID, subject.UserID, apiKey.ID)
+			if lookupErr == nil && accountID > 0 {
+				boundLookupGroupID = groupID
+				boundLookupAccountID = accountID
+				break
+			}
+		}
+		if boundLookupGroupID == 0 {
+			h.errorResponse(c, http.StatusNotFound, "not_found_error", "Video request not found")
+			return
+		}
+		groupRoute.preferGroup(boundLookupGroupID)
+	}
+
+	var subscription *service.UserSubscription
+	if groupRoute.MultiGroup() {
+		for {
+			var routeErr error
+			apiKey, subscription, routeErr = groupRoute.nextCandidate(c)
+			if routeErr != nil {
+				status, code, message, retryAfter := billingErrorDetails(routeErr)
+				if retryAfter > 0 {
+					c.Header("Retry-After", strconv.Itoa(retryAfter))
+				}
+				h.errorResponse(c, status, code, message)
+				return
+			}
+			if endpoint.IsVideoLookupRequest() && groupIDOf(apiKey) != boundLookupGroupID {
+				h.errorResponse(c, http.StatusNotFound, "not_found_error", "Video request not found")
+				return
+			}
+			if !endpoint.IsGenerationRequest() || service.GroupAllowsImageGeneration(apiKey.Group) {
+				break
+			}
+			groupRoute.markCurrentUnavailable(c.Request.Context())
+		}
+	} else {
+		subscription, _ = middleware2.GetSubscriptionFromContext(c)
+	}
+
 	reqLog = reqLog.With(zap.String("model", requestModel))
 	setOpsRequestContext(c, requestModel, false)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeSync))
@@ -139,7 +192,6 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
 	}
 
-	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 
 	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, false, &streamStarted, reqLog)
@@ -150,14 +202,16 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		defer userReleaseFunc()
 	}
 
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
-		reqLog.Info("grok_media.billing_eligibility_check_failed", zap.Error(err))
-		status, code, message, retryAfter := billingErrorDetails(err)
-		if retryAfter > 0 {
-			c.Header("Retry-After", strconv.Itoa(retryAfter))
+	if !groupRoute.MultiGroup() {
+		if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
+			reqLog.Info("grok_media.billing_eligibility_check_failed", zap.Error(err))
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.errorResponse(c, status, code, message)
+			return
 		}
-		h.errorResponse(c, status, code, message)
-		return
 	}
 
 	sessionSeed := body
@@ -165,16 +219,17 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		sessionSeed = []byte(requestID)
 	}
 	sessionHash := h.gatewayService.GenerateExplicitSessionHash(c, sessionSeed)
-	boundLookupAccountID := int64(0)
 	if endpoint.IsVideoLookupRequest() {
 		sessionHash = service.GrokMediaVideoRequestSessionHash(requestID, subject.UserID, apiKey.ID)
-		boundLookupAccountID, err = h.gatewayService.ResolveGrokMediaVideoRequestAccount(
-			c.Request.Context(), apiKey.GroupID, requestID, subject.UserID, apiKey.ID,
-		)
-		if err != nil || boundLookupAccountID <= 0 {
-			reqLog.Info("grok_media.video_lookup_owner_binding_missing", zap.Error(err))
-			h.errorResponse(c, http.StatusNotFound, "not_found_error", "Video request not found")
-			return
+		if boundLookupAccountID == 0 {
+			boundLookupAccountID, err = h.gatewayService.ResolveGrokMediaVideoRequestAccount(
+				c.Request.Context(), apiKey.GroupID, requestID, subject.UserID, apiKey.ID,
+			)
+			if err != nil || boundLookupAccountID <= 0 {
+				reqLog.Info("grok_media.video_lookup_owner_binding_missing", zap.Error(err))
+				h.errorResponse(c, http.StatusNotFound, "not_found_error", "Video request not found")
+				return
+			}
 		}
 	}
 	requestCtx := c.Request.Context()
@@ -190,6 +245,31 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 	}
 	routingStart := time.Now()
 	requiredCapability := grokMediaRequiredCapability(endpoint)
+	switchToNextGroup := func() bool {
+		if !groupRoute.MultiGroup() || endpoint.IsVideoLookupRequest() {
+			return false
+		}
+		groupRoute.markCurrentUnavailable(requestCtx)
+		for {
+			nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+			if nextErr != nil {
+				return false
+			}
+			if endpoint.IsGenerationRequest() && !service.GroupAllowsImageGeneration(nextKey.Group) {
+				groupRoute.markCurrentUnavailable(c.Request.Context())
+				continue
+			}
+			apiKey, subscription = nextKey, nextSub
+			requestCtx = c.Request.Context()
+			failedAccountIDs = make(map[int64]struct{})
+			sameAccountRetryCount = make(map[int64]int)
+			lastFailoverErr = nil
+			oauth429FailoverState = service.OpenAIOAuth429FailoverState{}
+			mediaEligibilityRejected = false
+			switchCount = 0
+			return true
+		}
+	}
 
 	for {
 		if failoverClientGone(c) {
@@ -218,6 +298,9 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 				zap.Error(err),
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
+			if switchToNextGroup() {
+				continue
+			}
 			if endpoint.IsGenerationRequest() && errors.Is(err, service.ErrNoAvailableAccounts) &&
 				(len(failedAccountIDs) == 0 || (mediaEligibilityRejected && lastFailoverErr == nil)) {
 				markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
@@ -240,6 +323,9 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 			return
 		}
 		if selection == nil || selection.Account == nil {
+			if switchToNextGroup() {
+				continue
+			}
 			if endpoint.IsGenerationRequest() {
 				markOpsRoutingCapacityLimited(c)
 				h.errorResponse(c, http.StatusServiceUnavailable, "grok_media_no_eligible_account", "No eligible Grok media accounts")
@@ -282,6 +368,9 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 					zap.Bool("probe_failed", eligibilityErr != nil),
 				)
 				if switchCount >= maxAccountSwitches {
+					if switchToNextGroup() {
+						continue
+					}
 					markOpsRoutingCapacityLimited(c)
 					h.errorResponse(c, http.StatusServiceUnavailable, "grok_media_no_eligible_account", "No eligible Grok media accounts")
 					return
@@ -293,8 +382,35 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		accountReleaseFunc, accountAcquired := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, false, &streamStarted, reqLog)
-		if !accountAcquired {
+		accountReleaseFunc, accountSlotErr := h.tryAcquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, false, &streamStarted, reqLog)
+		if accountSlotErr != nil {
+			if isAccountCapacityUnavailable(accountSlotErr) && groupRoute.MultiGroup() && !endpoint.IsVideoLookupRequest() {
+				switch accountCapacityFailoverAction(requestCtx, failedAccountIDs, account.ID, &switchCount, maxAccountSwitches) {
+				case FailoverContinue:
+					continue
+				case FailoverCanceled:
+					failoverClientGone(c)
+					return
+				}
+				if switchToNextGroup() {
+					continue
+				}
+			}
+			h.handleResponsesAccountSlotError(c, accountSlotErr, streamStarted)
+			return
+		}
+		if err := groupRoute.reserveCurrent(requestCtx); err != nil {
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+			}
+			if reservationCanTryNextGroup(err) && switchToNextGroup() {
+				continue
+			}
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.errorResponse(c, status, code, message)
 			return
 		}
 
@@ -336,6 +452,9 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 					return
 				}
 				if !failoverErr.ShouldRetryNextAccount() {
+					if apikeyrouting.ShouldCrossGroup(requestCtx, failoverErr, false) && switchToNextGroup() {
+						continue
+					}
 					h.handleFailoverExhausted(c, failoverErr, false)
 					return
 				}
@@ -365,11 +484,17 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 				failedAccountIDs[account.ID] = struct{}{}
 				lastFailoverErr = failoverErr
 				if switchCount >= maxAccountSwitches {
+					if apikeyrouting.ShouldCrossGroup(requestCtx, failoverErr, false) && switchToNextGroup() {
+						continue
+					}
 					h.handleFailoverExhausted(c, failoverErr, false)
 					return
 				}
 				switchCount++
 				if h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
+					if apikeyrouting.ShouldCrossGroup(requestCtx, failoverErr, false) && switchToNextGroup() {
+						continue
+					}
 					h.handleFailoverExhausted(c, failoverErr, false)
 					return
 				}

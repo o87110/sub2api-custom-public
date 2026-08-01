@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/apikeyrouting"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/redis/go-redis/v9"
 )
@@ -54,6 +55,45 @@ func (c *gatewayCache) RefreshSessionTTL(ctx context.Context, groupID int64, ses
 func (c *gatewayCache) DeleteSessionAccountID(ctx context.Context, groupID int64, sessionHash string) error {
 	key := buildSessionKey(groupID, sessionHash)
 	return c.rdb.Del(ctx, key).Err()
+}
+
+func (c *gatewayCache) LoadGroupBinding(ctx context.Context, apiKeyID int64, protocol, sessionHash string) (service.APIKeyGroupBinding, error) {
+	return apikeyrouting.LoadRedisGroupBinding(ctx, c.rdb, apiKeyID, protocol, sessionHash)
+}
+
+func (c *gatewayCache) CompareAndSetGroupBinding(
+	ctx context.Context,
+	apiKeyID int64,
+	protocol, sessionHash string,
+	oldBinding, newBinding service.APIKeyGroupBinding,
+	ttl time.Duration,
+) (bool, error) {
+	return apikeyrouting.CompareAndSetRedisGroupBinding(
+		ctx,
+		c.rdb,
+		apiKeyID,
+		protocol,
+		sessionHash,
+		oldBinding,
+		newBinding,
+		ttl,
+	)
+}
+
+func (c *gatewayCache) CompareAndDeleteGroupBinding(
+	ctx context.Context,
+	apiKeyID int64,
+	protocol, sessionHash string,
+	oldBinding service.APIKeyGroupBinding,
+) (bool, error) {
+	return apikeyrouting.CompareAndDeleteRedisGroupBinding(
+		ctx,
+		c.rdb,
+		apiKeyID,
+		protocol,
+		sessionHash,
+		oldBinding,
+	)
 }
 
 // Compile-time assertion: gatewayCache must implement CyberSessionBlockStore.

@@ -59,18 +59,27 @@ func TestGatewayHandlerPreCancelledCompatibleRequestsDoNotSelectAccount(t *testi
 	}
 
 	tests := []struct {
-		name string
-		path string
-		body string
-		call func(*gin.Context)
+		name       string
+		path       string
+		body       string
+		multiGroup bool
+		call       func(*gin.Context)
 	}{
 		{
 			name: "responses", path: "/v1/responses", body: `{"model":"claude-test","input":"hello","stream":false}`,
 			call: h.Responses,
 		},
 		{
+			name: "responses multi group", path: "/v1/responses", body: `{"model":"claude-test","input":"hello","stream":false}`,
+			multiGroup: true, call: h.Responses,
+		},
+		{
 			name: "chat completions", path: "/v1/chat/completions", body: `{"model":"claude-test","messages":[{"role":"user","content":"hello"}],"stream":false}`,
 			call: h.ChatCompletions,
+		},
+		{
+			name: "chat completions multi group", path: "/v1/chat/completions", body: `{"model":"claude-test","messages":[{"role":"user","content":"hello"}],"stream":false}`,
+			multiGroup: true, call: h.ChatCompletions,
 		},
 	}
 
@@ -85,7 +94,14 @@ func TestGatewayHandlerPreCancelledCompatibleRequestsDoNotSelectAccount(t *testi
 			req := httptest.NewRequest(http.MethodPost, tt.path, bytes.NewBufferString(tt.body)).WithContext(ctx)
 			req.Header.Set("Content-Type", "application/json")
 			c.Request = req
-			c.Set(string(middleware.ContextKeyAPIKey), apiKey)
+			requestAPIKey := *apiKey
+			if tt.multiGroup {
+				secondaryGroup := *group
+				secondaryGroup.ID = groupID + 1
+				requestAPIKey.GroupIDs = []int64{groupID, secondaryGroup.ID}
+				requestAPIKey.Groups = []service.Group{*group, secondaryGroup}
+			}
+			c.Set(string(middleware.ContextKeyAPIKey), &requestAPIKey)
 			c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: apiKey.UserID, Concurrency: 10})
 
 			tt.call(c)

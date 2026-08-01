@@ -33,6 +33,7 @@ type APIKey struct {
 	Key         string
 	Name        string
 	GroupID     *int64
+	GroupIDs    []int64
 	Status      string
 	IPWhitelist []string
 	IPBlacklist []string
@@ -45,7 +46,20 @@ type APIKey struct {
 	UpdatedAt           time.Time
 	User                *User
 	Group               *Group
-	CurrentConcurrency  int
+	Groups              []Group
+	// UserGroupRPMOverrides 保存认证快照中每个候选分组的用户 RPM override。
+	// nil 值表示该分组没有 override；该字段不持久化到 api_keys。
+	UserGroupRPMOverrides map[int64]*int
+	// UserGroupRPMOverridesResolved 区分“已确认无 override”和“查询失败/尚未解析”。
+	// 缺项或 false 时实际尝试该分组仍可回源查询，保持缓存查询失败时的 fail-open 语义。
+	UserGroupRPMOverridesResolved map[int64]bool
+	// GroupSubscriptions 保存认证快照中每个订阅候选分组的有效订阅。
+	// nil 值配合 GroupSubscriptionsResolved=true 表示已确认没有有效订阅。
+	GroupSubscriptions map[int64]*UserSubscription
+	// GroupSubscriptionsResolved 区分“已确认无有效订阅”和“查询失败/尚未解析”。
+	// 未解析候选在实际路由时回源查询，避免把瞬时数据库错误缓存成无订阅。
+	GroupSubscriptionsResolved map[int64]bool
+	CurrentConcurrency         int
 
 	// Quota fields
 	Quota     float64    // Quota limit in USD (0 = unlimited)
@@ -139,7 +153,8 @@ func (k *APIKey) EffectiveUsage7d() float64 {
 
 // APIKeyListFilters holds optional filtering parameters for listing API keys.
 type APIKeyListFilters struct {
-	Search  string
-	Status  string
-	GroupID *int64 // nil=不筛选, 0=无分组, >0=指定分组
+	Search           string
+	Status           string
+	GroupID          *int64 // nil=不筛选, 0=无分组, >0=指定分组
+	PrimaryGroupOnly bool   // 功能开关关闭时保持旧版 group_id 筛选语义
 }

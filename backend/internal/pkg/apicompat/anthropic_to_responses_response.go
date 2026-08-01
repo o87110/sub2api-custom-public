@@ -627,6 +627,11 @@ func generateResponsesID() string {
 	return "resp_" + hex.EncodeToString(b)
 }
 
+// NewResponsesID returns a protocol-valid Responses API response identifier.
+func NewResponsesID() string {
+	return generateResponsesID()
+}
+
 func generateItemID() string {
 	b := make([]byte, 12)
 	_, _ = rand.Read(b)

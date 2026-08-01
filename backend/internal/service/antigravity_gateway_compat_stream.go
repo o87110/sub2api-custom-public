@@ -462,12 +462,17 @@ func (s *AntigravityGatewayService) handleResponsesStreamingFromAntigravity(
 	startTime time.Time,
 	originalModel string,
 ) (*antigravityStreamResult, error) {
-	return s.handleAntigravityCompatStream(
+	adapter := newAntigravityResponsesStreamAdapter(originalModel)
+	result, err := s.handleAntigravityCompatStream(
 		c,
 		resp,
 		startTime,
 		originalModel,
-		newAntigravityResponsesStreamAdapter(originalModel),
+		adapter,
 		"antigravity responses stream",
 	)
+	if result != nil {
+		result.responseID = adapter.anthropicState.ResponseID
+	}
+	return result, err
 }

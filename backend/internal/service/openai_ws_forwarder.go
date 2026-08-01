@@ -143,6 +143,14 @@ func isOpenAIWSIngressTurnRetryable(err error) bool {
 	}
 }
 
+// OpenAIWSIngressTurnWroteDownstream reports whether a failed upstream turn
+// already emitted semantic data to the client. Handlers use this boundary to
+// prohibit replaying the first response.create on another account or group.
+func OpenAIWSIngressTurnWroteDownstream(err error) bool {
+	var turnErr *openAIWSIngressTurnError
+	return errors.As(err, &turnErr) && turnErr != nil && turnErr.wroteDownstream
+}
+
 func openAIWSIngressTurnRetryReason(err error) string {
 	var turnErr *openAIWSIngressTurnError
 	if !errors.As(err, &turnErr) || turnErr == nil {

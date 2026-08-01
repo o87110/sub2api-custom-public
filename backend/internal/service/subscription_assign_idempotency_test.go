@@ -34,7 +34,8 @@ func TestMaybeInvalidateAssignmentCaches_DefersForOuterTransactionOwner(t *testi
 	require.NoError(t, err)
 	t.Cleanup(cache.Close)
 
-	svc := &SubscriptionService{subCacheL1: cache}
+	authInvalidator := &subscriptionAuthCacheInvalidatorStub{}
+	svc := &SubscriptionService{subCacheL1: cache, authCacheInvalidator: authInvalidator}
 	key := subCacheKey(7, 9)
 	require.True(t, cache.Set(key, &UserSubscription{ID: 42}, 1))
 	cache.Wait()
@@ -42,12 +43,28 @@ func TestMaybeInvalidateAssignmentCaches_DefersForOuterTransactionOwner(t *testi
 	svc.maybeInvalidateAssignmentCaches(7, 9, true)
 	_, cachedBeforeCommit := cache.Get(key)
 	require.True(t, cachedBeforeCommit, "outer transaction must retain caches until its owner commits")
+	require.Empty(t, authInvalidator.userIDs, "outer transaction must retain auth snapshots until commit")
 
 	svc.maybeInvalidateAssignmentCaches(7, 9, false)
 	cache.Wait()
 	_, cachedAfterCommit := cache.Get(key)
 	require.False(t, cachedAfterCommit, "post-commit invalidation must remove the cached subscription")
+	require.Equal(t, []int64{7}, authInvalidator.userIDs, "post-commit invalidation must remove API-key auth snapshots")
 }
+
+// subscriptionAuthCacheInvalidatorStub lives in this untagged test file so
+// `go test ./...` does not depend on the unit-tag-only admin test helpers.
+type subscriptionAuthCacheInvalidatorStub struct {
+	userIDs []int64
+}
+
+func (*subscriptionAuthCacheInvalidatorStub) InvalidateAuthCacheByKey(context.Context, string) {}
+
+func (s *subscriptionAuthCacheInvalidatorStub) InvalidateAuthCacheByUserID(_ context.Context, userID int64) {
+	s.userIDs = append(s.userIDs, userID)
+}
+
+func (*subscriptionAuthCacheInvalidatorStub) InvalidateAuthCacheByGroupID(context.Context, int64) {}
 
 type groupRepoNoop struct{}
 

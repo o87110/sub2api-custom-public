@@ -43,10 +43,11 @@ var (
 
 // SubscriptionService 订阅服务
 type SubscriptionService struct {
-	groupRepo           GroupRepository
-	userSubRepo         UserSubscriptionRepository
-	billingCacheService *BillingCacheService
-	entClient           *dbent.Client
+	groupRepo            GroupRepository
+	userSubRepo          UserSubscriptionRepository
+	billingCacheService  *BillingCacheService
+	entClient            *dbent.Client
+	authCacheInvalidator APIKeyAuthCacheInvalidator
 
 	// L1 缓存：加速中间件热路径的订阅查询
 	subCacheL1     *ristretto.Cache
@@ -69,6 +70,16 @@ func NewSubscriptionService(groupRepo GroupRepository, userSubRepo UserSubscript
 	svc.initMaintenanceQueue(cfg)
 	svc.StartSubCacheInvalidationSubscriber(context.Background())
 	return svc
+}
+
+// SetAuthCacheInvalidator connects subscription entitlement changes to the
+// API-key authentication snapshot cache. It is wired after construction to
+// avoid coupling the subscription service constructor to APIKeyService.
+func (s *SubscriptionService) SetAuthCacheInvalidator(invalidator APIKeyAuthCacheInvalidator) {
+	if s == nil {
+		return
+	}
+	s.authCacheInvalidator = invalidator
 }
 
 func (s *SubscriptionService) initMaintenanceQueue(cfg *config.Config) {
@@ -172,6 +183,7 @@ func (s *SubscriptionService) StartSubCacheInvalidationSubscriber(ctx context.Co
 
 func (s *SubscriptionService) invalidateSubscriptionCaches(userID, groupID int64) error {
 	s.InvalidateSubCacheSync(userID, groupID)
+	s.invalidateAuthCache(userID)
 	if s.billingCacheService == nil {
 		return nil
 	}
@@ -185,6 +197,15 @@ func (s *SubscriptionService) invalidateSubscriptionCaches(userID, groupID int64
 		return fmt.Errorf("publish subscription cache invalidation: %w", err)
 	}
 	return nil
+}
+
+func (s *SubscriptionService) invalidateAuthCache(userID int64) {
+	if s == nil || s.authCacheInvalidator == nil || userID <= 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
 }
 
 // AssignSubscriptionInput 分配订阅输入
@@ -292,6 +313,7 @@ func (s *SubscriptionService) maybeInvalidateAssignmentCaches(userID, groupID in
 	}
 
 	s.InvalidateSubCache(userID, groupID)
+	s.invalidateAuthCache(userID)
 	if s.billingCacheService != nil {
 		go func() {
 			cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -542,6 +564,7 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 
 	// 失效订阅缓存
 	s.InvalidateSubCache(input.UserID, input.GroupID)
+	s.invalidateAuthCache(input.UserID)
 	if s.billingCacheService != nil {
 		userID, groupID := input.UserID, input.GroupID
 		go func() {
@@ -698,6 +721,7 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 
 	// 失效订阅缓存
 	s.InvalidateSubCache(sub.UserID, sub.GroupID)
+	s.invalidateAuthCache(sub.UserID)
 	if s.billingCacheService != nil {
 		userID, groupID := sub.UserID, sub.GroupID
 		go func() {

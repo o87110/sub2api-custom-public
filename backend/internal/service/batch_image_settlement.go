@@ -261,6 +261,7 @@ func (s *BatchImageSettlementService) recordUsageLog(ctx context.Context, job *B
 	usageLog := &UsageLog{
 		UserID:                job.UserID,
 		APIKeyID:              *job.APIKeyID,
+		GroupID:               job.GroupID,
 		AccountID:             *job.AccountID,
 		RequestID:             strings.TrimSpace(requestID),
 		Model:                 job.Model,

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/apikeyrouting"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -33,16 +35,46 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Live is not supported for this platform")
 		return
 	}
-	if !liveEnabledForAPIKey(apiKey) {
-		h.errorResponse(c, http.StatusForbidden, "permission_error", "Live is not enabled for this group")
-		return
-	}
 	request, err := parseLiveCallRequest(c)
 	if err != nil {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
 		return
 	}
 	model := strings.TrimSpace(gjson.GetBytes(request.Session, "model").String())
+	groupRoute := h.newAPIKeyGroupRoute(
+		c.Request.Context(), apiKey, groupRoutingProtocolOpenAILive, "", false)
+	defer groupRoute.finish(c)
+	var subscription *service.UserSubscription
+	if groupRoute.MultiGroup() {
+		sawDisabled := false
+		for {
+			var routeErr error
+			apiKey, subscription, routeErr = groupRoute.nextCandidate(c)
+			if routeErr != nil {
+				if sawDisabled {
+					h.errorResponse(c, http.StatusForbidden, "permission_error", "Live is not enabled for any available group")
+					return
+				}
+				status, code, message, retryAfter := billingErrorDetails(routeErr)
+				if retryAfter > 0 {
+					c.Header("Retry-After", strconv.Itoa(retryAfter))
+				}
+				h.errorResponse(c, status, code, message)
+				return
+			}
+			if liveEnabledForAPIKey(apiKey) {
+				break
+			}
+			sawDisabled = true
+			groupRoute.markCurrentUnavailable(c.Request.Context())
+		}
+	} else {
+		if !liveEnabledForAPIKey(apiKey) {
+			h.errorResponse(c, http.StatusForbidden, "permission_error", "Live is not enabled for this group")
+			return
+		}
+		subscription, _ = middleware2.GetSubscriptionFromContext(c)
+	}
 	reqLog := requestLogger(
 		c,
 		"handler.openai_gateway.live",
@@ -63,25 +95,26 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 		return
 	}
 
-	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	if h.billingCacheService == nil {
 		h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "Billing service unavailable")
 		return
 	}
-	if err := h.billingCacheService.CheckBillingEligibility(
-		c.Request.Context(),
-		apiKey.User,
-		apiKey,
-		apiKey.Group,
-		subscription,
-		service.QuotaPlatform(c.Request.Context(), apiKey),
-	); err != nil {
-		status, code, message, retryAfter := billingErrorDetails(err)
-		if retryAfter > 0 {
-			c.Header("Retry-After", strconv.Itoa(retryAfter))
+	if !groupRoute.MultiGroup() {
+		if err := h.billingCacheService.CheckBillingEligibility(
+			c.Request.Context(),
+			apiKey.User,
+			apiKey,
+			apiKey.Group,
+			subscription,
+			service.QuotaPlatform(c.Request.Context(), apiKey),
+		); err != nil {
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.errorResponse(c, status, code, message)
+			return
 		}
-		h.errorResponse(c, status, code, message)
-		return
 	}
 
 	userRelease, acquired, err := h.concurrencyHelper.TryAcquireUserSlot(
@@ -99,11 +132,46 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 	}
 	defer userRelease()
 
-	identity := liveCallIdentity(c, apiKey, subject.UserID, subscription)
-	created, err := h.gatewayService.CreateLiveCall(c.Request.Context(), request, identity, subject.Concurrency)
-	if err != nil {
+	advanceGroup := func() bool {
+		if !groupRoute.MultiGroup() {
+			return false
+		}
+		groupRoute.markCurrentUnavailable(c.Request.Context())
+		for {
+			nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+			if nextErr != nil {
+				return false
+			}
+			if !liveEnabledForAPIKey(nextKey) {
+				groupRoute.markCurrentUnavailable(c.Request.Context())
+				continue
+			}
+			apiKey, subscription = nextKey, nextSub
+			return true
+		}
+	}
+
+	var created *service.LiveCallCreated
+	for {
+		identity := liveCallIdentity(c, apiKey, subject.UserID, subscription)
+		created, err = h.gatewayService.CreateLiveCallWithBeforeForward(
+			c.Request.Context(),
+			request,
+			identity,
+			subject.Concurrency,
+			func() error { return groupRoute.reserveCurrent(c.Request.Context()) },
+		)
+		if err == nil {
+			break
+		}
+		if shouldCrossLiveGroup(c.Request.Context(), err) && advanceGroup() {
+			continue
+		}
 		h.writeLiveCreateError(c, err)
 		return
+	}
+	if created.Account != nil {
+		setOpsSelectedAccount(c, created.Account.ID, created.Account.Platform)
 	}
 	c.Header("Location", liveSidebandLocation(c.FullPath(), created.CallID))
 	c.Data(http.StatusOK, "application/sdp", created.SDP)
@@ -196,18 +264,47 @@ func (h *OpenAIGatewayHandler) LiveSideband(c *gin.Context) {
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "User context not found")
 		return
 	}
-	if !liveEnabledForAPIKey(apiKey) {
+	candidates := []*service.APIKey{apiKey}
+	if len(apiKey.GroupIDs) > 1 {
+		candidates = candidates[:0]
+		for _, groupID := range apiKey.GroupIDs {
+			if candidate, ok := apikeyrouting.APIKeyForGroup(apiKey, groupID); ok {
+				candidates = append(candidates, candidate)
+			}
+		}
+	}
+	var record *service.LiveCallRecord
+	var err error
+	enabledCandidate := false
+	identityMismatch := false
+	for _, candidate := range candidates {
+		if !liveEnabledForAPIKey(candidate) {
+			continue
+		}
+		enabledCandidate = true
+		identity := service.LiveCallIdentity{
+			APIKeyID: candidate.ID,
+			UserID:   subject.UserID,
+			GroupID:  candidate.GroupID,
+		}
+		record, err = h.gatewayService.GetLiveCallForIdentity(c.Request.Context(), c.Param("call_id"), identity)
+		if err == nil {
+			break
+		}
+		if errors.Is(err, service.ErrLiveIdentityMismatch) {
+			identityMismatch = true
+			continue
+		}
+		if !errors.Is(err, service.ErrLiveCallNotFound) {
+			break
+		}
+	}
+	if !enabledCandidate {
 		h.errorResponse(c, http.StatusForbidden, "permission_error", "Live is not enabled for this group")
 		return
 	}
-	identity := service.LiveCallIdentity{
-		APIKeyID: apiKey.ID,
-		UserID:   subject.UserID,
-		GroupID:  apiKey.GroupID,
-	}
-	record, err := h.gatewayService.GetLiveCallForIdentity(c.Request.Context(), c.Param("call_id"), identity)
-	if err != nil {
-		if errors.Is(err, service.ErrLiveIdentityMismatch) {
+	if err != nil || record == nil {
+		if identityMismatch {
 			h.errorResponse(c, http.StatusForbidden, "permission_error", "Live call belongs to another identity")
 			return
 		}
@@ -226,6 +323,24 @@ func (h *OpenAIGatewayHandler) LiveSideband(c *gin.Context) {
 		return
 	}
 	_ = downstream.Close(coderws.StatusNormalClosure, "")
+}
+
+func shouldCrossLiveGroup(ctx context.Context, err error) bool {
+	if ctx == nil || ctx.Err() != nil {
+		return false
+	}
+	if reservationCanTryNextGroup(err) ||
+		errors.Is(err, service.ErrGroupRPMExceeded) ||
+		errors.Is(err, service.ErrNoAvailableAccounts) ||
+		errors.Is(err, service.ErrLiveConcurrencyFull) ||
+		errors.Is(err, service.ErrLiveUnavailable) {
+		return true
+	}
+	var groupUnavailable *service.LiveGroupUnavailableError
+	if errors.As(err, &groupUnavailable) {
+		return true
+	}
+	return apikeyrouting.ShouldCrossGroup(ctx, err, false)
 }
 
 func liveEnabledForAPIKey(apiKey *service.APIKey) bool {

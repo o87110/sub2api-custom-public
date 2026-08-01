@@ -12,8 +12,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/apikeyrouting"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/gemini"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
@@ -157,8 +159,9 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	)
 
 	// 检查平台：优先使用强制平台（/antigravity 路由，中间件已设置 request.Context），否则要求 gemini 分组
-	if !middleware.HasForcePlatform(c) {
-		if effectiveAPIKeyPlatform(c, apiKey) != service.PlatformGemini {
+	if !middleware.HasForcePlatform(c) && len(apiKey.GroupIDs) <= 1 {
+		platform := effectiveAPIKeyPlatform(c, apiKey)
+		if platform != service.PlatformGemini && platform != service.PlatformAntigravity {
 			googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
 			return
 		}
@@ -192,21 +195,102 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 
 	setOpsRequestContext(c, modelName, stream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(stream, false)))
+	requestedModel := modelName
+
+	explicitSessionHash := extractGeminiCLISessionHash(c, body)
+	sessionHash := explicitSessionHash
+	if sessionHash == "" {
+		parsedReq, _ := service.ParseGatewayRequest(service.NewRequestBodyRef(body), domain.PlatformGemini)
+		if parsedReq != nil {
+			parsedReq.SessionContext = &service.SessionContext{
+				ClientIP:  ip.GetClientIP(c),
+				UserAgent: c.GetHeader("User-Agent"),
+				APIKeyID:  apiKey.ID,
+			}
+		}
+		sessionHash = h.gatewayService.GenerateSessionHash(parsedReq)
+	}
+
+	var geminiDigestChain string
+	var geminiPrefixHash string
+	var geminiSessionUUID string
+	var matchedDigestChain string
+	var digestGroupMatch service.DigestSessionGroupMatch
+	useDigestFallback := explicitSessionHash == ""
+	if useDigestFallback {
+		var geminiReq antigravity.GeminiRequest
+		if err := json.Unmarshal(body, &geminiReq); err == nil && len(geminiReq.Contents) > 0 {
+			geminiDigestChain = service.BuildGeminiDigestChain(&geminiReq)
+		}
+		if geminiDigestChain != "" {
+			publicModel := modelName
+			if resolved, ok := service.RequestedPublicModelFromContext(c.Request.Context()); ok {
+				publicModel = resolved
+			}
+			platform := ""
+			if apiKey.Group != nil {
+				platform = apiKey.Group.Platform
+			}
+			geminiPrefixHash = service.GenerateGeminiPrefixHash(
+				authSubject.UserID,
+				apiKey.ID,
+				ip.GetClientIP(c),
+				c.GetHeader("User-Agent"),
+				platform,
+				publicModel,
+			)
+			groupIDs := apiKey.GroupIDs
+			if len(groupIDs) == 0 && apiKey.GroupID != nil {
+				groupIDs = []int64{*apiKey.GroupID}
+			}
+			digestGroupMatch, _ = h.gatewayService.FindDigestSessionAcrossGroups(
+				groupIDs, geminiPrefixHash, geminiDigestChain)
+		}
+	}
+	groupRoute := h.newAPIKeyGroupRoute(
+		c.Request.Context(), apiKey, groupRoutingProtocolGemini, sessionHash, true)
+	defer groupRoute.finish(c)
+	groupRoute.preferGroup(digestGroupMatch.GroupID)
+	groupRoute.configureCompositeRequest(&modelName, nil, nil)
+	groupRoute.setCandidateCheck(func(candidateContext *gin.Context, candidate *service.APIKey) error {
+		if geminiNativeCompositeTargetAllowed(candidateContext, candidate, modelName) {
+			return nil
+		}
+		return infraerrors.BadRequest(
+			"COMPOSITE_MODEL_UNSUPPORTED",
+			"Model is not supported by this Gemini-native handler for composite groups",
+		)
+	})
+	var subscription *service.UserSubscription
+	if groupRoute.MultiGroup() {
+		var routeErr error
+		apiKey, subscription, routeErr = groupRoute.nextCandidate(c)
+		if routeErr != nil {
+			status, _, message, retryAfter := billingErrorDetails(routeErr)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			googleError(c, status, message)
+			return
+		}
+	} else {
+		subscription, _ = middleware.GetSubscriptionFromContext(c)
+	}
+	ensureCompositeTargetPlatform(c, apiKey, modelName)
+	if !geminiNativeCompositeTargetAllowed(c, apiKey, modelName) {
+		googleError(c, http.StatusBadRequest, "Model is not supported by this Gemini-native handler for composite groups")
+		return
+	}
 
 	if decision := h.checkSecurityAudit(c, reqLog, apiKey, authSubject, service.ContentModerationProtocolGemini, modelName, body); decision != nil && !decision.AllowNextStage {
 		googleSecurityAuditError(c, decision)
+		groupRoute.keepCurrentBinding(c.Request.Context())
 		return
 	}
 
 	// 解析渠道级模型映射
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, modelName)
-	reqModel := modelName // 保存映射前的原始模型名
-	if channelMapping.Mapped {
-		modelName = channelMapping.MappedModel
-	}
-
-	// Get subscription (may be nil)
-	subscription, _ := middleware.GetSubscriptionFromContext(c)
+	modelName = geminiCandidateModelAfterChannelMapping(modelName, channelMapping)
 
 	// For Gemini native API, do not send Claude-style ping frames.
 	geminiConcurrency := NewConcurrencyHelper(h.concurrencyHelper.concurrencyService, SSEPingFormatNone, 0)
@@ -229,40 +313,54 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	}
 
 	// 2) billing eligibility check (after wait)
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
-		reqLog.Info("gemini.billing_eligibility_check_failed", zap.Error(err))
-		status, _, message, retryAfter := billingErrorDetails(err)
-		if retryAfter > 0 {
-			c.Header("Retry-After", strconv.Itoa(retryAfter))
+	if !groupRoute.MultiGroup() {
+		if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
+			reqLog.Info("gemini.billing_eligibility_check_failed", zap.Error(err))
+			status, _, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			googleError(c, status, message)
+			return
 		}
-		googleError(c, status, message)
-		return
 	}
 
-	// 3) select account (sticky session based on request body)
-	// 优先使用 Gemini CLI 的会话标识（privileged-user-id + tmp 目录哈希）
-	sessionHash := extractGeminiCLISessionHash(c, body)
-	if sessionHash == "" {
-		// Fallback: 使用通用的会话哈希生成逻辑（适用于其他客户端）
-		parsedReq, _ := service.ParseGatewayRequest(service.NewRequestBodyRef(body), domain.PlatformGemini)
-		if parsedReq != nil {
-			parsedReq.SessionContext = &service.SessionContext{
-				ClientIP:  ip.GetClientIP(c),
-				UserAgent: c.GetHeader("User-Agent"),
-				APIKeyID:  apiKey.ID,
-			}
+	// 3) select account (sticky session based on explicit signal or summary chain)
+	sessionKey := ""
+	if explicitSessionHash != "" {
+		sessionKey = "gemini:" + explicitSessionHash
+	} else if geminiDigestChain != "" && geminiPrefixHash != "" {
+		if digestGroupMatch.GroupID == derefGroupID(apiKey.GroupID) {
+			geminiSessionUUID = digestGroupMatch.UUID
+			matchedDigestChain = digestGroupMatch.MatchedChain
+		} else {
+			digestGroupMatch = service.DigestSessionGroupMatch{}
 		}
-		sessionHash = h.gatewayService.GenerateSessionHash(parsedReq)
-	}
-	sessionKey := sessionHash
-	if sessionHash != "" {
+		if geminiSessionUUID == "" {
+			geminiSessionUUID = uuid.New().String()
+		}
+		sessionKey = service.GenerateGeminiDigestSessionKey(geminiPrefixHash, geminiSessionUUID)
+	} else if sessionHash != "" {
 		sessionKey = "gemini:" + sessionHash
 	}
 
 	// 查询粘性会话绑定的账号 ID（用于检测账号切换）
 	var sessionBoundAccountID int64
+	if digestGroupMatch.AccountID > 0 {
+		sessionBoundAccountID = digestGroupMatch.AccountID
+		_ = h.gatewayService.BindStickySession(
+			c.Request.Context(), apiKey.GroupID, sessionKey, sessionBoundAccountID)
+		reqLog.Info("gemini.digest_fallback_matched",
+			zap.String("session_uuid_prefix", safeShortPrefix(geminiSessionUUID, 8)),
+			zap.Int64("account_id", sessionBoundAccountID),
+			zap.Int64("group_id", digestGroupMatch.GroupID),
+			zap.String("digest_chain", truncateDigestChain(geminiDigestChain)),
+		)
+	}
 	if sessionKey != "" {
-		sessionBoundAccountID, _ = h.gatewayService.GetCachedSessionAccountID(c.Request.Context(), apiKey.GroupID, sessionKey)
+		if sessionBoundAccountID == 0 {
+			sessionBoundAccountID, _ = h.gatewayService.GetCachedSessionAccountID(c.Request.Context(), apiKey.GroupID, sessionKey)
+		}
 		if sessionBoundAccountID > 0 {
 			prefetchedGroupID := int64(0)
 			if apiKey.GroupID != nil {
@@ -273,77 +371,33 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		}
 	}
 
-	// === Gemini 内容摘要会话 Fallback 逻辑 ===
-	// 当原有会话标识无效时（sessionBoundAccountID == 0），尝试基于内容摘要链匹配
-	var geminiDigestChain string
-	var geminiPrefixHash string
-	var geminiSessionUUID string
-	var matchedDigestChain string
-	useDigestFallback := sessionBoundAccountID == 0
-
-	if useDigestFallback {
-		// 解析 Gemini 请求体
-		var geminiReq antigravity.GeminiRequest
-		if err := json.Unmarshal(body, &geminiReq); err == nil && len(geminiReq.Contents) > 0 {
-			// 生成摘要链
-			geminiDigestChain = service.BuildGeminiDigestChain(&geminiReq)
-			if geminiDigestChain != "" {
-				// 生成前缀 hash
-				userAgent := c.GetHeader("User-Agent")
-				clientIP := ip.GetClientIP(c)
-				platform := ""
-				if apiKey.Group != nil {
-					platform = apiKey.Group.Platform
-				}
-				geminiPrefixHash = service.GenerateGeminiPrefixHash(
-					authSubject.UserID,
-					apiKey.ID,
-					clientIP,
-					userAgent,
-					platform,
-					modelName,
-				)
-
-				// 查找会话
-				foundUUID, foundAccountID, foundMatchedChain, found := h.gatewayService.FindGeminiSession(
-					c.Request.Context(),
-					derefGroupID(apiKey.GroupID),
-					geminiPrefixHash,
-					geminiDigestChain,
-				)
-				if found {
-					matchedDigestChain = foundMatchedChain
-					sessionBoundAccountID = foundAccountID
-					geminiSessionUUID = foundUUID
-					reqLog.Info("gemini.digest_fallback_matched",
-						zap.String("session_uuid_prefix", safeShortPrefix(foundUUID, 8)),
-						zap.Int64("account_id", foundAccountID),
-						zap.String("digest_chain", truncateDigestChain(geminiDigestChain)),
-					)
-
-					// 关键：如果原 sessionKey 为空，使用 prefixHash + uuid 作为 sessionKey
-					// 这样 SelectAccountWithLoadAwareness 的粘性会话逻辑会优先使用匹配到的账号
-					if sessionKey == "" {
-						sessionKey = service.GenerateGeminiDigestSessionKey(geminiPrefixHash, foundUUID)
-					}
-					_ = h.gatewayService.BindStickySession(c.Request.Context(), apiKey.GroupID, sessionKey, foundAccountID)
-				} else {
-					// 生成新的会话 UUID
-					geminiSessionUUID = uuid.New().String()
-					// 为新会话也生成 sessionKey（用于后续请求的粘性会话）
-					if sessionKey == "" {
-						sessionKey = service.GenerateGeminiDigestSessionKey(geminiPrefixHash, geminiSessionUUID)
-					}
-				}
-			}
-		}
-	}
-
 	// 判断是否真的绑定了粘性会话：有 sessionKey 且已经绑定到某个账号
 	hasBoundSession := sessionKey != "" && sessionBoundAccountID > 0
 	cleanedForUnknownBinding := false
 
 	fs := NewFailoverState(h.maxAccountSwitchesGemini, hasBoundSession)
+	switchToNextGeminiGroup := func(markUnavailable bool) bool {
+		if !groupRoute.MultiGroup() {
+			return false
+		}
+		if markUnavailable {
+			groupRoute.markCurrentUnavailable(c.Request.Context())
+		}
+		nextKey, nextSub, nextErr := groupRoute.nextCandidate(c)
+		if nextErr != nil {
+			return false
+		}
+		apiKey, subscription = nextKey, nextSub
+		channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, modelName)
+		modelName = geminiCandidateModelAfterChannelMapping(modelName, channelMapping)
+		singleAccountRetry := h.gatewayService.IsSingleAntigravityAccountGroup(
+			c.Request.Context(), apiKey.GroupID)
+		c.Request = c.Request.WithContext(service.WithSingleAccountRetry(
+			c.Request.Context(), singleAccountRetry, h.metadataBridgeEnabled()))
+		hasBoundSession = false
+		fs = NewFailoverState(h.maxAccountSwitchesGemini, false)
+		return true
+	}
 
 	// 单账号分组提前设置 SingleAccountRetry 标记，让 Service 层首次 503 就不设模型限流标记。
 	// 避免单账号分组收到 503 (MODEL_CAPACITY_EXHAUSTED) 时设 29s 限流，导致后续请求连续快速失败。
@@ -355,6 +409,19 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	for {
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, modelName, fs.FailedAccountIDs, "", int64(0)) // Gemini 不使用会话限制
 		if err != nil {
+			action := selectionExhaustedAction(c.Request.Context(), fs)
+			if action == FailoverContinue {
+				ctx := service.WithSingleAccountRetry(c.Request.Context(), true, h.metadataBridgeEnabled())
+				c.Request = c.Request.WithContext(ctx)
+				continue
+			}
+			if action == FailoverCanceled {
+				failoverClientGone(c)
+				return
+			}
+			if switchToNextGeminiGroup(true) {
+				continue
+			}
 			if len(fs.FailedAccountIDs) == 0 {
 				cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, modelName, modelName, service.PlatformGemini)
 				if !cls.ModelNotFound {
@@ -367,19 +434,8 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 				googleError(c, cls.Status, message)
 				return
 			}
-			action := fs.HandleSelectionExhausted(c.Request.Context())
-			switch action {
-			case FailoverContinue:
-				ctx := service.WithSingleAccountRetry(c.Request.Context(), true, h.metadataBridgeEnabled())
-				c.Request = c.Request.WithContext(ctx)
-				continue
-			case FailoverCanceled:
-				failoverClientGone(c)
-				return
-			default: // FailoverExhausted
-				h.handleGeminiFailoverExhausted(c, fs.LastFailoverErr)
-				return
-			}
+			h.handleGeminiFailoverExhausted(c, fs.LastFailoverErr)
+			return
 		}
 		account := selection.Account
 		setOpsSelectedAccount(c, account.ID, account.Platform)
@@ -408,58 +464,54 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			sessionBoundAccountID = account.ID
 		}
 
-		// 4) account concurrency slot
-		accountReleaseFunc := selection.ReleaseFunc
-		if !selection.Acquired {
-			if selection.WaitPlan == nil {
+		// 4) account concurrency slot. Capacity failures remain uncommitted so a
+		// lower-priority group can be tried before returning a Gemini error.
+		accountReleaseFunc, accountSlotErr := geminiConcurrency.acquireSelectedAccountSlot(
+			c, selection, stream, &streamStarted)
+		if accountSlotErr != nil {
+			reqLog.Warn("gemini.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(accountSlotErr))
+			if isAccountCapacityUnavailable(accountSlotErr) && groupRoute.MultiGroup() {
+				switch fs.HandleAccountCapacityUnavailable(c.Request.Context(), account.ID) {
+				case FailoverContinue:
+					continue
+				case FailoverCanceled:
+					failoverClientGone(c)
+					return
+				}
+				if switchToNextGeminiGroup(true) {
+					continue
+				}
+			}
+			if failoverClientGone(c) {
+				return
+			}
+			if errors.Is(accountSlotErr, errAccountCapacityUnavailable) {
 				markOpsRoutingCapacityLimited(c)
 				googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts")
-				return
+			} else {
+				status, _, message := concurrencyErrorResponse(accountSlotErr, "account")
+				googleError(c, status, message)
 			}
-			accountWaitCounted := false
-			canWait, err := geminiConcurrency.IncrementAccountWaitCount(c.Request.Context(), account.ID, selection.WaitPlan.MaxWaiting)
-			if err != nil {
-				reqLog.Warn("gemini.account_wait_counter_increment_failed", zap.Int64("account_id", account.ID), zap.Error(err))
-			} else if !canWait {
-				reqLog.Info("gemini.account_wait_queue_full",
-					zap.Int64("account_id", account.ID),
-					zap.Int("max_waiting", selection.WaitPlan.MaxWaiting),
-				)
-				googleError(c, http.StatusTooManyRequests, "Too many pending requests, please retry later")
-				return
-			}
-			if err == nil && canWait {
-				accountWaitCounted = true
-			}
-			defer func() {
-				if accountWaitCounted {
-					geminiConcurrency.DecrementAccountWaitCount(c.Request.Context(), account.ID)
-				}
-			}()
-
-			accountReleaseFunc, err = geminiConcurrency.AcquireAccountSlotWithWaitTimeout(
-				c,
-				account.ID,
-				selection.WaitPlan.MaxConcurrency,
-				selection.WaitPlan.Timeout,
-				stream,
-				&streamStarted,
-			)
-			if err != nil {
-				reqLog.Warn("gemini.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
-				googleError(c, http.StatusTooManyRequests, err.Error())
-				return
-			}
-			if accountWaitCounted {
-				geminiConcurrency.DecrementAccountWaitCount(c.Request.Context(), account.ID)
-				accountWaitCounted = false
-			}
-			if err := h.gatewayService.BindStickySession(c.Request.Context(), apiKey.GroupID, sessionKey, account.ID); err != nil {
-				reqLog.Warn("gemini.bind_sticky_session_failed", zap.Int64("account_id", account.ID), zap.Error(err))
-			}
+			return
 		}
-		// 账号槽位/等待计数需要在超时或断开时安全回收
-		accountReleaseFunc = wrapReleaseOnDone(c.Request.Context(), accountReleaseFunc)
+		if err := h.gatewayService.BindStickySession(c.Request.Context(), apiKey.GroupID, sessionKey, account.ID); err != nil {
+			reqLog.Warn("gemini.bind_sticky_session_failed", zap.Int64("account_id", account.ID), zap.Error(err))
+		}
+
+		if err := groupRoute.reserveCurrent(c.Request.Context()); err != nil {
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+			}
+			if reservationCanTryNextGroup(err) && switchToNextGeminiGroup(false) {
+				continue
+			}
+			status, _, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			googleError(c, status, message)
+			return
+		}
 
 		// 5) forward (根据平台分流)
 		var result *service.ForwardResult
@@ -468,6 +520,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			requestCtx = service.WithAccountSwitchCount(requestCtx, fs.SwitchCount, h.metadataBridgeEnabled())
 		}
 		sessionGroupID := derefGroupID(apiKey.GroupID)
+		writerSizeBeforeForward := c.Writer.Size()
 		if account.Platform == service.PlatformAntigravity && account.Type != service.AccountTypeAPIKey {
 			result, err = h.antigravityGatewayService.ForwardGemini(
 				requestCtx,
@@ -489,11 +542,21 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		if err != nil {
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
+				if c.Writer.Size() != writerSizeBeforeForward {
+					groupRoute.settleTerminalError(c.Request.Context(), failoverErr)
+					h.handleGeminiFailoverExhausted(c, failoverErr)
+					return
+				}
 				failoverAction := fs.HandleFailoverError(c.Request.Context(), h.gatewayService, account.ID, account.Platform, account.GetPoolModeRetryCount(), failoverErr)
 				switch failoverAction {
 				case FailoverContinue:
 					continue
 				case FailoverExhausted:
+					crossGroup := apikeyrouting.ShouldCrossGroup(c.Request.Context(), failoverErr, false)
+					if crossGroup && switchToNextGeminiGroup(true) {
+						continue
+					}
+					groupRoute.settleTerminalError(c.Request.Context(), failoverErr)
 					h.handleGeminiFailoverExhausted(c, fs.LastFailoverErr)
 					return
 				case FailoverCanceled:
@@ -503,6 +566,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			}
 			// ForwardNative already wrote the response
 			reqLog.Error("gemini.forward_failed", zap.Int64("account_id", account.ID), zap.Error(err))
+			groupRoute.keepCurrentBinding(c.Request.Context())
 			return
 		}
 
@@ -551,7 +615,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 				ForceCacheBilling:     forceCacheBilling,
 				APIKeyService:         h.apiKeyService,
 				SessionID:             sessionID,
-				ChannelUsageFields:    clientRequestedUsageFields(c, channelMapping, reqModel, result.UpstreamModel),
+				ChannelUsageFields:    clientRequestedUsageFields(c, channelMapping, requestedModel, result.UpstreamModel),
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.gemini_v1beta.models"),
@@ -567,8 +631,19 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			zap.Int64("account_id", account.ID),
 			zap.Int("switch_count", fs.SwitchCount),
 		)
+		groupRoute.keepCurrentBinding(c.Request.Context())
 		return
 	}
+}
+
+func geminiCandidateModelAfterChannelMapping(
+	candidateModel string,
+	mapping service.ChannelMappingResult,
+) string {
+	if mapping.Mapped {
+		return mapping.MappedModel
+	}
+	return candidateModel
 }
 
 func parseGeminiModelAction(rest string) (model string, action string, err error) {

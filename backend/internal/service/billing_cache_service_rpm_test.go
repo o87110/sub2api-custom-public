@@ -16,6 +16,8 @@ import (
 type userRPMCacheStub struct {
 	userGroupCalls int32
 	userCalls      int32
+	userGroupReads int32
+	userReads      int32
 
 	userGroupCounts []int // 依次返回的计数值
 	userGroupErr    error
@@ -46,10 +48,12 @@ func (s *userRPMCacheStub) IncrementUserRPM(_ context.Context, _ int64) (int, er
 }
 
 func (s *userRPMCacheStub) GetUserGroupRPM(_ context.Context, _, _ int64) (int, error) {
+	atomic.AddInt32(&s.userGroupReads, 1)
 	return 0, nil
 }
 
 func (s *userRPMCacheStub) GetUserRPM(_ context.Context, _ int64) (int, error) {
+	atomic.AddInt32(&s.userReads, 1)
 	return 0, nil
 }
 
@@ -94,8 +98,9 @@ func TestBillingCacheService_CheckRPM_OverrideTakesPrecedenceOverGroup(t *testin
 	require.ErrorIs(t, svc.checkRPM(context.Background(), user, group), ErrGroupRPMExceeded)
 
 	require.EqualValues(t, 3, atomic.LoadInt32(&cache.userGroupCalls), "override 命中分支应走 user-group 计数")
-	// 并行设计：前 2 次 override 未超→继续检查 user；第 3 次 override 超了→直接 return，不检查 user
-	require.EqualValues(t, 2, atomic.LoadInt32(&cache.userCalls), "override 超限前 user 计数器应被调用")
+	// 用户全局 RPM 在第一个实际候选前先占用；即使随后分组竞争超限，
+	// 该客户端请求也已经消耗一次全局 RPM。
+	require.EqualValues(t, 3, atomic.LoadInt32(&cache.userCalls), "每个客户端请求应先占用一次用户全局 RPM")
 	require.EqualValues(t, 3, atomic.LoadInt32(&repo.calls))
 }
 
@@ -163,8 +168,7 @@ func TestBillingCacheService_CheckRPM_NilOverrideFallsThroughToGroup(t *testing.
 	require.ErrorIs(t, svc.checkRPM(context.Background(), user, group), ErrGroupRPMExceeded) // ug=6 > 5
 
 	require.EqualValues(t, 2, atomic.LoadInt32(&cache.userGroupCalls))
-	// 并行模式：第 1 次 group 没超 → 继续检查 user；第 2 次 group 超了 → 直接 return，不检查 user
-	require.EqualValues(t, 1, atomic.LoadInt32(&cache.userCalls), "group 未超时 user 也应检查；group 超时直接返回")
+	require.EqualValues(t, 2, atomic.LoadInt32(&cache.userCalls), "每个客户端请求应先占用一次用户全局 RPM")
 }
 
 func TestBillingCacheService_CheckRPM_OverrideLookupErrorFallsThroughToGroup(t *testing.T) {
@@ -250,4 +254,97 @@ func TestBillingCacheService_CheckRPM_NilUserIsNoop(t *testing.T) {
 	require.EqualValues(t, 0, atomic.LoadInt32(&cache.userGroupCalls))
 	require.EqualValues(t, 0, atomic.LoadInt32(&cache.userCalls))
 	require.EqualValues(t, 0, atomic.LoadInt32(&repo.calls))
+}
+
+func TestBillingCacheService_MultiGroupReadOnlyScanDoesNotIncrementRPM(t *testing.T) {
+	cache := &userRPMCacheStub{}
+	svc := newBillingServiceForRPM(t, cache, nil)
+	user := &User{ID: 1, RPMLimit: 100, UserGroupRPMOverrideResolved: true}
+
+	for groupID := int64(1); groupID <= 10; groupID++ {
+		require.NoError(t, svc.checkRPMReadOnly(
+			context.Background(),
+			user,
+			&Group{ID: groupID, RPMLimit: 100},
+		))
+	}
+
+	require.EqualValues(t, 10, atomic.LoadInt32(&cache.userGroupReads))
+	require.EqualValues(t, 10, atomic.LoadInt32(&cache.userReads))
+	require.Zero(t, atomic.LoadInt32(&cache.userGroupCalls))
+	require.Zero(t, atomic.LoadInt32(&cache.userCalls))
+}
+
+func TestBillingCacheService_MultiGroupFollowupProbeSkipsReservedUserRPM(t *testing.T) {
+	cache := &userRPMCacheStub{}
+	svc := newBillingServiceForRPM(t, cache, nil)
+	// RouteRuntime passes an independent user snapshot with RPMLimit cleared
+	// after the first actual candidate has reserved the request-global slot.
+	user := &User{ID: 1, RPMLimit: 0, UserGroupRPMOverrideResolved: true}
+	group := &Group{ID: 12, RPMLimit: 100}
+
+	require.NoError(t, svc.checkRPMReadOnly(context.Background(), user, group))
+	require.EqualValues(t, 1, atomic.LoadInt32(&cache.userGroupReads))
+	require.Zero(t, atomic.LoadInt32(&cache.userReads))
+	require.Zero(t, atomic.LoadInt32(&cache.userGroupCalls))
+	require.Zero(t, atomic.LoadInt32(&cache.userCalls))
+}
+
+func TestBillingCacheService_MultiGroupActualAttemptsReserveUserOnceAndGroupsOnce(t *testing.T) {
+	cache := &userRPMCacheStub{}
+	svc := newBillingServiceForRPM(t, cache, nil)
+	user := &User{ID: 1, RPMLimit: 100, UserGroupRPMOverrideResolved: true}
+	groupA := &Group{ID: 11, RPMLimit: 100}
+	groupB := &Group{ID: 12, RPMLimit: 100}
+
+	require.NoError(t, svc.ReserveUserRPM(context.Background(), user))
+	require.NoError(t, svc.ReserveGroupRPM(context.Background(), user, groupA))
+	require.NoError(t, svc.ReserveGroupRPM(context.Background(), user, groupB))
+
+	require.EqualValues(t, 1, atomic.LoadInt32(&cache.userCalls))
+	require.EqualValues(t, 2, atomic.LoadInt32(&cache.userGroupCalls))
+}
+
+func TestBillingCacheService_SimpleModeMultiGroupSkipsRPMReadsAndReservations(t *testing.T) {
+	cache := &userRPMCacheStub{}
+	override := 1
+	repo := &rpmOverrideRepoStub{override: &override}
+	svc := NewBillingCacheService(
+		nil, nil, nil, nil, cache, repo,
+		&config.Config{RunMode: config.RunModeSimple}, nil,
+	)
+	t.Cleanup(svc.Stop)
+	user := &User{ID: 1, RPMLimit: 1}
+	// Keep the minimum-balance gate disabled so this test isolates Simple Mode's
+	// RPM behavior. Minimum balance intentionally remains active in Simple Mode
+	// and is covered by billing_cache_service_balance_test.go.
+	group := &Group{ID: 11, RPMLimit: 1}
+
+	require.NoError(t, svc.CheckBillingEligibilityReadOnly(
+		context.Background(), user, &APIKey{ID: 2}, group, nil, PlatformOpenAI,
+	))
+	require.NoError(t, svc.ReserveUserRPM(context.Background(), user))
+	require.NoError(t, svc.ReserveGroupRPM(context.Background(), user, group))
+
+	require.Zero(t, atomic.LoadInt32(&cache.userReads))
+	require.Zero(t, atomic.LoadInt32(&cache.userGroupReads))
+	require.Zero(t, atomic.LoadInt32(&cache.userCalls))
+	require.Zero(t, atomic.LoadInt32(&cache.userGroupCalls))
+	require.Zero(t, atomic.LoadInt32(&repo.calls))
+}
+
+func TestBillingCacheService_LegacySingleGroupReservesGroupBeforeUser(t *testing.T) {
+	cache := &userRPMCacheStub{userGroupCounts: []int{2}}
+	svc := newBillingServiceForRPM(t, cache, nil)
+	user := &User{
+		ID:                           1,
+		RPMLimit:                     100,
+		UserGroupRPMOverrideResolved: true,
+	}
+	group := &Group{ID: 10, RPMLimit: 1}
+
+	require.ErrorIs(t, svc.reserveLegacyRPM(context.Background(), user, group), ErrGroupRPMExceeded)
+	require.EqualValues(t, 1, atomic.LoadInt32(&cache.userGroupCalls))
+	require.Zero(t, atomic.LoadInt32(&cache.userCalls),
+		"legacy single-group rejection must not consume the user-global RPM counter")
 }

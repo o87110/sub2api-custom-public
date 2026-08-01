@@ -989,6 +989,21 @@ func (_u *GroupUpdate) AddAPIKeys(v ...*APIKey) *GroupUpdate {
 	return _u.AddAPIKeyIDs(ids...)
 }
 
+// AddOrderedAPIKeyIDs adds the "ordered_api_keys" edge to the APIKey entity by IDs.
+func (_u *GroupUpdate) AddOrderedAPIKeyIDs(ids ...int64) *GroupUpdate {
+	_u.mutation.AddOrderedAPIKeyIDs(ids...)
+	return _u
+}
+
+// AddOrderedAPIKeys adds the "ordered_api_keys" edges to the APIKey entity.
+func (_u *GroupUpdate) AddOrderedAPIKeys(v ...*APIKey) *GroupUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddOrderedAPIKeyIDs(ids...)
+}
+
 // AddRedeemCodeIDs adds the "redeem_codes" edge to the RedeemCode entity by IDs.
 func (_u *GroupUpdate) AddRedeemCodeIDs(ids ...int64) *GroupUpdate {
 	_u.mutation.AddRedeemCodeIDs(ids...)
@@ -1088,6 +1103,27 @@ func (_u *GroupUpdate) RemoveAPIKeys(v ...*APIKey) *GroupUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAPIKeyIDs(ids...)
+}
+
+// ClearOrderedAPIKeys clears all "ordered_api_keys" edges to the APIKey entity.
+func (_u *GroupUpdate) ClearOrderedAPIKeys() *GroupUpdate {
+	_u.mutation.ClearOrderedAPIKeys()
+	return _u
+}
+
+// RemoveOrderedAPIKeyIDs removes the "ordered_api_keys" edge to APIKey entities by IDs.
+func (_u *GroupUpdate) RemoveOrderedAPIKeyIDs(ids ...int64) *GroupUpdate {
+	_u.mutation.RemoveOrderedAPIKeyIDs(ids...)
+	return _u
+}
+
+// RemoveOrderedAPIKeys removes "ordered_api_keys" edges to APIKey entities.
+func (_u *GroupUpdate) RemoveOrderedAPIKeys(v ...*APIKey) *GroupUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveOrderedAPIKeyIDs(ids...)
 }
 
 // ClearRedeemCodes clears all "redeem_codes" edges to the RedeemCode entity.
@@ -1606,6 +1642,51 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Inverse: false,
 			Table:   group.APIKeysTable,
 			Columns: []string{group.APIKeysColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.OrderedAPIKeysCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.OrderedAPIKeysTable,
+			Columns: group.OrderedAPIKeysPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedOrderedAPIKeysIDs(); len(nodes) > 0 && !_u.mutation.OrderedAPIKeysCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.OrderedAPIKeysTable,
+			Columns: group.OrderedAPIKeysPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OrderedAPIKeysIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.OrderedAPIKeysTable,
+			Columns: group.OrderedAPIKeysPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
@@ -2838,6 +2919,21 @@ func (_u *GroupUpdateOne) AddAPIKeys(v ...*APIKey) *GroupUpdateOne {
 	return _u.AddAPIKeyIDs(ids...)
 }
 
+// AddOrderedAPIKeyIDs adds the "ordered_api_keys" edge to the APIKey entity by IDs.
+func (_u *GroupUpdateOne) AddOrderedAPIKeyIDs(ids ...int64) *GroupUpdateOne {
+	_u.mutation.AddOrderedAPIKeyIDs(ids...)
+	return _u
+}
+
+// AddOrderedAPIKeys adds the "ordered_api_keys" edges to the APIKey entity.
+func (_u *GroupUpdateOne) AddOrderedAPIKeys(v ...*APIKey) *GroupUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddOrderedAPIKeyIDs(ids...)
+}
+
 // AddRedeemCodeIDs adds the "redeem_codes" edge to the RedeemCode entity by IDs.
 func (_u *GroupUpdateOne) AddRedeemCodeIDs(ids ...int64) *GroupUpdateOne {
 	_u.mutation.AddRedeemCodeIDs(ids...)
@@ -2937,6 +3033,27 @@ func (_u *GroupUpdateOne) RemoveAPIKeys(v ...*APIKey) *GroupUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAPIKeyIDs(ids...)
+}
+
+// ClearOrderedAPIKeys clears all "ordered_api_keys" edges to the APIKey entity.
+func (_u *GroupUpdateOne) ClearOrderedAPIKeys() *GroupUpdateOne {
+	_u.mutation.ClearOrderedAPIKeys()
+	return _u
+}
+
+// RemoveOrderedAPIKeyIDs removes the "ordered_api_keys" edge to APIKey entities by IDs.
+func (_u *GroupUpdateOne) RemoveOrderedAPIKeyIDs(ids ...int64) *GroupUpdateOne {
+	_u.mutation.RemoveOrderedAPIKeyIDs(ids...)
+	return _u
+}
+
+// RemoveOrderedAPIKeys removes "ordered_api_keys" edges to APIKey entities.
+func (_u *GroupUpdateOne) RemoveOrderedAPIKeys(v ...*APIKey) *GroupUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveOrderedAPIKeyIDs(ids...)
 }
 
 // ClearRedeemCodes clears all "redeem_codes" edges to the RedeemCode entity.
@@ -3485,6 +3602,51 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 			Inverse: false,
 			Table:   group.APIKeysTable,
 			Columns: []string{group.APIKeysColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.OrderedAPIKeysCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.OrderedAPIKeysTable,
+			Columns: group.OrderedAPIKeysPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedOrderedAPIKeysIDs(); len(nodes) > 0 && !_u.mutation.OrderedAPIKeysCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.OrderedAPIKeysTable,
+			Columns: group.OrderedAPIKeysPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OrderedAPIKeysIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.OrderedAPIKeysTable,
+			Columns: group.OrderedAPIKeysPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
