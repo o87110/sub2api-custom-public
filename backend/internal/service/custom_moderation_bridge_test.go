@@ -244,6 +244,7 @@ func TestCustomModerationLateKeywordShortCircuitsUpstreamAndKeepsContext(t *test
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	prompt := strings.Repeat("前", maxModerationInputRunes-len([]rune(keyword))) + keyword
@@ -302,6 +303,7 @@ func TestCustomAPIAuditScopePreservesKeywordsAndNarrowsAPICalls(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	groupOne := int64(1)
 	groupTwo := int64(2)
@@ -347,6 +349,7 @@ func TestCustomAPIAuditScopeLegacyConfigDefaultsToParentScope(t *testing.T) {
 func TestCustomAPIAuditScopeRejectsEmptyActiveSelection(t *testing.T) {
 	service := NewContentModerationService(
 		&customModerationSettingRepo{values: map[string]string{}},
+		nil,
 		nil,
 		nil,
 		nil,
@@ -417,6 +420,7 @@ func TestCustomAPIAuditScopeObserveModeSkipsExcludedGroups(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	body := []byte(`{"messages":[{"role":"user","content":"clean input"}]}`)
 	groupOne := int64(1)
@@ -463,6 +467,7 @@ func TestCustomAPIAuditScopeWorkerRechecksScopeAfterDequeue(t *testing.T) {
 			runtimeLoaded: runtimeLoaded,
 		},
 		&customModerationRepo{},
+		nil,
 		nil,
 		nil,
 		nil,

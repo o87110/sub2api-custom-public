@@ -353,32 +353,87 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 		}
 	}
 	m := make(map[string]string)
-	setPaymentConfigValue(m, SettingPaymentEnabled, req.Enabled != nil, formatBoolOrEmpty(req.Enabled))
-	setPaymentConfigValue(m, SettingMinRechargeAmount, req.MinAmount != nil, formatPositiveFloat(req.MinAmount))
-	setPaymentConfigValue(m, SettingMaxRechargeAmount, req.MaxAmount != nil, formatPositiveFloat(req.MaxAmount))
-	setPaymentConfigValue(m, SettingDailyRechargeLimit, req.DailyLimit != nil, formatPositiveFloat(req.DailyLimit))
-	setPaymentConfigValue(m, SettingOrderTimeoutMinutes, req.OrderTimeoutMin != nil, formatPositiveInt(req.OrderTimeoutMin))
-	setPaymentConfigValue(m, SettingMaxPendingOrders, req.MaxPendingOrders != nil, formatPositiveInt(req.MaxPendingOrders))
-	setPaymentConfigValue(m, SettingBalancePayDisabled, req.BalanceDisabled != nil, formatBoolOrEmpty(req.BalanceDisabled))
-	setPaymentConfigValue(m, SettingBalanceRechargeMult, req.BalanceRechargeMultiplier != nil, formatPositiveFloat(req.BalanceRechargeMultiplier))
-	setPaymentConfigValue(m, SettingSubscriptionUSDToCNYRate, req.SubscriptionUSDToCNYRate != nil, formatPositiveFloatExact(req.SubscriptionUSDToCNYRate))
-	setPaymentConfigValue(m, SettingRechargeFeeRate, req.RechargeFeeRate != nil, formatNonNegativeFloat(req.RechargeFeeRate))
-	setPaymentConfigValue(m, SettingLoadBalanceStrategy, req.LoadBalanceStrategy != nil, derefStr(req.LoadBalanceStrategy))
-	setPaymentConfigValue(m, SettingProductNamePrefix, req.ProductNamePrefix != nil, derefStr(req.ProductNamePrefix))
-	setPaymentConfigValue(m, SettingProductNameSuffix, req.ProductNameSuffix != nil, derefStr(req.ProductNameSuffix))
-	setPaymentConfigValue(m, SettingHelpImageURL, req.HelpImageURL != nil, derefStr(req.HelpImageURL))
-	setPaymentConfigValue(m, SettingHelpText, req.HelpText != nil, derefStr(req.HelpText))
-	setPaymentConfigValue(m, SettingCancelRateLimitOn, req.CancelRateLimitEnabled != nil, formatBoolOrEmpty(req.CancelRateLimitEnabled))
-	setPaymentConfigValue(m, SettingCancelRateLimitMax, req.CancelRateLimitMax != nil, formatPositiveInt(req.CancelRateLimitMax))
-	setPaymentConfigValue(m, SettingCancelWindowSize, req.CancelRateLimitWindow != nil, formatPositiveInt(req.CancelRateLimitWindow))
-	setPaymentConfigValue(m, SettingCancelWindowUnit, req.CancelRateLimitUnit != nil, derefStr(req.CancelRateLimitUnit))
-	setPaymentConfigValue(m, SettingCancelWindowMode, req.CancelRateLimitMode != nil, derefStr(req.CancelRateLimitMode))
-	setPaymentConfigValue(m, SettingAlipayForceQRCode, req.AlipayForceQRCode != nil, formatBoolOrEmpty(req.AlipayForceQRCode))
-	setPaymentConfigValue(m, SettingAlipayMobilePrecreateDeepLink, req.AlipayMobilePrecreateDeepLink != nil, formatBoolOrEmpty(req.AlipayMobilePrecreateDeepLink))
-	setPaymentConfigValue(m, SettingPaymentVisibleMethodAlipaySource, req.VisibleMethodAlipaySource != nil, derefStr(req.VisibleMethodAlipaySource))
-	setPaymentConfigValue(m, SettingPaymentVisibleMethodWxpaySource, req.VisibleMethodWxpaySource != nil, derefStr(req.VisibleMethodWxpaySource))
-	setPaymentConfigValue(m, SettingPaymentVisibleMethodAlipayEnabled, req.VisibleMethodAlipayEnabled != nil, formatBoolOrEmpty(req.VisibleMethodAlipayEnabled))
-	setPaymentConfigValue(m, SettingPaymentVisibleMethodWxpayEnabled, req.VisibleMethodWxpayEnabled != nil, formatBoolOrEmpty(req.VisibleMethodWxpayEnabled))
+	if req.Enabled != nil {
+		m[SettingPaymentEnabled] = formatBoolOrEmpty(req.Enabled)
+	}
+	if req.MinAmount != nil {
+		m[SettingMinRechargeAmount] = formatPositiveFloat(req.MinAmount)
+	}
+	if req.MaxAmount != nil {
+		m[SettingMaxRechargeAmount] = formatPositiveFloat(req.MaxAmount)
+	}
+	if req.DailyLimit != nil {
+		m[SettingDailyRechargeLimit] = formatPositiveFloat(req.DailyLimit)
+	}
+	if req.OrderTimeoutMin != nil {
+		m[SettingOrderTimeoutMinutes] = formatPositiveInt(req.OrderTimeoutMin)
+	}
+	if req.MaxPendingOrders != nil {
+		m[SettingMaxPendingOrders] = formatPositiveInt(req.MaxPendingOrders)
+	}
+	if req.EnabledTypes != nil {
+		m[SettingEnabledPaymentTypes] = strings.Join(req.EnabledTypes, ",")
+	}
+	if req.BalanceDisabled != nil {
+		m[SettingBalancePayDisabled] = formatBoolOrEmpty(req.BalanceDisabled)
+	}
+	if req.BalanceRechargeMultiplier != nil {
+		m[SettingBalanceRechargeMult] = formatPositiveFloat(req.BalanceRechargeMultiplier)
+	}
+	if req.SubscriptionUSDToCNYRate != nil {
+		m[SettingSubscriptionUSDToCNYRate] = formatPositiveFloatExact(req.SubscriptionUSDToCNYRate)
+	}
+	if req.RechargeFeeRate != nil {
+		m[SettingRechargeFeeRate] = formatNonNegativeFloat(req.RechargeFeeRate)
+	}
+	if req.LoadBalanceStrategy != nil {
+		m[SettingLoadBalanceStrategy] = derefStr(req.LoadBalanceStrategy)
+	}
+	if req.ProductNamePrefix != nil {
+		m[SettingProductNamePrefix] = derefStr(req.ProductNamePrefix)
+	}
+	if req.ProductNameSuffix != nil {
+		m[SettingProductNameSuffix] = derefStr(req.ProductNameSuffix)
+	}
+	if req.HelpImageURL != nil {
+		m[SettingHelpImageURL] = derefStr(req.HelpImageURL)
+	}
+	if req.HelpText != nil {
+		m[SettingHelpText] = derefStr(req.HelpText)
+	}
+	if req.CancelRateLimitEnabled != nil {
+		m[SettingCancelRateLimitOn] = formatBoolOrEmpty(req.CancelRateLimitEnabled)
+	}
+	if req.CancelRateLimitMax != nil {
+		m[SettingCancelRateLimitMax] = formatPositiveInt(req.CancelRateLimitMax)
+	}
+	if req.CancelRateLimitWindow != nil {
+		m[SettingCancelWindowSize] = formatPositiveInt(req.CancelRateLimitWindow)
+	}
+	if req.CancelRateLimitUnit != nil {
+		m[SettingCancelWindowUnit] = derefStr(req.CancelRateLimitUnit)
+	}
+	if req.CancelRateLimitMode != nil {
+		m[SettingCancelWindowMode] = derefStr(req.CancelRateLimitMode)
+	}
+	if req.AlipayForceQRCode != nil {
+		m[SettingAlipayForceQRCode] = formatBoolOrEmpty(req.AlipayForceQRCode)
+	}
+	if req.AlipayMobilePrecreateDeepLink != nil {
+		m[SettingAlipayMobilePrecreateDeepLink] = formatBoolOrEmpty(req.AlipayMobilePrecreateDeepLink)
+	}
+	if req.VisibleMethodAlipaySource != nil {
+		m[SettingPaymentVisibleMethodAlipaySource] = derefStr(req.VisibleMethodAlipaySource)
+	}
+	if req.VisibleMethodWxpaySource != nil {
+		m[SettingPaymentVisibleMethodWxpaySource] = derefStr(req.VisibleMethodWxpaySource)
+	}
+	if req.VisibleMethodAlipayEnabled != nil {
+		m[SettingPaymentVisibleMethodAlipayEnabled] = formatBoolOrEmpty(req.VisibleMethodAlipayEnabled)
+	}
+	if req.VisibleMethodWxpayEnabled != nil {
+		m[SettingPaymentVisibleMethodWxpayEnabled] = formatBoolOrEmpty(req.VisibleMethodWxpayEnabled)
+	}
 	if req.ChannelSettings != nil {
 		encoded, _, err := paymentchannels.SerializeChannelSettings(*req.ChannelSettings)
 		if err != nil {
@@ -386,16 +441,7 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 		}
 		m[SettingPaymentChannelSettings] = encoded
 	}
-	if req.EnabledTypes != nil {
-		m[SettingEnabledPaymentTypes] = strings.Join(req.EnabledTypes, ",")
-	}
 	return s.settingRepo.SetMultiple(ctx, m)
-}
-
-func setPaymentConfigValue(values map[string]string, key string, provided bool, value string) {
-	if provided {
-		values[key] = value
-	}
 }
 
 func formatBoolOrEmpty(v *bool) string {
