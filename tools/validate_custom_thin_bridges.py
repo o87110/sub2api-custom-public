@@ -373,6 +373,28 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
 }
 
+# Official upgrades can absorb a previously approved bridge helper into the
+# Vendor implementation. Keep that structural change bound to the exact
+# reviewed Vendor Commit instead of weakening the default call surface.
+BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
+    tuple[str, str], tuple[tuple[str, str], ...]
+] = {
+    (
+        "c043c24774228ba891ddf90d783aa6dc7d0855b5",
+        "backend/internal/service/payment_config_service.go",
+    ): _approved_call_deltas(
+        ("GetPaymentConfig", {
+            "fmt.Errorf": 1,
+            "paymentchannels.ParseChannelSettings": 1,
+        }),
+        ("UpdatePaymentConfig", {
+            "err.Error": 1,
+            "infraerrors.BadRequest": 1,
+            "paymentchannels.SerializeChannelSettings": 1,
+        }),
+    ),
+}
+
 # Control-flow additions in delegate/view bridges use an exact structural
 # allowlist. Keeping the owning function and complete trimmed statement makes
 # renames, additional branches, and moved orchestration fail even when the TSV
@@ -996,6 +1018,7 @@ def delegate_view_call_surface(content: str) -> Counter[tuple[str, str]]:
 
 def validate_delegate_view_structure(
     row: ContractRow,
+    baseline_commit: str,
     baseline_content: str,
     content: str,
     changed_lines: set[int],
@@ -1017,7 +1040,10 @@ def validate_delegate_view_structure(
             f"new function in {row.path}: {unexpected_functions}"
         )
 
-    approved_calls = Counter(APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()))
+    approved_calls = Counter(BASELINE_DELEGATE_VIEW_CALL_DELTAS.get(
+        (baseline_commit, row.path),
+        APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()),
+    ))
     added_calls = delegate_view_call_surface(content) - delegate_view_call_surface(baseline_content)
     unexpected_calls = added_calls - approved_calls
     if unexpected_calls:
@@ -1106,6 +1132,7 @@ def validate(args: argparse.Namespace) -> None:
             baseline_content = candidate_file(repo, args.baseline, row.path)
             validate_delegate_view_structure(
                 row,
+                baseline_commit,
                 baseline_content,
                 content,
                 added_line_numbers(repo, args.baseline, args.candidate_tree, row.path),

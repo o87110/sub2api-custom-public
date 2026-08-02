@@ -176,6 +176,18 @@ class ThinBridgeContractTests(unittest.TestCase):
         with self.assertRaisesRegex(validator.ContractError, "invalid baseline budget override"):
             validator.validate(fixture.args())
 
+    def test_accepts_an_exact_baseline_call_surface_override(self) -> None:
+        fixture = self.fixture(
+            candidate_content="export const value = helper()\n",
+            kind="delegate",
+            shadow_required=True,
+        )
+        override = {
+            (fixture.baseline, fixture.bridge_path): (("<top-level>", "helper"),),
+        }
+        with patch.object(validator, "BASELINE_DELEGATE_VIEW_CALL_DELTAS", override):
+            validator.validate(fixture.args())
+
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
         fixture = self.fixture(candidate_content="if (enabled) { value = 2 }\n", kind="dto")
         with self.assertRaisesRegex(validator.ContractError, "introduces control flow"):
