@@ -19,6 +19,7 @@ CONTRACT_HEADER = [
     "shadow_required",
     "approved_additions",
     "approved_deletions",
+    "baseline_budget_overrides",
 ]
 ALLOWED_KINDS = {"delegate", "view", "dto", "wire", "persistence", "compat-test"}
 CUSTOM_IMPORT_RE = re.compile(r"(?:internal/custom/|@/custom/)")
@@ -632,6 +633,7 @@ class ContractRow:
     shadow_required: bool
     additions: int
     deletions: int
+    budget_overrides: tuple[tuple[str, int, int], ...]
 
 
 @dataclass(frozen=True)
@@ -688,12 +690,32 @@ def load_contract(path: Path) -> list[ContractRow]:
             raise ContractError(f"invalid line budget for {row['path']}") from error
         if additions < 0 or deletions < 0:
             raise ContractError(f"negative line budget for {row['path']}")
+        budget_overrides: list[tuple[str, int, int]] = []
+        seen_override_commits: set[str] = set()
+        override_value = row["baseline_budget_overrides"]
+        if override_value != "-":
+            for item in override_value.split(","):
+                fields = item.split(":")
+                if len(fields) != 3 or not re.fullmatch(r"[0-9a-f]{40}", fields[0]):
+                    raise ContractError(f"invalid baseline budget override for {row['path']}")
+                try:
+                    override_additions = int(fields[1])
+                    override_deletions = int(fields[2])
+                except ValueError as error:
+                    raise ContractError(f"invalid baseline budget override for {row['path']}") from error
+                if override_additions < 0 or override_deletions < 0:
+                    raise ContractError(f"negative baseline budget override for {row['path']}")
+                if fields[0] in seen_override_commits:
+                    raise ContractError(f"duplicate baseline budget override for {row['path']}: {fields[0]}")
+                seen_override_commits.add(fields[0])
+                budget_overrides.append((fields[0], override_additions, override_deletions))
         result.append(ContractRow(
             path=row["path"],
             kind=row["kind"],
             shadow_required=row["shadow_required"] == "true",
             additions=additions,
             deletions=deletions,
+            budget_overrides=tuple(budget_overrides),
         ))
     paths = [row.path for row in result]
     if paths != sorted(paths):
@@ -1037,6 +1059,9 @@ def validate_delegate_view_structure(
 
 def validate(args: argparse.Namespace) -> None:
     repo = args.repo_root.resolve()
+    baseline_commit = run_git(repo, "rev-parse", "--verify", f"{args.baseline}^{{commit}}")
+    assert isinstance(baseline_commit, str)
+    baseline_commit = baseline_commit.strip()
     contract_rows = load_contract(args.contract)
     contract_paths = {row.path for row in contract_rows}
     ledger_paths = load_thin_bridge_paths(args.ledger)
@@ -1061,10 +1086,15 @@ def validate(args: argparse.Namespace) -> None:
                 raise ContractError(f"shadow target does not exist for {row.path}: {target}")
 
         additions, deletions = line_counts(repo, args.baseline, args.candidate_tree, row.path)
-        if (additions, deletions) != (row.additions, row.deletions):
+        approved_budget = (row.additions, row.deletions)
+        for override_commit, override_additions, override_deletions in row.budget_overrides:
+            if override_commit == baseline_commit:
+                approved_budget = (override_additions, override_deletions)
+                break
+        if (additions, deletions) != approved_budget:
             raise ContractError(
                 f"thin bridge line budget mismatch for {row.path}: "
-                f"actual +{additions}/-{deletions}, approved +{row.additions}/-{row.deletions}"
+                f"actual +{additions}/-{deletions}, approved +{approved_budget[0]}/-{approved_budget[1]}"
             )
 
         additions_only = added_lines(repo, args.baseline, args.candidate_tree, row.path)
