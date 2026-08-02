@@ -100,6 +100,7 @@ class ThinBridgeFixture:
         include_bridge: bool = True,
         additions: int | None = None,
         deletions: int | None = None,
+        baseline_budget_overrides: str = "-",
     ) -> None:
         rows = []
         if include_bridge:
@@ -109,6 +110,7 @@ class ThinBridgeFixture:
                 str(self.shadow_required).lower(),
                 self.additions if additions is None else additions,
                 self.deletions if deletions is None else deletions,
+                baseline_budget_overrides,
             ])
         self._write_tsv(
             ".github/custom-thin-bridge-contract.tsv",
@@ -156,6 +158,34 @@ class ThinBridgeContractTests(unittest.TestCase):
         fixture = self.fixture()
         fixture.write_contract(additions=fixture.additions + 1)
         with self.assertRaisesRegex(validator.ContractError, "line budget mismatch"):
+            validator.validate(fixture.args())
+
+    def test_accepts_an_exact_budget_override_for_the_baseline_commit(self) -> None:
+        fixture = self.fixture()
+        fixture.write_contract(
+            additions=fixture.additions + 1,
+            baseline_budget_overrides=(
+                f"{fixture.baseline}:{fixture.additions}:{fixture.deletions}"
+            ),
+        )
+        validator.validate(fixture.args())
+
+    def test_rejects_a_malformed_baseline_budget_override(self) -> None:
+        fixture = self.fixture()
+        fixture.write_contract(baseline_budget_overrides="not-a-commit:1:2")
+        with self.assertRaisesRegex(validator.ContractError, "invalid baseline budget override"):
+            validator.validate(fixture.args())
+
+    def test_accepts_an_exact_baseline_call_surface_override(self) -> None:
+        fixture = self.fixture(
+            candidate_content="export const value = helper()\n",
+            kind="delegate",
+            shadow_required=True,
+        )
+        override = {
+            (fixture.baseline, fixture.bridge_path): (("<top-level>", "helper"),),
+        }
+        with patch.object(validator, "BASELINE_DELEGATE_VIEW_CALL_DELTAS", override):
             validator.validate(fixture.args())
 
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:

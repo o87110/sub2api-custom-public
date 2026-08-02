@@ -73,7 +73,7 @@ func TestCustomCyberPolicyOutOfScopeBypassesLocalBlockLookup(t *testing.T) {
 			service.SettingKeyRiskControlEnabled:      "true",
 			service.SettingKeyContentModerationConfig: `{"all_groups":false,"group_ids":[7]}`,
 		}},
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil,
 	)
 	outsideGroupID := int64(9)
 	handler := &OpenAIGatewayHandler{

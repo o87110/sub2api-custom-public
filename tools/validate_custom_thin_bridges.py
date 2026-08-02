@@ -19,6 +19,7 @@ CONTRACT_HEADER = [
     "shadow_required",
     "approved_additions",
     "approved_deletions",
+    "baseline_budget_overrides",
 ]
 ALLOWED_KINDS = {"delegate", "view", "dto", "wire", "persistence", "compat-test"}
 CUSTOM_IMPORT_RE = re.compile(r"(?:internal/custom/|@/custom/)")
@@ -372,6 +373,28 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
 }
 
+# Official upgrades can absorb a previously approved bridge helper into the
+# Vendor implementation. Keep that structural change bound to the exact
+# reviewed Vendor Commit instead of weakening the default call surface.
+BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
+    tuple[str, str], tuple[tuple[str, str], ...]
+] = {
+    (
+        "c043c24774228ba891ddf90d783aa6dc7d0855b5",
+        "backend/internal/service/payment_config_service.go",
+    ): _approved_call_deltas(
+        ("GetPaymentConfig", {
+            "fmt.Errorf": 1,
+            "paymentchannels.ParseChannelSettings": 1,
+        }),
+        ("UpdatePaymentConfig", {
+            "err.Error": 1,
+            "infraerrors.BadRequest": 1,
+            "paymentchannels.SerializeChannelSettings": 1,
+        }),
+    ),
+}
+
 # Control-flow additions in delegate/view bridges use an exact structural
 # allowlist. Keeping the owning function and complete trimmed statement makes
 # renames, additional branches, and moved orchestration fail even when the TSV
@@ -632,6 +655,7 @@ class ContractRow:
     shadow_required: bool
     additions: int
     deletions: int
+    budget_overrides: tuple[tuple[str, int, int], ...]
 
 
 @dataclass(frozen=True)
@@ -688,12 +712,32 @@ def load_contract(path: Path) -> list[ContractRow]:
             raise ContractError(f"invalid line budget for {row['path']}") from error
         if additions < 0 or deletions < 0:
             raise ContractError(f"negative line budget for {row['path']}")
+        budget_overrides: list[tuple[str, int, int]] = []
+        seen_override_commits: set[str] = set()
+        override_value = row["baseline_budget_overrides"]
+        if override_value != "-":
+            for item in override_value.split(","):
+                fields = item.split(":")
+                if len(fields) != 3 or not re.fullmatch(r"[0-9a-f]{40}", fields[0]):
+                    raise ContractError(f"invalid baseline budget override for {row['path']}")
+                try:
+                    override_additions = int(fields[1])
+                    override_deletions = int(fields[2])
+                except ValueError as error:
+                    raise ContractError(f"invalid baseline budget override for {row['path']}") from error
+                if override_additions < 0 or override_deletions < 0:
+                    raise ContractError(f"negative baseline budget override for {row['path']}")
+                if fields[0] in seen_override_commits:
+                    raise ContractError(f"duplicate baseline budget override for {row['path']}: {fields[0]}")
+                seen_override_commits.add(fields[0])
+                budget_overrides.append((fields[0], override_additions, override_deletions))
         result.append(ContractRow(
             path=row["path"],
             kind=row["kind"],
             shadow_required=row["shadow_required"] == "true",
             additions=additions,
             deletions=deletions,
+            budget_overrides=tuple(budget_overrides),
         ))
     paths = [row.path for row in result]
     if paths != sorted(paths):
@@ -974,6 +1018,7 @@ def delegate_view_call_surface(content: str) -> Counter[tuple[str, str]]:
 
 def validate_delegate_view_structure(
     row: ContractRow,
+    baseline_commit: str,
     baseline_content: str,
     content: str,
     changed_lines: set[int],
@@ -995,7 +1040,10 @@ def validate_delegate_view_structure(
             f"new function in {row.path}: {unexpected_functions}"
         )
 
-    approved_calls = Counter(APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()))
+    approved_calls = Counter(BASELINE_DELEGATE_VIEW_CALL_DELTAS.get(
+        (baseline_commit, row.path),
+        APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()),
+    ))
     added_calls = delegate_view_call_surface(content) - delegate_view_call_surface(baseline_content)
     unexpected_calls = added_calls - approved_calls
     if unexpected_calls:
@@ -1037,6 +1085,9 @@ def validate_delegate_view_structure(
 
 def validate(args: argparse.Namespace) -> None:
     repo = args.repo_root.resolve()
+    baseline_commit = run_git(repo, "rev-parse", "--verify", f"{args.baseline}^{{commit}}")
+    assert isinstance(baseline_commit, str)
+    baseline_commit = baseline_commit.strip()
     contract_rows = load_contract(args.contract)
     contract_paths = {row.path for row in contract_rows}
     ledger_paths = load_thin_bridge_paths(args.ledger)
@@ -1061,10 +1112,15 @@ def validate(args: argparse.Namespace) -> None:
                 raise ContractError(f"shadow target does not exist for {row.path}: {target}")
 
         additions, deletions = line_counts(repo, args.baseline, args.candidate_tree, row.path)
-        if (additions, deletions) != (row.additions, row.deletions):
+        approved_budget = (row.additions, row.deletions)
+        for override_commit, override_additions, override_deletions in row.budget_overrides:
+            if override_commit == baseline_commit:
+                approved_budget = (override_additions, override_deletions)
+                break
+        if (additions, deletions) != approved_budget:
             raise ContractError(
                 f"thin bridge line budget mismatch for {row.path}: "
-                f"actual +{additions}/-{deletions}, approved +{row.additions}/-{row.deletions}"
+                f"actual +{additions}/-{deletions}, approved +{approved_budget[0]}/-{approved_budget[1]}"
             )
 
         additions_only = added_lines(repo, args.baseline, args.candidate_tree, row.path)
@@ -1076,6 +1132,7 @@ def validate(args: argparse.Namespace) -> None:
             baseline_content = candidate_file(repo, args.baseline, row.path)
             validate_delegate_view_structure(
                 row,
+                baseline_commit,
                 baseline_content,
                 content,
                 added_line_numbers(repo, args.baseline, args.candidate_tree, row.path),
