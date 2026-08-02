@@ -11,7 +11,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.1.166.md	A	keep	A	custom-docs-ops	@absent	f7fb9a4c36102e7fa22d01a74d88fd4aab257820	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.166 升级、数据库语义评审、冲突解决与验证证据
 .github/upgrades/0.1.168.md	A	keep	A	custom-docs-ops	@absent	2fca0759a35c9ebd24c64c60787e8987f911f13e	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.168 升级、Passkey 数据库评审、冲突解决与验证证据
 .github/upgrades/0.1.169.md	A	keep	A	custom-docs-ops	@absent	f8f6cf71a4dbb9612107e1e0ff9e77c4d2e9cba1	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.169 升级、数据库语义评审、冲突解决与验证证据
-.github/upgrades/0.1.170.md	A	keep	A	custom-docs-ops	@absent	0b3f5eb6501ec1e1c1ddd10e7b97c1ddc10709a8	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.170 升级、数据库语义评审、冲突解决与验证证据
+.github/upgrades/0.1.170.md	A	keep	A	custom-docs-ops	@absent	4faa9c0a2b791f70874bba851c58837cfb9f18ae	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.170 升级、数据库语义评审、冲突解决与验证证据
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	7e3fd61da675682b901fae41b1179865dab09362	-	-	candidate-tree+targeted-CI	登记内容审计官方 Service、API 类型与 Custom 范围实现及测试的影子关系
 .github/workflows/backend-ci.yml	M	keep	M	fixed-path	21a4fea79caf01d1f2bfce16976fa30883b495c2	f9dfd36af52b8b973d866864929bee07d2289e61	-	-	yaml-parse+action-pin+actionlint+container-safety	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	97b245d2b141a9f3c465eb901d548cb18b0c17d5	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
