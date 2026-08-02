@@ -159,6 +159,7 @@ func TestNotificationEmailAdditionalEventsAreListedAndPreviewable(t *testing.T) 
 		require.NotEmpty(t, preview.Subject)
 		require.NotEmpty(t, preview.HTML)
 	}
+	require.Contains(t, events[NotificationEmailEventCyberPolicyNotice].Placeholders, "ban_threshold")
 }
 
 func TestCyberPolicyNoticeTemplateWrapsLongUpstreamMessages(t *testing.T) {
@@ -172,12 +173,14 @@ func TestCyberPolicyNoticeTemplateWrapsLongUpstreamMessages(t *testing.T) {
 			Locale: locale,
 			Variables: map[string]string{
 				"upstream_message": longMessage,
+				"ban_threshold":    "25",
 			},
 		})
 		require.NoError(t, err)
 		require.Contains(t, preview.HTML, "table-layout:fixed")
 		require.Contains(t, preview.HTML, "overflow-wrap:anywhere")
 		require.Contains(t, preview.HTML, "word-break:break-all")
+		require.Contains(t, preview.HTML, "25")
 		require.NotContains(t, preview.HTML, "{{upstream_message}}")
 	}
 }

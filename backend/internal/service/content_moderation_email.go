@@ -118,9 +118,13 @@ func defaultContentModerationString(value string, fallback string) string {
 
 // buildCyberPolicyNoticeEmailBody 是 cyber_policy 通知邮件的内置兜底正文，
 // 当 notification email 模板渲染失败时使用（与 sendViolationEmail 的兜底同理）。
-func buildCyberPolicyNoticeEmailBody(siteName string, log *ContentModerationLog) string {
+func buildCyberPolicyNoticeEmailBody(siteName string, log *ContentModerationLog, cfg *ContentModerationConfig) string {
 	if log == nil {
 		return ""
+	}
+	threshold := defaultContentModerationBanThreshold
+	if cfg != nil && cfg.BanThreshold > 0 {
+		threshold = cfg.BanThreshold
 	}
 	userName := strings.TrimSpace(log.UserEmail)
 	if userName == "" && log.UserID != nil {
@@ -138,6 +142,7 @@ func buildCyberPolicyNoticeEmailBody(siteName string, log *ContentModerationLog)
         <table style="width:100%%;border-collapse:collapse;font-size:16px;">
           <tr><td style="padding:12px 0;color:#888;border-bottom:1px solid #fee2e2;">触发时间</td><td style="padding:12px 0;border-bottom:1px solid #fee2e2;">%s</td></tr>
           <tr><td style="padding:12px 0;color:#888;border-bottom:1px solid #fee2e2;">模型</td><td style="padding:12px 0;border-bottom:1px solid #fee2e2;">%s</td></tr>
+          <tr><td style="padding:12px 0;color:#888;border-bottom:1px solid #fee2e2;">封禁触发阈值</td><td style="padding:12px 0;border-bottom:1px solid #fee2e2;">%d 次</td></tr>
           <tr><td style="padding:12px 0;color:#888;">上游说明</td><td style="padding:12px 0;">%s</td></tr>
         </table>
       </div>
@@ -149,6 +154,7 @@ func buildCyberPolicyNoticeEmailBody(siteName string, log *ContentModerationLog)
 		html.EscapeString(userName),
 		html.EscapeString(log.CreatedAt.Format("2006-01-02 15:04:05")),
 		html.EscapeString(defaultContentModerationString(log.Model, "-")),
+		threshold,
 		html.EscapeString(defaultContentModerationString(log.Error, "-")),
 		html.EscapeString(siteName),
 	)

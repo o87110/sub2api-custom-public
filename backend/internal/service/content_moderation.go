@@ -158,6 +158,7 @@ type ContentModerationConfig struct {
 	EmailOnHit           bool                         `json:"email_on_hit"`
 	AutoBanEnabled       bool                         `json:"auto_ban_enabled"`
 	BanThreshold         int                          `json:"ban_threshold"`
+	UserBanThresholds    []UserBanThresholdOverride   `json:"user_ban_thresholds"`
 	ViolationWindowHours int                          `json:"violation_window_hours"`
 	RetryCount           int                          `json:"retry_count"`
 	HitRetentionDays     int                          `json:"hit_retention_days"`
@@ -196,6 +197,7 @@ type ContentModerationConfigView struct {
 	EmailOnHit                     bool                            `json:"email_on_hit"`
 	AutoBanEnabled                 bool                            `json:"auto_ban_enabled"`
 	BanThreshold                   int                             `json:"ban_threshold"`
+	UserBanThresholds              []UserBanThresholdOverride      `json:"user_ban_thresholds"`
 	ViolationWindowHours           int                             `json:"violation_window_hours"`
 	RetryCount                     int                             `json:"retry_count"`
 	HitRetentionDays               int                             `json:"hit_retention_days"`
@@ -285,6 +287,7 @@ type UpdateContentModerationConfigInput struct {
 	EmailOnHit                     *bool                         `json:"email_on_hit"`
 	AutoBanEnabled                 *bool                         `json:"auto_ban_enabled"`
 	BanThreshold                   *int                          `json:"ban_threshold"`
+	UserBanThresholds              *[]UserBanThresholdOverride   `json:"user_ban_thresholds"`
 	ViolationWindowHours           *int                          `json:"violation_window_hours"`
 	RetryCount                     *int                          `json:"retry_count"`
 	HitRetentionDays               *int                          `json:"hit_retention_days"`
@@ -646,6 +649,9 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 	}
 	if input.BanThreshold != nil {
 		cfg.BanThreshold = *input.BanThreshold
+	}
+	if input.UserBanThresholds != nil {
+		cfg.UserBanThresholds = cloneContentModerationUserBanThresholdOverrides(*input.UserBanThresholds)
 	}
 	if input.ViolationWindowHours != nil {
 		cfg.ViolationWindowHours = *input.ViolationWindowHours
@@ -1666,6 +1672,9 @@ func (s *ContentModerationService) validateConfig(ctx context.Context, cfg *Cont
 	if cfg.ModelFilter.Type != ContentModerationModelFilterAll && len(cfg.ModelFilter.Models) == 0 {
 		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_MODEL_FILTER", "指定或排除模型时至少需要配置 1 个模型")
 	}
+	if err := validateContentModerationUserBanThresholdOverrides(cfg.UserBanThresholds); err != nil {
+		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_CONFIG", "用户专属封禁阈值无效: "+err.Error())
+	}
 	requireAPIAuditScope := cfg.Mode == ContentModerationModeObserve ||
 		cfg.KeywordBlockingMode != ContentModerationKeywordModeKeywordOnly
 	if err := validateContentModerationAPIAuditScope(cfg, requireAPIAuditScope); err != nil {
@@ -1836,8 +1845,9 @@ func (s *ContentModerationService) persistContentModerationLog(ctx context.Conte
 	}
 	autoBanJustApplied := false
 	if applySideEffects {
-		autoBanJustApplied = s.applyFlaggedAccountSideEffects(ctx, cfg, log)
-		s.sendFlaggedNotificationSideEffects(ctx, cfg, log, autoBanJustApplied)
+		effectiveCfg := effectiveContentModerationConfigForUser(cfg, log.UserID)
+		autoBanJustApplied = s.applyFlaggedAccountSideEffects(ctx, effectiveCfg, log)
+		s.sendFlaggedNotificationSideEffects(ctx, effectiveCfg, log, autoBanJustApplied)
 	}
 	if s.repo != nil {
 		if err := s.repo.CreateLog(ctx, log); err != nil {
@@ -2035,6 +2045,7 @@ func defaultContentModerationConfig() *ContentModerationConfig {
 		EmailOnHit:           true,
 		AutoBanEnabled:       true,
 		BanThreshold:         defaultContentModerationBanThreshold,
+		UserBanThresholds:    []UserBanThresholdOverride{},
 		ViolationWindowHours: defaultContentModerationViolationWindowHours,
 		RetryCount:           defaultContentModerationRetryCount,
 		HitRetentionDays:     defaultContentModerationHitRetentionDays,
@@ -2059,6 +2070,7 @@ func cloneContentModerationConfig(cfg *ContentModerationConfig) *ContentModerati
 	clone.GroupIDs = append([]int64(nil), cfg.GroupIDs...)
 	clone.APIAuditScope = normalizeContentModerationAPIAuditScope(cfg.APIAuditScope)
 	clone.BlockedKeywords = append([]string(nil), cfg.BlockedKeywords...)
+	clone.UserBanThresholds = cloneContentModerationUserBanThresholdOverrides(cfg.UserBanThresholds)
 	clone.Thresholds = cloneFloatMap(cfg.Thresholds)
 	clone.ModelFilter = ContentModerationModelFilter{
 		Type:   cfg.ModelFilter.Type,
@@ -2119,6 +2131,7 @@ func (cfg *ContentModerationConfig) normalize() {
 	if cfg.BanThreshold <= 0 {
 		cfg.BanThreshold = defaultContentModerationBanThreshold
 	}
+	cfg.UserBanThresholds = cloneContentModerationUserBanThresholdOverrides(cfg.UserBanThresholds)
 	if cfg.ViolationWindowHours <= 0 {
 		cfg.ViolationWindowHours = defaultContentModerationViolationWindowHours
 	}
@@ -2368,6 +2381,7 @@ func (s *ContentModerationService) configView(cfg *ContentModerationConfig) *Con
 		EmailOnHit:                     cfg.EmailOnHit,
 		AutoBanEnabled:                 cfg.AutoBanEnabled,
 		BanThreshold:                   cfg.BanThreshold,
+		UserBanThresholds:              cloneContentModerationUserBanThresholdOverrides(cfg.UserBanThresholds),
 		ViolationWindowHours:           cfg.ViolationWindowHours,
 		RetryCount:                     cfg.RetryCount,
 		HitRetentionDays:               cfg.HitRetentionDays,
@@ -2990,7 +3004,7 @@ func (s *ContentModerationService) RecordCyberPolicyEvent(ctx context.Context, i
 	}
 	emailSent := false
 	if s.emailService != nil && strings.TrimSpace(log.UserEmail) != "" {
-		if err := s.sendCyberPolicyEmail(ctx, log); err != nil {
+		if err := s.sendCyberPolicyEmail(ctx, cfg, log); err != nil {
 			slog.Warn("content_moderation.cyber_email_failed", "user_id", in.UserID, "error", err)
 		} else {
 			emailSent = true
@@ -3010,7 +3024,7 @@ func (s *ContentModerationService) RecordCyberPolicyEvent(ctx context.Context, i
 	}
 }
 
-func (s *ContentModerationService) sendCyberPolicyEmail(ctx context.Context, log *ContentModerationLog) error {
+func (s *ContentModerationService) sendCyberPolicyEmail(ctx context.Context, cfg *ContentModerationConfig, log *ContentModerationLog) error {
 	siteName := s.siteName(ctx)
 	if s.emailService.notificationEmailService != nil {
 		variables := map[string]string{
@@ -3018,6 +3032,7 @@ func (s *ContentModerationService) sendCyberPolicyEmail(ctx context.Context, log
 			"model":            defaultContentModerationString(log.Model, "-"),
 			"group_name":       defaultContentModerationString(log.GroupName, "-"),
 			"upstream_message": defaultContentModerationString(log.Error, "-"),
+			"ban_threshold":    contentModerationEmailVariables(log, cfg)["ban_threshold"],
 		}
 		err := s.emailService.notificationEmailService.Send(ctx, NotificationEmailSendInput{
 			Event:          NotificationEmailEventCyberPolicyNotice,
@@ -3037,5 +3052,5 @@ func (s *ContentModerationService) sendCyberPolicyEmail(ctx context.Context, log
 		slog.Warn("template cyber policy email failed; falling back", "err", err.Error())
 	}
 	subject := fmt.Sprintf("[%s] 网络安全策略拦截 / Cyber Policy Notice", sanitizeEmailHeader(siteName))
-	return s.emailService.SendEmail(ctx, log.UserEmail, subject, buildCyberPolicyNoticeEmailBody(siteName, log))
+	return s.emailService.SendEmail(ctx, log.UserEmail, subject, buildCyberPolicyNoticeEmailBody(siteName, log, cfg))
 }

@@ -36,6 +36,178 @@ func (s *customViolationCounterStub) CountFlaggedByUserSince(
 	return s.count, s.err
 }
 
+func TestCustomCyberPolicyPenaltyUsesUserBanThresholdOverride(t *testing.T) {
+	userID := int64(1001)
+	counter := &customViolationCounterStub{count: 1}
+	repo := &contentModerationTestRepo{}
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
+	service := NewContentModerationService(nil, repo, nil, nil, userRepo, nil, nil)
+	AttachCustomViolationCounter(service, counter)
+	cfg := defaultContentModerationConfig()
+	cfg.BanThreshold = 1
+	cfg.UserBanThresholds = []UserBanThresholdOverride{{
+		UserID:       userID,
+		BanThreshold: 3,
+	}}
+	adapter := &contentModerationCyberPolicyAdapter{service: service, config: cfg}
+
+	result := adapter.ApplyPenalty(context.Background(), &custommoderation.Record{
+		UserID:  &userID,
+		Flagged: true,
+	})
+	require.Equal(t, 2, result.ViolationCount)
+	require.False(t, result.AutoBanned)
+	require.Equal(t, StatusActive, userRepo.user.Status)
+	require.Equal(t, 3, adapter.config.BanThreshold)
+
+	counter.count = 2
+	result = adapter.ApplyPenalty(context.Background(), &custommoderation.Record{
+		UserID:  &userID,
+		Flagged: true,
+	})
+	require.Equal(t, 3, result.ViolationCount)
+	require.True(t, result.AutoBanned)
+	require.True(t, result.JustBanned)
+	require.Equal(t, StatusDisabled, userRepo.user.Status)
+}
+
+func TestCustomCyberPolicyExcludedNoticeUsesEffectiveThresholdWithoutCounting(t *testing.T) {
+	userID := int64(1001)
+	counter := &customViolationCounterStub{count: 7}
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
+	service := NewContentModerationService(nil, &contentModerationTestRepo{}, nil, nil, userRepo, nil, nil)
+	AttachCustomViolationCounter(service, counter)
+	cfg := defaultContentModerationConfig()
+	cfg.BanThreshold = 10
+	cfg.CyberPolicyExcludeFromBanCount = true
+	cfg.UserBanThresholds = []UserBanThresholdOverride{{UserID: userID, BanThreshold: 25}}
+	adapter := &contentModerationCyberPolicyAdapter{service: service, config: cfg}
+	record := &custommoderation.Record{UserID: &userID, UserEmail: "user@example.com", Model: "gpt-test"}
+
+	log := toServiceContentModerationLog(record)
+	effective := effectiveContentModerationConfigForUser(adapter.config, record.UserID)
+	variables := contentModerationEmailVariables(log, effective)
+	require.Equal(t, "25", variables["ban_threshold"])
+	require.Zero(t, counter.calls, "排除计数时通知不得查询违规次数")
+	require.Equal(t, StatusActive, userRepo.user.Status, "通知阈值解析不得触发处罚")
+	require.Equal(t, 10, cfg.BanThreshold, "通知阈值派生不得改写基础配置")
+	body := buildCyberPolicyNoticeEmailBody("Sub2API", log, effective)
+	require.Contains(t, body, "封禁触发阈值")
+	require.Contains(t, body, "25 次")
+}
+
+func TestCustomContentModerationAutoBanUsesExactUserThresholdOverride(t *testing.T) {
+	cfg := defaultContentModerationConfig()
+	cfg.BanThreshold = 2
+	cfg.UserBanThresholds = []UserBanThresholdOverride{{UserID: 1001, BanThreshold: 3}}
+	cfg.ViolationWindowHours = 24
+
+	userID := int64(1001)
+	repo := &contentModerationTestRepo{}
+	require.NoError(t, repo.CreateLog(context.Background(), newContentModerationFlaggedLog(userID)))
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
+	invalidator := &contentModerationTestAuthCacheInvalidator{}
+	svc := NewContentModerationService(nil, repo, nil, nil, userRepo, invalidator, nil)
+
+	svc.persistContentModerationLog(context.Background(), cfg, newContentModerationFlaggedLog(userID), "", false, true)
+	require.Equal(t, StatusActive, userRepo.user.Status, "用户专属阈值应覆盖更低的全局阈值")
+	require.Empty(t, userRepo.updated)
+
+	svc.persistContentModerationLog(context.Background(), cfg, newContentModerationFlaggedLog(userID), "", false, true)
+	require.Equal(t, StatusDisabled, userRepo.user.Status)
+	require.Len(t, userRepo.updated, 1)
+	require.Equal(t, []int64{userID}, invalidator.userIDs)
+	logs := requireContentModerationLogCount(t, repo, 3)
+	require.Equal(t, 3, logs[2].ViolationCount)
+	require.True(t, logs[2].AutoBanned)
+}
+
+func TestCustomContentModerationAutoBanFallsBackToGlobalThresholdForOtherUsers(t *testing.T) {
+	cfg := defaultContentModerationConfig()
+	cfg.BanThreshold = 2
+	cfg.UserBanThresholds = []UserBanThresholdOverride{{UserID: 2002, BanThreshold: 20}}
+	cfg.ViolationWindowHours = 24
+
+	userID := int64(1001)
+	repo := &contentModerationTestRepo{}
+	require.NoError(t, repo.CreateLog(context.Background(), newContentModerationFlaggedLog(userID)))
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
+	svc := NewContentModerationService(nil, repo, nil, nil, userRepo, nil, nil)
+
+	svc.persistContentModerationLog(context.Background(), cfg, newContentModerationFlaggedLog(userID), "", false, true)
+	require.Equal(t, StatusDisabled, userRepo.user.Status)
+	require.Len(t, userRepo.updated, 1)
+}
+
+func TestCustomContentModerationEmailUsesEffectiveUserBanThreshold(t *testing.T) {
+	userID := int64(1001)
+	cfg := defaultContentModerationConfig()
+	cfg.BanThreshold = 10
+	cfg.UserBanThresholds = []UserBanThresholdOverride{{UserID: userID, BanThreshold: 25}}
+	effective := effectiveContentModerationConfigForUser(cfg, &userID)
+
+	variables := contentModerationEmailVariables(&ContentModerationLog{UserID: &userID, ViolationCount: 12}, effective)
+	require.Equal(t, "25", variables["ban_threshold"])
+	body := buildContentModerationAccountDisabledEmailBody("Sub2API", &ContentModerationLog{
+		UserID:         &userID,
+		UserEmail:      "user@example.com",
+		ViolationCount: 25,
+	}, effective)
+	require.Contains(t, body, "25 次（阈值 25）")
+}
+
+func TestCustomContentModerationUpdateConfigUserBanThresholdsRoundTripAndClear(t *testing.T) {
+	settingRepo := &contentModerationTestSettingRepo{values: map[string]string{}}
+	svc := NewContentModerationService(settingRepo, nil, nil, nil, nil, nil, nil)
+
+	view, err := svc.GetConfig(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, view.UserBanThresholds)
+	require.Empty(t, view.UserBanThresholds)
+
+	overrides := []UserBanThresholdOverride{
+		{UserID: 1001, BanThreshold: 25},
+		{UserID: 1002, BanThreshold: 5},
+	}
+	view, err = svc.UpdateConfig(context.Background(), UpdateContentModerationConfigInput{UserBanThresholds: &overrides})
+	require.NoError(t, err)
+	require.Equal(t, overrides, view.UserBanThresholds)
+	overrides[0].BanThreshold = 99
+	require.Equal(t, 25, view.UserBanThresholds[0].BanThreshold, "配置响应不得共享调用方切片")
+
+	view, err = svc.UpdateConfig(context.Background(), UpdateContentModerationConfigInput{})
+	require.NoError(t, err)
+	require.Equal(t, 25, view.UserBanThresholds[0].BanThreshold, "省略字段必须保留已有覆盖")
+
+	empty := []UserBanThresholdOverride{}
+	view, err = svc.UpdateConfig(context.Background(), UpdateContentModerationConfigInput{UserBanThresholds: &empty})
+	require.NoError(t, err)
+	require.NotNil(t, view.UserBanThresholds)
+	require.Empty(t, view.UserBanThresholds)
+}
+
+func TestCustomContentModerationUpdateConfigRejectsInvalidUserBanThresholds(t *testing.T) {
+	settingRepo := &contentModerationTestSettingRepo{values: map[string]string{}}
+	svc := NewContentModerationService(settingRepo, nil, nil, nil, nil, nil, nil)
+
+	tests := []struct {
+		name      string
+		overrides []UserBanThresholdOverride
+	}{
+		{name: "invalid user", overrides: []UserBanThresholdOverride{{UserID: 0, BanThreshold: 5}}},
+		{name: "invalid threshold", overrides: []UserBanThresholdOverride{{UserID: 1001, BanThreshold: 1001}}},
+		{name: "duplicate user", overrides: []UserBanThresholdOverride{{UserID: 1001, BanThreshold: 5}, {UserID: 1001, BanThreshold: 6}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := svc.UpdateConfig(context.Background(), UpdateContentModerationConfigInput{UserBanThresholds: &tt.overrides})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "用户专属封禁阈值无效")
+		})
+	}
+}
+
 type customModerationSettingRepo struct {
 	values            map[string]string
 	runtimeLoaded     chan struct{}

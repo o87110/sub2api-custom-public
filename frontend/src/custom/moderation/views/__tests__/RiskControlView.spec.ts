@@ -98,6 +98,7 @@ const baseConfig = (): CustomContentModerationConfig => ({
   email_on_hit: true,
   auto_ban_enabled: true,
   ban_threshold: 10,
+  user_ban_thresholds: [],
   violation_window_hours: 720,
   retry_count: 2,
   hit_retention_days: 180,
@@ -221,6 +222,21 @@ const ModelWhitelistSelectorStub = defineComponent({
       })
   },
 })
+const UserBanThresholdOverridesStub = defineComponent({
+  name: 'UserBanThresholdOverrides',
+  props: {
+    modelValue: {
+      type: Array,
+      default: () => [],
+    },
+    defaultThreshold: {
+      type: Number,
+      default: 10,
+    },
+  },
+  emits: ['update:modelValue'],
+  template: '<div data-test="user-ban-threshold-overrides" />',
+})
 
 function findButtonByText(wrapper: VueWrapper, text: string): DOMWrapper<HTMLButtonElement> {
   const button = wrapper.findAll<HTMLButtonElement>('button').find((item) => item.text().includes(text))
@@ -241,6 +257,7 @@ function mountRiskControlView(): VueWrapper {
         Toggle: true,
         Pagination: true,
         ModelWhitelistSelector: ModelWhitelistSelectorStub,
+        UserBanThresholdOverrides: UserBanThresholdOverridesStub,
       },
     },
   })
@@ -288,6 +305,45 @@ describe('admin RiskControlView', () => {
       },
     }))
     expect(showError).not.toHaveBeenCalled()
+  })
+
+  it('loads and saves user-specific ban threshold overrides', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      user_ban_thresholds: [{ user_id: 1001, ban_threshold: 25 }],
+    })
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.tabs.response').trigger('click')
+    const overrides = wrapper.getComponent(UserBanThresholdOverridesStub)
+    expect(overrides.props('modelValue')).toEqual([{ user_id: 1001, ban_threshold: 25 }])
+    overrides.vm.$emit('update:modelValue', [{ user_id: 1002, ban_threshold: 40 }])
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      user_ban_thresholds: [{ user_id: 1002, ban_threshold: 40 }],
+    }))
+  })
+
+  it('blocks saving invalid user-specific ban thresholds', async () => {
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.tabs.response').trigger('click')
+    wrapper.getComponent(UserBanThresholdOverridesStub).vm.$emit('update:modelValue', [
+      { user_id: 1001, ban_threshold: 0 },
+    ])
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(updateConfig).not.toHaveBeenCalled()
+    expect(showError).toHaveBeenCalledWith('请先修正用户专属封禁阈值。')
   })
 
   it('allows saving a legacy empty overall audit scope', async () => {

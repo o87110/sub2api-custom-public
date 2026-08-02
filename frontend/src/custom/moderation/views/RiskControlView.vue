@@ -983,13 +983,22 @@
                 <Toggle v-model="configForm.cyber_policy_exclude_from_ban_count" />
               </div>
               <div>
-                <label class="input-label">{{ t('admin.riskControl.banThreshold') }}</label>
+                <label class="input-label">{{ customT('defaultBanThreshold') }}</label>
                 <input v-model.number="configForm.ban_threshold" type="number" min="1" max="1000" class="input" />
               </div>
               <div>
                 <label class="input-label">{{ t('admin.riskControl.violationWindowHours') }}</label>
                 <input v-model.number="configForm.violation_window_hours" type="number" min="1" max="8760" class="input" />
               </div>
+            </div>
+            <div class="rounded-lg border border-gray-100 p-4 dark:border-dark-700">
+              <UserBanThresholdOverrides
+                v-model="configForm.user_ban_thresholds"
+                :default-threshold="Number(configForm.ban_threshold) || 10"
+              />
+              <p v-if="!configForm.auto_ban_enabled" class="mt-3 text-xs text-amber-600 dark:text-amber-400">
+                {{ customT('userBanThresholdInactiveHint') }}
+              </p>
             </div>
           </div>
 
@@ -1211,8 +1220,14 @@ import {
   customRiskControlAPI,
   type CustomContentModerationConfig,
   type CustomUpdateContentModerationConfig,
+  type UserBanThresholdOverride,
 } from '@/custom/moderation/api'
 import { customModerationText, type CustomModerationTextKey } from '@/custom/moderation/i18n'
+import UserBanThresholdOverrides from '@/custom/moderation/UserBanThresholdOverrides.vue'
+import {
+  areValidUserBanThresholdOverrides,
+  cloneUserBanThresholdOverrides,
+} from '@/custom/moderation/userBanThresholds'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -1343,6 +1358,7 @@ const configForm = reactive({
   auto_ban_enabled: true,
   cyber_policy_exclude_from_ban_count: false,
   ban_threshold: 10,
+  user_ban_thresholds: [] as UserBanThresholdOverride[],
   violation_window_hours: 720,
   hit_retention_days: 180,
   non_hit_retention_days: 3,
@@ -1865,6 +1881,7 @@ function applyConfig(config: CustomContentModerationConfig) {
   configForm.auto_ban_enabled = config.auto_ban_enabled ?? true
   configForm.cyber_policy_exclude_from_ban_count = config.cyber_policy_exclude_from_ban_count ?? false
   configForm.ban_threshold = config.ban_threshold || 10
+  configForm.user_ban_thresholds = cloneUserBanThresholdOverrides(config.user_ban_thresholds)
   configForm.violation_window_hours = config.violation_window_hours || 720
   configForm.hit_retention_days = config.hit_retention_days || 180
   configForm.non_hit_retention_days = Math.min(Math.max(config.non_hit_retention_days || 3, 1), 3)
@@ -1931,6 +1948,11 @@ async function saveConfig() {
       appStore.showError(apiAuditScopeError.value)
       return
     }
+    if (!areValidUserBanThresholdOverrides(configForm.user_ban_thresholds)) {
+      activeSettingsTab.value = 'response'
+      appStore.showError(customT('userBanThresholdValidationFailed'))
+      return
+    }
     const payload: CustomUpdateContentModerationConfig = {
       enabled: configForm.enabled,
       mode: configForm.mode,
@@ -1955,6 +1977,7 @@ async function saveConfig() {
       auto_ban_enabled: configForm.auto_ban_enabled,
       cyber_policy_exclude_from_ban_count: configForm.cyber_policy_exclude_from_ban_count,
       ban_threshold: Number(configForm.ban_threshold) || 10,
+      user_ban_thresholds: cloneUserBanThresholdOverrides(configForm.user_ban_thresholds),
       violation_window_hours: Number(configForm.violation_window_hours) || 720,
       hit_retention_days: Number(configForm.hit_retention_days) || 180,
       non_hit_retention_days: Math.min(Math.max(Number(configForm.non_hit_retention_days) || 3, 1), 3),
