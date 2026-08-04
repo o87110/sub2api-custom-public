@@ -188,6 +188,17 @@ class ThinBridgeContractTests(unittest.TestCase):
         with patch.object(validator, "BASELINE_DELEGATE_VIEW_CALL_DELTAS", override):
             validator.validate(fixture.args())
 
+    def test_payment_config_call_override_is_bound_to_reviewed_vendor_commits(self) -> None:
+        path = "backend/internal/service/payment_config_service.go"
+        previous = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+            ("c043c24774228ba891ddf90d783aa6dc7d0855b5", path)
+        ]
+        current = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+            ("f0e7a9c7a23a7d02fb159b62fa809621eb0475a6", path)
+        ]
+        self.assertEqual(previous, current)
+        self.assertNotIn(("UpdatePaymentConfig", "setPaymentConfigValue"), current)
+
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
         fixture = self.fixture(candidate_content="if (enabled) { value = 2 }\n", kind="dto")
         with self.assertRaisesRegex(validator.ContractError, "introduces control flow"):
