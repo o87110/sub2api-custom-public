@@ -595,3 +595,57 @@ func TestHardenGitHubRedirectsStripsAuthorizationAndRejectsUnknownHost(t *testin
 	require.NoError(t, err)
 	require.ErrorContains(t, client.CheckRedirect(rejected, []*http.Request{previous}), "untrusted host")
 }
+
+type versionInfoClientStub struct {
+	latest *GitHubRelease
+	recent []*GitHubRelease
+}
+
+func (s *versionInfoClientStub) FetchLatestRelease(context.Context, string) (*GitHubRelease, error) {
+	return s.latest, nil
+}
+
+func (s *versionInfoClientStub) FetchRecentReleases(context.Context, string, int) ([]*GitHubRelease, error) {
+	return s.recent, nil
+}
+
+func (s *versionInfoClientStub) DownloadFile(context.Context, string, string, int64) error {
+	panic("unexpected download")
+}
+
+func (s *versionInfoClientStub) FetchChecksumFile(context.Context, string) ([]byte, error) {
+	panic("unexpected checksum download")
+}
+
+func TestVersionInfoClientAdapterConvertsMetadataAndRejectsDownloads(t *testing.T) {
+	release := &GitHubRelease{
+		TagName:    "rust-v1.2.3",
+		Name:       "Codex 1.2.3",
+		Draft:      false,
+		Prerelease: false,
+		Assets: []GitHubAsset{{
+			Name:               "codex",
+			BrowserDownloadURL: "https://example.invalid/codex",
+			Size:               123,
+		}},
+	}
+	adapter := newVersionInfoClientAdapter(&versionInfoClientStub{
+		latest: release,
+		recent: []*GitHubRelease{release},
+	})
+
+	latest, err := adapter.FetchLatestRelease(context.Background(), "openai/codex")
+	require.NoError(t, err)
+	require.Equal(t, release.TagName, latest.TagName)
+	require.Len(t, latest.Assets, 1)
+	require.Equal(t, release.Assets[0].BrowserDownloadURL, latest.Assets[0].BrowserDownloadURL)
+
+	recent, err := adapter.FetchRecentReleases(context.Background(), "openai/codex", 30)
+	require.NoError(t, err)
+	require.Len(t, recent, 1)
+	require.Equal(t, release.TagName, recent[0].TagName)
+
+	require.ErrorIs(t, adapter.DownloadFile(context.Background(), "", "", 0), errVersionInfoClientReadOnly)
+	_, err = adapter.FetchChecksumFile(context.Background(), "")
+	require.ErrorIs(t, err, errVersionInfoClientReadOnly)
+}
