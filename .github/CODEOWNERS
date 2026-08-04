@@ -8,6 +8,7 @@
 /.goreleaser.simple.yaml @o87110
 /backend/cmd/server/wire.go @o87110
 /backend/cmd/server/wire_gen.go @o87110
+/backend/cmd/server/wire_gen_test.go @o87110
 /backend/cmd/custom-database-boundary/** @o87110
 /backend/ent/channelmonitor.go @o87110
 /backend/ent/channelmonitor/channelmonitor.go @o87110
