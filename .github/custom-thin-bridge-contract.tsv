@@ -1,85 +1,85 @@
-path	kind	shadow_required	approved_additions	approved_deletions
-backend/cmd/server/wire.go	wire	true	26	2
-backend/internal/handler/admin/channel_monitor_handler.go	dto	false	118	104
-backend/internal/handler/admin/content_moderation_handler.go	dto	false	6	0
-backend/internal/handler/admin/group_handler.go	dto	false	4	0
-backend/internal/handler/admin/payment_handler.go	delegate	true	8	1
-backend/internal/handler/admin/setting_handler.go	delegate	true	6	1
-backend/internal/handler/admin/setting_handler_update.go	delegate	true	26	18
-backend/internal/handler/admin/system_handler.go	delegate	true	19	26
-backend/internal/handler/admin/system_handler_test.go	compat-test	true	52	36
-backend/internal/handler/api_key_handler.go	delegate	true	21	4
-backend/internal/handler/auth_wechat_oauth.go	delegate	true	45	12
-backend/internal/handler/auth_wechat_oauth_test.go	compat-test	true	53	1
-backend/internal/handler/channel_monitor_user_handler.go	delegate	true	56	26
-backend/internal/handler/dto/mappers.go	dto	false	1	0
-backend/internal/handler/dto/settings.go	dto	true	18	16
-backend/internal/handler/dto/types.go	dto	false	1	0
-backend/internal/handler/gateway_handler.go	delegate	true	4	0
-backend/internal/handler/openai_gateway_handler.go	delegate	true	7	1
-backend/internal/handler/payment_handler.go	delegate	true	43	8
-backend/internal/handler/payment_handler_resume_test.go	compat-test	true	47	0
-backend/internal/handler/wire.go	wire	true	2	1
-backend/internal/payment/load_balancer.go	delegate	true	157	29
-backend/internal/payment/types.go	dto	false	6	5
-backend/internal/repository/api_key_minimum_balance_repo.go	persistence	false	11	0
-backend/internal/repository/api_key_repo.go	persistence	false	1	0
-backend/internal/repository/channel_monitor_repo.go	persistence	false	32	20
-backend/internal/repository/group_repo.go	persistence	false	2	0
-backend/internal/service/admin_group.go	delegate	true	50	6
-backend/internal/service/admin_group_duplicate.go	persistence	false	1	0
-backend/internal/service/admin_service.go	persistence	false	2	0
-backend/internal/service/api_key_auth_cache.go	persistence	false	1	0
-backend/internal/service/api_key_auth_cache_impl.go	persistence	false	15	1
-backend/internal/service/api_key_service.go	delegate	true	58	20
-backend/internal/service/batch_image_public.go	delegate	true	26	10
-backend/internal/service/billing_cache_service.go	delegate	true	88	1
-backend/internal/service/channel_monitor_aggregator.go	dto	false	11	10
-backend/internal/service/channel_monitor_const.go	dto	false	6	0
-backend/internal/service/channel_monitor_service.go	delegate	true	85	33
-backend/internal/service/channel_monitor_types.go	dto	false	62	54
-backend/internal/service/content_moderation.go	delegate	true	71	8
-backend/internal/service/content_moderation_email.go	view	true	7	1
-backend/internal/service/group.go	dto	false	1	0
-backend/internal/service/notification_email_service.go	view	true	3	1
-backend/internal/service/notification_email_service_test.go	compat-test	true	3	0
-backend/internal/service/payment_config_limits.go	delegate	true	97	0
-backend/internal/service/payment_config_limits_test.go	compat-test	true	265	0
-backend/internal/service/payment_config_service.go	delegate	true	73	54
-backend/internal/service/payment_config_service_test.go	compat-test	true	80	0
-backend/internal/service/payment_order.go	delegate	true	164	96
-backend/internal/service/payment_order_result_test.go	compat-test	true	134	34
-backend/internal/service/payment_resume_service.go	delegate	true	45	44
-backend/internal/service/payment_resume_service_test.go	compat-test	true	43	1
-backend/internal/service/payment_service.go	delegate	true	3	0
-frontend/src/api/admin/channelMonitor.ts	dto	false	7	0
-frontend/src/api/admin/payment.ts	dto	true	9	0
-frontend/src/api/admin/settings.ts	dto	true	3	0
-frontend/src/api/channelMonitor.ts	dto	false	4	0
-frontend/src/components/admin/monitor/MonitorFormDialog.vue	view	true	35	4
-frontend/src/components/layout/AppSidebar.vue	view	true	1	1
-frontend/src/components/payment/AmountInput.vue	view	true	22	7
-frontend/src/components/payment/PaymentProviderDialog.vue	view	true	3	0
-frontend/src/components/payment/__tests__/paymentFlow.spec.ts	compat-test	true	18	0
-frontend/src/components/payment/paymentFlow.ts	delegate	true	14	0
-frontend/src/components/user/monitor/MonitorCard.vue	view	true	18	7
-frontend/src/i18n/locales/en/admin/channels.ts	dto	true	10	2
-frontend/src/i18n/locales/en/admin/overview.ts	dto	false	3	0
-frontend/src/i18n/locales/en/admin/settings.ts	dto	true	4	3
-frontend/src/i18n/locales/en/misc.ts	dto	true	9	0
-frontend/src/i18n/locales/zh/admin/channels.ts	dto	true	9	1
-frontend/src/i18n/locales/zh/admin/overview.ts	dto	false	3	0
-frontend/src/i18n/locales/zh/admin/settings.ts	dto	true	4	3
-frontend/src/i18n/locales/zh/misc.ts	dto	true	9	0
-frontend/src/router/index.ts	wire	true	1	1
-frontend/src/types/index.ts	dto	false	7	0
-frontend/src/types/payment.ts	dto	true	23	0
-frontend/src/views/admin/GroupsView.vue	view	true	28	0
-frontend/src/views/admin/SettingsView.vue	view	true	29	130
-frontend/src/views/admin/__tests__/SettingsView.spec.ts	compat-test	true	101	0
-frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts	compat-test	true	3	1
-frontend/src/views/user/KeysView.vue	view	true	241	107
-frontend/src/views/user/PaymentView.vue	view	true	172	386
-frontend/src/views/user/__tests__/PaymentView.spec.ts	compat-test	true	415	4
-frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	compat-test	true	5	0
-frontend/src/views/user/paymentWechatResume.ts	delegate	true	6	90
+path	kind	shadow_required	approved_additions	approved_deletions	baseline_budget_overrides
+backend/cmd/server/wire.go	wire	true	26	2	f0e7a9c7a23a7d02fb159b62fa809621eb0475a6:27:3
+backend/internal/handler/admin/channel_monitor_handler.go	dto	false	118	104	-
+backend/internal/handler/admin/content_moderation_handler.go	dto	false	6	0	-
+backend/internal/handler/admin/group_handler.go	dto	false	4	0	-
+backend/internal/handler/admin/payment_handler.go	delegate	true	8	1	-
+backend/internal/handler/admin/setting_handler.go	delegate	true	6	1	-
+backend/internal/handler/admin/setting_handler_update.go	delegate	true	26	18	-
+backend/internal/handler/admin/system_handler.go	delegate	true	19	26	-
+backend/internal/handler/admin/system_handler_test.go	compat-test	true	52	36	-
+backend/internal/handler/api_key_handler.go	delegate	true	21	4	-
+backend/internal/handler/auth_wechat_oauth.go	delegate	true	45	12	-
+backend/internal/handler/auth_wechat_oauth_test.go	compat-test	true	53	1	-
+backend/internal/handler/channel_monitor_user_handler.go	delegate	true	56	26	-
+backend/internal/handler/dto/mappers.go	dto	false	1	0	-
+backend/internal/handler/dto/settings.go	dto	true	18	16	-
+backend/internal/handler/dto/types.go	dto	false	1	0	-
+backend/internal/handler/gateway_handler.go	delegate	true	4	0	-
+backend/internal/handler/openai_gateway_handler.go	delegate	true	7	1	-
+backend/internal/handler/payment_handler.go	delegate	true	43	8	-
+backend/internal/handler/payment_handler_resume_test.go	compat-test	true	47	0	-
+backend/internal/handler/wire.go	wire	true	2	1	-
+backend/internal/payment/load_balancer.go	delegate	true	157	29	-
+backend/internal/payment/types.go	dto	false	6	5	-
+backend/internal/repository/api_key_minimum_balance_repo.go	persistence	false	11	0	-
+backend/internal/repository/api_key_repo.go	persistence	false	1	0	-
+backend/internal/repository/channel_monitor_repo.go	persistence	false	32	20	-
+backend/internal/repository/group_repo.go	persistence	false	2	0	-
+backend/internal/service/admin_group.go	delegate	true	50	6	-
+backend/internal/service/admin_group_duplicate.go	persistence	false	1	0	-
+backend/internal/service/admin_service.go	persistence	false	2	0	-
+backend/internal/service/api_key_auth_cache.go	persistence	false	1	0	-
+backend/internal/service/api_key_auth_cache_impl.go	persistence	false	15	1	-
+backend/internal/service/api_key_service.go	delegate	true	58	20	-
+backend/internal/service/batch_image_public.go	delegate	true	26	10	-
+backend/internal/service/billing_cache_service.go	delegate	true	88	1	-
+backend/internal/service/channel_monitor_aggregator.go	dto	false	11	10	-
+backend/internal/service/channel_monitor_const.go	dto	false	6	0	-
+backend/internal/service/channel_monitor_service.go	delegate	true	85	33	-
+backend/internal/service/channel_monitor_types.go	dto	false	62	54	-
+backend/internal/service/content_moderation.go	delegate	true	71	8	-
+backend/internal/service/content_moderation_email.go	view	true	7	1	-
+backend/internal/service/group.go	dto	false	1	0	-
+backend/internal/service/notification_email_service.go	view	true	3	1	-
+backend/internal/service/notification_email_service_test.go	compat-test	true	3	0	-
+backend/internal/service/payment_config_limits.go	delegate	true	97	0	-
+backend/internal/service/payment_config_limits_test.go	compat-test	true	265	0	-
+backend/internal/service/payment_config_service.go	delegate	true	73	54	c043c24774228ba891ddf90d783aa6dc7d0855b5:41:25,f0e7a9c7a23a7d02fb159b62fa809621eb0475a6:41:25
+backend/internal/service/payment_config_service_test.go	compat-test	true	80	0	-
+backend/internal/service/payment_order.go	delegate	true	164	96	-
+backend/internal/service/payment_order_result_test.go	compat-test	true	134	34	-
+backend/internal/service/payment_resume_service.go	delegate	true	45	44	-
+backend/internal/service/payment_resume_service_test.go	compat-test	true	43	1	-
+backend/internal/service/payment_service.go	delegate	true	3	0	-
+frontend/src/api/admin/channelMonitor.ts	dto	false	7	0	-
+frontend/src/api/admin/payment.ts	dto	true	9	0	-
+frontend/src/api/admin/settings.ts	dto	true	3	0	-
+frontend/src/api/channelMonitor.ts	dto	false	4	0	-
+frontend/src/components/admin/monitor/MonitorFormDialog.vue	view	true	35	4	-
+frontend/src/components/layout/AppSidebar.vue	view	true	1	1	-
+frontend/src/components/payment/AmountInput.vue	view	true	22	7	-
+frontend/src/components/payment/PaymentProviderDialog.vue	view	true	3	0	-
+frontend/src/components/payment/__tests__/paymentFlow.spec.ts	compat-test	true	18	0	-
+frontend/src/components/payment/paymentFlow.ts	delegate	true	14	0	-
+frontend/src/components/user/monitor/MonitorCard.vue	view	true	18	7	-
+frontend/src/i18n/locales/en/admin/channels.ts	dto	true	10	2	-
+frontend/src/i18n/locales/en/admin/overview.ts	dto	false	3	0	-
+frontend/src/i18n/locales/en/admin/settings.ts	dto	true	4	3	-
+frontend/src/i18n/locales/en/misc.ts	dto	true	9	0	-
+frontend/src/i18n/locales/zh/admin/channels.ts	dto	true	9	1	-
+frontend/src/i18n/locales/zh/admin/overview.ts	dto	false	3	0	-
+frontend/src/i18n/locales/zh/admin/settings.ts	dto	true	4	3	-
+frontend/src/i18n/locales/zh/misc.ts	dto	true	9	0	-
+frontend/src/router/index.ts	wire	true	1	1	-
+frontend/src/types/index.ts	dto	false	7	0	-
+frontend/src/types/payment.ts	dto	true	23	0	-
+frontend/src/views/admin/GroupsView.vue	view	true	28	0	-
+frontend/src/views/admin/SettingsView.vue	view	true	29	130	-
+frontend/src/views/admin/__tests__/SettingsView.spec.ts	compat-test	true	101	0	-
+frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts	compat-test	true	3	1	-
+frontend/src/views/user/KeysView.vue	view	true	241	107	-
+frontend/src/views/user/PaymentView.vue	view	true	172	386	-
+frontend/src/views/user/__tests__/PaymentView.spec.ts	compat-test	true	415	4	-
+frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	compat-test	true	5	0	-
+frontend/src/views/user/paymentWechatResume.ts	delegate	true	6	90	-

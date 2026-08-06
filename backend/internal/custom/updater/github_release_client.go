@@ -3,6 +3,7 @@ package updater
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,7 +14,10 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
+
+var errVersionInfoClientReadOnly = errors.New("version information client does not support release asset downloads")
 
 type githubReleaseClient struct {
 	httpClient         *http.Client
@@ -27,6 +31,68 @@ type githubReleaseClientError struct {
 
 type githubReleaseClientInitialization interface {
 	InitializationError() error
+}
+
+// versionInfoClientAdapter lets informational upstream-version checks reuse the
+// hardened Custom GitHub client without exposing its download capabilities.
+type versionInfoClientAdapter struct {
+	client GitHubReleaseClient
+}
+
+func newVersionInfoClientAdapter(client GitHubReleaseClient) service.GitHubReleaseClient {
+	return &versionInfoClientAdapter{client: client}
+}
+
+func (c *versionInfoClientAdapter) FetchLatestRelease(ctx context.Context, repo string) (*service.GitHubRelease, error) {
+	release, err := c.client.FetchLatestRelease(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+	return toServiceGitHubRelease(release), nil
+}
+
+func (c *versionInfoClientAdapter) FetchRecentReleases(ctx context.Context, repo string, perPage int) ([]*service.GitHubRelease, error) {
+	releases, err := c.client.FetchRecentReleases(ctx, repo, perPage)
+	if err != nil {
+		return nil, err
+	}
+	converted := make([]*service.GitHubRelease, 0, len(releases))
+	for _, release := range releases {
+		converted = append(converted, toServiceGitHubRelease(release))
+	}
+	return converted, nil
+}
+
+func (c *versionInfoClientAdapter) DownloadFile(context.Context, string, string, int64) error {
+	return errVersionInfoClientReadOnly
+}
+
+func (c *versionInfoClientAdapter) FetchChecksumFile(context.Context, string) ([]byte, error) {
+	return nil, errVersionInfoClientReadOnly
+}
+
+func toServiceGitHubRelease(release *GitHubRelease) *service.GitHubRelease {
+	if release == nil {
+		return nil
+	}
+	assets := make([]service.GitHubAsset, 0, len(release.Assets))
+	for _, asset := range release.Assets {
+		assets = append(assets, service.GitHubAsset{
+			Name:               asset.Name,
+			BrowserDownloadURL: asset.BrowserDownloadURL,
+			Size:               asset.Size,
+		})
+	}
+	return &service.GitHubRelease{
+		TagName:     release.TagName,
+		Name:        release.Name,
+		Body:        release.Body,
+		PublishedAt: release.PublishedAt,
+		HTMLURL:     release.HTMLURL,
+		Draft:       release.Draft,
+		Prerelease:  release.Prerelease,
+		Assets:      assets,
+	}
 }
 
 // NewGitHubReleaseClient 创建 GitHub Release 客户端

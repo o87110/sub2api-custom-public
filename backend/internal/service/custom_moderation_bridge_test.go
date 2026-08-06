@@ -41,7 +41,7 @@ func TestCustomCyberPolicyPenaltyUsesUserBanThresholdOverride(t *testing.T) {
 	counter := &customViolationCounterStub{count: 1}
 	repo := &contentModerationTestRepo{}
 	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
-	service := NewContentModerationService(nil, repo, nil, nil, userRepo, nil, nil)
+	service := NewContentModerationService(nil, repo, nil, nil, userRepo, nil, nil, nil)
 	AttachCustomViolationCounter(service, counter)
 	cfg := defaultContentModerationConfig()
 	cfg.BanThreshold = 1
@@ -75,7 +75,7 @@ func TestCustomCyberPolicyExcludedNoticeUsesEffectiveThresholdWithoutCounting(t 
 	userID := int64(1001)
 	counter := &customViolationCounterStub{count: 7}
 	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
-	service := NewContentModerationService(nil, &contentModerationTestRepo{}, nil, nil, userRepo, nil, nil)
+	service := NewContentModerationService(nil, &contentModerationTestRepo{}, nil, nil, userRepo, nil, nil, nil)
 	AttachCustomViolationCounter(service, counter)
 	cfg := defaultContentModerationConfig()
 	cfg.BanThreshold = 10
@@ -107,7 +107,7 @@ func TestCustomContentModerationAutoBanUsesExactUserThresholdOverride(t *testing
 	require.NoError(t, repo.CreateLog(context.Background(), newContentModerationFlaggedLog(userID)))
 	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
 	invalidator := &contentModerationTestAuthCacheInvalidator{}
-	svc := NewContentModerationService(nil, repo, nil, nil, userRepo, invalidator, nil)
+	svc := NewContentModerationService(nil, repo, nil, nil, userRepo, nil, invalidator, nil)
 
 	svc.persistContentModerationLog(context.Background(), cfg, newContentModerationFlaggedLog(userID), "", false, true)
 	require.Equal(t, StatusActive, userRepo.user.Status, "用户专属阈值应覆盖更低的全局阈值")
@@ -132,7 +132,7 @@ func TestCustomContentModerationAutoBanFallsBackToGlobalThresholdForOtherUsers(t
 	repo := &contentModerationTestRepo{}
 	require.NoError(t, repo.CreateLog(context.Background(), newContentModerationFlaggedLog(userID)))
 	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
-	svc := NewContentModerationService(nil, repo, nil, nil, userRepo, nil, nil)
+	svc := NewContentModerationService(nil, repo, nil, nil, userRepo, nil, nil, nil)
 
 	svc.persistContentModerationLog(context.Background(), cfg, newContentModerationFlaggedLog(userID), "", false, true)
 	require.Equal(t, StatusDisabled, userRepo.user.Status)
@@ -158,7 +158,7 @@ func TestCustomContentModerationEmailUsesEffectiveUserBanThreshold(t *testing.T)
 
 func TestCustomContentModerationUpdateConfigUserBanThresholdsRoundTripAndClear(t *testing.T) {
 	settingRepo := &contentModerationTestSettingRepo{values: map[string]string{}}
-	svc := NewContentModerationService(settingRepo, nil, nil, nil, nil, nil, nil)
+	svc := NewContentModerationService(settingRepo, nil, nil, nil, nil, nil, nil, nil)
 
 	view, err := svc.GetConfig(context.Background())
 	require.NoError(t, err)
@@ -188,7 +188,7 @@ func TestCustomContentModerationUpdateConfigUserBanThresholdsRoundTripAndClear(t
 
 func TestCustomContentModerationUpdateConfigRejectsInvalidUserBanThresholds(t *testing.T) {
 	settingRepo := &contentModerationTestSettingRepo{values: map[string]string{}}
-	svc := NewContentModerationService(settingRepo, nil, nil, nil, nil, nil, nil)
+	svc := NewContentModerationService(settingRepo, nil, nil, nil, nil, nil, nil, nil)
 
 	tests := []struct {
 		name      string
@@ -416,6 +416,7 @@ func TestCustomModerationLateKeywordShortCircuitsUpstreamAndKeepsContext(t *test
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	prompt := strings.Repeat("前", maxModerationInputRunes-len([]rune(keyword))) + keyword
@@ -474,6 +475,7 @@ func TestCustomAPIAuditScopePreservesKeywordsAndNarrowsAPICalls(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	groupOne := int64(1)
 	groupTwo := int64(2)
@@ -519,6 +521,7 @@ func TestCustomAPIAuditScopeLegacyConfigDefaultsToParentScope(t *testing.T) {
 func TestCustomAPIAuditScopeRejectsEmptyActiveSelection(t *testing.T) {
 	service := NewContentModerationService(
 		&customModerationSettingRepo{values: map[string]string{}},
+		nil,
 		nil,
 		nil,
 		nil,
@@ -589,6 +592,7 @@ func TestCustomAPIAuditScopeObserveModeSkipsExcludedGroups(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	body := []byte(`{"messages":[{"role":"user","content":"clean input"}]}`)
 	groupOne := int64(1)
@@ -635,6 +639,7 @@ func TestCustomAPIAuditScopeWorkerRechecksScopeAfterDequeue(t *testing.T) {
 			runtimeLoaded: runtimeLoaded,
 		},
 		&customModerationRepo{},
+		nil,
 		nil,
 		nil,
 		nil,

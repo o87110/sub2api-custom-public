@@ -8,6 +8,7 @@
 /.goreleaser.simple.yaml @o87110
 /backend/cmd/server/wire.go @o87110
 /backend/cmd/server/wire_gen.go @o87110
+/backend/cmd/server/wire_gen_test.go @o87110
 /backend/cmd/custom-database-boundary/** @o87110
 /backend/ent/channelmonitor.go @o87110
 /backend/ent/channelmonitor/channelmonitor.go @o87110
@@ -63,10 +64,13 @@
 /backend/internal/payment/types.go @o87110
 /backend/internal/handler/admin/content_moderation_handler.go @o87110
 /backend/internal/service/content_moderation.go @o87110
+/backend/internal/service/content_moderation_email.go @o87110
 /backend/internal/service/custom_moderation_bridge.go @o87110
 /backend/internal/service/custom_moderation_bridge_test.go @o87110
 /backend/internal/service/content_moderation_cyber_test.go @o87110
 /backend/internal/service/content_moderation_test.go @o87110
+/backend/internal/service/notification_email_service.go @o87110
+/backend/internal/service/notification_email_service_test.go @o87110
 /backend/internal/service/admin_group.go @o87110
 /backend/internal/service/admin_group_duplicate.go @o87110
 /backend/internal/service/admin_group_duplicate_test.go @o87110

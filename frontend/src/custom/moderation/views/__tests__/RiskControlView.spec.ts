@@ -18,7 +18,9 @@ const {
   updateConfig,
   getStatus,
   listLogs,
+  testAPIKeys,
   getGroups,
+  getProxies,
   showError,
   showSuccess,
 } = vi.hoisted(() => ({
@@ -26,7 +28,9 @@ const {
   updateConfig: vi.fn(),
   getStatus: vi.fn(),
   listLogs: vi.fn(),
+  testAPIKeys: vi.fn(),
   getGroups: vi.fn(),
+  getProxies: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
 }))
@@ -38,13 +42,16 @@ vi.mock('@/api/admin', () => ({
       updateConfig,
       getStatus,
       listLogs,
-      testAPIKeys: vi.fn(),
+      testAPIKeys,
       deleteFlaggedHash: vi.fn(),
       clearFlaggedHashes: vi.fn(),
       unbanUser: vi.fn(),
     },
     groups: {
       getAll: getGroups,
+    },
+    proxies: {
+      getAll: getProxies,
     },
   },
 }))
@@ -81,6 +88,7 @@ const baseConfig = (): CustomContentModerationConfig => ({
   mode: 'pre_block',
   base_url: 'https://api.openai.com',
   model: 'omni-moderation-latest',
+  proxy_id: null,
   api_key_configured: false,
   api_key_masked: '',
   api_key_count: 0,
@@ -237,6 +245,19 @@ const UserBanThresholdOverridesStub = defineComponent({
   emits: ['update:modelValue'],
   template: '<div data-test="user-ban-threshold-overrides" />',
 })
+const ProxySelectorStub = defineComponent({
+  props: {
+    modelValue: {
+      type: Number,
+      default: null,
+    },
+    proxies: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  template: '<div data-test="proxy-selector">{{ modelValue }}:{{ proxies.length }}</div>',
+})
 
 function findButtonByText(wrapper: VueWrapper, text: string): DOMWrapper<HTMLButtonElement> {
   const button = wrapper.findAll<HTMLButtonElement>('button').find((item) => item.text().includes(text))
@@ -258,6 +279,7 @@ function mountRiskControlView(): VueWrapper {
         Pagination: true,
         ModelWhitelistSelector: ModelWhitelistSelectorStub,
         UserBanThresholdOverrides: UserBanThresholdOverridesStub,
+        ProxySelector: ProxySelectorStub,
       },
     },
   })
@@ -269,7 +291,9 @@ describe('admin RiskControlView', () => {
     updateConfig.mockReset()
     getStatus.mockReset()
     listLogs.mockReset()
+    testAPIKeys.mockReset()
     getGroups.mockReset()
+    getProxies.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
 
@@ -277,6 +301,8 @@ describe('admin RiskControlView', () => {
     getStatus.mockResolvedValue(runtimeStatus())
     listLogs.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20, pages: 1 })
     getGroups.mockResolvedValue([])
+    getProxies.mockResolvedValue([])
+    testAPIKeys.mockResolvedValue({ items: [], audit_result: null })
     updateConfig.mockImplementation(async (payload: CustomUpdateContentModerationConfig) => ({
       ...baseConfig(),
       ...payload,
@@ -287,6 +313,40 @@ describe('admin RiskControlView', () => {
       api_key_masks: [],
       api_key_statuses: [],
     }))
+  })
+
+  it('loads and preserves the selected moderation proxy for save and API key tests', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      proxy_id: 7,
+      api_key_configured: true,
+      api_key_count: 1,
+    })
+    getProxies.mockResolvedValue([{ id: 7, name: 'Proxy Seven' }])
+    const wrapper = mountRiskControlView()
+
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    expect(wrapper.get('[data-test="proxy-selector"]').text()).toBe('7:1')
+
+    await findButtonByText(wrapper, 'admin.riskControl.testStoredApiKeys').trigger('click')
+    await flushPromises()
+    expect(testAPIKeys).toHaveBeenCalledWith(expect.objectContaining({ proxy_id: 7 }))
+
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({ proxy_id: 7 }))
+  })
+
+  it('keeps the moderation page available when loading proxies fails', async () => {
+    getProxies.mockRejectedValue(new Error('proxy list unavailable'))
+    const wrapper = mountRiskControlView()
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('admin.riskControl.openSettings')
+    expect(showError).not.toHaveBeenCalled()
   })
 
   it('preserves legacy API audit behavior when the response omits api_audit_scope', async () => {
