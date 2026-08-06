@@ -153,6 +153,7 @@ func TestRecordCyberPolicyEventInScopeExcludedFromBanCount(t *testing.T) {
 	require.Zero(t, adapter.banCalls)
 	require.Equal(t, 1, adapter.updateCalls)
 	require.Equal(t, ActionCyberPolicy, adapter.lastRecord.Action)
+	require.Equal(t, []string{"create", "cyber_email", "update_email_sent"}, adapter.calls)
 }
 
 func TestRecordCyberPolicyEventAppliesPenaltyAndSendsBothEmails(t *testing.T) {

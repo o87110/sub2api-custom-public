@@ -217,7 +217,10 @@ thin_bridge_allowed() {
       backend/internal/service/channel_monitor_service.go | \
       backend/internal/service/channel_monitor_types.go | \
       backend/internal/service/content_moderation.go | \
+      backend/internal/service/content_moderation_email.go | \
       backend/internal/service/group.go | \
+      backend/internal/service/notification_email_service.go | \
+      backend/internal/service/notification_email_service_test.go | \
       backend/internal/service/payment_config_limits.go | \
       backend/internal/service/payment_config_limits_test.go | \
       backend/internal/service/payment_config_service.go | \

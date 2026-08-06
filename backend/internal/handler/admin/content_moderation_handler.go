@@ -58,6 +58,7 @@ type contentModerationConfigRequest struct {
 	BlockedKeywords                *[]string                             `json:"blocked_keywords"`
 	KeywordBlockingMode            *string                               `json:"keyword_blocking_mode"`
 	ModelFilter                    *service.ContentModerationModelFilter `json:"model_filter"`
+	UserBanThresholds              *[]service.UserBanThresholdOverride   `json:"user_ban_thresholds"`
 }
 
 type contentModerationAPIKeyTestRequest struct {
@@ -114,6 +115,7 @@ func (h *ContentModerationHandler) UpdateConfig(c *gin.Context) {
 		EmailOnHit:                     req.EmailOnHit,
 		AutoBanEnabled:                 req.AutoBanEnabled,
 		BanThreshold:                   req.BanThreshold,
+		UserBanThresholds:              req.UserBanThresholds,
 		ViolationWindowHours:           req.ViolationWindowHours,
 		CyberPolicyExcludeFromBanCount: req.CyberPolicyExcludeFromBanCount,
 		RetryCount:                     req.RetryCount,

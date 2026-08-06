@@ -38,6 +38,7 @@ const (
 )
 
 type APIAuditScope = custommoderation.APIAuditScope
+type UserBanThresholdOverride = custommoderation.UserBanThresholdOverride
 
 func defaultContentModerationAPIAuditScope() *APIAuditScope {
 	return custommoderation.DefaultAPIAuditScope()
@@ -45,6 +46,34 @@ func defaultContentModerationAPIAuditScope() *APIAuditScope {
 
 func normalizeContentModerationAPIAuditScope(scope *APIAuditScope) *APIAuditScope {
 	return custommoderation.NormalizeAPIAuditScope(scope)
+}
+
+func cloneContentModerationUserBanThresholdOverrides(
+	overrides []UserBanThresholdOverride,
+) []UserBanThresholdOverride {
+	return custommoderation.CloneUserBanThresholdOverrides(overrides)
+}
+
+func validateContentModerationUserBanThresholdOverrides(
+	overrides []UserBanThresholdOverride,
+) error {
+	return custommoderation.ValidateUserBanThresholdOverrides(overrides)
+}
+
+func effectiveContentModerationConfigForUser(
+	cfg *ContentModerationConfig,
+	userID *int64,
+) *ContentModerationConfig {
+	if cfg == nil || userID == nil || *userID <= 0 {
+		return cfg
+	}
+	threshold := custommoderation.EffectiveBanThreshold(cfg.BanThreshold, cfg.UserBanThresholds, *userID)
+	if threshold == cfg.BanThreshold {
+		return cfg
+	}
+	effective := cloneContentModerationConfig(cfg)
+	effective.BanThreshold = threshold
+	return effective
 }
 
 func (cfg *ContentModerationConfig) includesAPIAuditGroup(groupID *int64) bool {
@@ -142,6 +171,7 @@ func (a *contentModerationCyberPolicyAdapter) Redact(text string) string {
 
 func (a *contentModerationCyberPolicyAdapter) ApplyPenalty(ctx context.Context, record *custommoderation.Record) custommoderation.PenaltyResult {
 	log := toServiceContentModerationLog(record)
+	a.config = effectiveContentModerationConfigForUser(a.config, log.UserID)
 	justBanned := a.service.applyFlaggedAccountSideEffects(ctx, a.config, log)
 	return custommoderation.PenaltyResult{
 		ViolationCount: log.ViolationCount,
@@ -165,7 +195,8 @@ func (a *contentModerationCyberPolicyAdapter) EmailAvailable() bool {
 }
 
 func (a *contentModerationCyberPolicyAdapter) SendCyberPolicyNotice(ctx context.Context, record *custommoderation.Record) error {
-	return a.service.sendCyberPolicyEmail(ctx, toServiceContentModerationLog(record))
+	effectiveCfg := effectiveContentModerationConfigForUser(a.config, record.UserID)
+	return a.service.sendCyberPolicyEmail(ctx, effectiveCfg, toServiceContentModerationLog(record))
 }
 
 func (a *contentModerationCyberPolicyAdapter) SendAccountDisabledNotice(ctx context.Context, record *custommoderation.Record) error {

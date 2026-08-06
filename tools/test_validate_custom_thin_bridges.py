@@ -525,6 +525,40 @@ class ThinBridgeContractTests(unittest.TestCase):
             approved_control,
         )
 
+    def test_content_moderation_user_ban_threshold_bridge_is_explicitly_scoped(self) -> None:
+        path = "backend/internal/service/content_moderation.go"
+        approved_calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[path]
+        for call in (
+            ("UpdateConfig", "cloneContentModerationUserBanThresholdOverrides"),
+            ("persistContentModerationLog", "effectiveContentModerationConfigForUser"),
+            ("sendCyberPolicyEmail", "contentModerationEmailVariables"),
+            ("validateConfig", "validateContentModerationUserBanThresholdOverrides"),
+        ):
+            self.assertEqual(approved_calls.count(call), 1)
+
+        approved_control = validator.APPROVED_DELEGATE_VIEW_CONTROL[path]
+        self.assertIn(
+            ("RecordCyberPolicyEvent", "if err := s.sendCyberPolicyEmail(ctx, cfg, log); err != nil {"),
+            approved_control,
+        )
+        self.assertIn(
+            ("UpdateConfig", "if input.UserBanThresholds != nil {"),
+            approved_control,
+        )
+        self.assertIn(
+            (
+                "validateConfig",
+                "if err := validateContentModerationUserBanThresholdOverrides(cfg.UserBanThresholds); err != nil {",
+            ),
+            approved_control,
+        )
+
+        email_path = "backend/internal/service/content_moderation_email.go"
+        self.assertIn(
+            ("buildCyberPolicyNoticeEmailBody", "if cfg != nil && cfg.BanThreshold > 0 {"),
+            validator.APPROVED_DELEGATE_VIEW_CONTROL[email_path],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
