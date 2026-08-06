@@ -223,10 +223,16 @@ thin_bridge_allowed() {
       backend/internal/service/notification_email_service_test.go | \
       backend/internal/service/payment_config_limits.go | \
       backend/internal/service/payment_config_limits_test.go | \
+      backend/internal/service/payment_config_plans.go | \
       backend/internal/service/payment_config_service.go | \
       backend/internal/service/payment_config_service_test.go | \
+      backend/internal/service/payment_fulfillment.go | \
+      backend/internal/service/payment_fulfillment_test.go | \
       backend/internal/service/payment_order.go | \
+      backend/internal/service/payment_order_lifecycle.go | \
+      backend/internal/service/payment_order_lifecycle_test.go | \
       backend/internal/service/payment_order_result_test.go | \
+      backend/internal/service/payment_refund_test.go | \
       backend/internal/service/payment_resume_service.go | \
       backend/internal/service/payment_resume_service_test.go | \
       backend/internal/service/payment_service.go | \
@@ -255,6 +261,10 @@ thin_bridge_allowed() {
       frontend/src/views/admin/GroupsView.vue | \
       frontend/src/views/admin/SettingsView.vue | \
       frontend/src/views/admin/__tests__/SettingsView.spec.ts | \
+      frontend/src/views/admin/orders/AdminPaymentPlansView.vue | \
+      frontend/src/views/admin/orders/PlanEditDialog.vue | \
+      frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts | \
+      frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts | \
       frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts | \
       frontend/src/views/user/PaymentView.vue | \
       frontend/src/views/user/__tests__/PaymentView.spec.ts | \

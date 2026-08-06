@@ -154,6 +154,8 @@ export interface SubscriptionPlan {
   /** Stored as JSON string in backend; API layer should parse before use */
   features: string[]
   for_sale: boolean
+  remaining_quantity: number | null
+  inventory_auto_delisted: boolean
   sort_order: number
 }
 

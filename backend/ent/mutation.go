@@ -29284,6 +29284,7 @@ type PaymentOrderMutation struct {
 	provider_key             *string
 	provider_snapshot        *map[string]interface{}
 	status                   *string
+	plan_inventory_state     *string
 	refund_amount            *float64
 	addrefund_amount         *float64
 	refund_reason            *string
@@ -30453,6 +30454,42 @@ func (m *PaymentOrderMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetPlanInventoryState sets the "plan_inventory_state" field.
+func (m *PaymentOrderMutation) SetPlanInventoryState(s string) {
+	m.plan_inventory_state = &s
+}
+
+// PlanInventoryState returns the value of the "plan_inventory_state" field in the mutation.
+func (m *PaymentOrderMutation) PlanInventoryState() (r string, exists bool) {
+	v := m.plan_inventory_state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlanInventoryState returns the old "plan_inventory_state" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldPlanInventoryState(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlanInventoryState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlanInventoryState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlanInventoryState: %w", err)
+	}
+	return oldValue.PlanInventoryState, nil
+}
+
+// ResetPlanInventoryState resets all changes to the "plan_inventory_state" field.
+func (m *PaymentOrderMutation) ResetPlanInventoryState() {
+	m.plan_inventory_state = nil
+}
+
 // SetRefundAmount sets the "refund_amount" field.
 func (m *PaymentOrderMutation) SetRefundAmount(f float64) {
 	m.refund_amount = &f
@@ -31276,7 +31313,7 @@ func (m *PaymentOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PaymentOrderMutation) Fields() []string {
-	fields := make([]string, 0, 39)
+	fields := make([]string, 0, 40)
 	if m.user != nil {
 		fields = append(fields, paymentorder.FieldUserID)
 	}
@@ -31342,6 +31379,9 @@ func (m *PaymentOrderMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, paymentorder.FieldStatus)
+	}
+	if m.plan_inventory_state != nil {
+		fields = append(fields, paymentorder.FieldPlanInventoryState)
 	}
 	if m.refund_amount != nil {
 		fields = append(fields, paymentorder.FieldRefundAmount)
@@ -31446,6 +31486,8 @@ func (m *PaymentOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.ProviderSnapshot()
 	case paymentorder.FieldStatus:
 		return m.Status()
+	case paymentorder.FieldPlanInventoryState:
+		return m.PlanInventoryState()
 	case paymentorder.FieldRefundAmount:
 		return m.RefundAmount()
 	case paymentorder.FieldRefundReason:
@@ -31533,6 +31575,8 @@ func (m *PaymentOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldProviderSnapshot(ctx)
 	case paymentorder.FieldStatus:
 		return m.OldStatus(ctx)
+	case paymentorder.FieldPlanInventoryState:
+		return m.OldPlanInventoryState(ctx)
 	case paymentorder.FieldRefundAmount:
 		return m.OldRefundAmount(ctx)
 	case paymentorder.FieldRefundReason:
@@ -31729,6 +31773,13 @@ func (m *PaymentOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case paymentorder.FieldPlanInventoryState:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlanInventoryState(v)
 		return nil
 	case paymentorder.FieldRefundAmount:
 		v, ok := value.(float64)
@@ -32173,6 +32224,9 @@ func (m *PaymentOrderMutation) ResetField(name string) error {
 		return nil
 	case paymentorder.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case paymentorder.FieldPlanInventoryState:
+		m.ResetPlanInventoryState()
 		return nil
 	case paymentorder.FieldRefundAmount:
 		m.ResetRefundAmount()
@@ -39921,32 +39975,35 @@ func (m *SettingMutation) ResetEdge(name string) error {
 // SubscriptionPlanMutation represents an operation that mutates the SubscriptionPlan nodes in the graph.
 type SubscriptionPlanMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *int64
-	group_id          *int64
-	addgroup_id       *int64
-	name              *string
-	description       *string
-	price             *float64
-	addprice          *float64
-	original_price    *float64
-	addoriginal_price *float64
-	currency          *string
-	validity_days     *int
-	addvalidity_days  *int
-	validity_unit     *string
-	features          *string
-	product_name      *string
-	for_sale          *bool
-	sort_order        *int
-	addsort_order     *int
-	created_at        *time.Time
-	updated_at        *time.Time
-	clearedFields     map[string]struct{}
-	done              bool
-	oldValue          func(context.Context) (*SubscriptionPlan, error)
-	predicates        []predicate.SubscriptionPlan
+	op                      Op
+	typ                     string
+	id                      *int64
+	group_id                *int64
+	addgroup_id             *int64
+	name                    *string
+	description             *string
+	price                   *float64
+	addprice                *float64
+	original_price          *float64
+	addoriginal_price       *float64
+	currency                *string
+	validity_days           *int
+	addvalidity_days        *int
+	validity_unit           *string
+	features                *string
+	product_name            *string
+	for_sale                *bool
+	remaining_quantity      *int
+	addremaining_quantity   *int
+	inventory_auto_delisted *bool
+	sort_order              *int
+	addsort_order           *int
+	created_at              *time.Time
+	updated_at              *time.Time
+	clearedFields           map[string]struct{}
+	done                    bool
+	oldValue                func(context.Context) (*SubscriptionPlan, error)
+	predicates              []predicate.SubscriptionPlan
 }
 
 var _ ent.Mutation = (*SubscriptionPlanMutation)(nil)
@@ -40537,6 +40594,112 @@ func (m *SubscriptionPlanMutation) ResetForSale() {
 	m.for_sale = nil
 }
 
+// SetRemainingQuantity sets the "remaining_quantity" field.
+func (m *SubscriptionPlanMutation) SetRemainingQuantity(i int) {
+	m.remaining_quantity = &i
+	m.addremaining_quantity = nil
+}
+
+// RemainingQuantity returns the value of the "remaining_quantity" field in the mutation.
+func (m *SubscriptionPlanMutation) RemainingQuantity() (r int, exists bool) {
+	v := m.remaining_quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemainingQuantity returns the old "remaining_quantity" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldRemainingQuantity(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemainingQuantity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemainingQuantity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemainingQuantity: %w", err)
+	}
+	return oldValue.RemainingQuantity, nil
+}
+
+// AddRemainingQuantity adds i to the "remaining_quantity" field.
+func (m *SubscriptionPlanMutation) AddRemainingQuantity(i int) {
+	if m.addremaining_quantity != nil {
+		*m.addremaining_quantity += i
+	} else {
+		m.addremaining_quantity = &i
+	}
+}
+
+// AddedRemainingQuantity returns the value that was added to the "remaining_quantity" field in this mutation.
+func (m *SubscriptionPlanMutation) AddedRemainingQuantity() (r int, exists bool) {
+	v := m.addremaining_quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRemainingQuantity clears the value of the "remaining_quantity" field.
+func (m *SubscriptionPlanMutation) ClearRemainingQuantity() {
+	m.remaining_quantity = nil
+	m.addremaining_quantity = nil
+	m.clearedFields[subscriptionplan.FieldRemainingQuantity] = struct{}{}
+}
+
+// RemainingQuantityCleared returns if the "remaining_quantity" field was cleared in this mutation.
+func (m *SubscriptionPlanMutation) RemainingQuantityCleared() bool {
+	_, ok := m.clearedFields[subscriptionplan.FieldRemainingQuantity]
+	return ok
+}
+
+// ResetRemainingQuantity resets all changes to the "remaining_quantity" field.
+func (m *SubscriptionPlanMutation) ResetRemainingQuantity() {
+	m.remaining_quantity = nil
+	m.addremaining_quantity = nil
+	delete(m.clearedFields, subscriptionplan.FieldRemainingQuantity)
+}
+
+// SetInventoryAutoDelisted sets the "inventory_auto_delisted" field.
+func (m *SubscriptionPlanMutation) SetInventoryAutoDelisted(b bool) {
+	m.inventory_auto_delisted = &b
+}
+
+// InventoryAutoDelisted returns the value of the "inventory_auto_delisted" field in the mutation.
+func (m *SubscriptionPlanMutation) InventoryAutoDelisted() (r bool, exists bool) {
+	v := m.inventory_auto_delisted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInventoryAutoDelisted returns the old "inventory_auto_delisted" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldInventoryAutoDelisted(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInventoryAutoDelisted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInventoryAutoDelisted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInventoryAutoDelisted: %w", err)
+	}
+	return oldValue.InventoryAutoDelisted, nil
+}
+
+// ResetInventoryAutoDelisted resets all changes to the "inventory_auto_delisted" field.
+func (m *SubscriptionPlanMutation) ResetInventoryAutoDelisted() {
+	m.inventory_auto_delisted = nil
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (m *SubscriptionPlanMutation) SetSortOrder(i int) {
 	m.sort_order = &i
@@ -40699,7 +40862,7 @@ func (m *SubscriptionPlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SubscriptionPlanMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 16)
 	if m.group_id != nil {
 		fields = append(fields, subscriptionplan.FieldGroupID)
 	}
@@ -40732,6 +40895,12 @@ func (m *SubscriptionPlanMutation) Fields() []string {
 	}
 	if m.for_sale != nil {
 		fields = append(fields, subscriptionplan.FieldForSale)
+	}
+	if m.remaining_quantity != nil {
+		fields = append(fields, subscriptionplan.FieldRemainingQuantity)
+	}
+	if m.inventory_auto_delisted != nil {
+		fields = append(fields, subscriptionplan.FieldInventoryAutoDelisted)
 	}
 	if m.sort_order != nil {
 		fields = append(fields, subscriptionplan.FieldSortOrder)
@@ -40772,6 +40941,10 @@ func (m *SubscriptionPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.ProductName()
 	case subscriptionplan.FieldForSale:
 		return m.ForSale()
+	case subscriptionplan.FieldRemainingQuantity:
+		return m.RemainingQuantity()
+	case subscriptionplan.FieldInventoryAutoDelisted:
+		return m.InventoryAutoDelisted()
 	case subscriptionplan.FieldSortOrder:
 		return m.SortOrder()
 	case subscriptionplan.FieldCreatedAt:
@@ -40809,6 +40982,10 @@ func (m *SubscriptionPlanMutation) OldField(ctx context.Context, name string) (e
 		return m.OldProductName(ctx)
 	case subscriptionplan.FieldForSale:
 		return m.OldForSale(ctx)
+	case subscriptionplan.FieldRemainingQuantity:
+		return m.OldRemainingQuantity(ctx)
+	case subscriptionplan.FieldInventoryAutoDelisted:
+		return m.OldInventoryAutoDelisted(ctx)
 	case subscriptionplan.FieldSortOrder:
 		return m.OldSortOrder(ctx)
 	case subscriptionplan.FieldCreatedAt:
@@ -40901,6 +41078,20 @@ func (m *SubscriptionPlanMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetForSale(v)
 		return nil
+	case subscriptionplan.FieldRemainingQuantity:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemainingQuantity(v)
+		return nil
+	case subscriptionplan.FieldInventoryAutoDelisted:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInventoryAutoDelisted(v)
+		return nil
 	case subscriptionplan.FieldSortOrder:
 		v, ok := value.(int)
 		if !ok {
@@ -40942,6 +41133,9 @@ func (m *SubscriptionPlanMutation) AddedFields() []string {
 	if m.addvalidity_days != nil {
 		fields = append(fields, subscriptionplan.FieldValidityDays)
 	}
+	if m.addremaining_quantity != nil {
+		fields = append(fields, subscriptionplan.FieldRemainingQuantity)
+	}
 	if m.addsort_order != nil {
 		fields = append(fields, subscriptionplan.FieldSortOrder)
 	}
@@ -40961,6 +41155,8 @@ func (m *SubscriptionPlanMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedOriginalPrice()
 	case subscriptionplan.FieldValidityDays:
 		return m.AddedValidityDays()
+	case subscriptionplan.FieldRemainingQuantity:
+		return m.AddedRemainingQuantity()
 	case subscriptionplan.FieldSortOrder:
 		return m.AddedSortOrder()
 	}
@@ -41000,6 +41196,13 @@ func (m *SubscriptionPlanMutation) AddField(name string, value ent.Value) error 
 		}
 		m.AddValidityDays(v)
 		return nil
+	case subscriptionplan.FieldRemainingQuantity:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRemainingQuantity(v)
+		return nil
 	case subscriptionplan.FieldSortOrder:
 		v, ok := value.(int)
 		if !ok {
@@ -41018,6 +41221,9 @@ func (m *SubscriptionPlanMutation) ClearedFields() []string {
 	if m.FieldCleared(subscriptionplan.FieldOriginalPrice) {
 		fields = append(fields, subscriptionplan.FieldOriginalPrice)
 	}
+	if m.FieldCleared(subscriptionplan.FieldRemainingQuantity) {
+		fields = append(fields, subscriptionplan.FieldRemainingQuantity)
+	}
 	return fields
 }
 
@@ -41034,6 +41240,9 @@ func (m *SubscriptionPlanMutation) ClearField(name string) error {
 	switch name {
 	case subscriptionplan.FieldOriginalPrice:
 		m.ClearOriginalPrice()
+		return nil
+	case subscriptionplan.FieldRemainingQuantity:
+		m.ClearRemainingQuantity()
 		return nil
 	}
 	return fmt.Errorf("unknown SubscriptionPlan nullable field %s", name)
@@ -41075,6 +41284,12 @@ func (m *SubscriptionPlanMutation) ResetField(name string) error {
 		return nil
 	case subscriptionplan.FieldForSale:
 		m.ResetForSale()
+		return nil
+	case subscriptionplan.FieldRemainingQuantity:
+		m.ResetRemainingQuantity()
+		return nil
+	case subscriptionplan.FieldInventoryAutoDelisted:
+		m.ResetInventoryAutoDelisted()
 		return nil
 	case subscriptionplan.FieldSortOrder:
 		m.ResetSortOrder()

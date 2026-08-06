@@ -160,6 +160,11 @@ func Status(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldStatus, v))
 }
 
+// PlanInventoryState applies equality check predicate on the "plan_inventory_state" field. It's identical to PlanInventoryStateEQ.
+func PlanInventoryState(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldPlanInventoryState, v))
+}
+
 // RefundAmount applies equality check predicate on the "refund_amount" field. It's identical to RefundAmountEQ.
 func RefundAmount(v float64) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldRefundAmount, v))
@@ -1513,6 +1518,71 @@ func StatusEqualFold(v string) predicate.PaymentOrder {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// PlanInventoryStateEQ applies the EQ predicate on the "plan_inventory_state" field.
+func PlanInventoryStateEQ(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldPlanInventoryState, v))
+}
+
+// PlanInventoryStateNEQ applies the NEQ predicate on the "plan_inventory_state" field.
+func PlanInventoryStateNEQ(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldPlanInventoryState, v))
+}
+
+// PlanInventoryStateIn applies the In predicate on the "plan_inventory_state" field.
+func PlanInventoryStateIn(vs ...string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldPlanInventoryState, vs...))
+}
+
+// PlanInventoryStateNotIn applies the NotIn predicate on the "plan_inventory_state" field.
+func PlanInventoryStateNotIn(vs ...string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldPlanInventoryState, vs...))
+}
+
+// PlanInventoryStateGT applies the GT predicate on the "plan_inventory_state" field.
+func PlanInventoryStateGT(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldPlanInventoryState, v))
+}
+
+// PlanInventoryStateGTE applies the GTE predicate on the "plan_inventory_state" field.
+func PlanInventoryStateGTE(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldPlanInventoryState, v))
+}
+
+// PlanInventoryStateLT applies the LT predicate on the "plan_inventory_state" field.
+func PlanInventoryStateLT(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldPlanInventoryState, v))
+}
+
+// PlanInventoryStateLTE applies the LTE predicate on the "plan_inventory_state" field.
+func PlanInventoryStateLTE(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldPlanInventoryState, v))
+}
+
+// PlanInventoryStateContains applies the Contains predicate on the "plan_inventory_state" field.
+func PlanInventoryStateContains(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldContains(FieldPlanInventoryState, v))
+}
+
+// PlanInventoryStateHasPrefix applies the HasPrefix predicate on the "plan_inventory_state" field.
+func PlanInventoryStateHasPrefix(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldHasPrefix(FieldPlanInventoryState, v))
+}
+
+// PlanInventoryStateHasSuffix applies the HasSuffix predicate on the "plan_inventory_state" field.
+func PlanInventoryStateHasSuffix(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldHasSuffix(FieldPlanInventoryState, v))
+}
+
+// PlanInventoryStateEqualFold applies the EqualFold predicate on the "plan_inventory_state" field.
+func PlanInventoryStateEqualFold(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEqualFold(FieldPlanInventoryState, v))
+}
+
+// PlanInventoryStateContainsFold applies the ContainsFold predicate on the "plan_inventory_state" field.
+func PlanInventoryStateContainsFold(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldContainsFold(FieldPlanInventoryState, v))
 }
 
 // RefundAmountEQ applies the EQ predicate on the "refund_amount" field.

@@ -1,9 +1,17 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 import { mount } from '@vue/test-utils'
 
 import PlanEditDialog from '../PlanEditDialog.vue'
 import type { AdminGroup } from '@/types'
+import type { SubscriptionPlan } from '@/types/payment'
+
+const { createPlan, updatePlan, showError, showSuccess } = vi.hoisted(() => ({
+  createPlan: vi.fn(),
+  updatePlan: vi.fn(),
+  showError: vi.fn(),
+  showSuccess: vi.fn(),
+}))
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -17,15 +25,15 @@ vi.mock('vue-i18n', () => ({
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
-    showError: vi.fn(),
-    showSuccess: vi.fn(),
+    showError,
+    showSuccess,
   }),
 }))
 
 vi.mock('@/api/admin/payment', () => ({
   adminPaymentAPI: {
-    createPlan: vi.fn(),
-    updatePlan: vi.fn(),
+    createPlan,
+    updatePlan,
   },
 }))
 
@@ -116,14 +124,16 @@ const groupFixture = (overrides: Partial<AdminGroup>): AdminGroup => ({
 function mountDialog({
   groups = [],
   paymentConfig = null,
+  plan = null,
 }: {
   groups?: AdminGroup[]
   paymentConfig?: Record<string, unknown> | null
+  plan?: SubscriptionPlan | null
 } = {}) {
   return mount(PlanEditDialog, {
     props: {
       show: true,
-      plan: null,
+      plan,
       groups,
       paymentConfig,
     },
@@ -139,6 +149,13 @@ function mountDialog({
 }
 
 describe('PlanEditDialog', () => {
+  beforeEach(() => {
+    createPlan.mockReset()
+    updatePlan.mockReset()
+    showError.mockReset()
+    showSuccess.mockReset()
+  })
+
   it('shows CNY channel charge using the configured subscription rate and fee', async () => {
     const wrapper = mountDialog({
       paymentConfig: {
@@ -192,5 +209,92 @@ describe('PlanEditDialog', () => {
 
     expect(options).toContain('OpenAI + Claude + Gemini + Grok — composite (1.2x)')
     expect(options).not.toContain('Standard OpenAI — openai (1x)')
+  })
+
+  it('submits blank inventory as unlimited and a positive integer as limited', async () => {
+    const group = groupFixture({})
+    const wrapper = mountDialog({ groups: [group] })
+    await wrapper.find('input[type="text"]').setValue('Inventory plan')
+    await wrapper.find('select').setValue(String(group.id))
+    await wrapper.find('textarea').setValue('Inventory plan description')
+    await wrapper.findAll('input[type="number"]')[0].setValue('10')
+    await wrapper.find('form').trigger('submit')
+
+    expect(createPlan).toHaveBeenCalledOnce()
+    expect(createPlan.mock.calls[0][0]).toMatchObject({ remaining_quantity: null })
+
+    createPlan.mockReset()
+    await wrapper.find('#subscription-plan-remaining-quantity').setValue('8')
+    await wrapper.find('form').trigger('submit')
+    expect(createPlan.mock.calls[0][0]).toMatchObject({ remaining_quantity: 8 })
+  })
+
+  it('rejects zero, negative, decimal, and unsafe inventory values', async () => {
+    const group = groupFixture({})
+    const wrapper = mountDialog({ groups: [group] })
+    await wrapper.find('input[type="text"]').setValue('Invalid inventory plan')
+    await wrapper.find('select').setValue(String(group.id))
+    await wrapper.find('textarea').setValue('Invalid inventory plan description')
+    await wrapper.findAll('input[type="number"]')[0].setValue('10')
+    const input = wrapper.find('#subscription-plan-remaining-quantity')
+
+    for (const value of ['0', '-1', '1.5', '9007199254740992']) {
+      await input.setValue(value)
+      await wrapper.find('form').trigger('submit')
+    }
+
+    expect(createPlan).not.toHaveBeenCalled()
+    expect(showError).toHaveBeenCalledTimes(4)
+  })
+
+  it('does not submit an unchanged sold-out zero when editing other fields', async () => {
+    const plan: SubscriptionPlan = {
+      id: 7,
+      group_id: 1,
+      name: 'Sold-out plan',
+      description: 'Sold-out description',
+      price: 10,
+      currency: '',
+      validity_days: 30,
+      validity_unit: 'days',
+      features: [],
+      for_sale: false,
+      remaining_quantity: 0,
+      inventory_auto_delisted: true,
+      sort_order: 0,
+    }
+    const wrapper = mountDialog({ groups: [groupFixture({})], plan })
+    await wrapper.find('input[type="text"]').setValue('Renamed sold-out plan')
+    await wrapper.find('form').trigger('submit')
+
+    expect(updatePlan).toHaveBeenCalledOnce()
+    const payload = updatePlan.mock.calls[0][1]
+    expect(payload).not.toHaveProperty('remaining_quantity')
+    expect(payload).not.toHaveProperty('for_sale')
+  })
+
+  it('submits restock without forcing automatic delisting to remain off sale', async () => {
+    const plan: SubscriptionPlan = {
+      id: 8,
+      group_id: 1,
+      name: 'Auto-delisted plan',
+      description: 'Auto-delisted description',
+      price: 10,
+      currency: '',
+      validity_days: 30,
+      validity_unit: 'days',
+      features: [],
+      for_sale: false,
+      remaining_quantity: 0,
+      inventory_auto_delisted: true,
+      sort_order: 0,
+    }
+    const wrapper = mountDialog({ groups: [groupFixture({})], plan })
+    await wrapper.find('#subscription-plan-remaining-quantity').setValue('5')
+    await wrapper.find('form').trigger('submit')
+
+    const payload = updatePlan.mock.calls[0][1]
+    expect(payload).toMatchObject({ remaining_quantity: 5 })
+    expect(payload).not.toHaveProperty('for_sale')
   })
 })

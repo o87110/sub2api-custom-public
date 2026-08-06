@@ -35,6 +35,10 @@ const (
 	FieldProductName = "product_name"
 	// FieldForSale holds the string denoting the for_sale field in the database.
 	FieldForSale = "for_sale"
+	// FieldRemainingQuantity holds the string denoting the remaining_quantity field in the database.
+	FieldRemainingQuantity = "remaining_quantity"
+	// FieldInventoryAutoDelisted holds the string denoting the inventory_auto_delisted field in the database.
+	FieldInventoryAutoDelisted = "inventory_auto_delisted"
 	// FieldSortOrder holds the string denoting the sort_order field in the database.
 	FieldSortOrder = "sort_order"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -59,6 +63,8 @@ var Columns = []string{
 	FieldFeatures,
 	FieldProductName,
 	FieldForSale,
+	FieldRemainingQuantity,
+	FieldInventoryAutoDelisted,
 	FieldSortOrder,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -97,6 +103,8 @@ var (
 	ProductNameValidator func(string) error
 	// DefaultForSale holds the default value on creation for the "for_sale" field.
 	DefaultForSale bool
+	// DefaultInventoryAutoDelisted holds the default value on creation for the "inventory_auto_delisted" field.
+	DefaultInventoryAutoDelisted bool
 	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
 	DefaultSortOrder int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -168,6 +176,16 @@ func ByProductName(opts ...sql.OrderTermOption) OrderOption {
 // ByForSale orders the results by the for_sale field.
 func ByForSale(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldForSale, opts...).ToFunc()
+}
+
+// ByRemainingQuantity orders the results by the remaining_quantity field.
+func ByRemainingQuantity(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRemainingQuantity, opts...).ToFunc()
+}
+
+// ByInventoryAutoDelisted orders the results by the inventory_auto_delisted field.
+func ByInventoryAutoDelisted(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryAutoDelisted, opts...).ToFunc()
 }
 
 // BySortOrder orders the results by the sort_order field.

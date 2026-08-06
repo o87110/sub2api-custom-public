@@ -59,6 +59,12 @@
           <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.currencyHint') }}</p>
         </div>
       </div>
+      <InventoryQuantityInput
+        :model-value="remainingQuantityInput"
+        :error="remainingQuantityError"
+        :sold-out="isUnchangedSoldOutQuantity"
+        @update:model-value="handleRemainingQuantityInput"
+      />
       <div>
         <label class="input-label">{{ t('payment.admin.features') }}</label>
         <textarea v-model="planFeaturesText" rows="3" class="input" :placeholder="t('payment.admin.featuresPlaceholder')"></textarea>
@@ -72,7 +78,7 @@
             'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
             planForm.for_sale ? 'bg-primary-500' : 'bg-gray-300 dark:bg-dark-600'
           ]"
-          @click="planForm.for_sale = !planForm.for_sale"
+          @click="togglePlanForSale"
         >
           <span :class="[
             'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
@@ -105,6 +111,8 @@ import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import { platformTextClass } from '@/utils/platformColors'
+import InventoryQuantityInput from '@/custom/subscription-plan-inventory/InventoryQuantityInput.vue'
+import { inventoryQuantityValue, isPositiveInventoryQuantity } from '@/custom/subscription-plan-inventory/inventory'
 
 const props = defineProps<{
   show: boolean
@@ -124,6 +132,19 @@ const appStore = useAppStore()
 const saving = ref(false)
 const planForm = reactive({ name: '', group_id: null as number | null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
 const planFeaturesText = ref('')
+const remainingQuantityInput = ref('')
+const remainingQuantityDirty = ref(false)
+const initialForSale = ref(true)
+
+const isUnchangedSoldOutQuantity = computed(() =>
+  props.plan?.remaining_quantity === 0 && !remainingQuantityDirty.value && remainingQuantityInput.value.trim() === '0',
+)
+
+const remainingQuantityError = computed(() => {
+  const value = remainingQuantityInput.value.trim()
+  if (value === '' || isPositiveInventoryQuantity(value) || isUnchangedSoldOutQuantity.value) return ''
+  return t('payment.admin.remainingQuantityInvalid')
+})
 
 const validityUnitOptions = computed(() => [
   { value: 'days', label: t('payment.admin.days') },
@@ -177,16 +198,34 @@ watch(() => props.show, (visible) => {
   if (props.plan) {
     Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price, original_price: props.plan.original_price || 0, currency: props.plan.currency || '', validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale })
     planFeaturesText.value = (props.plan.features || []).join('\n')
+    remainingQuantityInput.value = props.plan.remaining_quantity == null ? '' : String(props.plan.remaining_quantity)
+    initialForSale.value = props.plan.for_sale
   } else {
     Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
     planFeaturesText.value = ''
+    remainingQuantityInput.value = ''
+    initialForSale.value = true
   }
-})
+  remainingQuantityDirty.value = false
+}, { immediate: true })
+
+function handleRemainingQuantityInput(value: string) {
+  remainingQuantityInput.value = value
+  remainingQuantityDirty.value = true
+}
+
+function togglePlanForSale() {
+  if (!planForm.for_sale && remainingQuantityInput.value.trim() === '0') {
+    appStore.showError(t('payment.admin.soldOutCannotList'))
+    return
+  }
+  planForm.for_sale = !planForm.for_sale
+}
 
 /** Build request payload with snake_case keys matching backend JSON tags */
 function buildPlanPayload() {
   const features = planFeaturesText.value.split('\n').map(f => f.trim()).filter(Boolean).join('\n')
-  return {
+  const payload: Record<string, unknown> = {
     name: planForm.name,
     group_id: planForm.group_id,
     description: planForm.description,
@@ -196,9 +235,16 @@ function buildPlanPayload() {
     validity_days: planForm.validity_days,
     validity_unit: planForm.validity_unit,
     sort_order: planForm.sort_order,
-    for_sale: planForm.for_sale,
     features,
   }
+  if (!props.plan) {
+    payload.for_sale = planForm.for_sale
+    payload.remaining_quantity = inventoryQuantityValue(remainingQuantityInput.value)
+  } else {
+    if (planForm.for_sale !== initialForSale.value) payload.for_sale = planForm.for_sale
+    if (remainingQuantityDirty.value) payload.remaining_quantity = inventoryQuantityValue(remainingQuantityInput.value)
+  }
+  return payload
 }
 
 async function handleSavePlan() {
@@ -212,6 +258,10 @@ async function handleSavePlan() {
   }
   if (!planForm.validity_days || planForm.validity_days < 1) {
     appStore.showError(t('payment.admin.validityRequired'))
+    return
+  }
+  if (remainingQuantityError.value) {
+    appStore.showError(remainingQuantityError.value)
     return
   }
   saving.value = true

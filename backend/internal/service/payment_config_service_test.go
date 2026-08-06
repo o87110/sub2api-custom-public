@@ -10,7 +10,9 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/enttest"
 	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -379,6 +381,121 @@ func TestGetPaymentConfigKeepsStoredEnabledTypes(t *testing.T) {
 	for i := range want {
 		if cfg.EnabledTypes[i] != want[i] {
 			t.Fatalf("EnabledTypes[%d] = %q, want %q (full=%v)", i, cfg.EnabledTypes[i], want[i], cfg.EnabledTypes)
+		}
+	}
+}
+
+func TestSubscriptionPlanInventoryCreateUpdateAndSaleFiltering(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	svc := &PaymentConfigService{entClient: client}
+
+	quantity := 5
+	plan, err := svc.CreatePlan(ctx, CreatePlanRequest{
+		GroupID:           1,
+		Name:              "Limited plan",
+		Price:             10,
+		ValidityDays:      30,
+		ValidityUnit:      "days",
+		ForSale:           true,
+		RemainingQuantity: &quantity,
+	})
+	if err != nil {
+		t.Fatalf("CreatePlan returned error: %v", err)
+	}
+	if plan.RemainingQuantity == nil || *plan.RemainingQuantity != quantity {
+		t.Fatalf("remaining quantity = %v, want %d", plan.RemainingQuantity, quantity)
+	}
+
+	zero := 0
+	_, err = svc.CreatePlan(ctx, CreatePlanRequest{
+		GroupID:           1,
+		Name:              "Invalid plan",
+		Price:             10,
+		ValidityDays:      30,
+		ValidityUnit:      "days",
+		ForSale:           true,
+		RemainingQuantity: &zero,
+	})
+	if err == nil || infraerrors.Reason(err) != "PLAN_QUANTITY_INVALID" {
+		t.Fatalf("CreatePlan zero quantity error = %v, want PLAN_QUANTITY_INVALID", err)
+	}
+
+	plan, err = client.SubscriptionPlan.UpdateOneID(plan.ID).
+		SetRemainingQuantity(0).
+		SetForSale(false).
+		SetInventoryAutoDelisted(true).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("mark plan automatically delisted: %v", err)
+	}
+	restock := 3
+	plan, err = svc.UpdatePlan(ctx, plan.ID, UpdatePlanRequest{
+		RemainingQuantity: subscriptioninventory.QuantityPatch{Present: true, Value: &restock},
+	})
+	if err != nil {
+		t.Fatalf("restock automatically delisted plan: %v", err)
+	}
+	if !plan.ForSale || plan.InventoryAutoDelisted {
+		t.Fatalf("automatic restock state = for_sale:%v auto:%v, want true/false", plan.ForSale, plan.InventoryAutoDelisted)
+	}
+
+	plan, err = client.SubscriptionPlan.UpdateOneID(plan.ID).
+		SetRemainingQuantity(0).
+		SetForSale(false).
+		SetInventoryAutoDelisted(false).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("mark plan manually delisted: %v", err)
+	}
+	plan, err = svc.UpdatePlan(ctx, plan.ID, UpdatePlanRequest{
+		RemainingQuantity: subscriptioninventory.QuantityPatch{Present: true, Value: &restock},
+	})
+	if err != nil {
+		t.Fatalf("restock manually delisted plan: %v", err)
+	}
+	if plan.ForSale {
+		t.Fatal("manual delisting was overridden by restock")
+	}
+
+	list := true
+	_, err = svc.UpdatePlan(ctx, plan.ID, UpdatePlanRequest{
+		RemainingQuantity: subscriptioninventory.QuantityPatch{Present: true, Value: &zero},
+		ForSale:           &list,
+	})
+	if err == nil || infraerrors.Reason(err) != "PLAN_QUANTITY_INVALID" {
+		t.Fatalf("admin zero quantity update error = %v, want PLAN_QUANTITY_INVALID", err)
+	}
+
+	plan, err = svc.UpdatePlan(ctx, plan.ID, UpdatePlanRequest{
+		RemainingQuantity: subscriptioninventory.QuantityPatch{Present: true, Value: nil},
+	})
+	if err != nil {
+		t.Fatalf("switch plan to unlimited: %v", err)
+	}
+	if plan.RemainingQuantity != nil {
+		t.Fatalf("remaining quantity = %v, want nil", plan.RemainingQuantity)
+	}
+
+	soldOut, err := client.SubscriptionPlan.Create().
+		SetGroupID(1).
+		SetName("Anomalous sold-out plan").
+		SetPrice(10).
+		SetValidityDays(30).
+		SetValidityUnit("days").
+		SetRemainingQuantity(0).
+		SetForSale(true).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create anomalous sold-out plan: %v", err)
+	}
+	forSale, err := svc.ListPlansForSale(ctx)
+	if err != nil {
+		t.Fatalf("ListPlansForSale returned error: %v", err)
+	}
+	for _, candidate := range forSale {
+		if candidate.ID == soldOut.ID {
+			t.Fatal("sold-out plan was returned by public sale query")
 		}
 	}
 }

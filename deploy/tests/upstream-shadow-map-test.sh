@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-86}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-96}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 86 ]]; then
+if [[ "$expected_count" -eq 96 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -69,12 +69,23 @@ if [[ "$expected_count" -eq 86 ]]; then
   assert_mapping $'backend/internal/service/billing_cache_service.go\tbackend/internal/custom/groupaccess/minimum_balance.go|backend/internal/custom/groupaccess/eligibility.go'
   assert_mapping $'frontend/src/i18n/locales/en/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
   assert_mapping $'frontend/src/i18n/locales/zh/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
-  assert_mapping $'backend/internal/service/payment_order.go\tbackend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/paymentchannels/order_policy.go|backend/internal/custom/paymentchannels/order_coordinator.go'
+  assert_mapping $'backend/internal/service/payment_order.go\tbackend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/paymentchannels/order_policy.go|backend/internal/custom/paymentchannels/order_coordinator.go|backend/internal/custom/subscriptioninventory/inventory.go'
   assert_mapping $'backend/internal/service/payment_order_result_test.go\tbackend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/paymentchannels/order_policy_test.go|backend/internal/custom/paymentchannels/revalidation_test.go|backend/internal/custom/paymentchannels/order_coordinator_test.go'
   assert_mapping $'backend/internal/handler/payment_handler.go\tbackend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go'
   assert_mapping $'backend/internal/handler/admin/setting_handler.go\tbackend/internal/custom/paymentchannels/channel_settings.go'
-  assert_mapping $'backend/internal/handler/admin/payment_handler.go\tbackend/internal/custom/paymentchannels/channel_settings.go'
-  assert_mapping $'backend/internal/service/payment_config_service.go\tbackend/internal/custom/paymentchannels/channel_settings.go'
+  assert_mapping $'backend/internal/handler/admin/payment_handler.go\tbackend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/subscriptioninventory/inventory.go'
+  assert_mapping $'backend/internal/service/payment_config_service.go\tbackend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/subscriptioninventory/inventory.go'
+  assert_mapping $'backend/internal/service/payment_config_service_test.go\tbackend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/subscriptioninventory/inventory_test.go'
+  assert_mapping $'backend/internal/service/payment_config_plans.go\tbackend/internal/custom/subscriptioninventory/inventory.go'
+  assert_mapping $'backend/internal/service/payment_fulfillment.go\tbackend/internal/custom/subscriptioninventory/inventory.go'
+  assert_mapping $'backend/internal/service/payment_fulfillment_test.go\tbackend/internal/custom/subscriptioninventory/inventory_test.go'
+  assert_mapping $'backend/internal/service/payment_order_lifecycle.go\tbackend/internal/custom/subscriptioninventory/inventory.go'
+  assert_mapping $'backend/internal/service/payment_order_lifecycle_test.go\tbackend/internal/custom/subscriptioninventory/inventory_test.go'
+  assert_mapping $'backend/internal/service/payment_refund_test.go\tbackend/internal/custom/subscriptioninventory/inventory_test.go'
+  assert_mapping $'frontend/src/views/admin/orders/AdminPaymentPlansView.vue\tfrontend/src/custom/subscription-plan-inventory/InventoryQuantityCell.vue|frontend/src/custom/subscription-plan-inventory/inventory.ts'
+  assert_mapping $'frontend/src/views/admin/orders/PlanEditDialog.vue\tfrontend/src/custom/subscription-plan-inventory/InventoryQuantityInput.vue|frontend/src/custom/subscription-plan-inventory/inventory.ts'
+  assert_mapping $'frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts\tfrontend/src/custom/subscription-plan-inventory/__tests__/inventory.spec.ts'
+  assert_mapping $'frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts\tfrontend/src/custom/subscription-plan-inventory/__tests__/inventory.spec.ts'
   assert_mapping $'backend/internal/payment/load_balancer.go\tbackend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/revalidation.go|backend/internal/custom/paymentchannels/instance_coordinator.go'
   assert_mapping $'backend/internal/payment/load_balancer_test.go\tbackend/internal/custom/paymentchannels/instance_coordinator_test.go'
   assert_mapping $'backend/internal/service/payment_resume_service_test.go\tbackend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/paymentchannels/resume_policy_test.go'
@@ -364,8 +375,14 @@ backend/internal/service/payment_config_limits.go
 backend/internal/service/payment_config_limits_test.go
 backend/internal/service/payment_config_service.go
 backend/internal/service/payment_config_service_test.go
+backend/internal/service/payment_config_plans.go
+backend/internal/service/payment_fulfillment.go
+backend/internal/service/payment_fulfillment_test.go
 backend/internal/service/payment_order.go
+backend/internal/service/payment_order_lifecycle.go
+backend/internal/service/payment_order_lifecycle_test.go
 backend/internal/service/payment_order_result_test.go
+backend/internal/service/payment_refund_test.go
 backend/internal/service/payment_resume_service.go
 backend/internal/service/payment_resume_service_test.go
 backend/internal/service/payment_service.go
@@ -403,6 +420,10 @@ frontend/src/views/admin/__tests__/RiskControlView.spec.ts
 frontend/src/views/admin/GroupsView.vue
 frontend/src/views/admin/SettingsView.vue
 frontend/src/views/admin/__tests__/SettingsView.spec.ts
+frontend/src/views/admin/orders/AdminPaymentPlansView.vue
+frontend/src/views/admin/orders/PlanEditDialog.vue
+frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts
+frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts
 frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts
 frontend/src/views/user/KeysView.vue
 frontend/src/views/user/__tests__/KeysView.spec.ts
