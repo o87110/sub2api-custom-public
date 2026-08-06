@@ -220,7 +220,7 @@ deploy/tests/docker-runtime-resources-test.sh	M	keep	M	custom-test	4e7480d4d59c6
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	2fbb1d7962193d22c2f0671cc9f69c24af6f7a6b	-	-	shadow-map+runtime-boundary-test	验证 86 条官方薄接入点到包含用户封禁阈值及 cyber 通知在内的 Custom 实现及测试的精确影子映射
-deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	83283255c83ee4d0f73e7adcd78adb44338e1a25	-	-	upstream-sync+crlf-ledger-test	验证内容审计 Handler 与影子映射始终受工作流保护并与 CODEOWNERS 一致
+deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	1499d67281d6c504463ac41fec4ca912e756f46a	-	-	upstream-sync+crlf-ledger-test	验证内容审计用户阈值、邮件模板、前端页面和测试的精确影子映射受工作流保护并与 CODEOWNERS 一致
 deploy/upstream/validate-upgrade-report-maintenance.sh	A	keep	A	fixed-path	@absent	f5a53260391239668e82cadba98d48d814a3d803	-	-	upstream-sync+candidate-tree	固定工具路径中的二改上游升级控制面最小差异
 docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	a8442a58af2d6217311e7ab973531512ca6aead1	-	-	documentation-consistency-review	同步内容审计 Custom 目录职责、用户阈值及二改维护边界
 docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	8c3f8081d92979313dc231961fa8b0d2134a4805	-	-	documentation-consistency-review	记录总审计范围、API 子范围、用户专属绝对封禁阈值、通知一致性和无数据库变化
