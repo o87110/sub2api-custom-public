@@ -7,7 +7,7 @@
       id="subscription-plan-remaining-quantity"
       :value="modelValue"
       type="number"
-      min="1"
+      :min="allowZero ? 0 : 1"
       step="1"
       inputmode="numeric"
       class="input"
@@ -28,18 +28,20 @@
       id="subscription-plan-remaining-quantity-hint"
       class="mt-1 text-xs text-gray-500 dark:text-gray-400"
     >
-      {{ soldOut ? t('payment.admin.remainingQuantitySoldOutHint') : t('payment.admin.remainingQuantityHint') }}
+      {{ hint }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-defineProps<{
+const props = defineProps<{
   modelValue: string
   error?: string
   soldOut?: boolean
+  allowZero?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -47,6 +49,12 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const hint = computed(() => {
+  if (props.soldOut) return t('payment.admin.remainingQuantitySoldOutHint')
+  return props.allowZero
+    ? t('payment.admin.remainingQuantityDisablePurchaseHint')
+    : t('payment.admin.remainingQuantityHint')
+})
 
 function onInput(event: Event) {
   emit('update:modelValue', (event.target as HTMLInputElement).value)

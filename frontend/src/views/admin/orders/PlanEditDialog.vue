@@ -59,12 +59,16 @@
           <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.currencyHint') }}</p>
         </div>
       </div>
-      <InventoryQuantityInput
-        :model-value="remainingQuantityInput"
-        :error="remainingQuantityError"
-        :sold-out="isUnchangedSoldOutQuantity"
-        @update:model-value="handleRemainingQuantityInput"
-      />
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <SoldOutActionSelect v-model="planForm.sold_out_action" />
+        <InventoryQuantityInput
+          :model-value="remainingQuantityInput"
+          :error="remainingQuantityError"
+          :sold-out="isUnchangedSoldOutQuantity"
+          :allow-zero="planForm.sold_out_action === SOLD_OUT_ACTION_DISABLE_PURCHASE"
+          @update:model-value="handleRemainingQuantityInput"
+        />
+      </div>
       <div>
         <label class="input-label">{{ t('payment.admin.features') }}</label>
         <textarea v-model="planFeaturesText" rows="3" class="input" :placeholder="t('payment.admin.featuresPlaceholder')"></textarea>
@@ -112,7 +116,14 @@ import Icon from '@/components/icons/Icon.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import { platformTextClass } from '@/utils/platformColors'
 import InventoryQuantityInput from '@/custom/subscription-plan-inventory/InventoryQuantityInput.vue'
-import { inventoryQuantityValue, isPositiveInventoryQuantity } from '@/custom/subscription-plan-inventory/inventory'
+import SoldOutActionSelect from '@/custom/subscription-plan-inventory/SoldOutActionSelect.vue'
+import {
+  SOLD_OUT_ACTION_DELIST,
+  SOLD_OUT_ACTION_DISABLE_PURCHASE,
+  inventoryQuantityValue,
+  isInventoryQuantity,
+  type SoldOutAction,
+} from '@/custom/subscription-plan-inventory/inventory'
 
 const props = defineProps<{
   show: boolean
@@ -130,11 +141,24 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 const saving = ref(false)
-const planForm = reactive({ name: '', group_id: null as number | null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
+const planForm = reactive({
+  name: '',
+  group_id: null as number | null,
+  description: '',
+  price: 0,
+  original_price: 0,
+  currency: '',
+  validity_days: 30,
+  validity_unit: 'days',
+  sort_order: 0,
+  for_sale: true,
+  sold_out_action: SOLD_OUT_ACTION_DELIST as SoldOutAction,
+})
 const planFeaturesText = ref('')
 const remainingQuantityInput = ref('')
 const remainingQuantityDirty = ref(false)
-const initialForSale = ref(true)
+const forSaleDirty = ref(false)
+const initialSoldOutAction = ref<SoldOutAction>(SOLD_OUT_ACTION_DELIST)
 
 const isUnchangedSoldOutQuantity = computed(() =>
   props.plan?.remaining_quantity === 0 && !remainingQuantityDirty.value && remainingQuantityInput.value.trim() === '0',
@@ -142,8 +166,11 @@ const isUnchangedSoldOutQuantity = computed(() =>
 
 const remainingQuantityError = computed(() => {
   const value = remainingQuantityInput.value.trim()
-  if (value === '' || isPositiveInventoryQuantity(value) || isUnchangedSoldOutQuantity.value) return ''
-  return t('payment.admin.remainingQuantityInvalid')
+  const allowZero = planForm.sold_out_action === SOLD_OUT_ACTION_DISABLE_PURCHASE
+  if (value === '' || isInventoryQuantity(value, allowZero) || isUnchangedSoldOutQuantity.value) return ''
+  return t(allowZero
+    ? 'payment.admin.remainingQuantityInvalidAllowZero'
+    : 'payment.admin.remainingQuantityInvalid')
 })
 
 const validityUnitOptions = computed(() => [
@@ -196,17 +223,19 @@ const subscriptionCnyPreview = computed(() => {
 watch(() => props.show, (visible) => {
   if (!visible) return
   if (props.plan) {
-    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price, original_price: props.plan.original_price || 0, currency: props.plan.currency || '', validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale })
+    const soldOutAction = props.plan.sold_out_action || SOLD_OUT_ACTION_DELIST
+    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price, original_price: props.plan.original_price || 0, currency: props.plan.currency || '', validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale, sold_out_action: soldOutAction })
     planFeaturesText.value = (props.plan.features || []).join('\n')
     remainingQuantityInput.value = props.plan.remaining_quantity == null ? '' : String(props.plan.remaining_quantity)
-    initialForSale.value = props.plan.for_sale
+    initialSoldOutAction.value = soldOutAction
   } else {
-    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
+    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true, sold_out_action: SOLD_OUT_ACTION_DELIST })
     planFeaturesText.value = ''
     remainingQuantityInput.value = ''
-    initialForSale.value = true
+    initialSoldOutAction.value = SOLD_OUT_ACTION_DELIST
   }
   remainingQuantityDirty.value = false
+  forSaleDirty.value = false
 }, { immediate: true })
 
 function handleRemainingQuantityInput(value: string) {
@@ -215,11 +244,14 @@ function handleRemainingQuantityInput(value: string) {
 }
 
 function togglePlanForSale() {
-  if (!planForm.for_sale && remainingQuantityInput.value.trim() === '0') {
+  if (!planForm.for_sale
+    && remainingQuantityInput.value.trim() === '0'
+    && planForm.sold_out_action !== SOLD_OUT_ACTION_DISABLE_PURCHASE) {
     appStore.showError(t('payment.admin.soldOutCannotList'))
     return
   }
   planForm.for_sale = !planForm.for_sale
+  forSaleDirty.value = true
 }
 
 /** Build request payload with snake_case keys matching backend JSON tags */
@@ -240,9 +272,11 @@ function buildPlanPayload() {
   if (!props.plan) {
     payload.for_sale = planForm.for_sale
     payload.remaining_quantity = inventoryQuantityValue(remainingQuantityInput.value)
+    payload.sold_out_action = planForm.sold_out_action
   } else {
-    if (planForm.for_sale !== initialForSale.value) payload.for_sale = planForm.for_sale
+    if (forSaleDirty.value) payload.for_sale = planForm.for_sale
     if (remainingQuantityDirty.value) payload.remaining_quantity = inventoryQuantityValue(remainingQuantityInput.value)
+    if (planForm.sold_out_action !== initialSoldOutAction.value) payload.sold_out_action = planForm.sold_out_action
   }
   return payload
 }

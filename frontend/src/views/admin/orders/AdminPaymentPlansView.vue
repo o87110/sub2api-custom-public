@@ -38,17 +38,24 @@
           <span class="text-sm">{{ value }} {{ t('payment.admin.' + (row.validity_unit || 'days')) }}</span>
         </template>
         <template #cell-remaining_quantity="{ value, row }">
-          <InventoryQuantityCell :quantity="value" :auto-delisted="row.inventory_auto_delisted" />
+          <InventoryQuantityCell
+            :quantity="value ?? null"
+            :auto-delisted="row.inventory_auto_delisted"
+            :sold-out-action="row.sold_out_action"
+          />
+        </template>
+        <template #cell-sold_out_action="{ value }">
+          <SoldOutActionCell :action="value" />
         </template>
         <template #cell-for_sale="{ value, row }">
           <button
             type="button"
-            :disabled="!value && isPlanSoldOut(row)"
-            :title="!value && isPlanSoldOut(row) ? t('payment.admin.soldOutCannotList') : undefined"
+            :disabled="!value && isPlanSoldOut(row) && !canListSoldOutPlan(row)"
+            :title="!value && isPlanSoldOut(row) && !canListSoldOutPlan(row) ? t('payment.admin.soldOutCannotList') : undefined"
             :class="[
               'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
               value ? 'bg-primary-500' : 'bg-gray-300 dark:bg-dark-600',
-              !value && isPlanSoldOut(row) ? 'cursor-not-allowed opacity-60' : ''
+              !value && isPlanSoldOut(row) && !canListSoldOutPlan(row) ? 'cursor-not-allowed opacity-60' : ''
             ]"
             @click="toggleForSale(row)"
           >
@@ -100,7 +107,8 @@ import PlanEditDialog from './PlanEditDialog.vue'
 import { currencySymbol } from '@/components/payment/currency'
 import { platformTextClass } from '@/utils/platformColors'
 import InventoryQuantityCell from '@/custom/subscription-plan-inventory/InventoryQuantityCell.vue'
-import { isPlanSoldOut } from '@/custom/subscription-plan-inventory/inventory'
+import SoldOutActionCell from '@/custom/subscription-plan-inventory/SoldOutActionCell.vue'
+import { canListSoldOutPlan, isPlanSoldOut } from '@/custom/subscription-plan-inventory/inventory'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -157,6 +165,7 @@ const planColumns = computed((): Column[] => [
   { key: 'price', label: t('payment.admin.price') },
   { key: 'validity_days', label: t('payment.admin.validity') },
   { key: 'remaining_quantity', label: t('payment.admin.remainingQuantity') },
+  { key: 'sold_out_action', label: t('payment.admin.soldOutAction') },
   { key: 'for_sale', label: t('payment.admin.forSale') },
   { key: 'sort_order', label: t('payment.admin.sortOrder') },
   { key: 'actions', label: t('common.actions') },
@@ -186,7 +195,7 @@ function openPlanEdit(plan: SubscriptionPlan | null) {
 
 /** Quick toggle for_sale from the list */
 async function toggleForSale(plan: SubscriptionPlan) {
-  if (!plan.for_sale && isPlanSoldOut(plan)) {
+  if (!plan.for_sale && isPlanSoldOut(plan) && !canListSoldOutPlan(plan)) {
     appStore.showError(t('payment.admin.soldOutCannotList'))
     return
   }

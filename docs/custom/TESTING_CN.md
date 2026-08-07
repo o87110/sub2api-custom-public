@@ -259,16 +259,28 @@
 - Migration `192`、Ent 生成一致性和 Candidate Tree 数据库边界检查必须通过；
   发布前完成人工 Migration/Schema 审核。
 
-## 12. 套餐限量销售与自动下架
+## 12. 套餐限量销售与售罄处理
 
-- 新建与编辑覆盖留空不限量、正整数提交、`0`/负数/小数拒绝及三态更新；售罄 `0`
-  未修改而保存其他字段时不回传数量；
-- 表格覆盖“无限制”、正整数、“0 / 已售罄”和自动下架标识；售罄套餐不能直接上架，
-  补货和改为不限量遵守自动/手动下架恢复差异；
-- 后端覆盖不限量兼容、最后一份自动下架、并发预占不超卖、取消/超时/支付创建失败
-  释放且幂等、履约消费幂等、延迟支付重新预占与补货重试，以及退款不归还；
+- 新建与编辑覆盖默认 `delist`、合法枚举、`null`/非法策略拒绝、留空不限量、正整数
+  提交，以及仅 `disable_purchase` 允许 `0`；售罄 `0` 未修改而保存其他字段时不回传
+  数量，策略切换必须独立提交；
+- 表格覆盖“无限制”、正整数、“0 / 已售罄”、自动下架与禁用购买标识；快速上架仅在
+  `disable_purchase` 售罄模式允许，补货、改为不限量及策略切换遵守自动/手动下架
+  恢复差异；
+- 用户卡片、普通选择、续费弹窗与 URL 自动选择覆盖售罄可见但不可购买；页面加载后
+  并发售罄返回 `PLAN_SOLD_OUT`/`PLAN_NOT_AVAILABLE` 时必须刷新套餐、清除失效选择并
+  使用本地化错误，第二次点击不得再创建订单；公开接口只返回 `sold_out`，不泄露
+  精确正数库存；
+- 后端覆盖不限量兼容、两种最后一份处理、两种策略并发预占不超卖、直接 API 防绕过、
+  取消/超时/支付创建失败释放且幂等、履约消费幂等、延迟支付重新预占与补货重试，
+  以及退款不归还；
+- PostgreSQL 真并发使用 `go test -tags integration ./internal/custom/subscriptioninventory -run
+  TestSubscriptionPlanInventoryPostgresConcurrentReservations`，必须让 12 个显式事务同时
+  占用多个连接，并分别断言两种策略仅成功库存份数、数量归零且状态正确；本地无 Docker
+  时只能完成编译并跳过执行，必须交由具备 Docker/PostgreSQL 的 Linux CI 或数据库环境；
 - `go generate ./ent` 二次生成后必须无漂移；Migration `194` 的可空默认、非负约束和
-  订单状态约束必须回归；
+  订单状态约束，以及 Migration `195` 的默认 `delist` 与枚举约束必须回归；
+- 发布前人工审核 Migration 195，并备份 `subscription_plans`。
 - Candidate Tree 数据库边界检查必须识别 Migration、Schema 和生成实体变化，并与
   `.github/custom-database-exceptions.tsv` 的人工审核指纹完全一致；
 - 桌面和窄屏下检查表格横向滚动、输入错误提示、暗色样式、自动下架徽标和保存加载

@@ -48,7 +48,7 @@ backend/internal/custom/
 ├── groupaccess/            分组最低余额资格协调、fallback、熔断与错误
 ├── moderation/             内容审计范围隔离与摘要
 ├── paymentchannels/        支付渠道目录、订单/恢复策略、实例复核与个性化配置
-├── subscriptioninventory/  订阅套餐库存预占、释放、消费与自动上下架
+├── subscriptioninventory/  订阅套餐库存预占、释放、消费与售罄策略
 └── updater/                自定义 Release、更新与回退
 
 frontend/src/custom/
@@ -56,7 +56,7 @@ frontend/src/custom/
 ├── group-access/           分组最低余额表单、禁用状态、问号说明浮层与错误提示
 ├── moderation/             风控二改页面与文案
 ├── payment-channels/       支付定价、渠道重选、恢复/备用提示、后台配置与选择器
-├── subscription-plan-inventory/ 套餐库存输入、校验与剩余数量展示
+├── subscription-plan-inventory/ 套餐库存/售罄策略输入、校验、状态展示与购买保护
 └── updater/                版本、更新与回退界面
 ```
 

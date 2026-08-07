@@ -42,6 +42,7 @@ const DataTableStub = {
       <div v-for="row in data" :key="row.id">
         <slot name="cell-price" :value="row.price" :row="row" />
         <slot name="cell-remaining_quantity" :value="row.remaining_quantity" :row="row" />
+        <slot name="cell-sold_out_action" :value="row.sold_out_action" :row="row" />
         <slot name="cell-for_sale" :value="row.for_sale" :row="row" />
       </div>
     </div>
@@ -67,6 +68,7 @@ describe('AdminPaymentPlansView', () => {
           for_sale: true,
           remaining_quantity: null,
           inventory_auto_delisted: false,
+          sold_out_action: 'delist',
           features: [],
         },
         {
@@ -82,6 +84,7 @@ describe('AdminPaymentPlansView', () => {
           for_sale: true,
           remaining_quantity: 4,
           inventory_auto_delisted: false,
+          sold_out_action: 'delist',
           features: [],
         },
         {
@@ -97,6 +100,23 @@ describe('AdminPaymentPlansView', () => {
           for_sale: false,
           remaining_quantity: 0,
           inventory_auto_delisted: true,
+          sold_out_action: 'delist',
+          features: [],
+        },
+        {
+          id: 4,
+          name: 'Visible sold-out plan',
+          group_id: 1,
+          price: 20,
+          original_price: 0,
+          currency: '',
+          validity_days: 30,
+          validity_unit: 'day',
+          sort_order: 0,
+          for_sale: true,
+          remaining_quantity: 0,
+          inventory_auto_delisted: false,
+          sold_out_action: 'disable_purchase',
           features: [],
         },
       ],
@@ -146,6 +166,9 @@ describe('AdminPaymentPlansView', () => {
     expect(wrapper.text()).toContain('4')
     expect(wrapper.text()).toContain('payment.admin.inventorySoldOut')
     expect(wrapper.text()).toContain('payment.admin.inventoryAutoDelisted')
+    expect(wrapper.text()).toContain('payment.admin.inventoryPurchaseDisabled')
+    expect(wrapper.text()).toContain('payment.admin.soldOutActionDelist')
+    expect(wrapper.text()).toContain('payment.admin.soldOutActionDisablePurchase')
     expect(wrapper.find('button[disabled]').exists()).toBe(true)
   })
 })

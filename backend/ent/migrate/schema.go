@@ -1536,6 +1536,7 @@ var (
 		{Name: "for_sale", Type: field.TypeBool, Default: true},
 		{Name: "remaining_quantity", Type: field.TypeInt, Nullable: true},
 		{Name: "inventory_auto_delisted", Type: field.TypeBool, Default: false},
+		{Name: "sold_out_action", Type: field.TypeString, Size: 32, Default: "delist"},
 		{Name: "sort_order", Type: field.TypeInt, Default: 0},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},

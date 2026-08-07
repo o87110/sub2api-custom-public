@@ -39,6 +39,31 @@ func TestQuantityPatchPreservesOmittedNullAndPositiveInteger(t *testing.T) {
 	require.Error(t, json.Unmarshal([]byte(`{"remaining_quantity":1.5}`), &request))
 }
 
+func TestSoldOutActionPatchPreservesOmittedAndRejectsNullOrInvalid(t *testing.T) {
+	t.Parallel()
+
+	var request struct {
+		Action SoldOutActionPatch `json:"sold_out_action"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(`{}`), &request))
+	require.False(t, request.Action.Present)
+
+	require.NoError(t, json.Unmarshal([]byte(`{"sold_out_action":null}`), &request))
+	require.True(t, request.Action.Present)
+	require.Nil(t, request.Action.Value)
+	require.Equal(t, "PLAN_SOLD_OUT_ACTION_INVALID", infraerrors.Reason(ValidateSoldOutActionPatch(request.Action)))
+
+	require.NoError(t, json.Unmarshal([]byte(`{"sold_out_action":"disable_purchase"}`), &request))
+	require.Equal(t, SoldOutActionDisablePurchase, *request.Action.Value)
+	require.NoError(t, ValidateSoldOutActionPatch(request.Action))
+
+	invalid := "hide"
+	require.Equal(t, "PLAN_SOLD_OUT_ACTION_INVALID", infraerrors.Reason(ValidateSoldOutActionPatch(SoldOutActionPatch{
+		Present: true,
+		Value:   &invalid,
+	})))
+}
+
 func TestResolveAdminAvailabilityRestoresOnlyAutomaticDelisting(t *testing.T) {
 	t.Parallel()
 
@@ -49,7 +74,8 @@ func TestResolveAdminAvailabilityRestoresOnlyAutomaticDelisting(t *testing.T) {
 		RemainingQuantity:     &zero,
 		ForSale:               false,
 		InventoryAutoDelisted: true,
-	}, patch, nil)
+		SoldOutAction:         SoldOutActionDelist,
+	}, patch, SoldOutActionPatch{}, nil)
 	require.NoError(t, err)
 	require.True(t, automatic.ForSale)
 	require.False(t, automatic.InventoryAutoDelisted)
@@ -57,16 +83,69 @@ func TestResolveAdminAvailabilityRestoresOnlyAutomaticDelisting(t *testing.T) {
 	manual, err := ResolveAdminAvailability(AdminAvailability{
 		RemainingQuantity: &zero,
 		ForSale:           false,
-	}, patch, nil)
+		SoldOutAction:     SoldOutActionDelist,
+	}, patch, SoldOutActionPatch{}, nil)
 	require.NoError(t, err)
 	require.False(t, manual.ForSale)
 
 	list := true
 	_, err = ResolveAdminAvailability(AdminAvailability{
 		RemainingQuantity: &zero,
-	}, QuantityPatch{}, &list)
+		SoldOutAction:     SoldOutActionDelist,
+	}, QuantityPatch{}, SoldOutActionPatch{}, &list)
 	require.Error(t, err)
 	require.Equal(t, "PLAN_SOLD_OUT", infraerrors.Reason(err))
+}
+
+func TestResolveAdminAvailabilityAppliesSoldOutStrategyImmediately(t *testing.T) {
+	t.Parallel()
+
+	zero := 0
+	disable := SoldOutActionDisablePurchase
+	delist := SoldOutActionDelist
+
+	visible, err := ResolveAdminAvailability(AdminAvailability{
+		RemainingQuantity:     &zero,
+		ForSale:               false,
+		InventoryAutoDelisted: true,
+		SoldOutAction:         SoldOutActionDelist,
+	}, QuantityPatch{}, SoldOutActionPatch{Present: true, Value: &disable}, nil)
+	require.NoError(t, err)
+	require.True(t, visible.ForSale)
+	require.False(t, visible.InventoryAutoDelisted)
+	require.Equal(t, SoldOutActionDisablePurchase, visible.SoldOutAction)
+
+	automatic, err := ResolveAdminAvailability(AdminAvailability{
+		RemainingQuantity: &zero,
+		ForSale:           true,
+		SoldOutAction:     SoldOutActionDisablePurchase,
+	}, QuantityPatch{}, SoldOutActionPatch{Present: true, Value: &delist}, nil)
+	require.NoError(t, err)
+	require.False(t, automatic.ForSale)
+	require.True(t, automatic.InventoryAutoDelisted)
+
+	manual, err := ResolveAdminAvailability(AdminAvailability{
+		RemainingQuantity: &zero,
+		ForSale:           false,
+		SoldOutAction:     SoldOutActionDelist,
+	}, QuantityPatch{}, SoldOutActionPatch{Present: true, Value: &disable}, nil)
+	require.NoError(t, err)
+	require.False(t, manual.ForSale)
+	require.False(t, manual.InventoryAutoDelisted)
+
+	_, err = ResolveAdminAvailability(AdminAvailability{
+		ForSale:       true,
+		SoldOutAction: SoldOutActionDelist,
+	}, QuantityPatch{Present: true, Value: &zero}, SoldOutActionPatch{}, nil)
+	require.Equal(t, "PLAN_QUANTITY_INVALID", infraerrors.Reason(err))
+
+	allowed, err := ResolveAdminAvailability(AdminAvailability{
+		ForSale:       true,
+		SoldOutAction: SoldOutActionDelist,
+	}, QuantityPatch{Present: true, Value: &zero}, SoldOutActionPatch{Present: true, Value: &disable}, nil)
+	require.NoError(t, err)
+	require.True(t, allowed.ForSale)
+	require.False(t, allowed.InventoryAutoDelisted)
 }
 
 func TestReserveReleaseAndConsumeInventoryStates(t *testing.T) {
@@ -100,6 +179,31 @@ func TestReserveReleaseAndConsumeInventoryStates(t *testing.T) {
 		require.True(t, plan.ForSale)
 		require.False(t, plan.InventoryAutoDelisted)
 		require.Equal(t, StateReleased, requireInventoryOrder(t, client, order.ID).PlanInventoryState)
+	})
+
+	t.Run("disable purchase stays visible and release restores purchasing", func(t *testing.T) {
+		one := 1
+		plan := createInventoryTestPlanWithAction(t, client, &one, SoldOutActionDisablePurchase)
+		state, err := ReserveForOrder(ctx, client, plan.ID, true)
+		require.NoError(t, err)
+		require.Equal(t, StateReserved, state)
+		order := createInventoryTestOrder(t, client, plan.ID, StateReserved, nil)
+
+		plan = requireInventoryPlan(t, client, plan.ID)
+		require.Equal(t, 0, *plan.RemainingQuantity)
+		require.True(t, plan.ForSale)
+		require.False(t, plan.InventoryAutoDelisted)
+		plans, err := ListPlansForSale(ctx, client)
+		require.NoError(t, err)
+		require.Contains(t, inventoryPlanIDs(plans), plan.ID)
+
+		_, err = ReserveForOrder(ctx, client, plan.ID, true)
+		require.Equal(t, "PLAN_SOLD_OUT", infraerrors.Reason(err))
+
+		require.NoError(t, ReleaseReservation(ctx, client, order.ID))
+		plan = requireInventoryPlan(t, client, plan.ID)
+		require.Equal(t, 1, *plan.RemainingQuantity)
+		require.True(t, plan.ForSale)
 	})
 
 	t.Run("manual delisting is preserved on release", func(t *testing.T) {
@@ -155,37 +259,49 @@ func TestReleasedPaidOrderReacquiresWithoutOverselling(t *testing.T) {
 }
 
 func TestConcurrentReservationNeverExceedsRemainingQuantity(t *testing.T) {
-	ctx := context.Background()
-	client := newInventoryTestClient(t, 1)
-	quantity := 3
-	plan := createInventoryTestPlan(t, client, &quantity)
+	for _, tc := range []struct {
+		name             string
+		action           string
+		wantForSale      bool
+		wantAutoDelisted bool
+	}{
+		{name: "delist", action: SoldOutActionDelist, wantForSale: false, wantAutoDelisted: true},
+		{name: "disable purchase", action: SoldOutActionDisablePurchase, wantForSale: true, wantAutoDelisted: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			client := newInventoryTestClient(t, 1)
+			quantity := 3
+			plan := createInventoryTestPlanWithAction(t, client, &quantity, tc.action)
 
-	var wg sync.WaitGroup
-	results := make(chan error, 12)
-	for range 12 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_, err := ReserveForOrder(ctx, client, plan.ID, true)
-			results <- err
-		}()
-	}
-	wg.Wait()
-	close(results)
+			var wg sync.WaitGroup
+			results := make(chan error, 12)
+			for range 12 {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					_, err := ReserveForOrder(ctx, client, plan.ID, true)
+					results <- err
+				}()
+			}
+			wg.Wait()
+			close(results)
 
-	successes := 0
-	for err := range results {
-		if err == nil {
-			successes++
-			continue
-		}
-		require.Equal(t, "PLAN_SOLD_OUT", infraerrors.Reason(err))
+			successes := 0
+			for err := range results {
+				if err == nil {
+					successes++
+					continue
+				}
+				require.Equal(t, "PLAN_SOLD_OUT", infraerrors.Reason(err))
+			}
+			require.Equal(t, quantity, successes)
+			plan = requireInventoryPlan(t, client, plan.ID)
+			require.Equal(t, 0, *plan.RemainingQuantity)
+			require.Equal(t, tc.wantForSale, plan.ForSale)
+			require.Equal(t, tc.wantAutoDelisted, plan.InventoryAutoDelisted)
+		})
 	}
-	require.Equal(t, quantity, successes)
-	plan = requireInventoryPlan(t, client, plan.ID)
-	require.Equal(t, 0, *plan.RemainingQuantity)
-	require.False(t, plan.ForSale)
-	require.True(t, plan.InventoryAutoDelisted)
 }
 
 func newInventoryTestClient(t *testing.T, maxOpenConnections int) *dbent.Client {
@@ -208,18 +324,31 @@ func newInventoryTestClient(t *testing.T, maxOpenConnections int) *dbent.Client 
 }
 
 func createInventoryTestPlan(t *testing.T, client *dbent.Client, quantity *int) *dbent.SubscriptionPlan {
+	return createInventoryTestPlanWithAction(t, client, quantity, SoldOutActionDelist)
+}
+
+func createInventoryTestPlanWithAction(t *testing.T, client *dbent.Client, quantity *int, action string) *dbent.SubscriptionPlan {
 	t.Helper()
 	builder := client.SubscriptionPlan.Create().
 		SetGroupID(1).
 		SetName("Inventory plan").
 		SetPrice(10).
-		SetForSale(true)
+		SetForSale(true).
+		SetSoldOutAction(action)
 	if quantity != nil {
 		builder.SetRemainingQuantity(*quantity)
 	}
 	plan, err := builder.Save(context.Background())
 	require.NoError(t, err)
 	return plan
+}
+
+func inventoryPlanIDs(plans []*dbent.SubscriptionPlan) []int64 {
+	ids := make([]int64, 0, len(plans))
+	for _, plan := range plans {
+		ids = append(ids, plan.ID)
+	}
+	return ids
 }
 
 func createInventoryTestOrder(t *testing.T, client *dbent.Client, planID int64, state string, paidAt *time.Time) *dbent.PaymentOrder {

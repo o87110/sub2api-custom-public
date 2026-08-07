@@ -310,6 +310,7 @@ type AdminSubscriptionPlanResult struct {
 	ForSale               bool      `json:"for_sale"`
 	RemainingQuantity     *int      `json:"remaining_quantity"`
 	InventoryAutoDelisted bool      `json:"inventory_auto_delisted"`
+	SoldOutAction         string    `json:"sold_out_action"`
 	SortOrder             int       `json:"sort_order"`
 	CreatedAt             time.Time `json:"created_at,omitempty"`
 	UpdatedAt             time.Time `json:"updated_at,omitempty"`
@@ -344,6 +345,7 @@ func adminSubscriptionPlansForResponse(plans []*dbent.SubscriptionPlan, groupInf
 			ForSale:               p.ForSale,
 			RemainingQuantity:     p.RemainingQuantity,
 			InventoryAutoDelisted: p.InventoryAutoDelisted,
+			SoldOutAction:         p.SoldOutAction,
 			SortOrder:             p.SortOrder,
 			CreatedAt:             p.CreatedAt,
 			UpdatedAt:             p.UpdatedAt,

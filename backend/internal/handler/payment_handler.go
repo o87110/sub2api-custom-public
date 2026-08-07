@@ -9,6 +9,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -72,6 +73,7 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 		Features           string   `json:"features"`
 		ProductName        string   `json:"product_name"`
 		ForSale            bool     `json:"for_sale"`
+		SoldOut            bool     `json:"sold_out"`
 		SortOrder          int      `json:"sort_order"`
 	}
 	groupInfo := h.configService.GetGroupInfoMap(c.Request.Context(), plans)
@@ -86,7 +88,8 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 			Name: p.Name, Description: p.Description, Price: p.Price, OriginalPrice: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: p.Features,
-			ProductName: p.ProductName, ForSale: p.ForSale, SortOrder: p.SortOrder,
+			ProductName: p.ProductName, ForSale: p.ForSale,
+			SoldOut: subscriptioninventory.IsSoldOut(p), SortOrder: p.SortOrder,
 		})
 	}
 	response.Success(c, result)
@@ -149,6 +152,7 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: parseFeatures(p.Features),
 			ProductName: p.ProductName,
+			SoldOut:     subscriptioninventory.IsSoldOut(p),
 		})
 	}
 
@@ -210,6 +214,7 @@ type checkoutPlan struct {
 	ValidityUnit       string   `json:"validity_unit"`
 	Features           []string `json:"features"`
 	ProductName        string   `json:"product_name"`
+	SoldOut            bool     `json:"sold_out"`
 }
 
 // parseFeatures splits a newline-separated features string into a string slice.

@@ -406,6 +406,9 @@ func TestSubscriptionPlanInventoryCreateUpdateAndSaleFiltering(t *testing.T) {
 	if plan.RemainingQuantity == nil || *plan.RemainingQuantity != quantity {
 		t.Fatalf("remaining quantity = %v, want %d", plan.RemainingQuantity, quantity)
 	}
+	if plan.SoldOutAction != subscriptioninventory.SoldOutActionDelist {
+		t.Fatalf("sold_out_action = %q, want default %q", plan.SoldOutAction, subscriptioninventory.SoldOutActionDelist)
+	}
 
 	zero := 0
 	_, err = svc.CreatePlan(ctx, CreatePlanRequest{
@@ -419,6 +422,36 @@ func TestSubscriptionPlanInventoryCreateUpdateAndSaleFiltering(t *testing.T) {
 	})
 	if err == nil || infraerrors.Reason(err) != "PLAN_QUANTITY_INVALID" {
 		t.Fatalf("CreatePlan zero quantity error = %v, want PLAN_QUANTITY_INVALID", err)
+	}
+
+	disablePurchasePlan, err := svc.CreatePlan(ctx, CreatePlanRequest{
+		GroupID:           1,
+		Name:              "Visible sold-out plan",
+		Price:             10,
+		ValidityDays:      30,
+		ValidityUnit:      "days",
+		ForSale:           true,
+		RemainingQuantity: &zero,
+		SoldOutAction:     subscriptioninventory.SoldOutActionDisablePurchase,
+	})
+	if err != nil {
+		t.Fatalf("CreatePlan disable-purchase zero quantity returned error: %v", err)
+	}
+	if !disablePurchasePlan.ForSale || disablePurchasePlan.InventoryAutoDelisted {
+		t.Fatalf("disable-purchase sold-out state = for_sale:%v auto:%v, want true/false", disablePurchasePlan.ForSale, disablePurchasePlan.InventoryAutoDelisted)
+	}
+
+	_, err = svc.CreatePlan(ctx, CreatePlanRequest{
+		GroupID:       1,
+		Name:          "Invalid action plan",
+		Price:         10,
+		ValidityDays:  30,
+		ValidityUnit:  "days",
+		ForSale:       true,
+		SoldOutAction: "hide",
+	})
+	if err == nil || infraerrors.Reason(err) != "PLAN_SOLD_OUT_ACTION_INVALID" {
+		t.Fatalf("CreatePlan invalid action error = %v, want PLAN_SOLD_OUT_ACTION_INVALID", err)
 	}
 
 	plan, err = client.SubscriptionPlan.UpdateOneID(plan.ID).
@@ -477,6 +510,43 @@ func TestSubscriptionPlanInventoryCreateUpdateAndSaleFiltering(t *testing.T) {
 		t.Fatalf("remaining quantity = %v, want nil", plan.RemainingQuantity)
 	}
 
+	delist := subscriptioninventory.SoldOutActionDelist
+	disablePurchasePlan, err = svc.UpdatePlan(ctx, disablePurchasePlan.ID, UpdatePlanRequest{
+		SoldOutAction: subscriptioninventory.SoldOutActionPatch{Present: true, Value: &delist},
+	})
+	if err != nil {
+		t.Fatalf("switch sold-out plan to delist: %v", err)
+	}
+	if disablePurchasePlan.ForSale || !disablePurchasePlan.InventoryAutoDelisted {
+		t.Fatalf("delist switch state = for_sale:%v auto:%v, want false/true", disablePurchasePlan.ForSale, disablePurchasePlan.InventoryAutoDelisted)
+	}
+
+	disable := subscriptioninventory.SoldOutActionDisablePurchase
+	disablePurchasePlan, err = svc.UpdatePlan(ctx, disablePurchasePlan.ID, UpdatePlanRequest{
+		SoldOutAction: subscriptioninventory.SoldOutActionPatch{Present: true, Value: &disable},
+	})
+	if err != nil {
+		t.Fatalf("switch sold-out plan to disable purchase: %v", err)
+	}
+	if !disablePurchasePlan.ForSale || disablePurchasePlan.InventoryAutoDelisted {
+		t.Fatalf("disable-purchase switch state = for_sale:%v auto:%v, want true/false", disablePurchasePlan.ForSale, disablePurchasePlan.InventoryAutoDelisted)
+	}
+
+	manualDown := false
+	disablePurchasePlan, err = svc.UpdatePlan(ctx, disablePurchasePlan.ID, UpdatePlanRequest{ForSale: &manualDown})
+	if err != nil {
+		t.Fatalf("manually delist sold-out plan: %v", err)
+	}
+	disablePurchasePlan, err = svc.UpdatePlan(ctx, disablePurchasePlan.ID, UpdatePlanRequest{
+		SoldOutAction: subscriptioninventory.SoldOutActionPatch{Present: true, Value: &delist},
+	})
+	if err != nil {
+		t.Fatalf("switch manually delisted plan action: %v", err)
+	}
+	if disablePurchasePlan.ForSale || disablePurchasePlan.InventoryAutoDelisted {
+		t.Fatal("strategy switch overrode manual delisting")
+	}
+
 	soldOut, err := client.SubscriptionPlan.Create().
 		SetGroupID(1).
 		SetName("Anomalous sold-out plan").
@@ -497,6 +567,31 @@ func TestSubscriptionPlanInventoryCreateUpdateAndSaleFiltering(t *testing.T) {
 		if candidate.ID == soldOut.ID {
 			t.Fatal("sold-out plan was returned by public sale query")
 		}
+	}
+	for _, candidate := range forSale {
+		if candidate.ID == disablePurchasePlan.ID {
+			t.Fatal("manually delisted disable-purchase plan was returned by public sale query")
+		}
+	}
+
+	listed := true
+	disablePurchasePlan, err = svc.UpdatePlan(ctx, disablePurchasePlan.ID, UpdatePlanRequest{
+		SoldOutAction: subscriptioninventory.SoldOutActionPatch{Present: true, Value: &disable},
+		ForSale:       &listed,
+	})
+	if err != nil {
+		t.Fatalf("manually relist disable-purchase plan: %v", err)
+	}
+	forSale, err = svc.ListPlansForSale(ctx)
+	if err != nil {
+		t.Fatalf("ListPlansForSale after relisting returned error: %v", err)
+	}
+	visible := false
+	for _, candidate := range forSale {
+		visible = visible || candidate.ID == disablePurchasePlan.ID
+	}
+	if !visible {
+		t.Fatal("sold-out disable-purchase plan was not returned by public sale query")
 	}
 }
 

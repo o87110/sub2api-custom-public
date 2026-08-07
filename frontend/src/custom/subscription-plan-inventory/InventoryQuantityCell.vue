@@ -11,18 +11,31 @@
     >
       {{ t('payment.admin.inventoryAutoDelisted') }}
     </span>
+    <span
+      v-else-if="soldOut && soldOutAction === SOLD_OUT_ACTION_DISABLE_PURCHASE"
+      class="badge badge-warning whitespace-nowrap"
+    >
+      {{ t('payment.admin.inventoryPurchaseDisabled') }}
+    </span>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import {
+  SOLD_OUT_ACTION_DELIST,
+  SOLD_OUT_ACTION_DISABLE_PURCHASE,
+  type SoldOutAction,
+} from './inventory'
 
 const props = withDefaults(defineProps<{
   quantity: number | null
   autoDelisted?: boolean
+  soldOutAction?: SoldOutAction
 }>(), {
   autoDelisted: false,
+  soldOutAction: SOLD_OUT_ACTION_DELIST,
 })
 
 const { t } = useI18n()

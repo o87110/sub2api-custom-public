@@ -58,10 +58,11 @@ const SelectStub = defineComponent({
     placeholder: String,
   },
   emits: ['update:modelValue'],
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const onChange = (event: Event) => {
       const value = (event.target as HTMLSelectElement).value
-      emit('update:modelValue', value === '' ? null : Number(value))
+      const option = (props.options as Array<{ value: string | number }>).find(candidate => String(candidate.value) === value)
+      emit('update:modelValue', option?.value ?? null)
     }
     return { onChange }
   },
@@ -221,7 +222,10 @@ describe('PlanEditDialog', () => {
     await wrapper.find('form').trigger('submit')
 
     expect(createPlan).toHaveBeenCalledOnce()
-    expect(createPlan.mock.calls[0][0]).toMatchObject({ remaining_quantity: null })
+    expect(createPlan.mock.calls[0][0]).toMatchObject({
+      remaining_quantity: null,
+      sold_out_action: 'delist',
+    })
 
     createPlan.mockReset()
     await wrapper.find('#subscription-plan-remaining-quantity').setValue('8')
@@ -245,6 +249,24 @@ describe('PlanEditDialog', () => {
 
     expect(createPlan).not.toHaveBeenCalled()
     expect(showError).toHaveBeenCalledTimes(4)
+  })
+
+  it('allows zero only after selecting disable purchase', async () => {
+    const group = groupFixture({})
+    const wrapper = mountDialog({ groups: [group] })
+    await wrapper.find('input[type="text"]').setValue('Visible sold-out plan')
+    await wrapper.find('select').setValue(String(group.id))
+    await wrapper.find('textarea').setValue('Visible sold-out description')
+    await wrapper.findAll('input[type="number"]')[0].setValue('10')
+    await wrapper.find('[data-testid="sold-out-action-select"]').setValue('disable_purchase')
+    await wrapper.find('#subscription-plan-remaining-quantity').setValue('0')
+    await wrapper.find('form').trigger('submit')
+
+    expect(createPlan).toHaveBeenCalledOnce()
+    expect(createPlan.mock.calls[0][0]).toMatchObject({
+      remaining_quantity: 0,
+      sold_out_action: 'disable_purchase',
+    })
   })
 
   it('does not submit an unchanged sold-out zero when editing other fields', async () => {
@@ -295,6 +317,34 @@ describe('PlanEditDialog', () => {
 
     const payload = updatePlan.mock.calls[0][1]
     expect(payload).toMatchObject({ remaining_quantity: 5 })
+    expect(payload).not.toHaveProperty('for_sale')
+  })
+
+  it('submits a sold-out strategy change without resubmitting an unchanged zero', async () => {
+    const plan: SubscriptionPlan = {
+      id: 9,
+      group_id: 1,
+      name: 'Sold-out disabled plan',
+      description: 'Visible but unavailable',
+      price: 10,
+      currency: '',
+      validity_days: 30,
+      validity_unit: 'days',
+      features: [],
+      for_sale: true,
+      remaining_quantity: 0,
+      inventory_auto_delisted: false,
+      sold_out_action: 'disable_purchase',
+      sort_order: 0,
+    }
+    const wrapper = mountDialog({ groups: [groupFixture({})], plan })
+    await wrapper.find('[data-testid="sold-out-action-select"]').setValue('delist')
+    await wrapper.find('form').trigger('submit')
+
+    expect(updatePlan).toHaveBeenCalledOnce()
+    const payload = updatePlan.mock.calls[0][1]
+    expect(payload).toMatchObject({ sold_out_action: 'delist' })
+    expect(payload).not.toHaveProperty('remaining_quantity')
     expect(payload).not.toHaveProperty('for_sale')
   })
 })

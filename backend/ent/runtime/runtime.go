@@ -5,7 +5,6 @@ package runtime
 import (
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/ent/schema"
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/accountgroup"
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
@@ -33,6 +32,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/schema"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
@@ -1872,16 +1872,22 @@ func init() {
 	subscriptionplanDescInventoryAutoDelisted := subscriptionplanFields[12].Descriptor()
 	// subscriptionplan.DefaultInventoryAutoDelisted holds the default value on creation for the inventory_auto_delisted field.
 	subscriptionplan.DefaultInventoryAutoDelisted = subscriptionplanDescInventoryAutoDelisted.Default.(bool)
+	// subscriptionplanDescSoldOutAction is the schema descriptor for sold_out_action field.
+	subscriptionplanDescSoldOutAction := subscriptionplanFields[13].Descriptor()
+	// subscriptionplan.DefaultSoldOutAction holds the default value on creation for the sold_out_action field.
+	subscriptionplan.DefaultSoldOutAction = subscriptionplanDescSoldOutAction.Default.(string)
+	// subscriptionplan.SoldOutActionValidator is a validator for the "sold_out_action" field. It is called by the builders before save.
+	subscriptionplan.SoldOutActionValidator = subscriptionplanDescSoldOutAction.Validators[0].(func(string) error)
 	// subscriptionplanDescSortOrder is the schema descriptor for sort_order field.
-	subscriptionplanDescSortOrder := subscriptionplanFields[13].Descriptor()
+	subscriptionplanDescSortOrder := subscriptionplanFields[14].Descriptor()
 	// subscriptionplan.DefaultSortOrder holds the default value on creation for the sort_order field.
 	subscriptionplan.DefaultSortOrder = subscriptionplanDescSortOrder.Default.(int)
 	// subscriptionplanDescCreatedAt is the schema descriptor for created_at field.
-	subscriptionplanDescCreatedAt := subscriptionplanFields[14].Descriptor()
+	subscriptionplanDescCreatedAt := subscriptionplanFields[15].Descriptor()
 	// subscriptionplan.DefaultCreatedAt holds the default value on creation for the created_at field.
 	subscriptionplan.DefaultCreatedAt = subscriptionplanDescCreatedAt.Default.(func() time.Time)
 	// subscriptionplanDescUpdatedAt is the schema descriptor for updated_at field.
-	subscriptionplanDescUpdatedAt := subscriptionplanFields[15].Descriptor()
+	subscriptionplanDescUpdatedAt := subscriptionplanFields[16].Descriptor()
 	// subscriptionplan.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	subscriptionplan.DefaultUpdatedAt = subscriptionplanDescUpdatedAt.Default.(func() time.Time)
 	// subscriptionplan.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

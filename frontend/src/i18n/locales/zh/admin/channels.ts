@@ -495,7 +495,7 @@ export default {
       nameRequired: '请输入监控名称',
       primaryModelRequired: '请输入主模型',
       groupRateOverrideInvalid: '手动倍率覆盖必须是大于 0 的有限数值',
-      groupRateDisplayTemplateInvalid: '倍率显示模板最多 64 个字符，且必须且只能包含一个 {rate}',
+      groupRateDisplayTemplateInvalid: "倍率显示模板最多 64 个字符，且必须且只能包含一个 {'{'}rate{'}'}",
       columns: {
         name: '名称',
         provider: '供应商',
@@ -535,7 +535,7 @@ export default {
         groupRateOverridePlaceholder: '留空则自动读取密钥所属分组',
         groupRateOverrideHint: '仅覆盖渠道监控的展示倍率，不影响真实分组倍率、计费或调度。',
         groupRateDisplayTemplate: '倍率显示模板',
-        groupRateDisplayTemplateHint: '必须且只能包含一个 {rate}；留空时显示为 {rate}x。',
+        groupRateDisplayTemplateHint: "必须且只能包含一个 {'{'}rate{'}'}；留空时显示为 {'{'}rate{'}'}x。",
         intervalSeconds: '检测间隔 (秒)',
         intervalSecondsHint: '范围：15 - 3600 秒',
         jitterSeconds: '随机抖动 (± 秒)',

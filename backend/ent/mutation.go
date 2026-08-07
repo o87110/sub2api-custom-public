@@ -39996,6 +39996,7 @@ type SubscriptionPlanMutation struct {
 	remaining_quantity      *int
 	addremaining_quantity   *int
 	inventory_auto_delisted *bool
+	sold_out_action         *string
 	sort_order              *int
 	addsort_order           *int
 	created_at              *time.Time
@@ -40700,6 +40701,42 @@ func (m *SubscriptionPlanMutation) ResetInventoryAutoDelisted() {
 	m.inventory_auto_delisted = nil
 }
 
+// SetSoldOutAction sets the "sold_out_action" field.
+func (m *SubscriptionPlanMutation) SetSoldOutAction(s string) {
+	m.sold_out_action = &s
+}
+
+// SoldOutAction returns the value of the "sold_out_action" field in the mutation.
+func (m *SubscriptionPlanMutation) SoldOutAction() (r string, exists bool) {
+	v := m.sold_out_action
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSoldOutAction returns the old "sold_out_action" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldSoldOutAction(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSoldOutAction is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSoldOutAction requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSoldOutAction: %w", err)
+	}
+	return oldValue.SoldOutAction, nil
+}
+
+// ResetSoldOutAction resets all changes to the "sold_out_action" field.
+func (m *SubscriptionPlanMutation) ResetSoldOutAction() {
+	m.sold_out_action = nil
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (m *SubscriptionPlanMutation) SetSortOrder(i int) {
 	m.sort_order = &i
@@ -40862,7 +40899,7 @@ func (m *SubscriptionPlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SubscriptionPlanMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.group_id != nil {
 		fields = append(fields, subscriptionplan.FieldGroupID)
 	}
@@ -40901,6 +40938,9 @@ func (m *SubscriptionPlanMutation) Fields() []string {
 	}
 	if m.inventory_auto_delisted != nil {
 		fields = append(fields, subscriptionplan.FieldInventoryAutoDelisted)
+	}
+	if m.sold_out_action != nil {
+		fields = append(fields, subscriptionplan.FieldSoldOutAction)
 	}
 	if m.sort_order != nil {
 		fields = append(fields, subscriptionplan.FieldSortOrder)
@@ -40945,6 +40985,8 @@ func (m *SubscriptionPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.RemainingQuantity()
 	case subscriptionplan.FieldInventoryAutoDelisted:
 		return m.InventoryAutoDelisted()
+	case subscriptionplan.FieldSoldOutAction:
+		return m.SoldOutAction()
 	case subscriptionplan.FieldSortOrder:
 		return m.SortOrder()
 	case subscriptionplan.FieldCreatedAt:
@@ -40986,6 +41028,8 @@ func (m *SubscriptionPlanMutation) OldField(ctx context.Context, name string) (e
 		return m.OldRemainingQuantity(ctx)
 	case subscriptionplan.FieldInventoryAutoDelisted:
 		return m.OldInventoryAutoDelisted(ctx)
+	case subscriptionplan.FieldSoldOutAction:
+		return m.OldSoldOutAction(ctx)
 	case subscriptionplan.FieldSortOrder:
 		return m.OldSortOrder(ctx)
 	case subscriptionplan.FieldCreatedAt:
@@ -41091,6 +41135,13 @@ func (m *SubscriptionPlanMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetInventoryAutoDelisted(v)
+		return nil
+	case subscriptionplan.FieldSoldOutAction:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSoldOutAction(v)
 		return nil
 	case subscriptionplan.FieldSortOrder:
 		v, ok := value.(int)
@@ -41290,6 +41341,9 @@ func (m *SubscriptionPlanMutation) ResetField(name string) error {
 		return nil
 	case subscriptionplan.FieldInventoryAutoDelisted:
 		m.ResetInventoryAutoDelisted()
+		return nil
+	case subscriptionplan.FieldSoldOutAction:
+		m.ResetSoldOutAction()
 		return nil
 	case subscriptionplan.FieldSortOrder:
 		m.ResetSortOrder()

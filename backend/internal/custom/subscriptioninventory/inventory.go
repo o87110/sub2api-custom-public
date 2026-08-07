@@ -18,6 +18,9 @@ const (
 	StateReserved  = "reserved"
 	StateConsumed  = "consumed"
 	StateReleased  = "released"
+
+	SoldOutActionDelist          = "delist"
+	SoldOutActionDisablePurchase = "disable_purchase"
 )
 
 // QuantityPatch preserves the three states required by plan PATCH requests:
@@ -42,17 +45,70 @@ func (p *QuantityPatch) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func ValidateConfiguredQuantity(quantity *int) error {
-	if quantity != nil && *quantity <= 0 {
-		return infraerrors.BadRequest("PLAN_QUANTITY_INVALID", "remaining quantity must be a positive integer or null")
+// SoldOutActionPatch preserves PATCH omission while allowing explicit null to
+// be rejected as an invalid enum value by business validation.
+type SoldOutActionPatch struct {
+	Present bool
+	Value   *string
+}
+
+func (p *SoldOutActionPatch) UnmarshalJSON(data []byte) error {
+	p.Present = true
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		p.Value = nil
+		return nil
+	}
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	p.Value = &value
+	return nil
+}
+
+func NormalizeSoldOutAction(action string) (string, error) {
+	if action == "" {
+		return SoldOutActionDelist, nil
+	}
+	if !isValidSoldOutAction(action) {
+		return "", invalidSoldOutActionError()
+	}
+	return action, nil
+}
+
+func ValidateSoldOutActionPatch(patch SoldOutActionPatch) error {
+	if !patch.Present {
+		return nil
+	}
+	if patch.Value == nil || !isValidSoldOutAction(*patch.Value) {
+		return invalidSoldOutActionError()
 	}
 	return nil
+}
+
+func ValidateConfiguredQuantity(quantity *int, soldOutAction string) error {
+	if quantity == nil {
+		return nil
+	}
+	if *quantity < 0 || (*quantity == 0 && soldOutAction != SoldOutActionDisablePurchase) {
+		return infraerrors.BadRequest("PLAN_QUANTITY_INVALID", "remaining quantity must be positive or null; zero requires disable_purchase")
+	}
+	return nil
+}
+
+func isValidSoldOutAction(action string) bool {
+	return action == SoldOutActionDelist || action == SoldOutActionDisablePurchase
+}
+
+func invalidSoldOutActionError() error {
+	return infraerrors.BadRequest("PLAN_SOLD_OUT_ACTION_INVALID", "sold_out_action must be delist or disable_purchase")
 }
 
 type AdminAvailability struct {
 	RemainingQuantity     *int
 	ForSale               bool
 	InventoryAutoDelisted bool
+	SoldOutAction         string
 }
 
 // AdminPlanPatch keeps the official plan DTO at the bridge while allowing all
@@ -70,6 +126,7 @@ type AdminPlanPatch struct {
 	ProductName       *string
 	ForSale           *bool
 	RemainingQuantity QuantityPatch
+	SoldOutAction     SoldOutActionPatch
 	SortOrder         *int
 }
 
@@ -94,16 +151,24 @@ func lockPlanForAdminUpdate(ctx context.Context, client *dbent.Client, planID in
 	return plan, nil
 }
 
-// ListPlansForSale filters both explicit delisting and zero inventory so an
-// inconsistent on-sale flag can never make a sold-out plan public again.
+// ListPlansForSale keeps disable-purchase sold-out plans visible while
+// preserving explicit manual delisting and the historical delist strategy.
 func ListPlansForSale(ctx context.Context, client *dbent.Client) ([]*dbent.SubscriptionPlan, error) {
 	return client.SubscriptionPlan.Query().Where(
 		subscriptionplan.ForSaleEQ(true),
 		subscriptionplan.Or(
 			subscriptionplan.RemainingQuantityIsNil(),
 			subscriptionplan.RemainingQuantityGT(0),
+			subscriptionplan.And(
+				subscriptionplan.RemainingQuantityEQ(0),
+				subscriptionplan.SoldOutActionEQ(SoldOutActionDisablePurchase),
+			),
 		),
 	).Order(subscriptionplan.BySortOrder()).All(ctx)
+}
+
+func IsSoldOut(plan *dbent.SubscriptionPlan) bool {
+	return plan != nil && plan.RemainingQuantity != nil && *plan.RemainingQuantity == 0
 }
 
 // UpdateAdminPlan serializes availability changes with order reservations and
@@ -113,7 +178,7 @@ func UpdateAdminPlan(ctx context.Context, entClient *dbent.Client, planID int64,
 	client := entClient
 	opCtx := ctx
 	var tx *dbent.Tx
-	if patch.RemainingQuantity.Present || patch.ForSale != nil {
+	if patch.RemainingQuantity.Present || patch.SoldOutAction.Present || patch.ForSale != nil {
 		var err error
 		tx, err = entClient.Tx(ctx)
 		if err != nil {
@@ -135,8 +200,10 @@ func UpdateAdminPlan(ctx context.Context, entClient *dbent.Client, planID int64,
 				RemainingQuantity:     current.RemainingQuantity,
 				ForSale:               current.ForSale,
 				InventoryAutoDelisted: current.InventoryAutoDelisted,
+				SoldOutAction:         current.SoldOutAction,
 			},
 			patch.RemainingQuantity,
+			patch.SoldOutAction,
 			patch.ForSale,
 		)
 		if err != nil {
@@ -150,7 +217,8 @@ func UpdateAdminPlan(ctx context.Context, entClient *dbent.Client, planID int64,
 			}
 		}
 		update.SetForSale(availability.ForSale).
-			SetInventoryAutoDelisted(availability.InventoryAutoDelisted)
+			SetInventoryAutoDelisted(availability.InventoryAutoDelisted).
+			SetSoldOutAction(availability.SoldOutAction)
 	}
 	applyAdminPlanFields(update, patch)
 	plan, err := update.Save(opCtx)
@@ -215,25 +283,49 @@ func planNotFoundOrError(err error) error {
 func ResolveAdminAvailability(
 	current AdminAvailability,
 	quantity QuantityPatch,
+	soldOutAction SoldOutActionPatch,
 	requestedForSale *bool,
 ) (AdminAvailability, error) {
 	result := current
+	if result.SoldOutAction == "" {
+		result.SoldOutAction = SoldOutActionDelist
+	}
+	if err := ValidateSoldOutActionPatch(soldOutAction); err != nil {
+		return AdminAvailability{}, err
+	}
+	if soldOutAction.Present {
+		result.SoldOutAction = *soldOutAction.Value
+	}
 	if quantity.Present {
-		if err := ValidateConfiguredQuantity(quantity.Value); err != nil {
+		if err := ValidateConfiguredQuantity(quantity.Value, result.SoldOutAction); err != nil {
 			return AdminAvailability{}, err
 		}
 		result.RemainingQuantity = quantity.Value
-		if current.InventoryAutoDelisted && requestedForSale == nil {
+	}
+
+	soldOut := result.RemainingQuantity != nil && *result.RemainingQuantity == 0
+	if requestedForSale != nil {
+		if *requestedForSale && soldOut && result.SoldOutAction == SoldOutActionDelist {
+			return AdminAvailability{}, infraerrors.Conflict("PLAN_SOLD_OUT", "sold-out delist plan cannot be put on sale")
+		}
+		result.ForSale = *requestedForSale
+		result.InventoryAutoDelisted = false
+		return result, nil
+	}
+
+	if current.InventoryAutoDelisted {
+		if soldOut && result.SoldOutAction == SoldOutActionDelist {
+			result.ForSale = false
+			result.InventoryAutoDelisted = true
+		} else {
 			result.ForSale = true
 			result.InventoryAutoDelisted = false
 		}
+		return result, nil
 	}
-	if requestedForSale != nil {
-		result.ForSale = *requestedForSale
-		result.InventoryAutoDelisted = false
-	}
-	if result.ForSale && result.RemainingQuantity != nil && *result.RemainingQuantity == 0 {
-		return AdminAvailability{}, infraerrors.Conflict("PLAN_SOLD_OUT", "sold-out plan cannot be put on sale")
+	if soldOut && result.ForSale && result.SoldOutAction == SoldOutActionDelist {
+		result.ForSale = false
+		result.InventoryAutoDelisted = true
 	}
 	return result, nil
 }
@@ -244,20 +336,11 @@ func ResolveAdminAvailability(
 func ReserveForOrder(ctx context.Context, client *dbent.Client, planID int64, requireForSale bool) (string, error) {
 	for attempt := 0; attempt < 8; attempt++ {
 		if requireForSale {
-			reserved, err := client.SubscriptionPlan.Update().
-				Where(
-					subscriptionplan.IDEQ(planID),
-					subscriptionplan.ForSaleEQ(true),
-					subscriptionplan.RemainingQuantityEQ(1),
-				).
-				SetRemainingQuantity(0).
-				SetForSale(false).
-				SetInventoryAutoDelisted(true).
-				Save(ctx)
+			reserved, err := reserveFinalOnSaleUnit(ctx, client, planID)
 			if err != nil {
-				return "", fmt.Errorf("reserve final plan inventory: %w", err)
+				return "", err
 			}
-			if reserved > 0 {
+			if reserved {
 				return StateReserved, nil
 			}
 		} else {
@@ -310,24 +393,49 @@ func ReserveForOrder(ctx context.Context, client *dbent.Client, planID int64, re
 	return "", infraerrors.Conflict("PLAN_INVENTORY_BUSY", "plan inventory changed concurrently; retry the order")
 }
 
-func reserveFinalUnitForPaidOrder(ctx context.Context, client *dbent.Client, planID int64) (bool, error) {
+func reserveFinalOnSaleUnit(ctx context.Context, client *dbent.Client, planID int64) (bool, error) {
 	reserved, err := client.SubscriptionPlan.Update().
 		Where(
 			subscriptionplan.IDEQ(planID),
 			subscriptionplan.ForSaleEQ(true),
 			subscriptionplan.RemainingQuantityEQ(1),
+			subscriptionplan.SoldOutActionEQ(SoldOutActionDelist),
 		).
 		SetRemainingQuantity(0).
 		SetForSale(false).
 		SetInventoryAutoDelisted(true).
 		Save(ctx)
 	if err != nil {
-		return false, fmt.Errorf("reacquire final on-sale plan inventory: %w", err)
+		return false, fmt.Errorf("reserve final delist plan inventory: %w", err)
 	}
 	if reserved > 0 {
 		return true, nil
 	}
 	reserved, err = client.SubscriptionPlan.Update().
+		Where(
+			subscriptionplan.IDEQ(planID),
+			subscriptionplan.ForSaleEQ(true),
+			subscriptionplan.RemainingQuantityEQ(1),
+			subscriptionplan.SoldOutActionEQ(SoldOutActionDisablePurchase),
+		).
+		SetRemainingQuantity(0).
+		SetInventoryAutoDelisted(false).
+		Save(ctx)
+	if err != nil {
+		return false, fmt.Errorf("reserve final disable-purchase plan inventory: %w", err)
+	}
+	return reserved > 0, nil
+}
+
+func reserveFinalUnitForPaidOrder(ctx context.Context, client *dbent.Client, planID int64) (bool, error) {
+	reserved, err := reserveFinalOnSaleUnit(ctx, client, planID)
+	if err != nil {
+		return false, err
+	}
+	if reserved {
+		return true, nil
+	}
+	count, err := client.SubscriptionPlan.Update().
 		Where(
 			subscriptionplan.IDEQ(planID),
 			subscriptionplan.ForSaleEQ(false),
@@ -338,7 +446,7 @@ func reserveFinalUnitForPaidOrder(ctx context.Context, client *dbent.Client, pla
 	if err != nil {
 		return false, fmt.Errorf("reacquire final delisted plan inventory: %w", err)
 	}
-	return reserved > 0, nil
+	return count > 0, nil
 }
 
 // ReleaseReservation changes reserved to released exactly once and returns the

@@ -181,6 +181,7 @@ thin_bridge_allowed() {
       backend/internal/handler/admin/content_moderation_handler.go | \
       backend/internal/handler/admin/group_handler.go | \
       backend/internal/handler/admin/payment_handler.go | \
+      backend/internal/handler/admin/payment_handler_test.go | \
       backend/internal/handler/admin/channel_monitor_handler.go | \
       backend/internal/handler/admin/setting_handler.go | \
       backend/internal/handler/admin/setting_handler_update.go | \
@@ -243,7 +244,9 @@ thin_bridge_allowed() {
       frontend/src/components/admin/monitor/MonitorFormDialog.vue | \
       frontend/src/components/payment/AmountInput.vue | \
       frontend/src/components/payment/PaymentProviderDialog.vue | \
+      frontend/src/components/payment/SubscriptionPlanCard.vue | \
       frontend/src/components/payment/paymentFlow.ts | \
+      frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts | \
       frontend/src/components/payment/__tests__/paymentFlow.spec.ts | \
       frontend/src/components/user/monitor/MonitorCard.vue | \
       frontend/src/components/layout/AppSidebar.vue | \

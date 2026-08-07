@@ -43,6 +43,8 @@ type SubscriptionPlan struct {
 	RemainingQuantity *int `json:"remaining_quantity,omitempty"`
 	// InventoryAutoDelisted holds the value of the "inventory_auto_delisted" field.
 	InventoryAutoDelisted bool `json:"inventory_auto_delisted,omitempty"`
+	// SoldOutAction holds the value of the "sold_out_action" field.
+	SoldOutAction string `json:"sold_out_action,omitempty"`
 	// SortOrder holds the value of the "sort_order" field.
 	SortOrder int `json:"sort_order,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -63,7 +65,7 @@ func (*SubscriptionPlan) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldRemainingQuantity, subscriptionplan.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
-		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName:
+		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName, subscriptionplan.FieldSoldOutAction:
 			values[i] = new(sql.NullString)
 		case subscriptionplan.FieldCreatedAt, subscriptionplan.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -168,6 +170,12 @@ func (_m *SubscriptionPlan) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.InventoryAutoDelisted = value.Bool
 			}
+		case subscriptionplan.FieldSoldOutAction:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field sold_out_action", values[i])
+			} else if value.Valid {
+				_m.SoldOutAction = value.String
+			}
 		case subscriptionplan.FieldSortOrder:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field sort_order", values[i])
@@ -264,6 +272,9 @@ func (_m *SubscriptionPlan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("inventory_auto_delisted=")
 	builder.WriteString(fmt.Sprintf("%v", _m.InventoryAutoDelisted))
+	builder.WriteString(", ")
+	builder.WriteString("sold_out_action=")
+	builder.WriteString(_m.SoldOutAction)
 	builder.WriteString(", ")
 	builder.WriteString("sort_order=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SortOrder))
