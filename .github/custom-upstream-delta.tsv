@@ -232,7 +232,7 @@ deploy/release/Dockerfile	A	keep	A	fixed-path	@absent	c9c48cc8b7bf03765da51cafe8
 deploy/release/build-release-payload.sh	A	keep	A	fixed-path	@absent	c1f8900ae0f64b5e52cd3788c17e0c54c1f5fd8e	-	-	goreleaser-check+release-safety+runtime-resource-test	绑定前端来源、使用固定 Buildx GHA Cache scope 并记录 GoReleaser 与 OCI 耗时
 deploy/release/create-release-manifest.sh	A	keep	A	fixed-path	@absent	96ae611ed4f14ae47b848198d95e92eb7107cfdf	-	-	goreleaser-check+release-safety	新 v1 Manifest 强制写入并验证前端构建来源
 deploy/release/custom-release-preflight.sh	A	keep	A	fixed-path	@absent	bac8ec42d956f9dc52cf03af7320754813a9cd0e	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
-deploy/release/frontend-dist.sh	A	keep	A	fixed-path	@absent	3716cb11b7800dd7bb39f3ebf051d4b94d7d4dc4	-	-	release-safety+frontend-artifact-fixtures	严格复用准确 CI 前端 Artifact，缺失或过期时本地重建并记录来源
+deploy/release/frontend-dist.sh	A	keep	A	fixed-path	@absent	d814ad91296c220fd280dba146c81974bfa26135	-	-	release-safety+frontend-artifact-fixtures	严格复用准确 CI 前端 Artifact，并使用跨平台确定性内容哈希绑定来源
 deploy/release/publish-release.sh	A	keep	A	fixed-path	@absent	28f07d0ab4dae01cf978327230612942698f2f27	-	-	goreleaser-check+release-safety	兼容历史 v1 Manifest 并强制新前端来源与 Payload Metadata 一致
 deploy/release/release-inputs-changed.sh	A	keep	A	fixed-path	@absent	0376e3f7c689114a8e3d792e93c72ed56cf106a1	-	-	release-safety+classification-fixtures	按同 Vendor 最新正式 Custom Tag 精确分类自动发布输入并验证祖先关系
 deploy/release/release-notes.sh	A	keep	A	fixed-path	@absent	a2e8b6be71ac5328deea3b1b3cec3ef4f717e5f0	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
@@ -247,7 +247,7 @@ deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	3169c98b
 deploy/tests/docker-compose-security-test.sh	M	restore	RESTORED	whole-file-restore	b6cfe768da80b17648f57bcba7a6f27231629f2c	b6cfe768da80b17648f57bcba7a6f27231629f2c	-	-	baseline-blob-equality	非二改需求，整文件恢复官方基线
 deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
 deploy/tests/docker-runtime-resources-test.sh	M	keep	M	custom-test	4e7480d4d59c6edda9bbd3259f47c0db4fc7e5aa	4752f88556f2706ef283163c6524b64f90368f6d	-	-	runtime-resource-test+release-safety	验证官方及 Custom 镜像构建链路均携带定价 fallback resources
-deploy/tests/frontend-dist-safety-test.sh	A	keep	A	custom-test	@absent	744a694a000e4a1542575d524969b2fbb5b232d9	-	-	frontend-artifact-fixtures+release-safety	验证前端 Artifact 正确复用、回退及重复、来源、Digest、路径与符号链接失败关闭
+deploy/tests/frontend-dist-safety-test.sh	A	keep	A	custom-test	@absent	a79c40721355a3b9c0dad1ce1ab43fd46caaa1f3	-	-	frontend-artifact-fixtures+release-safety	验证前端 Artifact 复用、失败关闭及 v1 内容哈希不依赖 GNU tar
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	472ebb177dda6b4fd77e6e04711f12b6f9f95c08	-	-	shadow-map+runtime-boundary-test	验证 99 条官方薄接入点到内容审计、支付及套餐库存 Custom 实现与测试的精确影子映射

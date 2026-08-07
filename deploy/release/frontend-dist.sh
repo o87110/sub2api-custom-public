@@ -18,6 +18,20 @@ EOF
   exit 2
 }
 
+python_command=""
+resolve_python() {
+  [[ -z "$python_command" ]] || return 0
+  local candidate
+  for candidate in python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1 &&
+       "$candidate" -c 'import sys; raise SystemExit(sys.version_info < (3, 8))'; then
+      python_command="$candidate"
+      return 0
+    fi
+  done
+  fail "Python 3.8 or newer is required for frontend Artifact handling"
+}
+
 validate_dist() {
   local directory="$1"
   [[ -d "$directory" && -s "$directory/index.html" ]] ||
@@ -38,17 +52,55 @@ validate_dist() {
 hash_dist() {
   local directory="$1"
   validate_dist "$directory"
-  tar \
-    --sort=name \
-    --mtime='UTC 1970-01-01' \
-    --owner=0 \
-    --group=0 \
-    --numeric-owner \
-    --format=ustar \
-    -cf - \
-    -C "$directory" . |
-    sha256sum |
-    awk '{print $1}'
+  resolve_python
+  "$python_command" - "$directory" <<'PY'
+import hashlib
+import os
+import stat
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+entries = []
+for current_root, directory_names, file_names in os.walk(root):
+    directory_names.sort()
+    file_names.sort()
+    current = Path(current_root)
+    for name in directory_names:
+        path = current / name
+        if not stat.S_ISDIR(os.lstat(path).st_mode):
+            raise SystemExit("frontend dist changed while hashing a directory")
+        entries.append((b"D", path.relative_to(root).as_posix(), path))
+    for name in file_names:
+        path = current / name
+        if not stat.S_ISREG(os.lstat(path).st_mode):
+            raise SystemExit("frontend dist changed while hashing a file")
+        entries.append((b"F", path.relative_to(root).as_posix(), path))
+
+digest = hashlib.sha256()
+digest.update(b"sub2api-frontend-dist/v1\0")
+entries.sort(key=lambda entry: entry[1].encode("utf-8"))
+for entry_type, relative_path, path in entries:
+    encoded_path = relative_path.encode("utf-8")
+    digest.update(entry_type)
+    digest.update(len(encoded_path).to_bytes(8, "big"))
+    digest.update(encoded_path)
+    if entry_type == b"F":
+        expected_size = os.lstat(path).st_size
+        digest.update(expected_size.to_bytes(8, "big"))
+        actual_size = 0
+        with path.open("rb") as source:
+            while True:
+                chunk = source.read(1024 * 1024)
+                if not chunk:
+                    break
+                actual_size += len(chunk)
+                digest.update(chunk)
+        if actual_size != expected_size:
+            raise SystemExit("frontend dist file changed while hashing")
+
+print(digest.hexdigest())
+PY
 }
 
 command_name="${1:-}"
@@ -92,18 +144,10 @@ done
 [[ ! -e "$provenance" ]] || fail "frontend provenance output must be a new file"
 [[ "${GITHUB_REPOSITORY:-}" == "o87110/sub2api-custom-public" ]] ||
   fail "frontend Artifact reuse only permits the trusted public custom repository"
-for tool in gh jq sha256sum tar; do
+for tool in gh jq sha256sum; do
   command -v "$tool" >/dev/null 2>&1 || fail "required frontend preparation tool is missing: $tool"
 done
-python_command=""
-for candidate in python3 python; do
-  if command -v "$candidate" >/dev/null 2>&1 &&
-     "$candidate" -c 'import sys; raise SystemExit(sys.version_info < (3, 8))'; then
-    python_command="$candidate"
-    break
-  fi
-done
-[[ -n "$python_command" ]] || fail "Python 3.8 or newer is required for safe Artifact extraction"
+resolve_python
 
 if [[ -e "$directory" ]]; then
   [[ -d "$directory" && -z "$(find "$directory" -mindepth 1 -print -quit)" ]] ||

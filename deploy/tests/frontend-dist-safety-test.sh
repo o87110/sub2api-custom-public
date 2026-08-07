@@ -96,6 +96,13 @@ printf '<!doctype html><title>fallback</title>\n' \
 EOF
 chmod 0700 "$fixture_bin/make"
 
+cat > "$fixture_bin/tar" <<'EOF'
+#!/usr/bin/env bash
+echo "frontend content hashing must not depend on GNU tar" >&2
+exit 97
+EOF
+chmod 0700 "$fixture_bin/tar"
+
 commit="1111111111111111111111111111111111111111"
 artifact_name="release-frontend-dist-${commit}"
 run_json() {
@@ -226,8 +233,13 @@ jq -e \
     (.artifact_digest | test("^sha256:[0-9a-f]{64}$")) and
     (.content_sha256 | test("^[0-9a-f]{64}$"))
   ' "$success_root/provenance.json" >/dev/null
-[[ "$(jq -r '.content_sha256' "$success_root/provenance.json")" == "$(
-  /bin/bash "$fixture_repo/deploy/release/frontend-dist.sh" hash \
+content_sha256="$(jq -r '.content_sha256' "$success_root/provenance.json")"
+[[ "$content_sha256" == \
+  "3e6f4d87929bc218f03ea9de7bce524aff182244df4891cbd99c07467d2586e7" ]] ||
+  fail "frontend dist v1 content hash contract changed"
+[[ "$content_sha256" == "$(
+  PATH="$fixture_bin:$PATH" \
+    /bin/bash "$fixture_repo/deploy/release/frontend-dist.sh" hash \
     --directory "$success_root/dist"
 )" ]] || fail "reused frontend Artifact content hash is unstable"
 
