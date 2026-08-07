@@ -131,7 +131,19 @@ SHA256。
 
 一旦内容公开，应假定已经被复制；删除不能替代凭据轮换。
 
-## 10. 安全报告
+## 10. 前端依赖审计
+
+- Security Workflow 使用 pnpm 9.15.9 执行 `install --frozen-lockfile`，并对生产依赖
+  运行 `pnpm audit --prod --audit-level=high`；审计报告必须先通过结构和退出码校验。
+- 高危及严重漏洞优先升级或使用最小范围的条件 Override 修复。只有无法立即升级且已有
+  明确缓解措施、负责人和到期日时，才允许登记精确 Advisory 例外。
+- `postcss@8.5.23` 间接解析到受 `GHSA-2v37-7h3g-55p8` 影响的
+  `nanoid@3.3.16` 时，固定使用 `nanoid@<3.3.17: 3.3.18`。该条件 Override 仅覆盖
+  漏洞版本范围，并同步锁文件；不得通过新增审计例外或降低审计级别绕过。
+- 依赖修复至少验证 frozen install、生产依赖审计、审计例外校验、前端类型检查、测试
+  和生产构建。
+
+## 11. 安全报告
 
 公开 Issue 不适合提交未修复漏洞细节、利用代码或真实凭据。当前仓库尚未启用
 GitHub Security Advisory 的 Private Vulnerability Reporting；启用前只能提交不含
