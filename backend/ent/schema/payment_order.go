@@ -103,6 +103,10 @@ func (PaymentOrder) Fields() []ent.Field {
 		field.String("status").
 			MaxLen(30).
 			Default("PENDING"),
+		field.String("plan_inventory_state").
+			MaxLen(16).
+			Default("untracked").
+			Sensitive(),
 
 		// 退款信息
 		field.Float("refund_amount").

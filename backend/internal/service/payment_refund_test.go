@@ -12,6 +12,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -66,6 +67,63 @@ func TestValidateRefundRequestRejectsLegacyGuessedProviderInstance(t *testing.T)
 	_, err = svc.validateRefundRequest(ctx, order.ID, user.ID)
 	require.Error(t, err)
 	require.Equal(t, "USER_REFUND_DISABLED", infraerrors.Reason(err))
+}
+
+func TestRefundDoesNotReturnConsumedPlanInventory(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	user, err := client.User.Create().
+		SetEmail("refund-inventory@example.com").
+		SetPasswordHash("hash").
+		SetUsername("refund-inventory-user").
+		Save(ctx)
+	require.NoError(t, err)
+	plan, err := client.SubscriptionPlan.Create().
+		SetGroupID(1).
+		SetName("refund inventory plan").
+		SetPrice(20).
+		SetRemainingQuantity(0).
+		SetForSale(false).
+		SetInventoryAutoDelisted(true).
+		Save(ctx)
+	require.NoError(t, err)
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(20).
+		SetPayAmount(20).
+		SetRechargeCode("REFUND-INVENTORY").
+		SetPaymentType("test").
+		SetPaymentTradeNo("trade-refund-inventory").
+		SetOrderType(payment.OrderTypeSubscription).
+		SetPlanID(plan.ID).
+		SetPlanInventoryState(subscriptioninventory.StateConsumed).
+		SetStatus(OrderStatusCompleted).
+		SetPaidAt(time.Now().Add(-time.Hour)).
+		SetCompletedAt(time.Now().Add(-time.Minute)).
+		SetExpiresAt(time.Now().Add(time.Hour)).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("api.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentService{entClient: client}
+	_, err = svc.markRefundOk(ctx, &RefundPlan{
+		OrderID:      order.ID,
+		Order:        order,
+		RefundAmount: order.Amount,
+		Reason:       "inventory regression",
+	})
+	require.NoError(t, err)
+	order, err = client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusRefunded, order.Status)
+	require.Equal(t, subscriptioninventory.StateConsumed, order.PlanInventoryState)
+	plan, err = client.SubscriptionPlan.Get(ctx, plan.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, *plan.RemainingQuantity)
+	require.False(t, plan.ForSale)
 }
 
 func TestPrepareRefundRejectsLegacyGuessedProviderInstance(t *testing.T) {

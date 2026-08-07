@@ -59,6 +59,14 @@ func (SubscriptionPlan) Fields() []ent.Field {
 			Default(""),
 		field.Bool("for_sale").
 			Default(true),
+		field.Int("remaining_quantity").
+			Optional().
+			Nillable(),
+		field.Bool("inventory_auto_delisted").
+			Default(false),
+		field.String("sold_out_action").
+			MaxLen(32).
+			Default("delist"),
 		field.Int("sort_order").
 			Default(0),
 		field.Time("created_at").

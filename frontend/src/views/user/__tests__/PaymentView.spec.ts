@@ -6,7 +6,6 @@ import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import PaymentChannelSelector from '@/custom/payment-channels/PaymentChannelSelector.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 import { formatPaymentAmount } from '@/components/payment/currency'
-import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import type { CheckoutInfoResponse, MethodLimit, SubscriptionPlan } from '@/types/payment'
 
 const routeState = vi.hoisted(() => ({
@@ -51,6 +50,9 @@ vi.mock('vue-i18n', async () => {
           && typeof params === 'object'
         ) {
           return `${key}:${String(params.channel || '')}`
+        }
+        if (key === 'payment.errors.PLAN_SOLD_OUT' || key === 'payment.errors.PLAN_NOT_AVAILABLE') {
+          return `localized:${key}`
         }
         return key
       },
@@ -335,6 +337,51 @@ describe('PaymentView subscription plan grid', () => {
       'sm:grid-cols-2',
       'lg:grid-cols-3',
     ]))
+  })
+
+  it('does not auto-select or accept selection of a sold-out renewal plan', async () => {
+    const wrapper = await mountSubscriptionConfirm({ plan: { sold_out: true } })
+    const cards = wrapper.findAllComponents(SubscriptionPlanCard)
+
+    expect(cards.length).toBeGreaterThan(0)
+    expect(wrapper.findComponent(PaymentChannelSelector).exists()).toBe(false)
+    cards[0].vm.$emit('select', cards[0].props('plan'))
+    await flushPromises()
+
+    expect(showWarning).toHaveBeenCalledWith('payment.soldOut')
+    expect(wrapper.findComponent(PaymentChannelSelector).exists()).toBe(false)
+    expect(createOrder).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { reason: 'PLAN_SOLD_OUT', remainsVisible: true },
+    { reason: 'PLAN_NOT_AVAILABLE', remainsVisible: false },
+  ])('synchronizes the plan after a concurrent $reason response', async ({ reason, remainsVisible }) => {
+    const wrapper = await mountSubscriptionConfirm()
+    createOrder.mockRejectedValue({ reason, message: 'raw backend message' })
+    getCheckoutInfo.mockResolvedValueOnce(remainsVisible
+      ? checkoutInfoWithPlansFixture({ plan: { sold_out: true } })
+      : checkoutInfoFixture({ plans: [] }))
+
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit).toBeTruthy()
+    await submit!.trigger('click')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledTimes(1)
+    expect(getCheckoutInfo).toHaveBeenCalledTimes(2)
+    expect(showError).toHaveBeenCalledWith(expect.stringContaining(`localized:payment.errors.${reason}`))
+    expect(wrapper.findComponent(PaymentChannelSelector).exists()).toBe(false)
+
+    const cards = wrapper.findAllComponents(SubscriptionPlanCard)
+    expect(cards).toHaveLength(remainsVisible ? 1 : 0)
+    if (remainsVisible) {
+      expect(cards[0].props('plan')).toEqual(expect.objectContaining({ sold_out: true }))
+      cards[0].vm.$emit('select', cards[0].props('plan'))
+      await flushPromises()
+      expect(showWarning).toHaveBeenCalledWith('payment.soldOut')
+      expect(createOrder).toHaveBeenCalledTimes(1)
+    }
   })
 })
 

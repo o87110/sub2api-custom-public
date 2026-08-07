@@ -173,7 +173,7 @@
                   </div>
                 </div>
               </div>
-              <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmitSubscription || submitting" @click="confirmSubscribe">
+              <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmitSubscription || submitting || isPlanSoldOut(selectedPlan)" @click="confirmSubscribe">
                 <span v-if="submitting" class="flex items-center justify-center gap-2">
                   <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
                   {{ t('common.processing') }}
@@ -294,6 +294,11 @@ import {
   paymentChannelSupports,
 } from '@/custom/payment-channels/paymentChannels'
 import { usePaymentChannelPricing } from '@/custom/payment-channels/usePaymentChannelPricing'
+import {
+  isPlanSoldOut,
+  planAvailabilityError,
+  synchronizePlanAvailability,
+} from '@/custom/subscription-plan-inventory/inventory'
 import {
   usePaymentChannelRecovery,
   type BackupChannelHintContext,
@@ -594,11 +599,19 @@ function planPeakRateLabel(plan: SubscriptionPlan): string {
 }
 
 function selectPlan(plan: SubscriptionPlan) {
+  if (isPlanSoldOut(plan)) {
+    appStore.showWarning(t('payment.soldOut'))
+    return
+  }
   selectedPlan.value = plan
   errorMessage.value = ''
 }
 
 function selectPlanFromModal(plan: SubscriptionPlan) {
+  if (isPlanSoldOut(plan)) {
+    appStore.showWarning(t('payment.soldOut'))
+    return
+  }
   showRenewalModal.value = false
   renewGroupId.value = null
   selectedPlan.value = plan
@@ -617,10 +630,21 @@ async function handleSubmitRecharge() {
 
 async function confirmSubscribe() {
   if (!selectedPlan.value || submitting.value) return
+  if (isPlanSoldOut(selectedPlan.value)) {
+    appStore.showWarning(t('payment.soldOut'))
+    return
+  }
   await createOrder(selectedPlan.value.price, 'subscription', selectedPlan.value.id)
 }
 
 async function createOrder(orderAmount: number, orderType: OrderType, planId?: number, options: CreateOrderOptions = {}) {
+  if (orderType === 'subscription' && !options.isResume) {
+    const plan = checkout.value.plans.find(candidate => candidate.id === planId)
+    if (!plan || isPlanSoldOut(plan)) {
+      appStore.showWarning(t('payment.soldOut'))
+      return
+    }
+  }
   submitting.value = true
   errorMessage.value = ''
   errorHintMessage.value = ''
@@ -812,7 +836,21 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     }
   } catch (err: unknown) {
     const apiErr = err as Record<string, unknown>
-    if (apiErr.reason === 'TOO_MANY_PENDING') {
+    const availabilityError = orderType === 'subscription' && planId !== undefined
+      ? planAvailabilityError(err)
+      : null
+    if (availabilityError) {
+      const plans = await synchronizePlanAvailability(
+        checkout.value.plans,
+        planId!,
+        availabilityError,
+        async () => (await paymentAPI.getCheckoutInfo()).data.plans,
+      )
+      checkout.value = { ...checkout.value, plans }
+      if (selectedPlan.value?.id === planId) selectedPlan.value = null
+      errorMessage.value = extractI18nErrorMessage(err, t, 'payment.errors', t('payment.soldOut'))
+      errorHintMessage.value = ''
+    } else if (apiErr.reason === 'TOO_MANY_PENDING') {
       const metadata = apiErr.metadata as Record<string, unknown> | undefined
       errorMessage.value = t('payment.errors.tooManyPending', { max: metadata?.max || '' })
       errorHintMessage.value = ''
@@ -930,9 +968,10 @@ onMounted(async () => {
       if (route.query.group) {
         const groupId = Number(route.query.group)
         const groupPlans = checkout.value.plans.filter(p => p.group_id === groupId)
-        if (groupPlans.length === 1) {
-          selectedPlan.value = groupPlans[0]
-        } else if (groupPlans.length > 1) {
+        const purchasablePlans = groupPlans.filter(plan => !isPlanSoldOut(plan))
+        if (purchasablePlans.length === 1) {
+          selectedPlan.value = purchasablePlans[0]
+        } else if (groupPlans.length > 0) {
           renewGroupId.value = groupId
           showRenewalModal.value = true
         }

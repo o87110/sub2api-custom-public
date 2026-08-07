@@ -154,6 +154,11 @@ export interface SubscriptionPlan {
   /** Stored as JSON string in backend; API layer should parse before use */
   features: string[]
   for_sale: boolean
+  /** Admin-only exact inventory; public APIs expose only sold_out. */
+  remaining_quantity?: number | null
+  inventory_auto_delisted?: boolean
+  sold_out_action?: import('@/custom/subscription-plan-inventory/inventory').SoldOutAction
+  sold_out?: boolean
   sort_order: number
 }
 

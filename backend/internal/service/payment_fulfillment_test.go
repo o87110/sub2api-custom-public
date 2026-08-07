@@ -12,6 +12,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -828,6 +829,105 @@ func TestExecuteSubscriptionFulfillmentRecoversCommittedAssignmentWithoutExtendi
 		Count(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 1, assignmentAuditCount)
+}
+
+func TestExecuteSubscriptionFulfillmentConsumesReservedInventoryOnce(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	ensurePaymentAuditOrderActionUniqueIndex(t, ctx, client)
+	order := createPaymentFulfillmentSubscriptionOrder(t, ctx, client, OrderStatusPaid, time.Now())
+	plan, err := client.SubscriptionPlan.Create().
+		SetGroupID(7).
+		SetName("reserved fulfillment plan").
+		SetPrice(80).
+		SetRemainingQuantity(0).
+		SetForSale(false).
+		SetInventoryAutoDelisted(true).
+		Save(ctx)
+	require.NoError(t, err)
+	order, err = client.PaymentOrder.UpdateOneID(order.ID).
+		SetPlanID(plan.ID).
+		SetPlanInventoryState(subscriptioninventory.StateReserved).
+		Save(ctx)
+	require.NoError(t, err)
+
+	subRepo := newSubscriptionUserSubRepoStub()
+	groupRepo := &subscriptionGroupRepoStub{
+		group: &Group{ID: 7, Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription},
+	}
+	svc := &PaymentService{
+		entClient:       client,
+		groupRepo:       groupRepo,
+		subscriptionSvc: NewSubscriptionService(groupRepo, subRepo, nil, nil, nil),
+	}
+
+	require.NoError(t, svc.ExecuteSubscriptionFulfillment(ctx, order.ID))
+	require.NoError(t, svc.ExecuteSubscriptionFulfillment(ctx, order.ID))
+	order, err = client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusCompleted, order.Status)
+	require.Equal(t, subscriptioninventory.StateConsumed, order.PlanInventoryState)
+	plan, err = client.SubscriptionPlan.Get(ctx, plan.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, *plan.RemainingQuantity)
+}
+
+func TestReleasedLatePaymentRetriesAfterInventoryIsRestocked(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	ensurePaymentAuditOrderActionUniqueIndex(t, ctx, client)
+	order := createPaymentFulfillmentSubscriptionOrder(t, ctx, client, OrderStatusPaid, time.Now())
+	plan, err := client.SubscriptionPlan.Create().
+		SetGroupID(7).
+		SetName("late payment plan").
+		SetPrice(80).
+		SetRemainingQuantity(0).
+		SetForSale(false).
+		SetInventoryAutoDelisted(true).
+		Save(ctx)
+	require.NoError(t, err)
+	order, err = client.PaymentOrder.UpdateOneID(order.ID).
+		SetPlanID(plan.ID).
+		SetPlanInventoryState(subscriptioninventory.StateReleased).
+		Save(ctx)
+	require.NoError(t, err)
+
+	subRepo := newSubscriptionUserSubRepoStub()
+	groupRepo := &subscriptionGroupRepoStub{
+		group: &Group{ID: 7, Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription},
+	}
+	svc := &PaymentService{
+		entClient:       client,
+		groupRepo:       groupRepo,
+		subscriptionSvc: NewSubscriptionService(groupRepo, subRepo, nil, nil, nil),
+	}
+
+	err = svc.ExecuteSubscriptionFulfillment(ctx, order.ID)
+	require.Error(t, err)
+	require.Equal(t, "PLAN_SOLD_OUT", infraerrors.Reason(err))
+	order, err = client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusFailed, order.Status)
+	require.Equal(t, subscriptioninventory.StateReleased, order.PlanInventoryState)
+	_, err = subRepo.GetByUserIDAndGroupID(ctx, order.UserID, *order.SubscriptionGroupID)
+	require.ErrorIs(t, err, ErrSubscriptionNotFound)
+
+	plan, err = client.SubscriptionPlan.UpdateOneID(plan.ID).
+		SetRemainingQuantity(1).
+		SetForSale(true).
+		SetInventoryAutoDelisted(false).
+		Save(ctx)
+	require.NoError(t, err)
+	require.NoError(t, svc.ExecuteSubscriptionFulfillment(ctx, order.ID))
+	order, err = client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusCompleted, order.Status)
+	require.Equal(t, subscriptioninventory.StateConsumed, order.PlanInventoryState)
+	plan, err = client.SubscriptionPlan.Get(ctx, plan.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, *plan.RemainingQuantity)
+	require.False(t, plan.ForSale)
+	require.True(t, plan.InventoryAutoDelisted)
 }
 
 func TestHasPaymentSubscriptionOrderNoteRequiresIndependentExactLine(t *testing.T) {

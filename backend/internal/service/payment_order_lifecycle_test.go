@@ -10,6 +10,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/enttest"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
@@ -520,6 +521,15 @@ func TestCancelOrderStillClosesUnpaidUpstreamOrder(t *testing.T) {
 		SetUsername("cancel-pending-user").
 		Save(ctx)
 	require.NoError(t, err)
+	plan, err := client.SubscriptionPlan.Create().
+		SetGroupID(1).
+		SetName("cancel inventory plan").
+		SetPrice(88).
+		SetRemainingQuantity(0).
+		SetForSale(false).
+		SetInventoryAutoDelisted(true).
+		Save(ctx)
+	require.NoError(t, err)
 
 	order, err := client.PaymentOrder.Create().
 		SetUserID(user.ID).
@@ -533,6 +543,8 @@ func TestCancelOrderStillClosesUnpaidUpstreamOrder(t *testing.T) {
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("").
 		SetOrderType(payment.OrderTypeBalance).
+		SetPlanID(plan.ID).
+		SetPlanInventoryState(subscriptioninventory.StateReserved).
 		SetStatus(OrderStatusPending).
 		SetExpiresAt(time.Now().Add(time.Hour)).
 		SetClientIP("127.0.0.1").
@@ -565,6 +577,61 @@ func TestCancelOrderStillClosesUnpaidUpstreamOrder(t *testing.T) {
 	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
 	require.NoError(t, err)
 	require.Equal(t, OrderStatusCancelled, reloaded.Status)
+	plan, err = client.SubscriptionPlan.Get(ctx, plan.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, *plan.RemainingQuantity)
+	require.True(t, plan.ForSale)
+	require.False(t, plan.InventoryAutoDelisted)
+}
+
+func TestExpireTimedOutOrderReleasesReservedInventory(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+	user, err := client.User.Create().
+		SetEmail("expired-inventory@example.com").
+		SetPasswordHash("hash").
+		SetUsername("expired-inventory-user").
+		Save(ctx)
+	require.NoError(t, err)
+	plan, err := client.SubscriptionPlan.Create().
+		SetGroupID(1).
+		SetName("expired inventory plan").
+		SetPrice(20).
+		SetRemainingQuantity(0).
+		SetForSale(false).
+		SetInventoryAutoDelisted(true).
+		Save(ctx)
+	require.NoError(t, err)
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(20).
+		SetPayAmount(20).
+		SetRechargeCode("EXPIRED-INVENTORY").
+		SetPaymentType("").
+		SetPaymentTradeNo("").
+		SetOrderType(payment.OrderTypeSubscription).
+		SetPlanID(plan.ID).
+		SetPlanInventoryState(subscriptioninventory.StateReserved).
+		SetStatus(OrderStatusPending).
+		SetExpiresAt(time.Now().Add(-time.Minute)).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("api.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentService{entClient: client}
+	count, err := svc.ExpireTimedOutOrders(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+	order, err = client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusExpired, order.Status)
+	plan, err = client.SubscriptionPlan.Get(ctx, plan.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, *plan.RemainingQuantity)
+	require.True(t, plan.ForSale)
 }
 
 func TestReconcilePendingWxpayOrdersBackfillsPaidOrder(t *testing.T) {

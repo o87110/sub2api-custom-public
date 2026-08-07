@@ -495,7 +495,7 @@ export default {
       nameRequired: 'Please enter a monitor name',
       primaryModelRequired: 'Please enter a primary model',
       groupRateOverrideInvalid: 'Manual rate override must be a finite number greater than 0',
-      groupRateDisplayTemplateInvalid: 'Rate display template must be at most 64 characters and contain exactly one {rate}',
+      groupRateDisplayTemplateInvalid: "Rate display template must be at most 64 characters and contain exactly one {'{'}rate{'}'}",
       columns: {
         name: 'Name',
         provider: 'Provider',
@@ -535,7 +535,7 @@ export default {
         groupRateOverridePlaceholder: 'Leave blank to use the API key group rate',
         groupRateOverrideHint: 'Overrides monitoring display only; billing, scheduling, and the real group rate are unchanged.',
         groupRateDisplayTemplate: 'Rate display template',
-        groupRateDisplayTemplateHint: 'Must contain exactly one {rate}; blank displays as {rate}x.',
+        groupRateDisplayTemplateHint: "Must contain exactly one {'{'}rate{'}'}; blank displays as {'{'}rate{'}'}x.",
         intervalSeconds: 'Interval (seconds)',
         intervalSecondsHint: 'Range: 15 - 3600 seconds',
         jitterSeconds: 'Random Jitter (± seconds)',

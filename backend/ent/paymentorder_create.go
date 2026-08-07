@@ -259,6 +259,20 @@ func (_c *PaymentOrderCreate) SetNillableStatus(v *string) *PaymentOrderCreate {
 	return _c
 }
 
+// SetPlanInventoryState sets the "plan_inventory_state" field.
+func (_c *PaymentOrderCreate) SetPlanInventoryState(v string) *PaymentOrderCreate {
+	_c.mutation.SetPlanInventoryState(v)
+	return _c
+}
+
+// SetNillablePlanInventoryState sets the "plan_inventory_state" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillablePlanInventoryState(v *string) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetPlanInventoryState(*v)
+	}
+	return _c
+}
+
 // SetRefundAmount sets the "refund_amount" field.
 func (_c *PaymentOrderCreate) SetRefundAmount(v float64) *PaymentOrderCreate {
 	_c.mutation.SetRefundAmount(v)
@@ -529,6 +543,10 @@ func (_c *PaymentOrderCreate) defaults() {
 		v := paymentorder.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.PlanInventoryState(); !ok {
+		v := paymentorder.DefaultPlanInventoryState
+		_c.mutation.SetPlanInventoryState(v)
+	}
 	if _, ok := _c.mutation.RefundAmount(); !ok {
 		v := paymentorder.DefaultRefundAmount
 		_c.mutation.SetRefundAmount(v)
@@ -633,6 +651,14 @@ func (_c *PaymentOrderCreate) check() error {
 	if v, ok := _c.mutation.Status(); ok {
 		if err := paymentorder.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.PlanInventoryState(); !ok {
+		return &ValidationError{Name: "plan_inventory_state", err: errors.New(`ent: missing required field "PaymentOrder.plan_inventory_state"`)}
+	}
+	if v, ok := _c.mutation.PlanInventoryState(); ok {
+		if err := paymentorder.PlanInventoryStateValidator(v); err != nil {
+			return &ValidationError{Name: "plan_inventory_state", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.plan_inventory_state": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.RefundAmount(); !ok {
@@ -784,6 +810,10 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(paymentorder.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.PlanInventoryState(); ok {
+		_spec.SetField(paymentorder.FieldPlanInventoryState, field.TypeString, value)
+		_node.PlanInventoryState = value
 	}
 	if value, ok := _c.mutation.RefundAmount(); ok {
 		_spec.SetField(paymentorder.FieldRefundAmount, field.TypeFloat64, value)
@@ -1279,6 +1309,18 @@ func (u *PaymentOrderUpsert) SetStatus(v string) *PaymentOrderUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *PaymentOrderUpsert) UpdateStatus() *PaymentOrderUpsert {
 	u.SetExcluded(paymentorder.FieldStatus)
+	return u
+}
+
+// SetPlanInventoryState sets the "plan_inventory_state" field.
+func (u *PaymentOrderUpsert) SetPlanInventoryState(v string) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldPlanInventoryState, v)
+	return u
+}
+
+// UpdatePlanInventoryState sets the "plan_inventory_state" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdatePlanInventoryState() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldPlanInventoryState)
 	return u
 }
 
@@ -2002,6 +2044,20 @@ func (u *PaymentOrderUpsertOne) SetStatus(v string) *PaymentOrderUpsertOne {
 func (u *PaymentOrderUpsertOne) UpdateStatus() *PaymentOrderUpsertOne {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetPlanInventoryState sets the "plan_inventory_state" field.
+func (u *PaymentOrderUpsertOne) SetPlanInventoryState(v string) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetPlanInventoryState(v)
+	})
+}
+
+// UpdatePlanInventoryState sets the "plan_inventory_state" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdatePlanInventoryState() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdatePlanInventoryState()
 	})
 }
 
@@ -2934,6 +2990,20 @@ func (u *PaymentOrderUpsertBulk) SetStatus(v string) *PaymentOrderUpsertBulk {
 func (u *PaymentOrderUpsertBulk) UpdateStatus() *PaymentOrderUpsertBulk {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetPlanInventoryState sets the "plan_inventory_state" field.
+func (u *PaymentOrderUpsertBulk) SetPlanInventoryState(v string) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetPlanInventoryState(v)
+	})
+}
+
+// UpdatePlanInventoryState sets the "plan_inventory_state" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdatePlanInventoryState() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdatePlanInventoryState()
 	})
 }
 
