@@ -1,7 +1,7 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
 .github/CODEOWNERS	A	keep	A	fixed-path	@absent	84dcc2c01a1e9563c0ea7960602d5bdc016f7d7a	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、内容审计及 Wire 生成接线回归测试路径
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	4b44e8530148a0e0dfe847088214e8edb05b31aa	-	-	database-boundary-unit+candidate-tree-test	精确绑定已审核的渠道监控、分组最低余额及套餐库存 Migration、Ent Schema 和生成文件结构指纹
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	036e8663767e89eed82dfcd37e2a1086cd0ae62a	-	-	thin-bridge-contract-unit+candidate-tree-test	支持按精确 Vendor Commit 选择已审核预算，并固定内容审计、套餐库存 DTO 与前端并发售罄同步薄桥的精确增删预算
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	9777e1348cf6843447135fed38e4b574fd180c91	-	-	thin-bridge-contract-unit+candidate-tree-test	支持按精确 Vendor Commit 选择已审核预算，并为 v0.1.172 基线固定 Wire、内容审计、套餐库存 DTO 与前端并发售罄同步薄桥预算
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	c9231e69f7a7e8d3a2d47a95b2874f492f4e43fd	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
