@@ -58,6 +58,8 @@ const (
 	FieldProviderSnapshot = "provider_snapshot"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldPlanInventoryState holds the string denoting the plan_inventory_state field in the database.
+	FieldPlanInventoryState = "plan_inventory_state"
 	// FieldRefundAmount holds the string denoting the refund_amount field in the database.
 	FieldRefundAmount = "refund_amount"
 	// FieldRefundReason holds the string denoting the refund_reason field in the database.
@@ -130,6 +132,7 @@ var Columns = []string{
 	FieldProviderKey,
 	FieldProviderSnapshot,
 	FieldStatus,
+	FieldPlanInventoryState,
 	FieldRefundAmount,
 	FieldRefundReason,
 	FieldRefundAt,
@@ -188,6 +191,10 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// DefaultPlanInventoryState holds the default value on creation for the "plan_inventory_state" field.
+	DefaultPlanInventoryState string
+	// PlanInventoryStateValidator is a validator for the "plan_inventory_state" field. It is called by the builders before save.
+	PlanInventoryStateValidator func(string) error
 	// DefaultRefundAmount holds the default value on creation for the "refund_amount" field.
 	DefaultRefundAmount float64
 	// DefaultForceRefund holds the default value on creation for the "force_refund" field.
@@ -317,6 +324,11 @@ func ByProviderKey(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByPlanInventoryState orders the results by the plan_inventory_state field.
+func ByPlanInventoryState(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPlanInventoryState, opts...).ToFunc()
 }
 
 // ByRefundAmount orders the results by the refund_amount field.

@@ -14,6 +14,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/payment/provider"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -84,9 +85,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	}
 	resp, err := s.invokeProvider(ctx, order, req, cfg, limitAmount, payAmountStr, payAmount, plan, sel)
 	if err != nil {
-		_, _ = s.entClient.PaymentOrder.UpdateOneID(order.ID).
-			SetStatus(OrderStatusFailed).
-			Save(ctx)
+		if _, cleanupErr := subscriptioninventory.TransitionPendingOrderAndRelease(ctx, s.entClient, order.ID, OrderStatusFailed); cleanupErr != nil {
+			slog.Error("release inventory after payment creation failure", "orderID", order.ID, "error", cleanupErr)
+		}
 		return nil, err
 	}
 	return resp, nil
@@ -139,6 +140,13 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	if err := s.checkDailyLimit(ctx, tx, req.UserID, limitAmount, cfg.DailyLimit); err != nil {
 		return nil, err
 	}
+	inventoryState := subscriptioninventory.StateUntracked
+	if plan != nil {
+		inventoryState, err = subscriptioninventory.ReserveForOrder(ctx, tx.Client(), plan.ID, true)
+		if err != nil {
+			return nil, err
+		}
+	}
 	tm := cfg.OrderTimeoutMin
 	if tm <= 0 {
 		tm = defaultOrderTimeoutMin
@@ -185,7 +193,10 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		b.SetProviderSnapshot(providerSnapshot)
 	}
 	if plan != nil {
-		b.SetPlanID(plan.ID).SetSubscriptionGroupID(plan.GroupID).SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit))
+		b.SetPlanID(plan.ID).
+			SetSubscriptionGroupID(plan.GroupID).
+			SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit)).
+			SetPlanInventoryState(inventoryState)
 	}
 	order, err := b.Save(ctx)
 	if err != nil {

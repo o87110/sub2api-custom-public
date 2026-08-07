@@ -162,6 +162,12 @@ APPROVED_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
         "CreateWeChatPaymentOAuthToken",
         "ParseWeChatPaymentOAuthToken",
     }),
+    "frontend/src/components/payment/SubscriptionPlanCard.vue": frozenset({"handleSelect"}),
+    "frontend/src/views/admin/orders/PlanEditDialog.vue": frozenset({
+        "handleRemainingQuantityInput",
+        "remainingQuantityError",
+        "togglePlanForSale",
+    }),
     "frontend/src/views/user/KeysView.vue": frozenset({
         "refreshApiKeys",
         "handleTableSelectionChange",
@@ -212,7 +218,8 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('rejectIfCyberSessionBlocked', {'c.Request.Context': 1, 'h.contentModerationService.CyberPolicyGroupInScope': 1}),
     ),
     'backend/internal/handler/payment_handler.go': _approved_call_deltas(
-        ('GetCheckoutInfo', {'h.configService.GetAvailableMethodOptions': 1, 'response.ErrorFrom': 1}),
+        ('GetCheckoutInfo', {'h.configService.GetAvailableMethodOptions': 1, 'response.ErrorFrom': 1, 'subscriptioninventory.IsSoldOut': 1}),
+        ('GetPlans', {'subscriptioninventory.IsSoldOut': 1}),
         ('applyWeChatPaymentResumeClaims', {'infraerrors.BadRequest': 3, 'math.IsInf': 1, 'math.IsNaN': 1, 'paymentchannels.IsValidSelection': 1, 'strings.EqualFold': 1, 'strings.ToLower': 1, 'strings.TrimSpace': 2}),
     ),
     'backend/internal/payment/load_balancer.go': _approved_call_deltas(
@@ -308,14 +315,23 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('ValidateMethodProviderCurrencyConsistency', {'All': 1, 'NormalizeVisibleMethod': 1, 'ValidateCurrency': 1, 'Where': 1, 'WithMetadata': 1, 'fmt.Errorf': 1, 'infraerrors.ServiceUnavailable': 1, 'paymentproviderinstance.EnabledEQ': 1, 's.ValidateMethodCurrencyConsistency': 1, 's.entClient.PaymentProviderInstance.Query': 1, 's.pcPaymentProviderRecords': 1, 'strings.ToLower': 1, 'strings.TrimSpace': 1}),
         ('pcPaymentProviderRecords', {'append': 1, 'int64': 1, 'paymentProviderConfigCurrency': 1, 's.decryptConfig': 1}),
     ),
+    'backend/internal/service/payment_config_plans.go': _approved_call_deltas(
+        ('CreatePlan', {'SetNillableRemainingQuantity': 1, 'SetSoldOutAction': 1, 'subscriptioninventory.NormalizeSoldOutAction': 1, 'subscriptioninventory.ValidateConfiguredQuantity': 1}),
+        ('ListPlansForSale', {'subscriptioninventory.ListPlansForSale': 1}),
+        ('UpdatePlan', {'subscriptioninventory.UpdateAdminPlan': 1}),
+        ('validatePlanPatch', {'subscriptioninventory.ValidateSoldOutActionPatch': 1}),
+    ),
     'backend/internal/service/payment_config_service.go': _approved_call_deltas(
         ('GetPaymentConfig', {'fmt.Errorf': 1, 'paymentchannels.ParseChannelSettings': 1}),
         ('UpdatePaymentConfig', {'err.Error': 1, 'infraerrors.BadRequest': 1, 'paymentchannels.SerializeChannelSettings': 1, 'setPaymentConfigValue': 26}),
     ),
+    'backend/internal/service/payment_fulfillment.go': _approved_call_deltas(
+        ('ensurePaymentSubscriptionAssigned', {'fmt.Errorf': 1, 'subscriptioninventory.ConsumeForFulfillment': 1}),
+    ),
     'backend/internal/service/payment_order.go': _approved_call_deltas(
         ('BuildWeChatOAuth', {'loader.service.buildWeChatOAuthRequiredResponse': 1}),
         ('CalculatePayAmount', {'calculateCreateOrderPayAmountForOrderType': 1}),
-        ('CreateOrder', {'Prepare': 1, 'buildOrderOAuthResponse': 1, 'customOrderPreparationRequest': 1, 'paymentSelectionFromOrder': 1, 'paymentchannels.NewOrderCoordinator': 1}),
+        ('CreateOrder', {'Prepare': 1, 'buildOrderOAuthResponse': 1, 'customOrderPreparationRequest': 1, 'paymentSelectionFromOrder': 1, 'paymentchannels.NewOrderCoordinator': 1, 'slog.Error': 1, 'subscriptioninventory.TransitionPendingOrderAndRelease': 1}),
         ('HasConfiguredSelection', {'loader.service.configService.HasConfiguredProviderPaymentType': 1}),
         ('LoadMethodCurrency', {'loader.service.configService.ValidateMethodProviderCurrencyConsistency': 1}),
         ('LoadWeChatOAuthAppID', {'loader.service.getWeChatPaymentOAuthCredential': 1}),
@@ -325,7 +341,11 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('ValidatePayAmountCurrency', {'paymentSelectionFromOrder': 1, 'validateSelectedCreateOrderAmountCurrency': 1}),
         ('buildWeChatOAuthRequiredResponse', {'CreateWeChatPaymentOAuthToken': 1, 'fmt.Errorf': 1, 's.paymentResume': 1, 'strconv.FormatFloat': 1}),
         ('buildWeChatPaymentOAuthStartURL', {'q.Set': 2, 'strings.TrimSpace': 2}),
+        ('createOrderInTx', {'SetPlanInventoryState': 1, 'subscriptioninventory.ReserveForOrder': 1, 'tx.Client': 1}),
         ('invokeProvider', {'RevalidateBeforeProvider': 1, 'customOrderSelection': 1, 'paymentchannels.NewOrderCoordinator': 1}),
+    ),
+    'backend/internal/service/payment_order_lifecycle.go': _approved_call_deltas(
+        ('cancelCore', {'subscriptioninventory.TransitionPendingOrderAndRelease': 1}),
     ),
     'backend/internal/service/payment_resume_service.go': _approved_call_deltas(
         ('CreateWeChatPaymentOAuthToken', {'paymentchannels.PrepareWeChatOAuthClaims': 1, 's.createSignedToken': 1, 's.ensureSigningKey': 1, 'time.Now': 1}),
@@ -348,6 +368,11 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
     'frontend/src/components/payment/PaymentProviderDialog.vue': _approved_call_deltas(
         ('<top-level>', {'t': 1}),
     ),
+    'frontend/src/components/payment/SubscriptionPlanCard.vue': _approved_call_deltas(
+        ('<template:@click>', {'handleSelect': 1}),
+        ('<top-level>', {'computed': 1, 'isPlanSoldOut': 1, 't': 2}),
+        ('handleSelect', {'emit': 1}),
+    ),
     'frontend/src/components/payment/paymentFlow.ts': _approved_call_deltas(
         ('buildCreateOrderPayload', {'input.providerKey.trim': 1, 'toLowerCase': 1, 'trim': 1}),
         ('decidePaymentLaunch', {'toLowerCase': 1, 'trim': 1}),
@@ -362,6 +387,19 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('handleCreateGroup', {'appStore.showError': 1, 'normalizeMinimumBalanceFormValue': 1, 't': 1}),
         ('handleEdit', {'minimumBalanceFormValue': 1}),
         ('handleUpdateGroup', {'appStore.showError': 1, 'normalizeMinimumBalanceFormValue': 1, 't': 1}),
+    ),
+    'frontend/src/views/admin/orders/AdminPaymentPlansView.vue': _approved_call_deltas(
+        ('<top-level>', {'canListSoldOutPlan': 3, 'isPlanSoldOut': 3, 't': 3}),
+        ('toggleForSale', {'appStore.showError': 1, 'canListSoldOutPlan': 1, 'isPlanSoldOut': 1, 't': 1}),
+    ),
+    'frontend/src/views/admin/orders/PlanEditDialog.vue': _approved_call_deltas(
+        ('<template:@click>', {'togglePlanForSale': 1}),
+        ('<template:@update:model-value>', {'handleRemainingQuantityInput': 1}),
+        ('<top-level>', {'String': 1, 'computed': 1, 'ref': 3, 'remainingQuantityInput.value.trim': 1}),
+        ('buildPlanPayload', {'inventoryQuantityValue': 2}),
+        ('handleSavePlan', {'appStore.showError': 1}),
+        ('remainingQuantityError', {'computed': 1, 'isInventoryQuantity': 1, 'remainingQuantityInput.value.trim': 1, 't': 1}),
+        ('togglePlanForSale', {'appStore.showError': 1, 'remainingQuantityInput.value.trim': 1, 't': 1}),
     ),
     'frontend/src/views/admin/SettingsView.vue': _approved_call_deltas(
         ('<top-level>', {'Number': 1}),
@@ -382,9 +420,31 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('refreshApiKeys', {'loadApiKeys': 1}),
     ),
     'frontend/src/views/user/PaymentView.vue': _approved_call_deltas(
-        ('<top-level>', {'appStore.showWarning': 1, 'appendBackupChannelHint': 1, 'createOrder': 1, 'findPaymentChannel': 3, 'paymentChannelSupports': 2, 'paymentStore.createOrder': 1, 'router.replace': 1, 'router.resolve': 1, 'usePaymentChannelPricing': 1, 'usePaymentChannelRecovery': 1}),
+        ('<top-level>', {
+            'appStore.showWarning': 2,
+            'appendBackupChannelHint': 1,
+            'checkout.value.plans.find': 1,
+            'createOrder': 1,
+            'extractI18nErrorMessage': 1,
+            'findPaymentChannel': 3,
+            'groupPlans.filter': 1,
+            'isPlanSoldOut': 3,
+            'paymentAPI.getCheckoutInfo': 1,
+            'paymentChannelSupports': 2,
+            'paymentStore.createOrder': 1,
+            'planAvailabilityError': 1,
+            'router.replace': 1,
+            'router.resolve': 1,
+            'synchronizePlanAvailability': 1,
+            't': 2,
+            'usePaymentChannelPricing': 1,
+            'usePaymentChannelRecovery': 1,
+        }),
         ('<template:@select>', {'selectedChannelId = $event': 2}),
         ('applyScenarioError', {'appendBackupChannelHint': 1}),
+        ('confirmSubscribe', {'appStore.showWarning': 1, 'isPlanSoldOut': 1, 't': 1}),
+        ('selectPlan', {'appStore.showWarning': 1, 'isPlanSoldOut': 1, 't': 1}),
+        ('selectPlanFromModal', {'appStore.showWarning': 1, 'isPlanSoldOut': 1, 't': 1}),
     ),
 }
 
@@ -579,6 +639,15 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
         ("pcPaymentProviderRecords", "if instance == nil {"),
         ("pcPaymentProviderRecords", "if decrypted, err := s.decryptConfig(instance.Config); err == nil && decrypted != nil {"),
     ),
+    "backend/internal/service/payment_config_plans.go": (
+        ("CreatePlan", "if err != nil {"),
+        ("CreatePlan", "if err := subscriptioninventory.ValidateConfiguredQuantity(req.RemainingQuantity, soldOutAction); err != nil {"),
+        ("validatePlanPatch", "if req.RemainingQuantity.Present {"),
+        ("validatePlanPatch", "if err := subscriptioninventory.ValidateSoldOutActionPatch(req.SoldOutAction); err != nil {"),
+    ),
+    "backend/internal/service/payment_fulfillment.go": (
+        ("ensurePaymentSubscriptionAssigned", "if err := subscriptioninventory.ConsumeForFulfillment(txCtx, txClient, o.ID); err != nil {"),
+    ),
     "backend/internal/service/payment_config_service.go": (
         ("GetPaymentConfig", "if err != nil {"),
         ("UpdatePaymentConfig", "if req.ChannelSettings != nil {"),
@@ -586,6 +655,7 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
         ("setPaymentConfigValue", "if provided {"),
     ),
     "backend/internal/service/payment_order.go": (
+        ("CreateOrder", "if _, cleanupErr := subscriptioninventory.TransitionPendingOrderAndRelease(ctx, s.entClient, order.ID, OrderStatusFailed); cleanupErr != nil {"),
         ("CreateOrder", "if preparation.OAuth != nil {"),
         ("HasConfiguredSelection", "if loader.service == nil || loader.service.configService == nil {"),
         ("LoadMethodCurrency", "if loader.service == nil || loader.service.configService == nil {"),
@@ -596,6 +666,8 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
         ("buildWeChatOAuthRequiredResponse", "if err != nil {"),
         ("buildWeChatPaymentOAuthStartURL", 'if paymentContextToken = strings.TrimSpace(paymentContextToken); paymentContextToken != "" {'),
         ("buildWeChatPaymentOAuthStartURL", 'if providerKey := strings.TrimSpace(req.ProviderKey); providerKey != "" {'),
+        ("createOrderInTx", "if err != nil {"),
+        ("createOrderInTx", "if plan != nil {"),
     ),
     "backend/internal/service/payment_resume_service.go": (
         ("CreateWeChatPaymentOAuthToken", "if err != nil {"),
@@ -618,12 +690,28 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
     "frontend/src/components/payment/paymentFlow.ts": (
         ("buildCreateOrderPayload", "if (input.providerKey?.trim()) {"),
     ),
+    "frontend/src/components/payment/SubscriptionPlanCard.vue": (
+        ("<top-level>", '<span v-if="soldOut" class="mt-1 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300">'),
+        ("handleSelect", "if (soldOut.value) return"),
+    ),
     "frontend/src/components/user/monitor/MonitorCard.vue": (
         ("<top-level>", "v-if=\"typeof item.group_rate_multiplier === 'number'\""),
     ),
     "frontend/src/views/admin/GroupsView.vue": (
         ("handleCreateGroup", "if (minimumBalance === null) {"),
         ("handleUpdateGroup", "if (minimumBalance === null) {"),
+    ),
+    "frontend/src/views/admin/orders/AdminPaymentPlansView.vue": (
+        ("toggleForSale", "if (!plan.for_sale && isPlanSoldOut(plan) && !canListSoldOutPlan(plan)) {"),
+    ),
+    "frontend/src/views/admin/orders/PlanEditDialog.vue": (
+        ("buildPlanPayload", "if (!props.plan) {"),
+        ("buildPlanPayload", "if (forSaleDirty.value) payload.for_sale = planForm.for_sale"),
+        ("buildPlanPayload", "if (remainingQuantityDirty.value) payload.remaining_quantity = inventoryQuantityValue(remainingQuantityInput.value)"),
+        ("buildPlanPayload", "if (planForm.sold_out_action !== initialSoldOutAction.value) payload.sold_out_action = planForm.sold_out_action"),
+        ("handleSavePlan", "if (remainingQuantityError.value) {"),
+        ("remainingQuantityError", "if (value === '' || isInventoryQuantity(value, allowZero) || isUnchangedSoldOutQuantity.value) return ''"),
+        ("togglePlanForSale", "if (!planForm.for_sale"),
     ),
     "frontend/src/views/admin/SettingsView.vue": (
         ("<top-level>", 'v-if="form.payment_enabled"'),
@@ -651,6 +739,16 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
         ("<top-level>", '<div v-if="enabledChannelIds.length >= 1" class="card p-6">'),
         ("<top-level>", "if (enabledChannelIds.value.length) {"),
         ("<top-level>", "if (restoredChannel) {"),
+        ("<top-level>", "if (!plan || isPlanSoldOut(plan)) {"),
+        ("<top-level>", "if (orderType === 'subscription' && !options.isResume) {"),
+        ("<top-level>", "if (purchasablePlans.length === 1) {"),
+        ("<top-level>", "} else if (groupPlans.length > 0) {"),
+        ("<top-level>", "if (availabilityError) {"),
+        ("<top-level>", "} else if (apiErr.reason === 'TOO_MANY_PENDING') {"),
+        ("<top-level>", "if (selectedPlan.value?.id === planId) selectedPlan.value = null"),
+        ("confirmSubscribe", "if (isPlanSoldOut(selectedPlan.value)) {"),
+        ("selectPlan", "if (isPlanSoldOut(plan)) {"),
+        ("selectPlanFromModal", "if (isPlanSoldOut(plan)) {"),
     ),
 }
 

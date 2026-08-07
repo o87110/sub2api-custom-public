@@ -8,6 +8,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -67,6 +68,9 @@ func validatePlanPatch(req UpdatePlanRequest) error {
 	}
 	if req.OriginalPrice != nil && *req.OriginalPrice < 0 {
 		return infraerrors.BadRequest("PLAN_ORIGINAL_PRICE_INVALID", "original price must be >= 0")
+	}
+	if err := subscriptioninventory.ValidateSoldOutActionPatch(req.SoldOutAction); err != nil {
+		return err
 	}
 	return nil
 }
@@ -129,11 +133,18 @@ func (s *PaymentConfigService) ListPlans(ctx context.Context) ([]*dbent.Subscrip
 }
 
 func (s *PaymentConfigService) ListPlansForSale(ctx context.Context) ([]*dbent.SubscriptionPlan, error) {
-	return s.entClient.SubscriptionPlan.Query().Where(subscriptionplan.ForSaleEQ(true)).Order(subscriptionplan.BySortOrder()).All(ctx)
+	return subscriptioninventory.ListPlansForSale(ctx, s.entClient)
 }
 
 func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanRequest) (*dbent.SubscriptionPlan, error) {
 	if err := validatePlanRequired(req.Name, req.GroupID, req.Price, req.ValidityDays, req.ValidityUnit, req.OriginalPrice); err != nil {
+		return nil, err
+	}
+	soldOutAction, err := subscriptioninventory.NormalizeSoldOutAction(req.SoldOutAction)
+	if err != nil {
+		return nil, err
+	}
+	if err := subscriptioninventory.ValidateConfiguredQuantity(req.RemainingQuantity, soldOutAction); err != nil {
 		return nil, err
 	}
 	currency, err := normalizePlanCurrency(req.Currency)
@@ -144,7 +155,8 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 		SetGroupID(req.GroupID).SetName(req.Name).SetDescription(req.Description).
 		SetPrice(req.Price).SetCurrency(currency).SetValidityDays(req.ValidityDays).SetValidityUnit(req.ValidityUnit).
 		SetFeatures(req.Features).SetProductName(req.ProductName).
-		SetForSale(req.ForSale).SetSortOrder(req.SortOrder)
+		SetForSale(req.ForSale).SetNillableRemainingQuantity(req.RemainingQuantity).
+		SetSoldOutAction(soldOutAction).SetSortOrder(req.SortOrder)
 	if req.OriginalPrice != nil {
 		b.SetOriginalPrice(*req.OriginalPrice)
 	}
@@ -158,48 +170,31 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id int64, req Upd
 	if err := validatePlanPatch(req); err != nil {
 		return nil, err
 	}
-	u := s.entClient.SubscriptionPlan.UpdateOneID(id)
-	if req.GroupID != nil {
-		u.SetGroupID(*req.GroupID)
-	}
-	if req.Name != nil {
-		u.SetName(*req.Name)
-	}
-	if req.Description != nil {
-		u.SetDescription(*req.Description)
-	}
-	if req.Price != nil {
-		u.SetPrice(*req.Price)
-	}
-	if req.OriginalPrice != nil {
-		u.SetOriginalPrice(*req.OriginalPrice)
-	}
+	var normalizedCurrency *string
 	if req.Currency != nil {
 		currency, err := normalizePlanCurrency(*req.Currency)
 		if err != nil {
 			return nil, err
 		}
-		u.SetCurrency(currency)
+		normalizedCurrency = &currency
 	}
-	if req.ValidityDays != nil {
-		u.SetValidityDays(*req.ValidityDays)
-	}
-	if req.ValidityUnit != nil {
-		u.SetValidityUnit(*req.ValidityUnit)
-	}
-	if req.Features != nil {
-		u.SetFeatures(*req.Features)
-	}
-	if req.ProductName != nil {
-		u.SetProductName(*req.ProductName)
-	}
-	if req.ForSale != nil {
-		u.SetForSale(*req.ForSale)
-	}
-	if req.SortOrder != nil {
-		u.SetSortOrder(*req.SortOrder)
-	}
-	return u.Save(ctx)
+
+	return subscriptioninventory.UpdateAdminPlan(ctx, s.entClient, id, subscriptioninventory.AdminPlanPatch{
+		GroupID:           req.GroupID,
+		Name:              req.Name,
+		Description:       req.Description,
+		Price:             req.Price,
+		OriginalPrice:     req.OriginalPrice,
+		Currency:          normalizedCurrency,
+		ValidityDays:      req.ValidityDays,
+		ValidityUnit:      req.ValidityUnit,
+		Features:          req.Features,
+		ProductName:       req.ProductName,
+		ForSale:           req.ForSale,
+		RemainingQuantity: req.RemainingQuantity,
+		SoldOutAction:     req.SoldOutAction,
+		SortOrder:         req.SortOrder,
+	})
 }
 
 func (s *PaymentConfigService) DeletePlan(ctx context.Context, id int64) error {

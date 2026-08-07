@@ -525,6 +525,28 @@ class ThinBridgeContractTests(unittest.TestCase):
             approved_control,
         )
 
+    def test_payment_view_sold_out_refresh_bridge_is_explicitly_scoped(self) -> None:
+        path = "frontend/src/views/user/PaymentView.vue"
+        approved_calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[path]
+        for call in (
+            ("<top-level>", "planAvailabilityError"),
+            ("<top-level>", "synchronizePlanAvailability"),
+            ("<top-level>", "paymentAPI.getCheckoutInfo"),
+            ("<top-level>", "extractI18nErrorMessage"),
+        ):
+            self.assertEqual(approved_calls.count(call), 1)
+
+        approved_control = validator.APPROVED_DELEGATE_VIEW_CONTROL[path]
+        self.assertIn(("<top-level>", "if (availabilityError) {"), approved_control)
+        self.assertIn(
+            ("<top-level>", "} else if (apiErr.reason === 'TOO_MANY_PENDING') {"),
+            approved_control,
+        )
+        self.assertIn(
+            ("<top-level>", "if (selectedPlan.value?.id === planId) selectedPlan.value = null"),
+            approved_control,
+        )
+
     def test_content_moderation_user_ban_threshold_bridge_is_explicitly_scoped(self) -> None:
         path = "backend/internal/service/content_moderation.go"
         approved_calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[path]

@@ -152,6 +152,48 @@ func (_c *SubscriptionPlanCreate) SetNillableForSale(v *bool) *SubscriptionPlanC
 	return _c
 }
 
+// SetRemainingQuantity sets the "remaining_quantity" field.
+func (_c *SubscriptionPlanCreate) SetRemainingQuantity(v int) *SubscriptionPlanCreate {
+	_c.mutation.SetRemainingQuantity(v)
+	return _c
+}
+
+// SetNillableRemainingQuantity sets the "remaining_quantity" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableRemainingQuantity(v *int) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetRemainingQuantity(*v)
+	}
+	return _c
+}
+
+// SetInventoryAutoDelisted sets the "inventory_auto_delisted" field.
+func (_c *SubscriptionPlanCreate) SetInventoryAutoDelisted(v bool) *SubscriptionPlanCreate {
+	_c.mutation.SetInventoryAutoDelisted(v)
+	return _c
+}
+
+// SetNillableInventoryAutoDelisted sets the "inventory_auto_delisted" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableInventoryAutoDelisted(v *bool) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetInventoryAutoDelisted(*v)
+	}
+	return _c
+}
+
+// SetSoldOutAction sets the "sold_out_action" field.
+func (_c *SubscriptionPlanCreate) SetSoldOutAction(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetSoldOutAction(v)
+	return _c
+}
+
+// SetNillableSoldOutAction sets the "sold_out_action" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableSoldOutAction(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetSoldOutAction(*v)
+	}
+	return _c
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_c *SubscriptionPlanCreate) SetSortOrder(v int) *SubscriptionPlanCreate {
 	_c.mutation.SetSortOrder(v)
@@ -257,6 +299,14 @@ func (_c *SubscriptionPlanCreate) defaults() {
 		v := subscriptionplan.DefaultForSale
 		_c.mutation.SetForSale(v)
 	}
+	if _, ok := _c.mutation.InventoryAutoDelisted(); !ok {
+		v := subscriptionplan.DefaultInventoryAutoDelisted
+		_c.mutation.SetInventoryAutoDelisted(v)
+	}
+	if _, ok := _c.mutation.SoldOutAction(); !ok {
+		v := subscriptionplan.DefaultSoldOutAction
+		_c.mutation.SetSoldOutAction(v)
+	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		v := subscriptionplan.DefaultSortOrder
 		_c.mutation.SetSortOrder(v)
@@ -322,6 +372,17 @@ func (_c *SubscriptionPlanCreate) check() error {
 	}
 	if _, ok := _c.mutation.ForSale(); !ok {
 		return &ValidationError{Name: "for_sale", err: errors.New(`ent: missing required field "SubscriptionPlan.for_sale"`)}
+	}
+	if _, ok := _c.mutation.InventoryAutoDelisted(); !ok {
+		return &ValidationError{Name: "inventory_auto_delisted", err: errors.New(`ent: missing required field "SubscriptionPlan.inventory_auto_delisted"`)}
+	}
+	if _, ok := _c.mutation.SoldOutAction(); !ok {
+		return &ValidationError{Name: "sold_out_action", err: errors.New(`ent: missing required field "SubscriptionPlan.sold_out_action"`)}
+	}
+	if v, ok := _c.mutation.SoldOutAction(); ok {
+		if err := subscriptionplan.SoldOutActionValidator(v); err != nil {
+			return &ValidationError{Name: "sold_out_action", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.sold_out_action": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		return &ValidationError{Name: "sort_order", err: errors.New(`ent: missing required field "SubscriptionPlan.sort_order"`)}
@@ -402,6 +463,18 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
 		_node.ForSale = value
+	}
+	if value, ok := _c.mutation.RemainingQuantity(); ok {
+		_spec.SetField(subscriptionplan.FieldRemainingQuantity, field.TypeInt, value)
+		_node.RemainingQuantity = &value
+	}
+	if value, ok := _c.mutation.InventoryAutoDelisted(); ok {
+		_spec.SetField(subscriptionplan.FieldInventoryAutoDelisted, field.TypeBool, value)
+		_node.InventoryAutoDelisted = value
+	}
+	if value, ok := _c.mutation.SoldOutAction(); ok {
+		_spec.SetField(subscriptionplan.FieldSoldOutAction, field.TypeString, value)
+		_node.SoldOutAction = value
 	}
 	if value, ok := _c.mutation.SortOrder(); ok {
 		_spec.SetField(subscriptionplan.FieldSortOrder, field.TypeInt, value)
@@ -626,6 +699,54 @@ func (u *SubscriptionPlanUpsert) SetForSale(v bool) *SubscriptionPlanUpsert {
 // UpdateForSale sets the "for_sale" field to the value that was provided on create.
 func (u *SubscriptionPlanUpsert) UpdateForSale() *SubscriptionPlanUpsert {
 	u.SetExcluded(subscriptionplan.FieldForSale)
+	return u
+}
+
+// SetRemainingQuantity sets the "remaining_quantity" field.
+func (u *SubscriptionPlanUpsert) SetRemainingQuantity(v int) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldRemainingQuantity, v)
+	return u
+}
+
+// UpdateRemainingQuantity sets the "remaining_quantity" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateRemainingQuantity() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldRemainingQuantity)
+	return u
+}
+
+// AddRemainingQuantity adds v to the "remaining_quantity" field.
+func (u *SubscriptionPlanUpsert) AddRemainingQuantity(v int) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldRemainingQuantity, v)
+	return u
+}
+
+// ClearRemainingQuantity clears the value of the "remaining_quantity" field.
+func (u *SubscriptionPlanUpsert) ClearRemainingQuantity() *SubscriptionPlanUpsert {
+	u.SetNull(subscriptionplan.FieldRemainingQuantity)
+	return u
+}
+
+// SetInventoryAutoDelisted sets the "inventory_auto_delisted" field.
+func (u *SubscriptionPlanUpsert) SetInventoryAutoDelisted(v bool) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldInventoryAutoDelisted, v)
+	return u
+}
+
+// UpdateInventoryAutoDelisted sets the "inventory_auto_delisted" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateInventoryAutoDelisted() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldInventoryAutoDelisted)
+	return u
+}
+
+// SetSoldOutAction sets the "sold_out_action" field.
+func (u *SubscriptionPlanUpsert) SetSoldOutAction(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldSoldOutAction, v)
+	return u
+}
+
+// UpdateSoldOutAction sets the "sold_out_action" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateSoldOutAction() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldSoldOutAction)
 	return u
 }
 
@@ -890,6 +1011,62 @@ func (u *SubscriptionPlanUpsertOne) SetForSale(v bool) *SubscriptionPlanUpsertOn
 func (u *SubscriptionPlanUpsertOne) UpdateForSale() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateForSale()
+	})
+}
+
+// SetRemainingQuantity sets the "remaining_quantity" field.
+func (u *SubscriptionPlanUpsertOne) SetRemainingQuantity(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetRemainingQuantity(v)
+	})
+}
+
+// AddRemainingQuantity adds v to the "remaining_quantity" field.
+func (u *SubscriptionPlanUpsertOne) AddRemainingQuantity(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddRemainingQuantity(v)
+	})
+}
+
+// UpdateRemainingQuantity sets the "remaining_quantity" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateRemainingQuantity() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateRemainingQuantity()
+	})
+}
+
+// ClearRemainingQuantity clears the value of the "remaining_quantity" field.
+func (u *SubscriptionPlanUpsertOne) ClearRemainingQuantity() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearRemainingQuantity()
+	})
+}
+
+// SetInventoryAutoDelisted sets the "inventory_auto_delisted" field.
+func (u *SubscriptionPlanUpsertOne) SetInventoryAutoDelisted(v bool) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetInventoryAutoDelisted(v)
+	})
+}
+
+// UpdateInventoryAutoDelisted sets the "inventory_auto_delisted" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateInventoryAutoDelisted() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateInventoryAutoDelisted()
+	})
+}
+
+// SetSoldOutAction sets the "sold_out_action" field.
+func (u *SubscriptionPlanUpsertOne) SetSoldOutAction(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetSoldOutAction(v)
+	})
+}
+
+// UpdateSoldOutAction sets the "sold_out_action" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateSoldOutAction() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateSoldOutAction()
 	})
 }
 
@@ -1325,6 +1502,62 @@ func (u *SubscriptionPlanUpsertBulk) SetForSale(v bool) *SubscriptionPlanUpsertB
 func (u *SubscriptionPlanUpsertBulk) UpdateForSale() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateForSale()
+	})
+}
+
+// SetRemainingQuantity sets the "remaining_quantity" field.
+func (u *SubscriptionPlanUpsertBulk) SetRemainingQuantity(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetRemainingQuantity(v)
+	})
+}
+
+// AddRemainingQuantity adds v to the "remaining_quantity" field.
+func (u *SubscriptionPlanUpsertBulk) AddRemainingQuantity(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddRemainingQuantity(v)
+	})
+}
+
+// UpdateRemainingQuantity sets the "remaining_quantity" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateRemainingQuantity() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateRemainingQuantity()
+	})
+}
+
+// ClearRemainingQuantity clears the value of the "remaining_quantity" field.
+func (u *SubscriptionPlanUpsertBulk) ClearRemainingQuantity() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearRemainingQuantity()
+	})
+}
+
+// SetInventoryAutoDelisted sets the "inventory_auto_delisted" field.
+func (u *SubscriptionPlanUpsertBulk) SetInventoryAutoDelisted(v bool) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetInventoryAutoDelisted(v)
+	})
+}
+
+// UpdateInventoryAutoDelisted sets the "inventory_auto_delisted" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateInventoryAutoDelisted() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateInventoryAutoDelisted()
+	})
+}
+
+// SetSoldOutAction sets the "sold_out_action" field.
+func (u *SubscriptionPlanUpsertBulk) SetSoldOutAction(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetSoldOutAction(v)
+	})
+}
+
+// UpdateSoldOutAction sets the "sold_out_action" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateSoldOutAction() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateSoldOutAction()
 	})
 }
 

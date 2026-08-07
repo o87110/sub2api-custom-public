@@ -431,6 +431,20 @@ func (_u *PaymentOrderUpdate) SetNillableStatus(v *string) *PaymentOrderUpdate {
 	return _u
 }
 
+// SetPlanInventoryState sets the "plan_inventory_state" field.
+func (_u *PaymentOrderUpdate) SetPlanInventoryState(v string) *PaymentOrderUpdate {
+	_u.mutation.SetPlanInventoryState(v)
+	return _u
+}
+
+// SetNillablePlanInventoryState sets the "plan_inventory_state" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillablePlanInventoryState(v *string) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetPlanInventoryState(*v)
+	}
+	return _u
+}
+
 // SetRefundAmount sets the "refund_amount" field.
 func (_u *PaymentOrderUpdate) SetRefundAmount(v float64) *PaymentOrderUpdate {
 	_u.mutation.ResetRefundAmount()
@@ -818,6 +832,11 @@ func (_u *PaymentOrderUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PlanInventoryState(); ok {
+		if err := paymentorder.PlanInventoryStateValidator(v); err != nil {
+			return &ValidationError{Name: "plan_inventory_state", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.plan_inventory_state": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.RefundRequestedBy(); ok {
 		if err := paymentorder.RefundRequestedByValidator(v); err != nil {
 			return &ValidationError{Name: "refund_requested_by", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.refund_requested_by": %w`, err)}
@@ -961,6 +980,9 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(paymentorder.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PlanInventoryState(); ok {
+		_spec.SetField(paymentorder.FieldPlanInventoryState, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.RefundAmount(); ok {
 		_spec.SetField(paymentorder.FieldRefundAmount, field.TypeFloat64, value)
@@ -1494,6 +1516,20 @@ func (_u *PaymentOrderUpdateOne) SetNillableStatus(v *string) *PaymentOrderUpdat
 	return _u
 }
 
+// SetPlanInventoryState sets the "plan_inventory_state" field.
+func (_u *PaymentOrderUpdateOne) SetPlanInventoryState(v string) *PaymentOrderUpdateOne {
+	_u.mutation.SetPlanInventoryState(v)
+	return _u
+}
+
+// SetNillablePlanInventoryState sets the "plan_inventory_state" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillablePlanInventoryState(v *string) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetPlanInventoryState(*v)
+	}
+	return _u
+}
+
 // SetRefundAmount sets the "refund_amount" field.
 func (_u *PaymentOrderUpdateOne) SetRefundAmount(v float64) *PaymentOrderUpdateOne {
 	_u.mutation.ResetRefundAmount()
@@ -1894,6 +1930,11 @@ func (_u *PaymentOrderUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PlanInventoryState(); ok {
+		if err := paymentorder.PlanInventoryStateValidator(v); err != nil {
+			return &ValidationError{Name: "plan_inventory_state", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.plan_inventory_state": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.RefundRequestedBy(); ok {
 		if err := paymentorder.RefundRequestedByValidator(v); err != nil {
 			return &ValidationError{Name: "refund_requested_by", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.refund_requested_by": %w`, err)}
@@ -2054,6 +2095,9 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(paymentorder.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PlanInventoryState(); ok {
+		_spec.SetField(paymentorder.FieldPlanInventoryState, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.RefundAmount(); ok {
 		_spec.SetField(paymentorder.FieldRefundAmount, field.TypeFloat64, value)

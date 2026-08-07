@@ -16,6 +16,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -524,6 +525,9 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 
 	txCtx := dbent.NewTxContext(ctx, tx)
 	txClient := tx.Client()
+	if err := subscriptioninventory.ConsumeForFulfillment(txCtx, txClient, o.ID); err != nil {
+		return fmt.Errorf("consume subscription plan inventory: %w", err)
+	}
 	alreadyAssigned, err := hasPaymentSubscriptionAssignmentAudit(txCtx, txClient, o.ID)
 	if err != nil {
 		return fmt.Errorf("check subscription assignment audit: %w", err)

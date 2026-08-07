@@ -181,6 +181,7 @@ thin_bridge_allowed() {
       backend/internal/handler/admin/content_moderation_handler.go | \
       backend/internal/handler/admin/group_handler.go | \
       backend/internal/handler/admin/payment_handler.go | \
+      backend/internal/handler/admin/payment_handler_test.go | \
       backend/internal/handler/admin/channel_monitor_handler.go | \
       backend/internal/handler/admin/setting_handler.go | \
       backend/internal/handler/admin/setting_handler_update.go | \
@@ -223,10 +224,16 @@ thin_bridge_allowed() {
       backend/internal/service/notification_email_service_test.go | \
       backend/internal/service/payment_config_limits.go | \
       backend/internal/service/payment_config_limits_test.go | \
+      backend/internal/service/payment_config_plans.go | \
       backend/internal/service/payment_config_service.go | \
       backend/internal/service/payment_config_service_test.go | \
+      backend/internal/service/payment_fulfillment.go | \
+      backend/internal/service/payment_fulfillment_test.go | \
       backend/internal/service/payment_order.go | \
+      backend/internal/service/payment_order_lifecycle.go | \
+      backend/internal/service/payment_order_lifecycle_test.go | \
       backend/internal/service/payment_order_result_test.go | \
+      backend/internal/service/payment_refund_test.go | \
       backend/internal/service/payment_resume_service.go | \
       backend/internal/service/payment_resume_service_test.go | \
       backend/internal/service/payment_service.go | \
@@ -237,7 +244,9 @@ thin_bridge_allowed() {
       frontend/src/components/admin/monitor/MonitorFormDialog.vue | \
       frontend/src/components/payment/AmountInput.vue | \
       frontend/src/components/payment/PaymentProviderDialog.vue | \
+      frontend/src/components/payment/SubscriptionPlanCard.vue | \
       frontend/src/components/payment/paymentFlow.ts | \
+      frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts | \
       frontend/src/components/payment/__tests__/paymentFlow.spec.ts | \
       frontend/src/components/user/monitor/MonitorCard.vue | \
       frontend/src/components/layout/AppSidebar.vue | \
@@ -255,6 +264,10 @@ thin_bridge_allowed() {
       frontend/src/views/admin/GroupsView.vue | \
       frontend/src/views/admin/SettingsView.vue | \
       frontend/src/views/admin/__tests__/SettingsView.spec.ts | \
+      frontend/src/views/admin/orders/AdminPaymentPlansView.vue | \
+      frontend/src/views/admin/orders/PlanEditDialog.vue | \
+      frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts | \
+      frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts | \
       frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts | \
       frontend/src/views/user/PaymentView.vue | \
       frontend/src/views/user/__tests__/PaymentView.spec.ts | \

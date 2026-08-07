@@ -109,6 +109,21 @@ func ForSale(v bool) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldForSale, v))
 }
 
+// RemainingQuantity applies equality check predicate on the "remaining_quantity" field. It's identical to RemainingQuantityEQ.
+func RemainingQuantity(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldRemainingQuantity, v))
+}
+
+// InventoryAutoDelisted applies equality check predicate on the "inventory_auto_delisted" field. It's identical to InventoryAutoDelistedEQ.
+func InventoryAutoDelisted(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldInventoryAutoDelisted, v))
+}
+
+// SoldOutAction applies equality check predicate on the "sold_out_action" field. It's identical to SoldOutActionEQ.
+func SoldOutAction(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldSoldOutAction, v))
+}
+
 // SortOrder applies equality check predicate on the "sort_order" field. It's identical to SortOrderEQ.
 func SortOrder(v int) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldSortOrder, v))
@@ -692,6 +707,131 @@ func ForSaleEQ(v bool) predicate.SubscriptionPlan {
 // ForSaleNEQ applies the NEQ predicate on the "for_sale" field.
 func ForSaleNEQ(v bool) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldForSale, v))
+}
+
+// RemainingQuantityEQ applies the EQ predicate on the "remaining_quantity" field.
+func RemainingQuantityEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldRemainingQuantity, v))
+}
+
+// RemainingQuantityNEQ applies the NEQ predicate on the "remaining_quantity" field.
+func RemainingQuantityNEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldRemainingQuantity, v))
+}
+
+// RemainingQuantityIn applies the In predicate on the "remaining_quantity" field.
+func RemainingQuantityIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldRemainingQuantity, vs...))
+}
+
+// RemainingQuantityNotIn applies the NotIn predicate on the "remaining_quantity" field.
+func RemainingQuantityNotIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldRemainingQuantity, vs...))
+}
+
+// RemainingQuantityGT applies the GT predicate on the "remaining_quantity" field.
+func RemainingQuantityGT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldRemainingQuantity, v))
+}
+
+// RemainingQuantityGTE applies the GTE predicate on the "remaining_quantity" field.
+func RemainingQuantityGTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldRemainingQuantity, v))
+}
+
+// RemainingQuantityLT applies the LT predicate on the "remaining_quantity" field.
+func RemainingQuantityLT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldRemainingQuantity, v))
+}
+
+// RemainingQuantityLTE applies the LTE predicate on the "remaining_quantity" field.
+func RemainingQuantityLTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldRemainingQuantity, v))
+}
+
+// RemainingQuantityIsNil applies the IsNil predicate on the "remaining_quantity" field.
+func RemainingQuantityIsNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIsNull(FieldRemainingQuantity))
+}
+
+// RemainingQuantityNotNil applies the NotNil predicate on the "remaining_quantity" field.
+func RemainingQuantityNotNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotNull(FieldRemainingQuantity))
+}
+
+// InventoryAutoDelistedEQ applies the EQ predicate on the "inventory_auto_delisted" field.
+func InventoryAutoDelistedEQ(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldInventoryAutoDelisted, v))
+}
+
+// InventoryAutoDelistedNEQ applies the NEQ predicate on the "inventory_auto_delisted" field.
+func InventoryAutoDelistedNEQ(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldInventoryAutoDelisted, v))
+}
+
+// SoldOutActionEQ applies the EQ predicate on the "sold_out_action" field.
+func SoldOutActionEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldSoldOutAction, v))
+}
+
+// SoldOutActionNEQ applies the NEQ predicate on the "sold_out_action" field.
+func SoldOutActionNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldSoldOutAction, v))
+}
+
+// SoldOutActionIn applies the In predicate on the "sold_out_action" field.
+func SoldOutActionIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldSoldOutAction, vs...))
+}
+
+// SoldOutActionNotIn applies the NotIn predicate on the "sold_out_action" field.
+func SoldOutActionNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldSoldOutAction, vs...))
+}
+
+// SoldOutActionGT applies the GT predicate on the "sold_out_action" field.
+func SoldOutActionGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldSoldOutAction, v))
+}
+
+// SoldOutActionGTE applies the GTE predicate on the "sold_out_action" field.
+func SoldOutActionGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldSoldOutAction, v))
+}
+
+// SoldOutActionLT applies the LT predicate on the "sold_out_action" field.
+func SoldOutActionLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldSoldOutAction, v))
+}
+
+// SoldOutActionLTE applies the LTE predicate on the "sold_out_action" field.
+func SoldOutActionLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldSoldOutAction, v))
+}
+
+// SoldOutActionContains applies the Contains predicate on the "sold_out_action" field.
+func SoldOutActionContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldSoldOutAction, v))
+}
+
+// SoldOutActionHasPrefix applies the HasPrefix predicate on the "sold_out_action" field.
+func SoldOutActionHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldSoldOutAction, v))
+}
+
+// SoldOutActionHasSuffix applies the HasSuffix predicate on the "sold_out_action" field.
+func SoldOutActionHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldSoldOutAction, v))
+}
+
+// SoldOutActionEqualFold applies the EqualFold predicate on the "sold_out_action" field.
+func SoldOutActionEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldSoldOutAction, v))
+}
+
+// SoldOutActionContainsFold applies the ContainsFold predicate on the "sold_out_action" field.
+func SoldOutActionContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldSoldOutAction, v))
 }
 
 // SortOrderEQ applies the EQ predicate on the "sort_order" field.

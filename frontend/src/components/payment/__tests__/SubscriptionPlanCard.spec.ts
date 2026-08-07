@@ -148,4 +148,14 @@ describe("SubscriptionPlanCard", () => {
     ]));
     expect(badge?.element.parentElement?.textContent).toContain("/ 30payment.days");
   });
+
+  it("keeps a sold-out plan visible while disabling selection", async () => {
+    const wrapper = mountPlanCard("openai", { sold_out: true });
+    const button = wrapper.get("button");
+
+    expect(wrapper.text()).toContain("payment.soldOut");
+    expect(button.attributes("disabled")).toBeDefined();
+    await button.trigger("click");
+    expect(wrapper.emitted("select")).toBeUndefined();
+  });
 });

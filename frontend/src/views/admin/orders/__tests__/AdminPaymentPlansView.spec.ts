@@ -41,6 +41,9 @@ const DataTableStub = {
     <div>
       <div v-for="row in data" :key="row.id">
         <slot name="cell-price" :value="row.price" :row="row" />
+        <slot name="cell-remaining_quantity" :value="row.remaining_quantity" :row="row" />
+        <slot name="cell-sold_out_action" :value="row.sold_out_action" :row="row" />
+        <slot name="cell-for_sale" :value="row.for_sale" :row="row" />
       </div>
     </div>
   `,
@@ -63,6 +66,9 @@ describe('AdminPaymentPlansView', () => {
           validity_unit: 'day',
           sort_order: 0,
           for_sale: true,
+          remaining_quantity: null,
+          inventory_auto_delisted: false,
+          sold_out_action: 'delist',
           features: [],
         },
         {
@@ -76,6 +82,41 @@ describe('AdminPaymentPlansView', () => {
           validity_unit: 'day',
           sort_order: 0,
           for_sale: true,
+          remaining_quantity: 4,
+          inventory_auto_delisted: false,
+          sold_out_action: 'delist',
+          features: [],
+        },
+        {
+          id: 3,
+          name: 'Sold-out plan',
+          group_id: 1,
+          price: 20,
+          original_price: 0,
+          currency: '',
+          validity_days: 30,
+          validity_unit: 'day',
+          sort_order: 0,
+          for_sale: false,
+          remaining_quantity: 0,
+          inventory_auto_delisted: true,
+          sold_out_action: 'delist',
+          features: [],
+        },
+        {
+          id: 4,
+          name: 'Visible sold-out plan',
+          group_id: 1,
+          price: 20,
+          original_price: 0,
+          currency: '',
+          validity_days: 30,
+          validity_unit: 'day',
+          sort_order: 0,
+          for_sale: true,
+          remaining_quantity: 0,
+          inventory_auto_delisted: false,
+          sold_out_action: 'disable_purchase',
           features: [],
         },
       ],
@@ -102,5 +143,32 @@ describe('AdminPaymentPlansView', () => {
     expect(wrapper.text()).toContain('¥499.00CNY')
     expect(wrapper.text()).toContain('¥599.00')
     expect(wrapper.text()).toContain('$10.00')
+  })
+
+  it('shows unlimited, limited, and automatically delisted sold-out inventory states', async () => {
+    const wrapper = mount(AdminPaymentPlansView, {
+      global: {
+        plugins: [createPinia()],
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          DataTable: DataTableStub,
+          ConfirmDialog: true,
+          GroupBadge: true,
+          Icon: true,
+          PlanEditDialog: true,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('payment.admin.inventoryUnlimited')
+    expect(wrapper.text()).toContain('4')
+    expect(wrapper.text()).toContain('payment.admin.inventorySoldOut')
+    expect(wrapper.text()).toContain('payment.admin.inventoryAutoDelisted')
+    expect(wrapper.text()).toContain('payment.admin.inventoryPurchaseDisabled')
+    expect(wrapper.text()).toContain('payment.admin.soldOutActionDelist')
+    expect(wrapper.text()).toContain('payment.admin.soldOutActionDisablePurchase')
+    expect(wrapper.find('button[disabled]').exists()).toBe(true)
   })
 })

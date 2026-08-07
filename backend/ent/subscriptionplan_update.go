@@ -216,6 +216,61 @@ func (_u *SubscriptionPlanUpdate) SetNillableForSale(v *bool) *SubscriptionPlanU
 	return _u
 }
 
+// SetRemainingQuantity sets the "remaining_quantity" field.
+func (_u *SubscriptionPlanUpdate) SetRemainingQuantity(v int) *SubscriptionPlanUpdate {
+	_u.mutation.ResetRemainingQuantity()
+	_u.mutation.SetRemainingQuantity(v)
+	return _u
+}
+
+// SetNillableRemainingQuantity sets the "remaining_quantity" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableRemainingQuantity(v *int) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetRemainingQuantity(*v)
+	}
+	return _u
+}
+
+// AddRemainingQuantity adds value to the "remaining_quantity" field.
+func (_u *SubscriptionPlanUpdate) AddRemainingQuantity(v int) *SubscriptionPlanUpdate {
+	_u.mutation.AddRemainingQuantity(v)
+	return _u
+}
+
+// ClearRemainingQuantity clears the value of the "remaining_quantity" field.
+func (_u *SubscriptionPlanUpdate) ClearRemainingQuantity() *SubscriptionPlanUpdate {
+	_u.mutation.ClearRemainingQuantity()
+	return _u
+}
+
+// SetInventoryAutoDelisted sets the "inventory_auto_delisted" field.
+func (_u *SubscriptionPlanUpdate) SetInventoryAutoDelisted(v bool) *SubscriptionPlanUpdate {
+	_u.mutation.SetInventoryAutoDelisted(v)
+	return _u
+}
+
+// SetNillableInventoryAutoDelisted sets the "inventory_auto_delisted" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableInventoryAutoDelisted(v *bool) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetInventoryAutoDelisted(*v)
+	}
+	return _u
+}
+
+// SetSoldOutAction sets the "sold_out_action" field.
+func (_u *SubscriptionPlanUpdate) SetSoldOutAction(v string) *SubscriptionPlanUpdate {
+	_u.mutation.SetSoldOutAction(v)
+	return _u
+}
+
+// SetNillableSoldOutAction sets the "sold_out_action" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableSoldOutAction(v *string) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetSoldOutAction(*v)
+	}
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *SubscriptionPlanUpdate) SetSortOrder(v int) *SubscriptionPlanUpdate {
 	_u.mutation.ResetSortOrder()
@@ -306,6 +361,11 @@ func (_u *SubscriptionPlanUpdate) check() error {
 			return &ValidationError{Name: "product_name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.product_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SoldOutAction(); ok {
+		if err := subscriptionplan.SoldOutActionValidator(v); err != nil {
+			return &ValidationError{Name: "sold_out_action", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.sold_out_action": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -368,6 +428,21 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RemainingQuantity(); ok {
+		_spec.SetField(subscriptionplan.FieldRemainingQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRemainingQuantity(); ok {
+		_spec.AddField(subscriptionplan.FieldRemainingQuantity, field.TypeInt, value)
+	}
+	if _u.mutation.RemainingQuantityCleared() {
+		_spec.ClearField(subscriptionplan.FieldRemainingQuantity, field.TypeInt)
+	}
+	if value, ok := _u.mutation.InventoryAutoDelisted(); ok {
+		_spec.SetField(subscriptionplan.FieldInventoryAutoDelisted, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SoldOutAction(); ok {
+		_spec.SetField(subscriptionplan.FieldSoldOutAction, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(subscriptionplan.FieldSortOrder, field.TypeInt, value)
@@ -586,6 +661,61 @@ func (_u *SubscriptionPlanUpdateOne) SetNillableForSale(v *bool) *SubscriptionPl
 	return _u
 }
 
+// SetRemainingQuantity sets the "remaining_quantity" field.
+func (_u *SubscriptionPlanUpdateOne) SetRemainingQuantity(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.ResetRemainingQuantity()
+	_u.mutation.SetRemainingQuantity(v)
+	return _u
+}
+
+// SetNillableRemainingQuantity sets the "remaining_quantity" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableRemainingQuantity(v *int) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetRemainingQuantity(*v)
+	}
+	return _u
+}
+
+// AddRemainingQuantity adds value to the "remaining_quantity" field.
+func (_u *SubscriptionPlanUpdateOne) AddRemainingQuantity(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.AddRemainingQuantity(v)
+	return _u
+}
+
+// ClearRemainingQuantity clears the value of the "remaining_quantity" field.
+func (_u *SubscriptionPlanUpdateOne) ClearRemainingQuantity() *SubscriptionPlanUpdateOne {
+	_u.mutation.ClearRemainingQuantity()
+	return _u
+}
+
+// SetInventoryAutoDelisted sets the "inventory_auto_delisted" field.
+func (_u *SubscriptionPlanUpdateOne) SetInventoryAutoDelisted(v bool) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetInventoryAutoDelisted(v)
+	return _u
+}
+
+// SetNillableInventoryAutoDelisted sets the "inventory_auto_delisted" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableInventoryAutoDelisted(v *bool) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetInventoryAutoDelisted(*v)
+	}
+	return _u
+}
+
+// SetSoldOutAction sets the "sold_out_action" field.
+func (_u *SubscriptionPlanUpdateOne) SetSoldOutAction(v string) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetSoldOutAction(v)
+	return _u
+}
+
+// SetNillableSoldOutAction sets the "sold_out_action" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableSoldOutAction(v *string) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetSoldOutAction(*v)
+	}
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *SubscriptionPlanUpdateOne) SetSortOrder(v int) *SubscriptionPlanUpdateOne {
 	_u.mutation.ResetSortOrder()
@@ -689,6 +819,11 @@ func (_u *SubscriptionPlanUpdateOne) check() error {
 			return &ValidationError{Name: "product_name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.product_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SoldOutAction(); ok {
+		if err := subscriptionplan.SoldOutActionValidator(v); err != nil {
+			return &ValidationError{Name: "sold_out_action", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.sold_out_action": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -768,6 +903,21 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RemainingQuantity(); ok {
+		_spec.SetField(subscriptionplan.FieldRemainingQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRemainingQuantity(); ok {
+		_spec.AddField(subscriptionplan.FieldRemainingQuantity, field.TypeInt, value)
+	}
+	if _u.mutation.RemainingQuantityCleared() {
+		_spec.ClearField(subscriptionplan.FieldRemainingQuantity, field.TypeInt)
+	}
+	if value, ok := _u.mutation.InventoryAutoDelisted(); ok {
+		_spec.SetField(subscriptionplan.FieldInventoryAutoDelisted, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SoldOutAction(); ok {
+		_spec.SetField(subscriptionplan.FieldSoldOutAction, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(subscriptionplan.FieldSortOrder, field.TypeInt, value)
