@@ -48,7 +48,7 @@ func TestSubscriptionPlanInventoryPostgresConcurrentReservations(t *testing.T) {
 			quantity := 3
 			plan, err := client.SubscriptionPlan.Create().
 				SetGroupID(1).
-				SetName(fmt.Sprintf("inventory-concurrency-%s-%d", strings.ReplaceAll(t.Name(), "/", "-"), time.Now().UnixNano())).
+				SetName(fmt.Sprintf("inventory-%s-%d", tc.action, time.Now().UnixNano())).
 				SetPrice(10).
 				SetRemainingQuantity(quantity).
 				SetSoldOutAction(tc.action).
