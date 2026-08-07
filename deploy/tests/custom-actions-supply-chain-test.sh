@@ -4,6 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 versions_file="$repo_root/.github/custom-tool-versions.env"
 installer="$repo_root/deploy/tests/install-custom-tools.sh"
+integration_runner="$repo_root/deploy/tests/backend-integration-test.sh"
 workflows=(
   "$repo_root/.github/workflows/backend-ci.yml"
   "$repo_root/.github/workflows/publish-custom.yml"
@@ -34,8 +35,20 @@ trigger_branches() {
   ' "$workflow"
 }
 
+job_block() {
+  local workflow="$1"
+  local job="$2"
+  awk -v job="$job" '
+    $0 == "  " job ":" { in_job = 1 }
+    in_job && $0 ~ /^  [[:alnum:]_-]+:$/ && $0 != "  " job ":" { exit }
+    in_job { print }
+  ' "$workflow"
+}
+
 [[ -s "$versions_file" ]] || fail "custom tool version manifest is missing"
 [[ -s "$installer" ]] || fail "verified custom tool installer is missing"
+[[ -s "$integration_runner" ]] || fail "scoped backend Integration runner is missing"
+/bin/bash -n "$integration_runner"
 # shellcheck disable=SC1090
 source "$versions_file"
 
@@ -116,7 +129,7 @@ for job in backend_unit backend_integration backend_build test; do
 done
 [[ "$(grep -Fc 'run: make test-unit' "$backend_ci")" -eq 1 ]] ||
   fail "backend unit tests must run exactly once"
-[[ "$(grep -Fc 'run: make test-integration' "$backend_ci")" -eq 1 ]] ||
+[[ "$(grep -Fc 'run: /bin/bash deploy/tests/backend-integration-test.sh' "$backend_ci")" -eq 1 ]] ||
   fail "backend integration tests must run exactly once"
 [[ "$(grep -Fc 'run: make build-backend' "$backend_ci")" -eq 1 ]] ||
   fail "backend production build must run exactly once"
@@ -136,6 +149,61 @@ grep -Fq '[[ "$BACKEND_INTEGRATION_RESULT" == "success" ]]' "$backend_ci" ||
   fail "required test check does not fail closed on integration failure"
 grep -Fq '[[ "$BACKEND_BUILD_RESULT" == "success" ]]' "$backend_ci" ||
   fail "required test check does not fail closed on build failure"
+
+for job in boundaries shell backend_unit backend_integration backend_build frontend golangci-lint; do
+  grep -Fq '    needs: verify-target' <<<"$(job_block "$backend_ci" "$job")" ||
+    fail "CI job must start after exact-target resolution without waiting for boundaries: $job"
+done
+grep -Fq "if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'" \
+  "$backend_ci" || fail "frontend Release Artifact is not limited to trusted main CI events"
+grep -Fq 'name: release-frontend-dist-${{ needs.verify-target.outputs.checkout_sha }}' \
+  "$backend_ci" || fail "frontend Release Artifact is not bound to the exact CI SHA"
+grep -Fq 'path: backend/internal/web/dist/' "$backend_ci" ||
+  fail "frontend Release Artifact does not contain the production dist"
+grep -Fq 'retention-days: 30' "$backend_ci" ||
+  fail "frontend Release Artifact retention is not fixed"
+
+integration_fixture="$(mktemp -d)"
+for package in \
+  internal/custom/subscriptioninventory \
+  internal/middleware \
+  internal/pkg/tlsfingerprint \
+  internal/repository \
+  internal/server/routes; do
+  mkdir -p "$integration_fixture/$package"
+  printf '%s\n' '//go:build integration' '' 'package fixture' \
+    > "$integration_fixture/$package/integration_test.go"
+done
+integration_log="$integration_fixture/check.log"
+/bin/bash "$integration_runner" check \
+  --backend-root "$integration_fixture" > "$integration_log"
+for package in \
+  ./internal/custom/subscriptioninventory \
+  ./internal/middleware \
+  ./internal/pkg/tlsfingerprint \
+  ./internal/repository \
+  ./internal/server/routes; do
+  grep -Fq "  $package" "$integration_log" ||
+    fail "Integration contract omitted registered package: $package"
+done
+if grep -Fq './internal/service' "$integration_log"; then
+  fail "package without Integration-tagged tests leaked into the Integration contract"
+fi
+mkdir -p "$integration_fixture/internal/newintegration"
+printf '%s\n' '//go:build integration' '' 'package newintegration' \
+  > "$integration_fixture/internal/newintegration/new_integration_test.go"
+if /bin/bash "$integration_runner" check \
+  --backend-root "$integration_fixture" >/dev/null 2>&1; then
+  fail "an unregistered Integration-tagged package was accepted"
+fi
+rm -rf "$integration_fixture/internal/newintegration"
+printf '%s\n' '// +build integration' '' 'package middleware' \
+  > "$integration_fixture/internal/middleware/legacy_integration_test.go"
+if /bin/bash "$integration_runner" check \
+  --backend-root "$integration_fixture" >/dev/null 2>&1; then
+  fail "a legacy Integration constraint without the exact go:build contract was accepted"
+fi
+rm -rf "$integration_fixture"
 
 upgrade_backend_job="$(
   awk '
@@ -182,6 +250,25 @@ done
 grep -Fq 'install-custom-tools.sh \' "$repo_root/.github/workflows/release.yml"
 grep -Fq 'node,pnpm,goreleaser,oras,buildx' "$repo_root/.github/workflows/release.yml"
 
+for workflow in \
+  "$repo_root/.github/workflows/backend-ci.yml" \
+  "$repo_root/.github/workflows/publish-custom.yml" \
+  "$repo_root/.github/workflows/release.yml" \
+  "$repo_root/.github/workflows/upstream-sync.yml" \
+  "$repo_root/.github/workflows/upstream-upgrade-gate.yml"; do
+  [[ "$(grep -Fc 'fetch-depth: 0' "$workflow")" -eq \
+     "$(grep -Fc 'filter: blob:none' "$workflow")" ]] ||
+    fail "full-history checkout does not consistently use blob filtering: $workflow"
+done
+for workflow in \
+  "$repo_root/.github/workflows/publish-custom.yml" \
+  "$repo_root/.github/workflows/upstream-sync.yml" \
+  "$repo_root/.github/workflows/upstream-upgrade-gate.yml"; do
+  [[ "$(grep -Ec '^[[:space:]]+git fetch (origin|upstream) \\' "$workflow")" -eq \
+     "$(grep -Fc -- '--filter=blob:none \' "$workflow")" ]] ||
+    fail "manual full-history fetch does not consistently use blob filtering: $workflow"
+done
+
 if grep -RInE \
   'github\.com/.+/releases/download/|nodejs\.org/dist/|registry\.npmjs\.org/.+\.tgz' \
   "$repo_root/.github/workflows" \
@@ -191,6 +278,13 @@ fi
 
 for workflow in "${workflows[@]}"; do
   [[ -s "$workflow" ]] || fail "custom workflow is missing: $workflow"
+  while IFS= read -r action_ref; do
+    action_ref="${action_ref#*uses:}"
+    action_ref="${action_ref%%#*}"
+    action_ref="${action_ref//[[:space:]]/}"
+    [[ "$action_ref" =~ ^[^@]+@[0-9a-f]{40}$ ]] ||
+      fail "third-party Action is not pinned to a full commit: $workflow: $action_ref"
+  done < <(grep -E '^[[:space:]]+-?[[:space:]]*uses:' "$workflow")
 done
 
 if command -v actionlint >/dev/null 2>&1; then

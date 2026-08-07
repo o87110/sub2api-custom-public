@@ -35,7 +35,6 @@ jobs:
       release_state: ${{ steps.preflight.outputs.release_state }}
       release_id: ${{ steps.preflight.outputs.release_id }}
       manifest_asset_id: ${{ steps.preflight.outputs.manifest_asset_id }}
-      candidate_tree: ${{ steps.candidate.outputs.tree }}
     steps:
       - name: Checkout exact custom Tag
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -43,13 +42,8 @@ jobs:
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
           fetch-tags: true
+          filter: blob:none
           persist-credentials: false
-      - name: Set up exact Go toolchain
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
-        with:
-          go-version-file: backend/go.mod
-          check-latest: false
-          cache-dependency-path: backend/go.sum
       - name: Materialize trusted Release preflight
         env:
           CONTROL_COMMIT: ${{ github.sha }}
@@ -79,35 +73,13 @@ jobs:
             --tag "$RELEASE_TAG" \
             --control-commit "$CONTROL_COMMIT" \
             --output "$GITHUB_OUTPUT"
-      - name: Resolve exact candidate tree
-        id: candidate
-        env:
-          TARGET_COMMIT: ${{ steps.preflight.outputs.target_commit }}
-        run: |
-          candidate_tree="$(
-            /bin/bash deploy/tests/custom-candidate-tree.sh \
-              --commit "$TARGET_COMMIT"
-          )"
-          echo "tree=$candidate_tree" >> "$GITHUB_OUTPUT"
-      - name: Re-run upstream delta ledger gate
-        env:
-          CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
-        run: |
-          /bin/bash deploy/tests/custom-upstream-delta-test.sh \
-            --candidate-tree "$CANDIDATE_TREE"
-      - name: Re-run database semantic boundary gate
-        env:
-          CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
-        run: |
-          /bin/bash deploy/tests/custom-database-boundary-test.sh \
-            --mode final \
-            --candidate-tree "$CANDIDATE_TREE"
 
   build:
     needs: context
     if: needs.context.outputs.release_state == 'none'
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
     outputs:
       payload_artifact_id: ${{ steps.payload.outputs.artifact-id }}
@@ -121,6 +93,7 @@ jobs:
           ref: ${{ needs.context.outputs.target_commit }}
           fetch-depth: 0
           fetch-tags: true
+          filter: blob:none
           persist-credentials: false
       - name: Set up exact Go toolchain
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
@@ -134,13 +107,24 @@ jobs:
         run: |
           /bin/bash deploy/tests/install-custom-tools.sh \
             node,pnpm,goreleaser,oras,buildx
-      - name: Install frontend dependencies
-        run: pnpm --dir frontend install --frozen-lockfile
-      - name: Build production frontend
-        run: make build-frontend
+      - name: Expose ephemeral GHA cache runtime
+        continue-on-error: true
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+      - name: Prepare verified frontend Release input
+        id: frontend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          /bin/bash deploy/release/frontend-dist.sh prepare \
+            --ci-run-id "${{ needs.context.outputs.ci_run_id }}" \
+            --commit "${{ needs.context.outputs.target_commit }}" \
+            --directory "$GITHUB_WORKSPACE/backend/internal/web/dist" \
+            --provenance "$RUNNER_TEMP/frontend-provenance.json" \
+            --output "$GITHUB_OUTPUT"
       - name: Build archives, checksums, and OCI layout once
         env:
           CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-release-tools
+          CUSTOM_BUILDX_CACHE_SCOPE: sub2api-release-oci-v1
         run: |
           set -euo pipefail
           compatibility_files=(
@@ -160,12 +144,16 @@ jobs:
           /bin/bash deploy/release/build-release-payload.sh \
             --tag "${{ needs.context.outputs.tag }}" \
             --commit "${{ needs.context.outputs.target_commit }}" \
+            --frontend-provenance "$RUNNER_TEMP/frontend-provenance.json" \
             --output "$RUNNER_TEMP/release-payload"
           restore_build_inputs
           trap - EXIT
           [[ "$(git hash-object --path "$version_file" "$version_file")" == "$version_blob" ]]
           [[ "$(git hash-object --path "$go_sum_file" "$go_sum_file")" == "$go_sum_blob" ]]
           git diff --exit-code
+      - name: Start payload Artifact upload timer
+        id: payload-upload-start
+        run: echo "started_at=$(date +%s)" >> "$GITHUB_OUTPUT"
       - name: Upload non-production payload artifact
         id: payload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -186,6 +174,13 @@ jobs:
           fi
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Record payload Artifact upload time
+        id: payload-upload-timing
+        env:
+          STARTED_AT: ${{ steps.payload-upload-start.outputs.started_at }}
+        run: |
+          set -euo pipefail
+          echo "seconds=$(($(date +%s) - STARTED_AT))" >> "$GITHUB_OUTPUT"
       - name: Create immutable release manifest
         env:
           CONTROL_COMMIT: ${{ github.sha }}
@@ -223,6 +218,9 @@ jobs:
             --artifact-id "$PAYLOAD_ARTIFACT_ID" \
             --artifact-digest "$PAYLOAD_ARTIFACT_DIGEST" \
             --artifact-name "$PAYLOAD_ARTIFACT_NAME"
+      - name: Start manifest Artifact upload timer
+        id: manifest-upload-start
+        run: echo "started_at=$(date +%s)" >> "$GITHUB_OUTPUT"
       - name: Upload release manifest artifact
         id: manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -243,15 +241,27 @@ jobs:
           fi
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Record Artifact upload timing
+        env:
+          MANIFEST_STARTED_AT: ${{ steps.manifest-upload-start.outputs.started_at }}
+          MANIFEST_DIGEST: ${{ steps.manifest-metadata.outputs.digest }}
+          PAYLOAD_SECONDS: ${{ steps.payload-upload-timing.outputs.seconds }}
+        run: |
+          set -euo pipefail
+          manifest_seconds=$(($(date +%s) - MANIFEST_STARTED_AT))
+          artifact_seconds=$((PAYLOAD_SECONDS + manifest_seconds))
           {
-            echo "### Release manifest producer"
+            echo "### Release Artifact uploads"
             echo
             echo "- Tag: \`${{ needs.context.outputs.tag }}\`"
             echo "- Commit: \`${{ needs.context.outputs.target_commit }}\`"
             echo "- Payload artifact ID: \`${{ steps.payload.outputs.artifact-id }}\`"
             echo "- Payload artifact digest: \`${{ steps.payload-metadata.outputs.digest }}\`"
             echo "- Manifest artifact ID: \`${{ steps.manifest.outputs.artifact-id }}\`"
-            echo "- Manifest artifact digest: \`${digest}\`"
+            echo "- Manifest artifact digest: \`${MANIFEST_DIGEST}\`"
+            echo "- Payload upload: \`${PAYLOAD_SECONDS}s\`"
+            echo "- Manifest upload: \`${manifest_seconds}s\`"
+            echo "- Artifact uploads total: \`${artifact_seconds}s\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
   publish:
@@ -278,12 +288,17 @@ jobs:
           ref: ${{ needs.context.outputs.target_commit }}
           fetch-depth: 0
           fetch-tags: true
+          filter: blob:none
           persist-credentials: false
       - name: Install checksum-pinned ORAS
         env:
           CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-release-tools
         run: /bin/bash deploy/tests/install-custom-tools.sh oras
+      - name: Start publication timer
+        id: publication-start
+        run: echo "started_at=$(date +%s)" >> "$GITHUB_OUTPUT"
       - name: Verify immutable state and publish
+        id: publish-release
         env:
           CONTROL_COMMIT: ${{ github.sha }}
           GH_TOKEN: ${{ github.token }}
@@ -336,6 +351,20 @@ jobs:
             )
           fi
           /bin/bash "$control_dir/publish-release.sh" "${args[@]}"
+      - name: Record publication timing
+        if: ${{ always() }}
+        env:
+          STARTED_AT: ${{ steps.publication-start.outputs.started_at }}
+          PUBLISH_RESULT: ${{ steps.publish-release.outcome }}
+        run: |
+          set -euo pipefail
+          elapsed_seconds=$(($(date +%s) - STARTED_AT))
+          {
+            echo "### Release publication timing"
+            echo
+            echo "- Result: \`${PUBLISH_RESULT}\`"
+            echo "- Publication: \`${elapsed_seconds}s\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   report-release-failure:
     needs: [context, build, publish]

@@ -65,6 +65,9 @@ SHA256。
 - 升级门禁执行候选代码时只能使用只读权限且不注入 Secrets。
 - 自动 Release 写操作只接受成功 CI 所绑定的准确 `main` SHA；首次发布和恢复重试
   才使用手动调度。
+- 同一不可变 SHA 的成功 CI 与 `boundaries` 证据可复用，但 Release Preflight 必须
+  重新验证 Workflow、事件、`main`、Head SHA、结论和唯一边界 Job；不得把复用解释为
+  绕过或伪造门禁。
 - 官方升级的最终收尾只能从受信任 `main` 手动调度，并重新验证 PR、Head SHA、
   base SHA、merge SHA、基线和检查状态；可选最终器 Token 只能在这些门禁成功后使用。
 - Fork PR 不能直接触发 Release 或 GHCR 发布。
@@ -74,11 +77,18 @@ SHA256。
 - Tag 不可变；
 - 已发布资产不能覆盖或删除后重建；
 - Release Manifest 绑定 Commit、Workflow、Artifact 与 OCI Digest；
+- CI 前端 Artifact 还必须绑定准确 Run ID、Workflow、事件、`main`、Head SHA、ID、
+  Digest 和内容 SHA256；下载前后限制大小，解压前拒绝路径穿越、重复路径、符号链接、
+  特殊文件和额外根目录；
+- 前端 Artifact 缺失或过期可从准确 Tag 本地重建；重复、来源错误、结构或 Digest
+  异常必须失败关闭，不得借降级绕过；
 - 构建和发布权限分离；
 - 构建 Job 不注入 Repository 或 Environment 自定义 Secrets，也不持有写权限；
 - 发布 Job 只处理已验证的构建产物；
 - 下载校验大小、SHA256、文件类型、路径和二进制版本；
 - GHCR 不使用浮动 `latest`。
+- Buildx GHA Cache 使用固定 scope，只加速构建，不作为提交、Artifact、Manifest、
+  Release 资产或 GHCR Digest 的可信证据；缓存故障不能掩盖真实构建失败。
 
 ## 7. GHCR
 

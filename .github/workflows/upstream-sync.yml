@@ -29,6 +29,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          filter: blob:none
 
       - name: Set up exact Go toolchain for database semantics
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
@@ -49,16 +50,19 @@ jobs:
             git remote set-url upstream https://github.com/Wei-Shaw/sub2api.git
           git fetch upstream \
             --no-tags \
+            --filter=blob:none \
             '+refs/tags/v*:refs/upstream-tags/v*' \
             --force
           git fetch origin \
             --no-tags \
+            --filter=blob:none \
             '+refs/heads/upstream/main:refs/remotes/origin/upstream/main' \
             '+refs/heads/main:refs/remotes/origin/main' \
             '+refs/tags/*:refs/origin-tags/*' \
             --force
           git fetch origin \
             --no-tags \
+            --filter=blob:none \
             '+refs/heads/upgrade/*:refs/remotes/origin/upgrade/*'
 
           latest_upgrade_validation_status() {

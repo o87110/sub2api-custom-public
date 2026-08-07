@@ -202,6 +202,7 @@ jobs:
         with:
           ref: ${{ steps.resolve.outputs.head_sha }}
           fetch-depth: 0
+          filter: blob:none
 
       - name: Reject official upgrades on non-standard branches
         if: github.event_name == 'pull_request_target' && steps.resolve.outputs.is_upgrade != 'true'
@@ -215,14 +216,17 @@ jobs:
             git remote set-url upstream https://github.com/Wei-Shaw/sub2api.git
           git fetch origin \
             --no-tags \
+            --filter=blob:none \
             '+refs/heads/main:refs/remotes/origin/main' \
             --force
           git fetch origin \
             --no-tags \
+            --filter=blob:none \
             '+refs/tags/vendor-*:refs/origin-tags/vendor-*' \
             --force
           git fetch upstream \
             --no-tags \
+            --filter=blob:none \
             '+refs/tags/v*:refs/upstream-tags/v*' \
             --force
 
@@ -341,6 +345,7 @@ jobs:
         with:
           ref: ${{ needs.context.outputs.head_sha }}
           fetch-depth: 0
+          filter: blob:none
 
       - name: Set up exact Go toolchain for database semantics
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
@@ -359,10 +364,12 @@ jobs:
             git remote set-url upstream https://github.com/Wei-Shaw/sub2api.git
           git fetch upstream \
             --no-tags \
+            --filter=blob:none \
             '+refs/tags/v*:refs/upstream-tags/v*' \
             --force
           git fetch origin \
             --no-tags \
+            --filter=blob:none \
             '+refs/heads/main:refs/remotes/origin/main' \
             '+refs/tags/*:refs/origin-tags/*' \
             --force
@@ -675,6 +682,7 @@ jobs:
         with:
           ref: ${{ needs.context.outputs.head_sha }}
           fetch-depth: 0
+          filter: blob:none
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: backend/go.mod
@@ -682,10 +690,9 @@ jobs:
       - name: Test persistent runtime version selection
         run: /bin/bash deploy/tests/docker-entrypoint-runtime-test.sh
       - name: Backend tests
-        working-directory: backend
         run: |
-          make test-unit
-          make test-integration
+          make -C backend test-unit
+          /bin/bash deploy/tests/backend-integration-test.sh
       - name: Verify generated Wire graph
         working-directory: backend
         run: |
@@ -747,6 +754,7 @@ jobs:
         with:
           ref: ${{ needs.context.outputs.head_sha }}
           fetch-depth: 0
+          filter: blob:none
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: upgrade-frontend-dist-${{ github.run_id }}
@@ -968,6 +976,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          filter: blob:none
 
       - name: Merge exact checked revision and establish vendor baseline
         shell: bash
@@ -980,10 +989,12 @@ jobs:
             git remote set-url upstream https://github.com/Wei-Shaw/sub2api.git
           git fetch upstream \
             --no-tags \
+            --filter=blob:none \
             '+refs/tags/v*:refs/upstream-tags/v*' \
             --force
           git fetch origin \
             --no-tags \
+            --filter=blob:none \
             '+refs/heads/upstream/main:refs/remotes/origin/upstream/main' \
             '+refs/heads/main:refs/remotes/origin/main' \
             '+refs/tags/*:refs/origin-tags/*' \
@@ -991,6 +1002,7 @@ jobs:
           if [[ "$RECOVERY_MODE" != "true" ]]; then
             git fetch origin \
               --no-tags \
+              --filter=blob:none \
               "+refs/heads/${HEAD_REF}:refs/remotes/origin/${HEAD_REF}"
           fi
 
@@ -1054,6 +1066,7 @@ jobs:
 
             git fetch origin \
               --no-tags \
+              --filter=blob:none \
               '+refs/heads/main:refs/remotes/origin/main' \
               '+refs/tags/*:refs/origin-tags/*' \
               --force
@@ -1141,6 +1154,7 @@ jobs:
 
           git fetch origin \
             --no-tags \
+            --filter=blob:none \
             '+refs/heads/upstream/main:refs/remotes/origin/upstream/main' \
             "+refs/tags/${VENDOR_TAG}:${vendor_ref}" \
             --force

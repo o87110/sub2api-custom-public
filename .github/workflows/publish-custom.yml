@@ -54,6 +54,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          filter: blob:none
 
       - name: Create the next custom tag and start Release
         shell: bash
@@ -66,10 +67,12 @@ jobs:
             git remote set-url upstream https://github.com/Wei-Shaw/sub2api.git
           git fetch upstream \
             --no-tags \
+            --filter=blob:none \
             '+refs/tags/v*:refs/upstream-tags/v*' \
             --force
           git fetch origin \
             --no-tags \
+            --filter=blob:none \
             '+refs/heads/main:refs/remotes/origin/main' \
             '+refs/tags/*:refs/origin-tags/*' \
             --force
@@ -279,17 +282,35 @@ jobs:
             fi
           fi
 
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" && -n "$latest_custom" ]]; then
+            release_inputs_output="$(mktemp)"
+            /bin/bash deploy/release/release-inputs-changed.sh \
+              --base "refs/origin-tags/${latest_custom}" \
+              --target origin/main \
+              --output "$release_inputs_output"
+            # shellcheck disable=SC1090
+            source "$release_inputs_output"
+            rm -f "$release_inputs_output"
+            [[ "$release_required" == "true" || "$release_required" == "false" ]]
+            if [[ "$release_required" != "true" ]]; then
+              echo "Skipping automatic publication: ${release_reason}."
+              exit 0
+            fi
+          fi
+
           next_custom=$((max_custom + 1))
           custom_tag="v${version}-custom.${next_custom}"
           notes_base_ref="${latest_custom:-$vendor_tag}"
 
           git fetch origin \
             --no-tags \
+            --filter=blob:none \
             "+refs/heads/main:refs/remotes/origin/main" \
             "+refs/tags/${vendor_tag}:${current_vendor_ref}" \
             --force
           git fetch upstream \
             --no-tags \
+            --filter=blob:none \
             "+refs/tags/${official_tag}:${official_ref}" \
             --force
           latest_target_sha="$(git rev-parse origin/main)"

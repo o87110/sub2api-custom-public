@@ -142,6 +142,29 @@ validate_manifest() {
       (.payload_artifact.digest | test("^sha256:[0-9a-f]{64}$")) and
       (.payload_artifact.name |
         test("^release-payload-v[0-9]+\\.[0-9]+\\.[0-9]+-custom\\.[0-9]+-[0-9]+-[0-9]+$")) and
+      (
+        (has("build_inputs") | not) or
+        (
+          (.build_inputs | type) == "object" and
+          (.build_inputs | keys) == ["frontend"] and
+          .build_inputs.frontend.source_commit == $commit and
+          (.build_inputs.frontend.content_sha256 | test("^[0-9a-f]{64}$")) and
+          (
+            (
+              .build_inputs.frontend.mode == "ci-artifact" and
+              (.build_inputs.frontend.ci_run_id | type == "number" and . > 0) and
+              (.build_inputs.frontend.artifact_id | type == "number" and . > 0) and
+              (.build_inputs.frontend.artifact_digest | test("^sha256:[0-9a-f]{64}$"))
+            ) or
+            (
+              .build_inputs.frontend.mode == "release-build" and
+              (.build_inputs.frontend | has("ci_run_id") | not) and
+              (.build_inputs.frontend | has("artifact_id") | not) and
+              (.build_inputs.frontend | has("artifact_digest") | not)
+            )
+          )
+        )
+      ) and
       (.payload_content_sha256 | test("^[0-9a-f]{64}$")) and
       (.assets | length) == 3 and
       ([.assets[].name] | unique | length) == 3 and
@@ -327,6 +350,17 @@ validate_payload() {
   jq -e --slurpfile manifest "$manifest" '
     .tag == $manifest[0].tag and
     .target_commit == $manifest[0].target_commit and
+    (
+      (
+        ($manifest[0] | has("build_inputs")) and
+        has("frontend_input") and
+        .frontend_input == $manifest[0].build_inputs.frontend
+      ) or
+      (
+        ($manifest[0] | has("build_inputs") | not) and
+        (has("frontend_input") | not)
+      )
+    ) and
     .payload_content_sha256 == $manifest[0].payload_content_sha256 and
     .assets == $manifest[0].assets and
     .oci.index_digest == $manifest[0].oci.index_digest and

@@ -68,6 +68,7 @@ jobs:
         with:
           ref: ${{ needs.verify-target.outputs.checkout_sha }}
           fetch-depth: 0
+          filter: blob:none
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: backend/go.mod
@@ -117,13 +118,14 @@ jobs:
           python -m unittest discover -s tools -p 'test_validate_custom_thin_bridges.py' -v
 
   shell:
-    needs: [verify-target, boundaries]
+    needs: verify-target
     runs-on: macos-15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ needs.verify-target.outputs.checkout_sha }}
           fetch-depth: 0
+          filter: blob:none
       - name: Check deployment scripts
         run: |
           /bin/bash -n deploy/apple-container.sh
@@ -138,7 +140,7 @@ jobs:
           /bin/sh deploy/test-caddyfile-cache.sh
 
   backend_unit:
-    needs: [verify-target, boundaries]
+    needs: verify-target
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -160,7 +162,7 @@ jobs:
         run: make test-unit
 
   backend_integration:
-    needs: [verify-target, boundaries]
+    needs: verify-target
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -176,11 +178,10 @@ jobs:
         run: |
           go version | grep -q 'go1.26.5'
       - name: Integration tests
-        working-directory: backend
-        run: make test-integration
+        run: /bin/bash deploy/tests/backend-integration-test.sh
 
   backend_build:
-    needs: [verify-target, boundaries]
+    needs: verify-target
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -220,7 +221,7 @@ jobs:
           [[ "$BACKEND_BUILD_RESULT" == "success" ]]
 
   frontend:
-    needs: [verify-target, boundaries]
+    needs: verify-target
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -243,15 +244,24 @@ jobs:
         run: make test-frontend test-frontend-custom
       - name: Build production frontend target
         run: make build-frontend
+      - name: Preserve frontend build for an exact-SHA Release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-frontend-dist-${{ needs.verify-target.outputs.checkout_sha }}
+          path: backend/internal/web/dist/
+          if-no-files-found: error
+          retention-days: 30
 
   golangci-lint:
-    needs: [verify-target, boundaries]
+    needs: verify-target
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ needs.verify-target.outputs.checkout_sha }}
           fetch-depth: 0
+          filter: blob:none
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: backend/go.mod
