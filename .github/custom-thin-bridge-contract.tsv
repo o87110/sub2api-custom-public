@@ -47,7 +47,7 @@ backend/internal/service/notification_email_service_test.go	compat-test	true	3	0
 backend/internal/service/payment_config_limits.go	delegate	true	97	0	-
 backend/internal/service/payment_config_limits_test.go	compat-test	true	265	0	-
 backend/internal/service/payment_config_plans.go	delegate	true	33	38	-
-backend/internal/service/payment_config_service.go	delegate	true	73	54	c043c24774228ba891ddf90d783aa6dc7d0855b5:41:25,f0e7a9c7a23a7d02fb159b62fa809621eb0475a6:70:49
+backend/internal/service/payment_config_service.go	delegate	true	73	54	c043c24774228ba891ddf90d783aa6dc7d0855b5:41:25,f0e7a9c7a23a7d02fb159b62fa809621eb0475a6:70:49,155c494964c3ea6ecc31f52679525c1034bf0f16:70:49
 backend/internal/service/payment_config_service_test.go	compat-test	true	292	0	-
 backend/internal/service/payment_fulfillment.go	delegate	true	4	0	-
 backend/internal/service/payment_fulfillment_test.go	compat-test	true	100	0	-
