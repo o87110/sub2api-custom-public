@@ -16,6 +16,9 @@ publisher="$repo_root/deploy/release/publish-release.sh"
 release_policy="$repo_root/deploy/release/release-state-policy.sh"
 release_notes_tool="$repo_root/deploy/release/release-notes.sh"
 ci_waiter="$repo_root/deploy/release/wait-for-required-ci.sh"
+release_inputs_classifier="$repo_root/deploy/release/release-inputs-changed.sh"
+frontend_tool="$repo_root/deploy/release/frontend-dist.sh"
+frontend_safety_test="$repo_root/deploy/tests/frontend-dist-safety-test.sh"
 tool_versions="$repo_root/.github/custom-tool-versions.env"
 release_dockerfile="$repo_root/deploy/release/Dockerfile"
 
@@ -48,6 +51,9 @@ for file in \
   "$release_policy" \
   "$release_notes_tool" \
   "$ci_waiter" \
+  "$release_inputs_classifier" \
+  "$frontend_tool" \
+  "$frontend_safety_test" \
   "$release_dockerfile" \
   "$tool_versions"; do
   [[ -s "$file" ]] || fail "required custom release control is missing: $file"
@@ -60,7 +66,10 @@ for script in \
   "$publisher" \
   "$release_policy" \
   "$release_notes_tool" \
-  "$ci_waiter"; do
+  "$ci_waiter" \
+  "$release_inputs_classifier" \
+  "$frontend_tool" \
+  "$frontend_safety_test"; do
   /bin/bash -n "$script"
 done
 # shellcheck disable=SC1090
@@ -172,6 +181,23 @@ grep -Fq 'gh workflow run publish-custom.yml \' "$upgrade_gate_workflow"
 grep -Fq -- '-f expected_sha="$merged_sha"' "$upgrade_gate_workflow"
 grep -Fq 'validate_release_notes "$release"' "$publisher"
 grep -Fq '/bin/bash "$release_notes_tool" validate "$notes_file"' "$publisher"
+grep -Fq 'CUSTOM_BUILDX_CACHE_SCOPE: sub2api-release-oci-v1' "$release_workflow"
+grep -Fq 'uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0' \
+  "$release_workflow"
+grep -Fq 'GitHub Actions cache import is unavailable; retrying the exact OCI build cold.' \
+  "$payload_builder"
+grep -Fq -- '--cache-from "type=gha,scope=$cache_scope"' "$payload_builder"
+grep -Fq -- '--cache-to "type=gha,scope=$cache_scope,mode=max,ignore-error=true"' "$payload_builder"
+fail_if_present \
+  "Release OCI caching must use Buildx GHA cache directly" \
+  'actions/cache/' \
+  "$release_workflow"
+grep -Fq 'Prepare verified frontend Release input' "$release_workflow"
+grep -Fq -- '--ci-run-id "${{ needs.context.outputs.ci_run_id }}"' "$release_workflow"
+grep -Fq -- '--frontend-provenance "$RUNNER_TEMP/frontend-provenance.json"' "$release_workflow"
+grep -Fq 'Release payload build timing' "$payload_builder"
+grep -Fq 'Release Artifact uploads' "$release_workflow"
+grep -Fq 'Release publication timing' "$release_workflow"
 
 payload_upload_line="$(grep -nE '^[[:space:]]+id: payload$' "$release_workflow" | cut -d: -f1)"
 manifest_create_line="$(grep -nF 'Create immutable release manifest' "$release_workflow" | cut -d: -f1)"
@@ -195,6 +221,12 @@ grep -Eq '^ARG POSTGRES_IMAGE=postgres:18-alpine3\.21@sha256:[0-9a-f]{64}$' "$re
 grep -Eq '^ARG ALPINE_IMAGE=alpine:3\.21@sha256:[0-9a-f]{64}$' "$release_dockerfile"
 grep -Fq 'COPY --chown=sub2api:sub2api backend/resources /app/resources' "$release_dockerfile"
 grep -Fq 'payload_artifact' "$manifest_builder"
+grep -Fq 'build_inputs' "$manifest_builder"
+grep -Fq 'frontend_input' "$payload_builder"
+grep -Fq 'error("invalid frontend provenance")' "$payload_builder"
+grep -Fq '.frontend_input == $manifest[0].build_inputs.frontend' "$publisher"
+grep -Fq '($manifest[0] | has("build_inputs") | not)' "$publisher"
+grep -Fq '(has("build_inputs") | not) or' "$publisher"
 grep -Fq 'producer.run_attempt' "$publisher"
 grep -Fq 'producer.workflow_commit' "$publisher"
 grep -Fq 'producer.workflow_ref == "refs/heads/main"' "$publisher"
@@ -646,6 +678,9 @@ grep -Fq 'Latest immutable Tag ${latest_custom} has no published Release; retryi
 grep -Fq 'git merge-base --is-ancestor "${latest_tag_ref}^{commit}" origin/main' \
   "$publish_workflow"
 grep -Fq 'queue_release "$latest_custom"' "$publish_workflow"
+grep -Fq 'if [[ "$GITHUB_EVENT_NAME" == "workflow_run" && -n "$latest_custom" ]]; then' \
+  "$publish_workflow"
+grep -Fq 'deploy/release/release-inputs-changed.sh \' "$publish_workflow"
 grep -Fq 'git update-index --assume-unchanged -- "${compatibility_files[@]}"' "$release_workflow"
 grep -Fq 'git update-index --no-assume-unchanged -- "${compatibility_files[@]}"' "$release_workflow"
 grep -Fq 'git restore --source=HEAD --worktree -- "${compatibility_files[@]}"' "$release_workflow"
@@ -666,9 +701,26 @@ publish_job="$(
   sed -n '/^  publish:/,/^  report-release-failure:/p' "$release_workflow"
 )"
 grep -Fq 'contents: write' <<<"$context_job"
+grep -Fq 'actions: read' <<<"$build_job"
 grep -Fq 'persist-credentials: false' <<<"$context_job"
 grep -Fq 'persist-credentials: false' <<<"$build_job"
 grep -Fq 'persist-credentials: false' <<<"$publish_job"
+fail_if_present \
+  "Release context must reuse exact-SHA CI boundary evidence instead of rebuilding it" \
+  'actions/setup-go@' \
+  <(printf '%s\n' "$context_job")
+fail_if_present \
+  "Release context must not rebuild a candidate tree" \
+  'custom-candidate-tree.sh' \
+  <(printf '%s\n' "$context_job")
+fail_if_present \
+  "Release context must not repeat the upstream delta gate" \
+  'custom-upstream-delta-test.sh' \
+  <(printf '%s\n' "$context_job")
+fail_if_present \
+  "Release context must not repeat the database boundary gate" \
+  'custom-database-boundary-test.sh' \
+  <(printf '%s\n' "$context_job")
 fail_if_present \
   "Release Tag checkouts must not persist job credentials" \
   'persist-credentials: true' \
@@ -717,6 +769,92 @@ grep -Fq 'custom-database-boundary-test.sh' "$backend_ci_workflow"
 grep -Fq 'custom-actions-supply-chain-test.sh' "$backend_ci_workflow"
 grep -Fq 'CUSTOM_ACTIONS_REQUIRE_ACTIONLINT: '\''true'\''' "$backend_ci_workflow"
 
+release_inputs_tmp="$(mktemp -d)"
+classifier_repo="$release_inputs_tmp/repo"
+mkdir -p "$classifier_repo/deploy/release"
+cp "$release_inputs_classifier" "$classifier_repo/deploy/release/release-inputs-changed.sh"
+git -C "$classifier_repo" init --quiet
+git -C "$classifier_repo" config user.name "Release Input Safety"
+git -C "$classifier_repo" config user.email "release-inputs@example.invalid"
+git -C "$classifier_repo" add deploy/release/release-inputs-changed.sh
+git -C "$classifier_repo" commit --quiet -m base
+
+assert_release_input() {
+  local path="$1"
+  local parent previous output
+  previous="$(git -C "$classifier_repo" rev-parse HEAD)"
+  parent="${path%/*}"
+  if [[ "$parent" != "$path" ]]; then
+    mkdir -p "$classifier_repo/$parent"
+  fi
+  printf 'fixture %s\n' "$path" >> "$classifier_repo/$path"
+  git -C "$classifier_repo" add -- "$path"
+  git -C "$classifier_repo" commit --quiet -m "release input: $path"
+  output="$release_inputs_tmp/output-$RANDOM"
+  (
+    cd "$classifier_repo"
+    /bin/bash deploy/release/release-inputs-changed.sh \
+      --base "$previous" \
+      --target HEAD \
+      --output "$output"
+  ) >/dev/null
+  grep -Fq 'release_required=true' "$output" ||
+    fail "Release input classifier skipped required path: $path"
+}
+
+for path in \
+  backend/fixture.go \
+  frontend/fixture.ts \
+  docs/legal/fixture.md \
+  docs/custom/OPERATIONS_CN.md \
+  deploy/docker-entrypoint.sh \
+  deploy/release/Dockerfile \
+  deploy/release/build-release-payload.sh \
+  deploy/release/frontend-dist.sh \
+  deploy/tests/install-custom-tools.sh \
+  .goreleaser.yaml \
+  .github/custom-tool-versions.env \
+  .github/custom-upstream-baseline.env \
+  Makefile \
+  LICENSE; do
+  assert_release_input "$path"
+done
+
+non_release_base="$(git -C "$classifier_repo" rev-parse HEAD)"
+for path in docs/ordinary.md deploy/tests/ordinary-test.sh .github/workflows/ordinary.yml; do
+  mkdir -p "$classifier_repo/${path%/*}"
+  printf 'ordinary fixture\n' > "$classifier_repo/$path"
+  git -C "$classifier_repo" add -- "$path"
+done
+git -C "$classifier_repo" commit --quiet -m "non-release inputs"
+non_release_output="$release_inputs_tmp/non-release-output"
+(
+  cd "$classifier_repo"
+  /bin/bash deploy/release/release-inputs-changed.sh \
+    --base "$non_release_base" \
+    --target HEAD \
+    --output "$non_release_output"
+) >/dev/null
+grep -Fq 'release_required=false' "$non_release_output" ||
+  fail "ordinary documentation, tests, or Workflow-only changes triggered a Release"
+
+empty_tree="$(git -C "$classifier_repo" mktree </dev/null)"
+unrelated_commit="$(
+  printf 'unrelated\n' | git -C "$classifier_repo" commit-tree "$empty_tree"
+)"
+if (
+  cd "$classifier_repo"
+  /bin/bash deploy/release/release-inputs-changed.sh \
+    --base HEAD \
+    --target "$unrelated_commit" \
+    --output "$release_inputs_tmp/non-ancestor-output"
+) >/dev/null 2>&1; then
+  fail "non-ancestor Release classification baseline was accepted"
+fi
+rm -rf "$release_inputs_tmp"
+
+/bin/bash "$frontend_safety_test"
+
 fail_if_present \
   "pnpm audit execution status must not be discarded" \
   'pnpm audit --prod --audit-level=high --json > audit.json || true' \
@@ -750,6 +888,11 @@ if command -v jq >/dev/null 2>&1; then
   "schema": "sub2api-custom-payload/v1",
   "tag": "v0.1.162-custom.99",
   "target_commit": "1111111111111111111111111111111111111111",
+  "frontend_input": {
+    "mode": "release-build",
+    "source_commit": "1111111111111111111111111111111111111111",
+    "content_sha256": "9999999999999999999999999999999999999999999999999999999999999999"
+  },
   "payload_content_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
   "assets": [
     {"name": "sub2api_0.1.162-custom.99_linux_amd64.tar.gz", "sha256": "3333333333333333333333333333333333333333333333333333333333333333"},
@@ -798,12 +941,36 @@ EOF
     .producer.workflow_commit == "9999999999999999999999999999999999999999" and
     .payload_artifact.id == 456 and
     .payload_artifact.digest == "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" and
+    .build_inputs.frontend.mode == "release-build" and
+    .build_inputs.frontend.source_commit == .target_commit and
+    .build_inputs.frontend.content_sha256 ==
+      "9999999999999999999999999999999999999999999999999999999999999999" and
     .oci.index_media_type == "application/vnd.oci.image.index.v1+json" and
     ([.oci.manifests[].media_type] | unique) ==
       ["application/vnd.oci.image.manifest.v1+json"] and
     (.producer | has("artifact_id") | not) and
     (.producer | has("artifact_digest") | not)
   ' "$tmp_dir/release-manifest.json" >/dev/null
+
+  mkdir -p "$tmp_dir/payload-without-frontend"
+  jq 'del(.frontend_input)' "$tmp_dir/payload/build-metadata.json" \
+    > "$tmp_dir/payload-without-frontend/build-metadata.json"
+  if GITHUB_RUN_ID=123 \
+    GITHUB_RUN_ATTEMPT=4 \
+    GITHUB_EVENT_NAME=workflow_dispatch \
+    GITHUB_SHA=9999999999999999999999999999999999999999 \
+    GITHUB_REF=refs/heads/main \
+    GITHUB_REPOSITORY=o87110/sub2api-custom-public \
+      /bin/bash "$manifest_builder" \
+        --payload "$tmp_dir/payload-without-frontend" \
+        --output "$tmp_dir/invalid-release-manifest.json" \
+        --tag-ref-oid aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+        --artifact-id 456 \
+        --artifact-digest sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+        --artifact-name release-payload-v0.1.162-custom.99-123-4 \
+        >/dev/null 2>&1; then
+    fail "new Release manifest without frontend provenance was accepted"
+  fi
 else
   echo "jq not found; manifest fixture deferred to Linux CI"
 fi

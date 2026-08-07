@@ -93,6 +93,9 @@ DTO/接口适配、路由注册、Wire 注入、组件导入或启动入口。Br
 
 发布只能针对通过 CI 的 `main` 精确提交 SHA。Tag 使用
 `vX.Y.Z-custom.N` 且不可变；已有 Tag 不得移动，失败时只能针对原 Tag 恢复或重试。
+同一不可变 SHA 的成功 CI 与 `boundaries` 结果可作为 Release 的可信证据复用，
+Release 不重复构建 Candidate Tree、差异台账或数据库门禁；但 Preflight 必须重新精确
+校验 CI Workflow、事件、分支、Head SHA、结论和唯一的 `boundaries=success`。
 Release Notes 必须通过安全的环境变量、文件或标准输入传递，不能直接插值进 Shell。
 并且必须包含 `Custom changes`、`Database`、`Validation` 三个固定章节。发布前验证
 必要架构资产、checksum、Manifest 和 GHCR Digest。
@@ -102,6 +105,17 @@ Security Scan 独立运行并如实报告，不作为自动发布硬门禁，也
 等待任务，由其复核同一 SHA 的 CI 与 `boundaries`。`custom-release-publish`
 Environment 只保留部署分支/Tag 策略，不设置 `Required reviewer`。修改代码时不得新增
 `bypass_checks`、`break-glass` 或其他绕过必需 CI 的入口。
+
+CI 中 `boundaries` 与后端、前端、Lint、Shell 检查在准确目标解析后并行，Workflow
+结论、分支保护和 Release Preflight 仍必须要求边界检查成功。Integration 只运行所有
+已登记且实际包含 `//go:build integration` 测试的包；新增标签包未登记必须失败，不得
+借 Integration 再次执行 `./...` 普通测试。
+
+自动发布只在相对同一 Vendor 版本最新正式 Custom Tag 的 Release 输入变化时创建新
+Tag；首次发布、Vendor 基线升级、未完成 Tag 恢复和可信手工调度始终继续。CI 前端
+Artifact 只能复用准确成功的 `main` CI Run 与 SHA，并将来源写入 Payload 和 Manifest；
+缺失或过期可在准确 Tag 本地重建，重复、来源或 Digest 异常必须失败关闭。Buildx
+缓存只用于加速，不参与任何提交、Artifact、Manifest、资产或 OCI Digest 信任判断。
 
 ## 数据库边界
 

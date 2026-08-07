@@ -6,7 +6,7 @@
 
 | 领域 | 验证 |
 | --- | --- |
-| 后端 | Unit、Integration、生产构建 |
+| 后端 | Unit、全部 Integration 标签包、生产构建 |
 | 前端 | Typecheck、Custom Vitest、生产构建 |
 | 生成代码 | `go generate ./cmd/server` 后无差异 |
 | Lint | 仅检查相对显式官方基线的新问题 |
@@ -15,6 +15,14 @@
 | 数据库 | Migration、Schema 和例外表语义门禁 |
 | Actions | Action Pin、权限和 Actionlint |
 | 安全 | `govulncheck` 与生产依赖审计 |
+
+`boundaries` 与后端、前端、Lint、Shell Job 在 `verify-target` 确认准确 SHA 后并行；
+它仍是分支保护、Workflow 结论和 Release Preflight 的独立必需结果。后端 Integration
+入口固定登记当前五个含标签测试的包：`internal/custom/subscriptioninventory`、
+`internal/middleware`、`internal/pkg/tlsfingerprint`、`internal/repository`、
+`internal/server/routes`。契约测试必须证明五包全部执行、新增标签包未登记时失败，且
+无 Integration 标签的 `internal/service` 不进入日志；该入口不再通过 `./...` 重跑
+普通 Unit 测试。
 
 ## 2. 内容审计范围
 
@@ -113,14 +121,28 @@
 
 - Tag 指向预期 `main` 提交且不可变；
 - 最新接受的 CI 和 `boundaries` Job 成功；
+- Preflight 复用同一准确 SHA 的成功证据，Release `context` 不重复 Candidate Tree、
+  差异台账或数据库语义门禁；
 - Build Job 无发布权限；
+- 自动路径仅在 Release 输入变化时发布；普通文档、测试和 Workflow 单独变化时跳过，
+  首次发布、可信手工调度、Vendor 基线升级和未完成 Tag 重试仍继续；
+- 前端 Artifact 必须唯一绑定准确 CI Run、Workflow、事件、`main`、Head SHA、ID、
+  Digest 和未过期状态；缺失或过期本地重建，重复或来源/结构/Digest 异常失败；
 - Artifact ID、Digest、Manifest 和文件 SHA256 一致；
+- 新 `sub2api-custom-release/v1` Manifest 必须包含 `build_inputs.frontend`，历史 v1 可
+  缺少；Payload Metadata 的前端来源必须与 Manifest 完全一致；
 - Release 资产集合精确且无重复；
 - OCI Index 包含 `amd64` 与 `arm64`；
 - GHCR 多架构及架构标签解析到预期 Digest；
 - 不产生 `latest` 或其他浮动标签；
 - 已发布资产不能覆盖；
 - Release 或 GHCR 任一不完整时版本不可部署。
+
+Buildx 使用固定 `sub2api-release-oci-v1` GHA Cache scope。缓存缺失或不可用只允许冷
+构建，缓存命中与否不参与信任判断；生产构建、双架构 Manifest、checksum 和 Digest
+校验不能省略。每次新 Release 在 Step Summary 分别记录前端准备、GoReleaser、OCI、
+Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中位数目标不高于
+380 秒，Release 中位数不高于 360 秒。若 OCI 缓存无收益，只移除缓存配置。
 
 ## 6. 公共 PR 与权限
 

@@ -112,3 +112,9 @@ Watcher 或业务辅助函数。`delegate`/`view` 相对 Vendor 新增的函数�
 普通 Push 通过 CI 完成事件触发发布；官方升级最终器必须显式调度绑定合并 SHA 的
 发布等待任务，由其确认同一 SHA 的 CI 与 `boundaries` 成功。Release Notes 必须
 生成并校验 `Custom changes`、`Database`、`Validation` 三个固定章节。
+
+同一准确 SHA 已成功的 CI 和 `boundaries` 证据由 Release Preflight 重新验证后复用，
+Release 不重复执行差异台账或数据库语义门禁。自动路径只有在应用、法律/运维归档、
+容器与正式构建输入变化时才创建新版本；普通文档、测试或 Workflow 单独变化不发布。
+准确 CI 产生的前端构建可作为短期 Artifact 复用，来源和内容摘要必须同步进入 Payload
+Metadata 与 Release Manifest；OCI 缓存只加速构建，不改变任何发布信任结论。
