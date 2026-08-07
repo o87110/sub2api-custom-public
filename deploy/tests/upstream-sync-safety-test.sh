@@ -1280,10 +1280,10 @@ grep -Fq \
   '/tmp/upgrade-protected-files.txt \' \
   "$gate_workflow"
 grep -Fq \
-  'make test-unit' \
+  'make -C backend test-unit' \
   "$gate_workflow"
 grep -Fq \
-  'make test-integration' \
+  '/bin/bash deploy/tests/backend-integration-test.sh' \
   "$gate_workflow"
 grep -Fq \
   'go generate ./cmd/server' \

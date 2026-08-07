@@ -45,6 +45,9 @@ CI 完成事件。同一 PR 推送新提交时取消旧提交仍在运行的 CI 
 
 后端 Unit、Integration、Wire/生产构建分为三条并行路径，现有必需检查 `test`
 作为失败关闭的聚合门禁；任一路径失败、取消或跳过时，`test` 都不得成功。
+差异/数据库 `boundaries`、后端、前端、Lint 和 Shell 在准确 SHA 解析后并行；
+`boundaries` 仍是独立必需检查。Integration 通过登记表覆盖全部带
+`//go:build integration` 的包，新增标签包未登记即失败，不通过 `./...` 重跑普通测试。
 
 公开迁移后的自动发布默认关闭。首次发布使用 `workflow_dispatch`；完成分支保护、
 GHCR 和 `custom-release-publish` Environment 设置后，再创建仓库变量：
@@ -59,6 +62,13 @@ AUTO_PUBLISH_ENABLED=true
 `GITHUB_TOKEN` 显式调度绑定合并 SHA 的 Publish；Publish 必须等待同一 SHA 的
 CI 和 `boundaries` Job 成功后才能创建 Tag。两条路径共享同一并发组；若重复调度，
 已存在的同提交正式 Release 必须安全退出，不得递增出重复版本。
+
+自动 `workflow_run` 以同一 Vendor 版本的最新正式 Custom Tag 为基准，只在以下
+Release 输入变化时创建新 Tag：`backend/**`、`frontend/**`、法律文档、运维归档、
+容器入口、Release Dockerfile/构建脚本、工具安装脚本、GoReleaser 配置、工具版本、
+Vendor 基线、根 Makefile 或 LICENSE。普通文档、测试和 Workflow 单独变化时成功
+跳过；基准不是当前 `main` 祖先时失败关闭。首次 Custom Release、Vendor 基线升级、
+未完成 Tag 重试和可信 `workflow_dispatch` 不执行该跳过逻辑。
 
 升级 PR 已合并但 Vendor 基线或发布调度中断时，最终器只能在显式恢复模式下按原
 base/Head/merge SHA 重放门禁。官方镜像与注释 `vendor-*` Tag 通过 Git Database API
@@ -99,13 +109,24 @@ Migration 和 Ent Schema 变化、备份要求、回滚评审链接，并明确
 
 Release Workflow 分为三个权限隔离阶段：
 
-1. `context`：验证 Tag、提交、CI 和现有 Release 状态。
+1. `context`：验证 Tag、提交、准确 CI、`boundaries` 和现有 Release 状态；同一不可变
+   SHA 的成功 CI 证据可复用，不重复 Candidate Tree、差异台账和数据库门禁。
 2. `build`：无发布权限地构建归档、校验和与 OCI Layout，并上传短期 Artifact。
 3. `publish`：进入受 `custom-release-publish` Environment 部署策略约束的发布
    Job，验证 Artifact 和 Manifest，再自动创建 Release、上传资产并推送 GHCR。
 
 构建阶段不持有 `packages: write`，发布阶段不重新执行仓库业务脚本。第三方工具
 使用固定版本和 SHA256，Action 使用完整提交 SHA。
+
+成功的 `main` Push 或可信手工 CI 上传 `release-frontend-dist-<exact-sha>`，保留
+30 天，PR 不上传。Release 只从 Preflight 返回的准确 CI Run ID 查询唯一 Artifact，
+验证 Workflow、事件、分支、Head SHA、成功状态、Artifact ID/Digest、压缩包 SHA256、
+路径边界、文件类型和解压大小。Artifact 不存在或过期时从准确 Tag 本地重建；重复、
+来源错误、Digest 不一致、路径穿越、符号链接或额外根目录均失败关闭，不降级。
+
+OCI 构建使用固定 `sub2api-release-oci-v1` GHA Cache scope 和 `mode=max`。缓存是纯性能
+优化，不参与信任判断；缓存不可用时冷构建，实际构建失败仍必须失败。Step Summary
+分别记录前端准备、GoReleaser、OCI、Artifact 上传和发布耗时。
 
 ## 6. Release Manifest
 
@@ -114,8 +135,13 @@ Manifest 至少绑定：
 - Tag Ref OID 与目标提交；
 - Workflow Commit、Run ID 与 Attempt；
 - Payload Artifact ID 与 Digest；
+- `build_inputs.frontend` 的模式、来源提交和内容 SHA256；Artifact 模式还包含准确
+  CI Run ID、Artifact ID 与 Digest；
 - 每个归档和 `checksums.txt` 的 SHA256；
 - OCI Index Digest、Media Type 与架构 Manifest。
+
+Schema 继续为 `sub2api-custom-release/v1`。历史 v1 Manifest 允许缺少
+`build_inputs.frontend`；所有新 Manifest 必须包含并与 Payload Metadata 完全一致。
 
 正式发布前，远程 Tag、Artifact、Release Asset 和 GHCR 状态必须重新校验。已有
 正式资产不得覆盖，Draft 中存在重复或未声明资产时必须失败关闭。
