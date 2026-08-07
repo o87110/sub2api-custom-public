@@ -1,5 +1,5 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	8341c942e4c7dd3b1db6484fcfcbd860dc67b864	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、内容审计及 Wire 生成接线回归测试路径
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	84dcc2c01a1e9563c0ea7960602d5bdc016f7d7a	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、内容审计及 Wire 生成接线回归测试路径
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	4b44e8530148a0e0dfe847088214e8edb05b31aa	-	-	database-boundary-unit+candidate-tree-test	精确绑定已审核的渠道监控、分组最低余额及套餐库存 Migration、Ent Schema 和生成文件结构指纹
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	036e8663767e89eed82dfcd37e2a1086cd0ae62a	-	-	thin-bridge-contract-unit+candidate-tree-test	支持按精确 Vendor Commit 选择已审核预算，并固定内容审计、套餐库存 DTO 与前端并发售罄同步薄桥的精确增删预算
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -18,8 +18,8 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	97b245d2b141a9f3c465eb901d548cb18b0c17d5	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/release.yml	M	keep	M	fixed-path	2ba01833c112a2653155953314fc7b8a3fbf3def	45c12de4976ee4b52c3de6f481efe9c843d97e80	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	96a7ae4edd5873207a013aa827a6ea09f6f18821	30044abe5606dad7dc66edb3fb88fcf2193c717a	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	5b7a85e07061ddd9a3181fe1a099248dd3023be4	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	将渠道监控、最低余额、管理员迁移、内容审计 Handler 薄桥及 Wire 生成接线测试纳入上游同步保护
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	7c609be07df4fb32aaa37abee81afc24335bcebb	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	将渠道监控、最低余额、管理员迁移、内容审计 Handler 薄桥及 Wire 生成接线测试纳入升级人工复核
+.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	25f0859adfe222f993be7844968faca95b164751	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	将渠道监控、最低余额、管理员迁移、内容审计 Handler 薄桥及 Wire 生成接线测试纳入上游同步保护
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	64ff21ff0e966b219aa0a3e39eebc075faddccfa	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	将渠道监控、最低余额、管理员迁移、内容审计 Handler 薄桥及 Wire 生成接线测试纳入升级人工复核
 .gitignore	M	keep	M	fixed-path	8c7e67f7e2592a5a42b45964c8ab6574d4cd6256	d149b1f716c1d3d85f152876f60e6d09b32f3708	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .goreleaser.simple.yaml	M	restore	RESTORED	whole-file-restore	b25df6e3bd20eba93cd94c96e047d18222534899	b25df6e3bd20eba93cd94c96e047d18222534899	-	-	baseline-blob-equality	非二改需求，整文件恢复官方基线
 .goreleaser.yaml	M	keep	M	fixed-path	19adfdf6dc489acd4af4ed82bdf63f64e16b8e33	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异

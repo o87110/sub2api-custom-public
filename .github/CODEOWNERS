@@ -38,6 +38,7 @@
 /backend/internal/handler/admin/setting_handler.go @o87110
 /backend/internal/handler/admin/setting_handler_update.go @o87110
 /backend/internal/handler/admin/payment_handler.go @o87110
+/backend/internal/handler/admin/payment_handler_test.go @o87110
 /backend/internal/handler/dto/settings.go @o87110
 /backend/internal/handler/dto/mappers.go @o87110
 /backend/internal/handler/dto/types.go @o87110
@@ -89,10 +90,17 @@
 /backend/internal/service/group.go @o87110
 /backend/internal/service/payment_config_limits.go @o87110
 /backend/internal/service/payment_config_limits_test.go @o87110
+/backend/internal/service/payment_config_plans.go @o87110
 /backend/internal/service/payment_config_service.go @o87110
 /backend/internal/service/payment_config_service_test.go @o87110
+/backend/internal/service/payment_fulfillment.go @o87110
+/backend/internal/service/payment_fulfillment_test.go @o87110
+/backend/internal/service/payment_inventory_bridge_test.go @o87110
 /backend/internal/service/payment_order.go @o87110
+/backend/internal/service/payment_order_lifecycle.go @o87110
+/backend/internal/service/payment_order_lifecycle_test.go @o87110
 /backend/internal/service/payment_order_result_test.go @o87110
+/backend/internal/service/payment_refund_test.go @o87110
 /backend/internal/service/payment_resume_service.go @o87110
 /backend/internal/service/payment_resume_service_test.go @o87110
 /backend/internal/service/payment_service.go @o87110
@@ -104,7 +112,11 @@
 /backend/internal/service/channel_monitor_types.go @o87110
 /backend/migrations/191_channel_monitor_group_rate_display.sql @o87110
 /backend/migrations/192_add_group_minimum_balance.sql @o87110
+/backend/migrations/194_subscription_plan_inventory.sql @o87110
+/backend/migrations/195_subscription_plan_sold_out_action.sql @o87110
 /backend/migrations/channel_monitor_group_rate_display_migration_test.go @o87110
+/backend/migrations/subscription_plan_inventory_migration_test.go @o87110
+/backend/migrations/subscription_plan_sold_out_action_migration_test.go @o87110
 /deploy/docker-compose.custom.yml @o87110
 /deploy/docker-entrypoint.sh @o87110
 /deploy/release/** @o87110
@@ -137,6 +149,8 @@
 /frontend/src/components/payment/paymentFlow.ts @o87110
 /frontend/src/components/payment/__tests__/paymentFlow.spec.ts @o87110
 /frontend/src/components/payment/PaymentProviderDialog.vue @o87110
+/frontend/src/components/payment/SubscriptionPlanCard.vue @o87110
+/frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts @o87110
 /frontend/src/i18n/locales/en/admin/settings.ts @o87110
 /frontend/src/i18n/locales/en/admin/channels.ts @o87110
 /frontend/src/i18n/locales/en/admin/overview.ts @o87110
@@ -150,6 +164,10 @@
 /frontend/src/types/index.ts @o87110
 /frontend/src/views/admin/GroupsView.vue @o87110
 /frontend/src/views/admin/SettingsView.vue @o87110
+/frontend/src/views/admin/orders/AdminPaymentPlansView.vue @o87110
+/frontend/src/views/admin/orders/PlanEditDialog.vue @o87110
+/frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts @o87110
+/frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts @o87110
 /frontend/src/views/admin/__tests__/GroupsView.columnSettings.spec.ts @o87110
 /frontend/src/views/admin/__tests__/GroupsView.duplicate.spec.ts @o87110
 /frontend/src/views/admin/__tests__/SettingsView.spec.ts @o87110
