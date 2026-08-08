@@ -857,9 +857,10 @@ func (s *UserSubscriptionRepoSuite) TestRestoreTermSnapshotRejectsConcurrentCycl
 	now := time.Now().UTC()
 	boundary := now.Add(time.Hour)
 	startsAt := boundary.Add(-30 * 24 * time.Hour)
+	nextEndsAt := boundary.Add(30 * 24 * time.Hour)
 	sub := s.mustCreateSubscriptionWithCycle(user.ID, group.ID, func(c *dbent.UserSubscriptionCreate) {
 		c.SetStartsAt(startsAt).
-			SetExpiresAt(boundary).
+			SetExpiresAt(nextEndsAt).
 			SetCurrentCycleStartsAt(startsAt).
 			SetCurrentCycleEndsAt(boundary)
 	}, &subscriptionCycleFixture{
@@ -868,7 +869,6 @@ func (s *UserSubscriptionRepoSuite) TestRestoreTermSnapshotRejectsConcurrentCycl
 		sourceType: subscriptionquota.CycleSourcePayment,
 		sourceRef:  stringPointer("cycle-cas-current"),
 	})
-	nextEndsAt := boundary.Add(30 * 24 * time.Hour)
 	s.Require().NoError(s.repo.AppendRenewalCycle(
 		s.ctx,
 		sub.ID,
@@ -1269,6 +1269,9 @@ func (s *UserSubscriptionRepoSuite) TestIncrementUsage_Concurrent() {
 	sub := mustCreateSubscription(s.T(), client, &service.UserSubscription{
 		UserID:  user.ID,
 		GroupID: group.ID,
+	})
+	s.T().Cleanup(func() {
+		_ = repo.Delete(context.Background(), sub.ID)
 	})
 
 	const numGoroutines = 10
