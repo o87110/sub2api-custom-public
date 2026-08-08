@@ -1275,15 +1275,9 @@ func (s *UserSubscriptionRepoSuite) TestIncrementUsage_Concurrent() {
 	t := s.T()
 	t.Cleanup(func() {
 		cleanupCtx := mixins.SkipSoftDelete(context.Background())
-		if err := client.UserSubscription.DeleteOneID(sub.ID).Exec(cleanupCtx); err != nil {
-			t.Errorf("hard-delete concurrent subscription fixture: %v", err)
-		}
-		if err := client.Group.DeleteOneID(group.ID).Exec(cleanupCtx); err != nil {
-			t.Errorf("hard-delete concurrent group fixture: %v", err)
-		}
-		if err := client.User.DeleteOneID(user.ID).Exec(cleanupCtx); err != nil {
-			t.Errorf("hard-delete concurrent user fixture: %v", err)
-		}
+		client.UserSubscription.DeleteOneID(sub.ID).ExecX(cleanupCtx)
+		client.Group.DeleteOneID(group.ID).ExecX(cleanupCtx)
+		client.User.DeleteOneID(user.ID).ExecX(cleanupCtx)
 	})
 
 	const numGoroutines = 10
