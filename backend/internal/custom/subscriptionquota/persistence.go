@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"entgo.io/ent/dialect"
-	entsql "entgo.io/ent/dialect/sql"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscriptioncycle"
@@ -304,9 +302,12 @@ func IncrementCycleUsage(ctx context.Context, client *dbent.Client, subscription
 }
 
 func IncrementCycleUsageTx(ctx context.Context, tx *sql.Tx, subscriptionID int64, costUSD float64) error {
-	driver := entsql.NewDriver(dialect.Postgres, entsql.Conn{ExecQuerier: tx})
-	client := dbent.NewClient(dbent.Driver(driver))
-	return IncrementCycleUsage(ctx, client, subscriptionID, costUSD)
+	_, err := tx.ExecContext(ctx, `
+		UPDATE user_subscriptions
+		SET cycle_usage_usd = cycle_usage_usd + $1
+		WHERE id = $2 AND deleted_at IS NULL
+	`, costUSD, subscriptionID)
+	return err
 }
 
 func IncrementManualResetCount(ctx context.Context, client *dbent.Client, subscriptionID int64) error {

@@ -24,7 +24,7 @@ func (r *Repository) RenewExistingTerm(
 	now, maxExpiresAt time.Time,
 ) error {
 	err := r.withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
-		existing, err := r.BaseUserSubscriptionRepository.GetByIDForUpdate(txCtx, subscriptionID)
+		existing, err := r.GetByIDForUpdate(txCtx, subscriptionID)
 		if err != nil {
 			return fmt.Errorf("lock subscription for renewal: %w", err)
 		}
@@ -65,12 +65,12 @@ func (r *Repository) RenewExistingTerm(
 			return fmt.Errorf("extend subscription: %w", err)
 		}
 		if existing.Status != service.SubscriptionStatusActive {
-			if err := r.BaseUserSubscriptionRepository.UpdateStatus(txCtx, existing.ID, service.SubscriptionStatusActive); err != nil {
+			if err := r.UpdateStatus(txCtx, existing.ID, service.SubscriptionStatusActive); err != nil {
 				return fmt.Errorf("update subscription status: %w", err)
 			}
 		}
 		if notes != "" {
-			if err := r.BaseUserSubscriptionRepository.UpdateNotes(txCtx, existing.ID, appendNotes(existing.Notes, notes)); err != nil {
+			if err := r.UpdateNotes(txCtx, existing.ID, appendNotes(existing.Notes, notes)); err != nil {
 				return fmt.Errorf("update subscription notes: %w", err)
 			}
 		}
