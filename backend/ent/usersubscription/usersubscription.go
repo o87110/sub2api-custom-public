@@ -43,6 +43,14 @@ const (
 	FieldWeeklyUsageUsd = "weekly_usage_usd"
 	// FieldMonthlyUsageUsd holds the string denoting the monthly_usage_usd field in the database.
 	FieldMonthlyUsageUsd = "monthly_usage_usd"
+	// FieldCycleUsageUsd holds the string denoting the cycle_usage_usd field in the database.
+	FieldCycleUsageUsd = "cycle_usage_usd"
+	// FieldManualQuotaResetCount holds the string denoting the manual_quota_reset_count field in the database.
+	FieldManualQuotaResetCount = "manual_quota_reset_count"
+	// FieldCurrentCycleStartsAt holds the string denoting the current_cycle_starts_at field in the database.
+	FieldCurrentCycleStartsAt = "current_cycle_starts_at"
+	// FieldCurrentCycleEndsAt holds the string denoting the current_cycle_ends_at field in the database.
+	FieldCurrentCycleEndsAt = "current_cycle_ends_at"
 	// FieldAssignedBy holds the string denoting the assigned_by field in the database.
 	FieldAssignedBy = "assigned_by"
 	// FieldAssignedAt holds the string denoting the assigned_at field in the database.
@@ -57,6 +65,8 @@ const (
 	EdgeAssignedByUser = "assigned_by_user"
 	// EdgeUsageLogs holds the string denoting the usage_logs edge name in mutations.
 	EdgeUsageLogs = "usage_logs"
+	// EdgeCycles holds the string denoting the cycles edge name in mutations.
+	EdgeCycles = "cycles"
 	// Table holds the table name of the usersubscription in the database.
 	Table = "user_subscriptions"
 	// UserTable is the table that holds the user relation/edge.
@@ -87,6 +97,13 @@ const (
 	UsageLogsInverseTable = "usage_logs"
 	// UsageLogsColumn is the table column denoting the usage_logs relation/edge.
 	UsageLogsColumn = "subscription_id"
+	// CyclesTable is the table that holds the cycles relation/edge.
+	CyclesTable = "user_subscription_cycles"
+	// CyclesInverseTable is the table name for the UserSubscriptionCycle entity.
+	// It exists in this package in order to avoid circular dependency with the "usersubscriptioncycle" package.
+	CyclesInverseTable = "user_subscription_cycles"
+	// CyclesColumn is the table column denoting the cycles relation/edge.
+	CyclesColumn = "subscription_id"
 )
 
 // Columns holds all SQL columns for usersubscription fields.
@@ -106,6 +123,10 @@ var Columns = []string{
 	FieldDailyUsageUsd,
 	FieldWeeklyUsageUsd,
 	FieldMonthlyUsageUsd,
+	FieldCycleUsageUsd,
+	FieldManualQuotaResetCount,
+	FieldCurrentCycleStartsAt,
+	FieldCurrentCycleEndsAt,
 	FieldAssignedBy,
 	FieldAssignedAt,
 	FieldNotes,
@@ -145,6 +166,14 @@ var (
 	DefaultWeeklyUsageUsd float64
 	// DefaultMonthlyUsageUsd holds the default value on creation for the "monthly_usage_usd" field.
 	DefaultMonthlyUsageUsd float64
+	// DefaultCycleUsageUsd holds the default value on creation for the "cycle_usage_usd" field.
+	DefaultCycleUsageUsd float64
+	// DefaultManualQuotaResetCount holds the default value on creation for the "manual_quota_reset_count" field.
+	DefaultManualQuotaResetCount int64
+	// DefaultCurrentCycleStartsAt holds the default value on creation for the "current_cycle_starts_at" field.
+	DefaultCurrentCycleStartsAt func() time.Time
+	// DefaultCurrentCycleEndsAt holds the default value on creation for the "current_cycle_ends_at" field.
+	DefaultCurrentCycleEndsAt func() time.Time
 	// DefaultAssignedAt holds the default value on creation for the "assigned_at" field.
 	DefaultAssignedAt func() time.Time
 )
@@ -227,6 +256,26 @@ func ByMonthlyUsageUsd(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMonthlyUsageUsd, opts...).ToFunc()
 }
 
+// ByCycleUsageUsd orders the results by the cycle_usage_usd field.
+func ByCycleUsageUsd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCycleUsageUsd, opts...).ToFunc()
+}
+
+// ByManualQuotaResetCount orders the results by the manual_quota_reset_count field.
+func ByManualQuotaResetCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldManualQuotaResetCount, opts...).ToFunc()
+}
+
+// ByCurrentCycleStartsAt orders the results by the current_cycle_starts_at field.
+func ByCurrentCycleStartsAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCurrentCycleStartsAt, opts...).ToFunc()
+}
+
+// ByCurrentCycleEndsAt orders the results by the current_cycle_ends_at field.
+func ByCurrentCycleEndsAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCurrentCycleEndsAt, opts...).ToFunc()
+}
+
 // ByAssignedBy orders the results by the assigned_by field.
 func ByAssignedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAssignedBy, opts...).ToFunc()
@@ -276,6 +325,20 @@ func ByUsageLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newUsageLogsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByCyclesCount orders the results by cycles count.
+func ByCyclesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCyclesStep(), opts...)
+	}
+}
+
+// ByCycles orders the results by cycles terms.
+func ByCycles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCyclesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -302,5 +365,12 @@ func newUsageLogsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UsageLogsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, UsageLogsTable, UsageLogsColumn),
+	)
+}
+func newCyclesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CyclesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CyclesTable, CyclesColumn),
 	)
 }

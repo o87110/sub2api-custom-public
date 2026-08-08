@@ -114,20 +114,21 @@ type AdminAvailability struct {
 // AdminPlanPatch keeps the official plan DTO at the bridge while allowing all
 // fields to be committed atomically with inventory availability.
 type AdminPlanPatch struct {
-	GroupID           *int64
-	Name              *string
-	Description       *string
-	Price             *float64
-	OriginalPrice     *float64
-	Currency          *string
-	ValidityDays      *int
-	ValidityUnit      *string
-	Features          *string
-	ProductName       *string
-	ForSale           *bool
-	RemainingQuantity QuantityPatch
-	SoldOutAction     SoldOutActionPatch
-	SortOrder         *int
+	GroupID             *int64
+	Name                *string
+	Description         *string
+	Price               *float64
+	OriginalPrice       *float64
+	Currency            *string
+	ValidityDays        *int
+	ValidityUnit        *string
+	Features            *string
+	ProductName         *string
+	ForSale             *bool
+	AllowBulkQuotaReset *bool
+	RemainingQuantity   QuantityPatch
+	SoldOutAction       SoldOutActionPatch
+	SortOrder           *int
 }
 
 // lockPlanForAdminUpdate acquires the plan row's write lock inside the
@@ -264,6 +265,9 @@ func applyAdminPlanFields(update *dbent.SubscriptionPlanUpdateOne, patch AdminPl
 	}
 	if patch.ProductName != nil {
 		update.SetProductName(*patch.ProductName)
+	}
+	if patch.AllowBulkQuotaReset != nil {
+		update.SetAllowBulkQuotaReset(*patch.AllowBulkQuotaReset)
 	}
 	if patch.SortOrder != nil {
 		update.SetSortOrder(*patch.SortOrder)

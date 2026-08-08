@@ -109,6 +109,11 @@ func ForSale(v bool) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldForSale, v))
 }
 
+// AllowBulkQuotaReset applies equality check predicate on the "allow_bulk_quota_reset" field. It's identical to AllowBulkQuotaResetEQ.
+func AllowBulkQuotaReset(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldAllowBulkQuotaReset, v))
+}
+
 // RemainingQuantity applies equality check predicate on the "remaining_quantity" field. It's identical to RemainingQuantityEQ.
 func RemainingQuantity(v int) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldRemainingQuantity, v))
@@ -707,6 +712,16 @@ func ForSaleEQ(v bool) predicate.SubscriptionPlan {
 // ForSaleNEQ applies the NEQ predicate on the "for_sale" field.
 func ForSaleNEQ(v bool) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldForSale, v))
+}
+
+// AllowBulkQuotaResetEQ applies the EQ predicate on the "allow_bulk_quota_reset" field.
+func AllowBulkQuotaResetEQ(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldAllowBulkQuotaReset, v))
+}
+
+// AllowBulkQuotaResetNEQ applies the NEQ predicate on the "allow_bulk_quota_reset" field.
+func AllowBulkQuotaResetNEQ(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldAllowBulkQuotaReset, v))
 }
 
 // RemainingQuantityEQ applies the EQ predicate on the "remaining_quantity" field.

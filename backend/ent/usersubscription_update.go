@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
+	"github.com/Wei-Shaw/sub2api/ent/usersubscriptioncycle"
 )
 
 // UserSubscriptionUpdate is the builder for updating UserSubscription entities.
@@ -250,6 +251,76 @@ func (_u *UserSubscriptionUpdate) AddMonthlyUsageUsd(v float64) *UserSubscriptio
 	return _u
 }
 
+// SetCycleUsageUsd sets the "cycle_usage_usd" field.
+func (_u *UserSubscriptionUpdate) SetCycleUsageUsd(v float64) *UserSubscriptionUpdate {
+	_u.mutation.ResetCycleUsageUsd()
+	_u.mutation.SetCycleUsageUsd(v)
+	return _u
+}
+
+// SetNillableCycleUsageUsd sets the "cycle_usage_usd" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableCycleUsageUsd(v *float64) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetCycleUsageUsd(*v)
+	}
+	return _u
+}
+
+// AddCycleUsageUsd adds value to the "cycle_usage_usd" field.
+func (_u *UserSubscriptionUpdate) AddCycleUsageUsd(v float64) *UserSubscriptionUpdate {
+	_u.mutation.AddCycleUsageUsd(v)
+	return _u
+}
+
+// SetManualQuotaResetCount sets the "manual_quota_reset_count" field.
+func (_u *UserSubscriptionUpdate) SetManualQuotaResetCount(v int64) *UserSubscriptionUpdate {
+	_u.mutation.ResetManualQuotaResetCount()
+	_u.mutation.SetManualQuotaResetCount(v)
+	return _u
+}
+
+// SetNillableManualQuotaResetCount sets the "manual_quota_reset_count" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableManualQuotaResetCount(v *int64) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetManualQuotaResetCount(*v)
+	}
+	return _u
+}
+
+// AddManualQuotaResetCount adds value to the "manual_quota_reset_count" field.
+func (_u *UserSubscriptionUpdate) AddManualQuotaResetCount(v int64) *UserSubscriptionUpdate {
+	_u.mutation.AddManualQuotaResetCount(v)
+	return _u
+}
+
+// SetCurrentCycleStartsAt sets the "current_cycle_starts_at" field.
+func (_u *UserSubscriptionUpdate) SetCurrentCycleStartsAt(v time.Time) *UserSubscriptionUpdate {
+	_u.mutation.SetCurrentCycleStartsAt(v)
+	return _u
+}
+
+// SetNillableCurrentCycleStartsAt sets the "current_cycle_starts_at" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableCurrentCycleStartsAt(v *time.Time) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetCurrentCycleStartsAt(*v)
+	}
+	return _u
+}
+
+// SetCurrentCycleEndsAt sets the "current_cycle_ends_at" field.
+func (_u *UserSubscriptionUpdate) SetCurrentCycleEndsAt(v time.Time) *UserSubscriptionUpdate {
+	_u.mutation.SetCurrentCycleEndsAt(v)
+	return _u
+}
+
+// SetNillableCurrentCycleEndsAt sets the "current_cycle_ends_at" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableCurrentCycleEndsAt(v *time.Time) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetCurrentCycleEndsAt(*v)
+	}
+	return _u
+}
+
 // SetAssignedBy sets the "assigned_by" field.
 func (_u *UserSubscriptionUpdate) SetAssignedBy(v int64) *UserSubscriptionUpdate {
 	_u.mutation.SetAssignedBy(v)
@@ -348,6 +419,21 @@ func (_u *UserSubscriptionUpdate) AddUsageLogs(v ...*UsageLog) *UserSubscription
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// AddCycleIDs adds the "cycles" edge to the UserSubscriptionCycle entity by IDs.
+func (_u *UserSubscriptionUpdate) AddCycleIDs(ids ...int64) *UserSubscriptionUpdate {
+	_u.mutation.AddCycleIDs(ids...)
+	return _u
+}
+
+// AddCycles adds the "cycles" edges to the UserSubscriptionCycle entity.
+func (_u *UserSubscriptionUpdate) AddCycles(v ...*UserSubscriptionCycle) *UserSubscriptionUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCycleIDs(ids...)
+}
+
 // Mutation returns the UserSubscriptionMutation object of the builder.
 func (_u *UserSubscriptionUpdate) Mutation() *UserSubscriptionMutation {
 	return _u.mutation
@@ -390,6 +476,27 @@ func (_u *UserSubscriptionUpdate) RemoveUsageLogs(v ...*UsageLog) *UserSubscript
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearCycles clears all "cycles" edges to the UserSubscriptionCycle entity.
+func (_u *UserSubscriptionUpdate) ClearCycles() *UserSubscriptionUpdate {
+	_u.mutation.ClearCycles()
+	return _u
+}
+
+// RemoveCycleIDs removes the "cycles" edge to UserSubscriptionCycle entities by IDs.
+func (_u *UserSubscriptionUpdate) RemoveCycleIDs(ids ...int64) *UserSubscriptionUpdate {
+	_u.mutation.RemoveCycleIDs(ids...)
+	return _u
+}
+
+// RemoveCycles removes "cycles" edges to UserSubscriptionCycle entities.
+func (_u *UserSubscriptionUpdate) RemoveCycles(v ...*UserSubscriptionCycle) *UserSubscriptionUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCycleIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -515,6 +622,24 @@ func (_u *UserSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.AddedMonthlyUsageUsd(); ok {
 		_spec.AddField(usersubscription.FieldMonthlyUsageUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.CycleUsageUsd(); ok {
+		_spec.SetField(usersubscription.FieldCycleUsageUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedCycleUsageUsd(); ok {
+		_spec.AddField(usersubscription.FieldCycleUsageUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ManualQuotaResetCount(); ok {
+		_spec.SetField(usersubscription.FieldManualQuotaResetCount, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedManualQuotaResetCount(); ok {
+		_spec.AddField(usersubscription.FieldManualQuotaResetCount, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.CurrentCycleStartsAt(); ok {
+		_spec.SetField(usersubscription.FieldCurrentCycleStartsAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.CurrentCycleEndsAt(); ok {
+		_spec.SetField(usersubscription.FieldCurrentCycleEndsAt, field.TypeTime, value)
 	}
 	if value, ok := _u.mutation.AssignedAt(); ok {
 		_spec.SetField(usersubscription.FieldAssignedAt, field.TypeTime, value)
@@ -650,6 +775,51 @@ func (_u *UserSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err e
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CyclesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.CyclesTable,
+			Columns: []string{usersubscription.CyclesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usersubscriptioncycle.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCyclesIDs(); len(nodes) > 0 && !_u.mutation.CyclesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.CyclesTable,
+			Columns: []string{usersubscription.CyclesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usersubscriptioncycle.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CyclesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.CyclesTable,
+			Columns: []string{usersubscription.CyclesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usersubscriptioncycle.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -896,6 +1066,76 @@ func (_u *UserSubscriptionUpdateOne) AddMonthlyUsageUsd(v float64) *UserSubscrip
 	return _u
 }
 
+// SetCycleUsageUsd sets the "cycle_usage_usd" field.
+func (_u *UserSubscriptionUpdateOne) SetCycleUsageUsd(v float64) *UserSubscriptionUpdateOne {
+	_u.mutation.ResetCycleUsageUsd()
+	_u.mutation.SetCycleUsageUsd(v)
+	return _u
+}
+
+// SetNillableCycleUsageUsd sets the "cycle_usage_usd" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableCycleUsageUsd(v *float64) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetCycleUsageUsd(*v)
+	}
+	return _u
+}
+
+// AddCycleUsageUsd adds value to the "cycle_usage_usd" field.
+func (_u *UserSubscriptionUpdateOne) AddCycleUsageUsd(v float64) *UserSubscriptionUpdateOne {
+	_u.mutation.AddCycleUsageUsd(v)
+	return _u
+}
+
+// SetManualQuotaResetCount sets the "manual_quota_reset_count" field.
+func (_u *UserSubscriptionUpdateOne) SetManualQuotaResetCount(v int64) *UserSubscriptionUpdateOne {
+	_u.mutation.ResetManualQuotaResetCount()
+	_u.mutation.SetManualQuotaResetCount(v)
+	return _u
+}
+
+// SetNillableManualQuotaResetCount sets the "manual_quota_reset_count" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableManualQuotaResetCount(v *int64) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetManualQuotaResetCount(*v)
+	}
+	return _u
+}
+
+// AddManualQuotaResetCount adds value to the "manual_quota_reset_count" field.
+func (_u *UserSubscriptionUpdateOne) AddManualQuotaResetCount(v int64) *UserSubscriptionUpdateOne {
+	_u.mutation.AddManualQuotaResetCount(v)
+	return _u
+}
+
+// SetCurrentCycleStartsAt sets the "current_cycle_starts_at" field.
+func (_u *UserSubscriptionUpdateOne) SetCurrentCycleStartsAt(v time.Time) *UserSubscriptionUpdateOne {
+	_u.mutation.SetCurrentCycleStartsAt(v)
+	return _u
+}
+
+// SetNillableCurrentCycleStartsAt sets the "current_cycle_starts_at" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableCurrentCycleStartsAt(v *time.Time) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetCurrentCycleStartsAt(*v)
+	}
+	return _u
+}
+
+// SetCurrentCycleEndsAt sets the "current_cycle_ends_at" field.
+func (_u *UserSubscriptionUpdateOne) SetCurrentCycleEndsAt(v time.Time) *UserSubscriptionUpdateOne {
+	_u.mutation.SetCurrentCycleEndsAt(v)
+	return _u
+}
+
+// SetNillableCurrentCycleEndsAt sets the "current_cycle_ends_at" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableCurrentCycleEndsAt(v *time.Time) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetCurrentCycleEndsAt(*v)
+	}
+	return _u
+}
+
 // SetAssignedBy sets the "assigned_by" field.
 func (_u *UserSubscriptionUpdateOne) SetAssignedBy(v int64) *UserSubscriptionUpdateOne {
 	_u.mutation.SetAssignedBy(v)
@@ -994,6 +1234,21 @@ func (_u *UserSubscriptionUpdateOne) AddUsageLogs(v ...*UsageLog) *UserSubscript
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// AddCycleIDs adds the "cycles" edge to the UserSubscriptionCycle entity by IDs.
+func (_u *UserSubscriptionUpdateOne) AddCycleIDs(ids ...int64) *UserSubscriptionUpdateOne {
+	_u.mutation.AddCycleIDs(ids...)
+	return _u
+}
+
+// AddCycles adds the "cycles" edges to the UserSubscriptionCycle entity.
+func (_u *UserSubscriptionUpdateOne) AddCycles(v ...*UserSubscriptionCycle) *UserSubscriptionUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCycleIDs(ids...)
+}
+
 // Mutation returns the UserSubscriptionMutation object of the builder.
 func (_u *UserSubscriptionUpdateOne) Mutation() *UserSubscriptionMutation {
 	return _u.mutation
@@ -1036,6 +1291,27 @@ func (_u *UserSubscriptionUpdateOne) RemoveUsageLogs(v ...*UsageLog) *UserSubscr
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearCycles clears all "cycles" edges to the UserSubscriptionCycle entity.
+func (_u *UserSubscriptionUpdateOne) ClearCycles() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearCycles()
+	return _u
+}
+
+// RemoveCycleIDs removes the "cycles" edge to UserSubscriptionCycle entities by IDs.
+func (_u *UserSubscriptionUpdateOne) RemoveCycleIDs(ids ...int64) *UserSubscriptionUpdateOne {
+	_u.mutation.RemoveCycleIDs(ids...)
+	return _u
+}
+
+// RemoveCycles removes "cycles" edges to UserSubscriptionCycle entities.
+func (_u *UserSubscriptionUpdateOne) RemoveCycles(v ...*UserSubscriptionCycle) *UserSubscriptionUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCycleIDs(ids...)
 }
 
 // Where appends a list predicates to the UserSubscriptionUpdate builder.
@@ -1192,6 +1468,24 @@ func (_u *UserSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *UserSu
 	if value, ok := _u.mutation.AddedMonthlyUsageUsd(); ok {
 		_spec.AddField(usersubscription.FieldMonthlyUsageUsd, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.CycleUsageUsd(); ok {
+		_spec.SetField(usersubscription.FieldCycleUsageUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedCycleUsageUsd(); ok {
+		_spec.AddField(usersubscription.FieldCycleUsageUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ManualQuotaResetCount(); ok {
+		_spec.SetField(usersubscription.FieldManualQuotaResetCount, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedManualQuotaResetCount(); ok {
+		_spec.AddField(usersubscription.FieldManualQuotaResetCount, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.CurrentCycleStartsAt(); ok {
+		_spec.SetField(usersubscription.FieldCurrentCycleStartsAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.CurrentCycleEndsAt(); ok {
+		_spec.SetField(usersubscription.FieldCurrentCycleEndsAt, field.TypeTime, value)
+	}
 	if value, ok := _u.mutation.AssignedAt(); ok {
 		_spec.SetField(usersubscription.FieldAssignedAt, field.TypeTime, value)
 	}
@@ -1326,6 +1620,51 @@ func (_u *UserSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *UserSu
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CyclesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.CyclesTable,
+			Columns: []string{usersubscription.CyclesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usersubscriptioncycle.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCyclesIDs(); len(nodes) > 0 && !_u.mutation.CyclesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.CyclesTable,
+			Columns: []string{usersubscription.CyclesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usersubscriptioncycle.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CyclesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.CyclesTable,
+			Columns: []string{usersubscription.CyclesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usersubscriptioncycle.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

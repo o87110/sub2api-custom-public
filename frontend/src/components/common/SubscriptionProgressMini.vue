@@ -160,6 +160,11 @@
                 </div>
               </template>
             </div>
+            <SubscriptionCycleStats
+              class="mt-2"
+              :cycle-usage-usd="subscription.cycle_usage_usd"
+              :manual-quota-reset-count="subscription.manual_quota_reset_count"
+            />
           </div>
         </div>
 
@@ -181,6 +186,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import SubscriptionCycleStats from '@/custom/subscription-quota/SubscriptionCycleStats.vue'
 import { useSubscriptionStore } from '@/stores'
 import type { UserSubscription } from '@/types'
 

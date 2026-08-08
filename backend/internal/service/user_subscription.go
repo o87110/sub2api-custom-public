@@ -24,6 +24,17 @@ type UserSubscription struct {
 	DailyUsageUSD   float64
 	WeeklyUsageUSD  float64
 	MonthlyUsageUSD float64
+	CycleUsageUSD   float64
+
+	ManualQuotaResetCount int64
+	CurrentCycleStartsAt  time.Time
+	CurrentCycleEndsAt    time.Time
+
+	// CycleSourceType/CycleSourceRef are internal persistence metadata used
+	// while creating or renewing a subscription cycle. They are not exposed by
+	// user-facing DTOs.
+	CycleSourceType string
+	CycleSourceRef  *string
 
 	AssignedBy *int64
 	AssignedAt time.Time

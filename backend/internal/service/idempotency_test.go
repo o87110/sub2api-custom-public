@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/idempotencyexecution"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -226,6 +227,42 @@ func TestIdempotencyCoordinator_ReplaySucceededResult(t *testing.T) {
 	metrics := GetIdempotencyMetricsSnapshot()
 	require.Equal(t, uint64(1), metrics.ClaimTotal)
 	require.Equal(t, uint64(1), metrics.ReplayTotal)
+}
+
+func TestIdempotencyCoordinator_PropagatesExactScopedExecutionIdentity(t *testing.T) {
+	repo := newInMemoryIdempotencyRepo()
+	cfg := DefaultIdempotencyConfig()
+	cfg.DefaultTTL = 90 * time.Minute
+	coordinator := NewIdempotencyCoordinator(repo, cfg)
+	opts := IdempotencyExecuteOptions{
+		Scope:          "admin.subscriptions.reset_quota",
+		Method:         "POST",
+		Route:          "/api/v1/admin/subscriptions/:id/reset-quota",
+		ActorScope:     "admin:17",
+		IdempotencyKey: "  shared-key  ",
+		Payload:        map[string]any{"subscription_id": 42},
+		RequireKey:     true,
+	}
+	var execution idempotencyexecution.Execution
+	_, err := coordinator.Execute(context.Background(), opts, func(ctx context.Context) (any, error) {
+		var ok bool
+		execution, ok = idempotencyexecution.FromContext(ctx)
+		require.True(t, ok)
+		return map[string]any{"ok": true}, nil
+	})
+	require.NoError(t, err)
+
+	record, err := repo.GetByScopeAndKeyHash(context.Background(), opts.Scope, HashIdempotencyKey("shared-key"))
+	require.NoError(t, err)
+	require.NotNil(t, record)
+	require.Equal(t, opts.Scope, execution.Scope)
+	require.Equal(t, opts.ActorScope, execution.ActorScope)
+	require.Equal(t, record.IdempotencyKeyHash, execution.IdempotencyKeyHash)
+	require.Equal(t, record.ExpiresAt, execution.ExpiresAt)
+	require.True(t, execution.ExpiresAt.After(execution.ClaimedAt))
+	expected, err := idempotencyexecution.New(opts.Scope, opts.ActorScope, HashIdempotencyKey("shared-key"), execution.ClaimedAt, execution.ExpiresAt)
+	require.NoError(t, err)
+	require.Equal(t, expected.OperationKeyHash, execution.OperationKeyHash)
 }
 
 func TestIdempotencyCoordinator_ReclaimExpiredSucceededRecord(t *testing.T) {

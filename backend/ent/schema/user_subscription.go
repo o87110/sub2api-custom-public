@@ -68,6 +68,17 @@ func (UserSubscription) Fields() []ent.Field {
 		field.Float("monthly_usage_usd").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).
 			Default(0),
+		field.Float("cycle_usage_usd").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).
+			Default(0),
+		field.Int64("manual_quota_reset_count").
+			Default(0),
+		field.Time("current_cycle_starts_at").
+			Default(time.Now).
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.Time("current_cycle_ends_at").
+			Default(time.Now).
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 
 		field.Int64("assigned_by").
 			Optional().
@@ -99,6 +110,8 @@ func (UserSubscription) Edges() []ent.Edge {
 			Field("assigned_by").
 			Unique(),
 		edge.To("usage_logs", UsageLog.Type),
+		edge.To("cycles", UserSubscriptionCycle.Type).
+			Annotations(entsql.OnDelete(entsql.Cascade)),
 	}
 }
 

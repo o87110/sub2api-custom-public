@@ -240,6 +240,11 @@
                 </div>
               </div>
             </div>
+
+            <SubscriptionCycleStats
+              :cycle-usage-usd="subscription.cycle_usage_usd"
+              :manual-quota-reset-count="subscription.manual_quota_reset_count"
+            />
           </div>
         </div>
       </div>
@@ -256,6 +261,7 @@ import subscriptionsAPI from '@/api/subscriptions'
 import type { UserSubscription } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import SubscriptionCycleStats from '@/custom/subscription-quota/SubscriptionCycleStats.vue'
 import { formatDateTimeToMinute } from '@/utils/format'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import { platformBorderClass, platformBadgeClass, platformButtonClass, platformLabel } from '@/utils/platformColors'

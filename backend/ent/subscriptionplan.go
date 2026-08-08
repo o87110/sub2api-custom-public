@@ -39,6 +39,8 @@ type SubscriptionPlan struct {
 	ProductName string `json:"product_name,omitempty"`
 	// ForSale holds the value of the "for_sale" field.
 	ForSale bool `json:"for_sale,omitempty"`
+	// AllowBulkQuotaReset holds the value of the "allow_bulk_quota_reset" field.
+	AllowBulkQuotaReset bool `json:"allow_bulk_quota_reset,omitempty"`
 	// RemainingQuantity holds the value of the "remaining_quantity" field.
 	RemainingQuantity *int `json:"remaining_quantity,omitempty"`
 	// InventoryAutoDelisted holds the value of the "inventory_auto_delisted" field.
@@ -59,7 +61,7 @@ func (*SubscriptionPlan) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case subscriptionplan.FieldForSale, subscriptionplan.FieldInventoryAutoDelisted:
+		case subscriptionplan.FieldForSale, subscriptionplan.FieldAllowBulkQuotaReset, subscriptionplan.FieldInventoryAutoDelisted:
 			values[i] = new(sql.NullBool)
 		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice:
 			values[i] = new(sql.NullFloat64)
@@ -156,6 +158,12 @@ func (_m *SubscriptionPlan) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field for_sale", values[i])
 			} else if value.Valid {
 				_m.ForSale = value.Bool
+			}
+		case subscriptionplan.FieldAllowBulkQuotaReset:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field allow_bulk_quota_reset", values[i])
+			} else if value.Valid {
+				_m.AllowBulkQuotaReset = value.Bool
 			}
 		case subscriptionplan.FieldRemainingQuantity:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -264,6 +272,9 @@ func (_m *SubscriptionPlan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("for_sale=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ForSale))
+	builder.WriteString(", ")
+	builder.WriteString("allow_bulk_quota_reset=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AllowBulkQuotaReset))
 	builder.WriteString(", ")
 	if v := _m.RemainingQuantity; v != nil {
 		builder.WriteString("remaining_quantity=")

@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
+	"github.com/Wei-Shaw/sub2api/ent/usersubscriptioncycle"
 )
 
 // UserSubscriptionCreate is the builder for creating a UserSubscription entity.
@@ -189,6 +190,62 @@ func (_c *UserSubscriptionCreate) SetNillableMonthlyUsageUsd(v *float64) *UserSu
 	return _c
 }
 
+// SetCycleUsageUsd sets the "cycle_usage_usd" field.
+func (_c *UserSubscriptionCreate) SetCycleUsageUsd(v float64) *UserSubscriptionCreate {
+	_c.mutation.SetCycleUsageUsd(v)
+	return _c
+}
+
+// SetNillableCycleUsageUsd sets the "cycle_usage_usd" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableCycleUsageUsd(v *float64) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetCycleUsageUsd(*v)
+	}
+	return _c
+}
+
+// SetManualQuotaResetCount sets the "manual_quota_reset_count" field.
+func (_c *UserSubscriptionCreate) SetManualQuotaResetCount(v int64) *UserSubscriptionCreate {
+	_c.mutation.SetManualQuotaResetCount(v)
+	return _c
+}
+
+// SetNillableManualQuotaResetCount sets the "manual_quota_reset_count" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableManualQuotaResetCount(v *int64) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetManualQuotaResetCount(*v)
+	}
+	return _c
+}
+
+// SetCurrentCycleStartsAt sets the "current_cycle_starts_at" field.
+func (_c *UserSubscriptionCreate) SetCurrentCycleStartsAt(v time.Time) *UserSubscriptionCreate {
+	_c.mutation.SetCurrentCycleStartsAt(v)
+	return _c
+}
+
+// SetNillableCurrentCycleStartsAt sets the "current_cycle_starts_at" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableCurrentCycleStartsAt(v *time.Time) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetCurrentCycleStartsAt(*v)
+	}
+	return _c
+}
+
+// SetCurrentCycleEndsAt sets the "current_cycle_ends_at" field.
+func (_c *UserSubscriptionCreate) SetCurrentCycleEndsAt(v time.Time) *UserSubscriptionCreate {
+	_c.mutation.SetCurrentCycleEndsAt(v)
+	return _c
+}
+
+// SetNillableCurrentCycleEndsAt sets the "current_cycle_ends_at" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableCurrentCycleEndsAt(v *time.Time) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetCurrentCycleEndsAt(*v)
+	}
+	return _c
+}
+
 // SetAssignedBy sets the "assigned_by" field.
 func (_c *UserSubscriptionCreate) SetAssignedBy(v int64) *UserSubscriptionCreate {
 	_c.mutation.SetAssignedBy(v)
@@ -275,6 +332,21 @@ func (_c *UserSubscriptionCreate) AddUsageLogs(v ...*UsageLog) *UserSubscription
 	return _c.AddUsageLogIDs(ids...)
 }
 
+// AddCycleIDs adds the "cycles" edge to the UserSubscriptionCycle entity by IDs.
+func (_c *UserSubscriptionCreate) AddCycleIDs(ids ...int64) *UserSubscriptionCreate {
+	_c.mutation.AddCycleIDs(ids...)
+	return _c
+}
+
+// AddCycles adds the "cycles" edges to the UserSubscriptionCycle entity.
+func (_c *UserSubscriptionCreate) AddCycles(v ...*UserSubscriptionCycle) *UserSubscriptionCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCycleIDs(ids...)
+}
+
 // Mutation returns the UserSubscriptionMutation object of the builder.
 func (_c *UserSubscriptionCreate) Mutation() *UserSubscriptionMutation {
 	return _c.mutation
@@ -342,6 +414,28 @@ func (_c *UserSubscriptionCreate) defaults() error {
 		v := usersubscription.DefaultMonthlyUsageUsd
 		_c.mutation.SetMonthlyUsageUsd(v)
 	}
+	if _, ok := _c.mutation.CycleUsageUsd(); !ok {
+		v := usersubscription.DefaultCycleUsageUsd
+		_c.mutation.SetCycleUsageUsd(v)
+	}
+	if _, ok := _c.mutation.ManualQuotaResetCount(); !ok {
+		v := usersubscription.DefaultManualQuotaResetCount
+		_c.mutation.SetManualQuotaResetCount(v)
+	}
+	if _, ok := _c.mutation.CurrentCycleStartsAt(); !ok {
+		if usersubscription.DefaultCurrentCycleStartsAt == nil {
+			return fmt.Errorf("ent: uninitialized usersubscription.DefaultCurrentCycleStartsAt (forgotten import ent/runtime?)")
+		}
+		v := usersubscription.DefaultCurrentCycleStartsAt()
+		_c.mutation.SetCurrentCycleStartsAt(v)
+	}
+	if _, ok := _c.mutation.CurrentCycleEndsAt(); !ok {
+		if usersubscription.DefaultCurrentCycleEndsAt == nil {
+			return fmt.Errorf("ent: uninitialized usersubscription.DefaultCurrentCycleEndsAt (forgotten import ent/runtime?)")
+		}
+		v := usersubscription.DefaultCurrentCycleEndsAt()
+		_c.mutation.SetCurrentCycleEndsAt(v)
+	}
 	if _, ok := _c.mutation.AssignedAt(); !ok {
 		if usersubscription.DefaultAssignedAt == nil {
 			return fmt.Errorf("ent: uninitialized usersubscription.DefaultAssignedAt (forgotten import ent/runtime?)")
@@ -388,6 +482,18 @@ func (_c *UserSubscriptionCreate) check() error {
 	}
 	if _, ok := _c.mutation.MonthlyUsageUsd(); !ok {
 		return &ValidationError{Name: "monthly_usage_usd", err: errors.New(`ent: missing required field "UserSubscription.monthly_usage_usd"`)}
+	}
+	if _, ok := _c.mutation.CycleUsageUsd(); !ok {
+		return &ValidationError{Name: "cycle_usage_usd", err: errors.New(`ent: missing required field "UserSubscription.cycle_usage_usd"`)}
+	}
+	if _, ok := _c.mutation.ManualQuotaResetCount(); !ok {
+		return &ValidationError{Name: "manual_quota_reset_count", err: errors.New(`ent: missing required field "UserSubscription.manual_quota_reset_count"`)}
+	}
+	if _, ok := _c.mutation.CurrentCycleStartsAt(); !ok {
+		return &ValidationError{Name: "current_cycle_starts_at", err: errors.New(`ent: missing required field "UserSubscription.current_cycle_starts_at"`)}
+	}
+	if _, ok := _c.mutation.CurrentCycleEndsAt(); !ok {
+		return &ValidationError{Name: "current_cycle_ends_at", err: errors.New(`ent: missing required field "UserSubscription.current_cycle_ends_at"`)}
 	}
 	if _, ok := _c.mutation.AssignedAt(); !ok {
 		return &ValidationError{Name: "assigned_at", err: errors.New(`ent: missing required field "UserSubscription.assigned_at"`)}
@@ -473,6 +579,22 @@ func (_c *UserSubscriptionCreate) createSpec() (*UserSubscription, *sqlgraph.Cre
 		_spec.SetField(usersubscription.FieldMonthlyUsageUsd, field.TypeFloat64, value)
 		_node.MonthlyUsageUsd = value
 	}
+	if value, ok := _c.mutation.CycleUsageUsd(); ok {
+		_spec.SetField(usersubscription.FieldCycleUsageUsd, field.TypeFloat64, value)
+		_node.CycleUsageUsd = value
+	}
+	if value, ok := _c.mutation.ManualQuotaResetCount(); ok {
+		_spec.SetField(usersubscription.FieldManualQuotaResetCount, field.TypeInt64, value)
+		_node.ManualQuotaResetCount = value
+	}
+	if value, ok := _c.mutation.CurrentCycleStartsAt(); ok {
+		_spec.SetField(usersubscription.FieldCurrentCycleStartsAt, field.TypeTime, value)
+		_node.CurrentCycleStartsAt = value
+	}
+	if value, ok := _c.mutation.CurrentCycleEndsAt(); ok {
+		_spec.SetField(usersubscription.FieldCurrentCycleEndsAt, field.TypeTime, value)
+		_node.CurrentCycleEndsAt = value
+	}
 	if value, ok := _c.mutation.AssignedAt(); ok {
 		_spec.SetField(usersubscription.FieldAssignedAt, field.TypeTime, value)
 		_node.AssignedAt = value
@@ -541,6 +663,22 @@ func (_c *UserSubscriptionCreate) createSpec() (*UserSubscription, *sqlgraph.Cre
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CyclesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.CyclesTable,
+			Columns: []string{usersubscription.CyclesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usersubscriptioncycle.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -795,6 +933,66 @@ func (u *UserSubscriptionUpsert) UpdateMonthlyUsageUsd() *UserSubscriptionUpsert
 // AddMonthlyUsageUsd adds v to the "monthly_usage_usd" field.
 func (u *UserSubscriptionUpsert) AddMonthlyUsageUsd(v float64) *UserSubscriptionUpsert {
 	u.Add(usersubscription.FieldMonthlyUsageUsd, v)
+	return u
+}
+
+// SetCycleUsageUsd sets the "cycle_usage_usd" field.
+func (u *UserSubscriptionUpsert) SetCycleUsageUsd(v float64) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldCycleUsageUsd, v)
+	return u
+}
+
+// UpdateCycleUsageUsd sets the "cycle_usage_usd" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateCycleUsageUsd() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldCycleUsageUsd)
+	return u
+}
+
+// AddCycleUsageUsd adds v to the "cycle_usage_usd" field.
+func (u *UserSubscriptionUpsert) AddCycleUsageUsd(v float64) *UserSubscriptionUpsert {
+	u.Add(usersubscription.FieldCycleUsageUsd, v)
+	return u
+}
+
+// SetManualQuotaResetCount sets the "manual_quota_reset_count" field.
+func (u *UserSubscriptionUpsert) SetManualQuotaResetCount(v int64) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldManualQuotaResetCount, v)
+	return u
+}
+
+// UpdateManualQuotaResetCount sets the "manual_quota_reset_count" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateManualQuotaResetCount() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldManualQuotaResetCount)
+	return u
+}
+
+// AddManualQuotaResetCount adds v to the "manual_quota_reset_count" field.
+func (u *UserSubscriptionUpsert) AddManualQuotaResetCount(v int64) *UserSubscriptionUpsert {
+	u.Add(usersubscription.FieldManualQuotaResetCount, v)
+	return u
+}
+
+// SetCurrentCycleStartsAt sets the "current_cycle_starts_at" field.
+func (u *UserSubscriptionUpsert) SetCurrentCycleStartsAt(v time.Time) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldCurrentCycleStartsAt, v)
+	return u
+}
+
+// UpdateCurrentCycleStartsAt sets the "current_cycle_starts_at" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateCurrentCycleStartsAt() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldCurrentCycleStartsAt)
+	return u
+}
+
+// SetCurrentCycleEndsAt sets the "current_cycle_ends_at" field.
+func (u *UserSubscriptionUpsert) SetCurrentCycleEndsAt(v time.Time) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldCurrentCycleEndsAt, v)
+	return u
+}
+
+// UpdateCurrentCycleEndsAt sets the "current_cycle_ends_at" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateCurrentCycleEndsAt() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldCurrentCycleEndsAt)
 	return u
 }
 
@@ -1119,6 +1317,76 @@ func (u *UserSubscriptionUpsertOne) AddMonthlyUsageUsd(v float64) *UserSubscript
 func (u *UserSubscriptionUpsertOne) UpdateMonthlyUsageUsd() *UserSubscriptionUpsertOne {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdateMonthlyUsageUsd()
+	})
+}
+
+// SetCycleUsageUsd sets the "cycle_usage_usd" field.
+func (u *UserSubscriptionUpsertOne) SetCycleUsageUsd(v float64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetCycleUsageUsd(v)
+	})
+}
+
+// AddCycleUsageUsd adds v to the "cycle_usage_usd" field.
+func (u *UserSubscriptionUpsertOne) AddCycleUsageUsd(v float64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddCycleUsageUsd(v)
+	})
+}
+
+// UpdateCycleUsageUsd sets the "cycle_usage_usd" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateCycleUsageUsd() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateCycleUsageUsd()
+	})
+}
+
+// SetManualQuotaResetCount sets the "manual_quota_reset_count" field.
+func (u *UserSubscriptionUpsertOne) SetManualQuotaResetCount(v int64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetManualQuotaResetCount(v)
+	})
+}
+
+// AddManualQuotaResetCount adds v to the "manual_quota_reset_count" field.
+func (u *UserSubscriptionUpsertOne) AddManualQuotaResetCount(v int64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddManualQuotaResetCount(v)
+	})
+}
+
+// UpdateManualQuotaResetCount sets the "manual_quota_reset_count" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateManualQuotaResetCount() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateManualQuotaResetCount()
+	})
+}
+
+// SetCurrentCycleStartsAt sets the "current_cycle_starts_at" field.
+func (u *UserSubscriptionUpsertOne) SetCurrentCycleStartsAt(v time.Time) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetCurrentCycleStartsAt(v)
+	})
+}
+
+// UpdateCurrentCycleStartsAt sets the "current_cycle_starts_at" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateCurrentCycleStartsAt() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateCurrentCycleStartsAt()
+	})
+}
+
+// SetCurrentCycleEndsAt sets the "current_cycle_ends_at" field.
+func (u *UserSubscriptionUpsertOne) SetCurrentCycleEndsAt(v time.Time) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetCurrentCycleEndsAt(v)
+	})
+}
+
+// UpdateCurrentCycleEndsAt sets the "current_cycle_ends_at" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateCurrentCycleEndsAt() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateCurrentCycleEndsAt()
 	})
 }
 
@@ -1617,6 +1885,76 @@ func (u *UserSubscriptionUpsertBulk) AddMonthlyUsageUsd(v float64) *UserSubscrip
 func (u *UserSubscriptionUpsertBulk) UpdateMonthlyUsageUsd() *UserSubscriptionUpsertBulk {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdateMonthlyUsageUsd()
+	})
+}
+
+// SetCycleUsageUsd sets the "cycle_usage_usd" field.
+func (u *UserSubscriptionUpsertBulk) SetCycleUsageUsd(v float64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetCycleUsageUsd(v)
+	})
+}
+
+// AddCycleUsageUsd adds v to the "cycle_usage_usd" field.
+func (u *UserSubscriptionUpsertBulk) AddCycleUsageUsd(v float64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddCycleUsageUsd(v)
+	})
+}
+
+// UpdateCycleUsageUsd sets the "cycle_usage_usd" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateCycleUsageUsd() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateCycleUsageUsd()
+	})
+}
+
+// SetManualQuotaResetCount sets the "manual_quota_reset_count" field.
+func (u *UserSubscriptionUpsertBulk) SetManualQuotaResetCount(v int64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetManualQuotaResetCount(v)
+	})
+}
+
+// AddManualQuotaResetCount adds v to the "manual_quota_reset_count" field.
+func (u *UserSubscriptionUpsertBulk) AddManualQuotaResetCount(v int64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddManualQuotaResetCount(v)
+	})
+}
+
+// UpdateManualQuotaResetCount sets the "manual_quota_reset_count" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateManualQuotaResetCount() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateManualQuotaResetCount()
+	})
+}
+
+// SetCurrentCycleStartsAt sets the "current_cycle_starts_at" field.
+func (u *UserSubscriptionUpsertBulk) SetCurrentCycleStartsAt(v time.Time) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetCurrentCycleStartsAt(v)
+	})
+}
+
+// UpdateCurrentCycleStartsAt sets the "current_cycle_starts_at" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateCurrentCycleStartsAt() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateCurrentCycleStartsAt()
+	})
+}
+
+// SetCurrentCycleEndsAt sets the "current_cycle_ends_at" field.
+func (u *UserSubscriptionUpsertBulk) SetCurrentCycleEndsAt(v time.Time) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetCurrentCycleEndsAt(v)
+	})
+}
+
+// UpdateCurrentCycleEndsAt sets the "current_cycle_ends_at" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateCurrentCycleEndsAt() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateCurrentCycleEndsAt()
 	})
 }
 

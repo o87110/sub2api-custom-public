@@ -409,6 +409,17 @@ func TestSubscriptionPlanInventoryCreateUpdateAndSaleFiltering(t *testing.T) {
 	if plan.SoldOutAction != subscriptioninventory.SoldOutActionDelist {
 		t.Fatalf("sold_out_action = %q, want default %q", plan.SoldOutAction, subscriptioninventory.SoldOutActionDelist)
 	}
+	if plan.AllowBulkQuotaReset {
+		t.Fatal("allow_bulk_quota_reset default = true, want false")
+	}
+	allowBulkReset := true
+	plan, err = svc.UpdatePlan(ctx, plan.ID, UpdatePlanRequest{AllowBulkQuotaReset: &allowBulkReset})
+	if err != nil {
+		t.Fatalf("enable bulk quota reset: %v", err)
+	}
+	if !plan.AllowBulkQuotaReset {
+		t.Fatal("allow_bulk_quota_reset was not persisted")
+	}
 
 	zero := 0
 	_, err = svc.CreatePlan(ctx, CreatePlanRequest{
@@ -425,20 +436,24 @@ func TestSubscriptionPlanInventoryCreateUpdateAndSaleFiltering(t *testing.T) {
 	}
 
 	disablePurchasePlan, err := svc.CreatePlan(ctx, CreatePlanRequest{
-		GroupID:           1,
-		Name:              "Visible sold-out plan",
-		Price:             10,
-		ValidityDays:      30,
-		ValidityUnit:      "days",
-		ForSale:           true,
-		RemainingQuantity: &zero,
-		SoldOutAction:     subscriptioninventory.SoldOutActionDisablePurchase,
+		GroupID:             1,
+		Name:                "Visible sold-out plan",
+		Price:               10,
+		ValidityDays:        30,
+		ValidityUnit:        "days",
+		ForSale:             true,
+		RemainingQuantity:   &zero,
+		SoldOutAction:       subscriptioninventory.SoldOutActionDisablePurchase,
+		AllowBulkQuotaReset: true,
 	})
 	if err != nil {
 		t.Fatalf("CreatePlan disable-purchase zero quantity returned error: %v", err)
 	}
 	if !disablePurchasePlan.ForSale || disablePurchasePlan.InventoryAutoDelisted {
 		t.Fatalf("disable-purchase sold-out state = for_sale:%v auto:%v, want true/false", disablePurchasePlan.ForSale, disablePurchasePlan.InventoryAutoDelisted)
+	}
+	if !disablePurchasePlan.AllowBulkQuotaReset {
+		t.Fatal("create plan did not persist allow_bulk_quota_reset")
 	}
 
 	_, err = svc.CreatePlan(ctx, CreatePlanRequest{

@@ -159,6 +159,10 @@
             >
               <Icon name="questionCircle" size="md" />
             </button>
+            <button @click="showBulkResetDialog = true" class="btn btn-secondary">
+              <Icon name="refresh" size="md" class="mr-2" />
+              {{ t('admin.subscriptions.bulkReset.action') }}
+            </button>
             <button @click="showAssignModal = true" class="btn btn-primary">
               <Icon name="plus" size="md" class="mr-2" />
               {{ t('admin.subscriptions.assignSubscription') }}
@@ -338,6 +342,10 @@
                   {{ t('admin.subscriptions.unlimited') }}
                 </span>
               </div>
+              <SubscriptionCycleStats
+                :cycle-usage-usd="row.cycle_usage_usd"
+                :manual-quota-reset-count="row.manual_quota_reset_count"
+              />
             </div>
           </template>
 
@@ -443,6 +451,12 @@
       />
       </template>
     </TablePageLayout>
+
+    <BulkQuotaResetDialog
+      :show="showBulkResetDialog"
+      @close="showBulkResetDialog = false"
+      @completed="loadSubscriptions"
+    />
 
     <!-- Assign Subscription Modal -->
     <BaseDialog
@@ -677,7 +691,7 @@
       :confirm-text="t('admin.subscriptions.resetQuota')"
       :cancel-text="t('common.cancel')"
       @confirm="confirmResetQuota"
-      @cancel="showResetQuotaConfirm = false"
+      @cancel="cancelResetQuota"
     />
     <!-- Subscription Guide Modal -->
     <teleport to="body">
@@ -782,6 +796,8 @@ import Select from '@/components/common/Select.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
+import SubscriptionCycleStats from '@/custom/subscription-quota/SubscriptionCycleStats.vue'
+import BulkQuotaResetDialog from '@/custom/subscription-quota/BulkQuotaResetDialog.vue'
 import {
   getRemainingDurationParts,
   getRemainingExpiryDuration,
@@ -971,9 +987,11 @@ const showExtendModal = ref(false)
 const showRevokeDialog = ref(false)
 const showRestoreDialog = ref(false)
 const showResetQuotaConfirm = ref(false)
+const showBulkResetDialog = ref(false)
 const submitting = ref(false)
 const resettingSubscription = ref<UserSubscription | null>(null)
 const resettingQuota = ref(false)
+const resetQuotaIdempotencyKey = ref<string | null>(null)
 const extendingSubscription = ref<UserSubscription | null>(null)
 const revokingSubscription = ref<UserSubscription | null>(null)
 const restoringSubscription = ref<UserSubscription | null>(null)
@@ -1314,7 +1332,14 @@ const confirmRestore = async () => {
 
 const handleResetQuota = (subscription: UserSubscription) => {
   resettingSubscription.value = subscription
+  resetQuotaIdempotencyKey.value = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
   showResetQuotaConfirm.value = true
+}
+
+const cancelResetQuota = () => {
+  showResetQuotaConfirm.value = false
+  resettingSubscription.value = null
+  resetQuotaIdempotencyKey.value = null
 }
 
 const confirmResetQuota = async () => {
@@ -1322,10 +1347,15 @@ const confirmResetQuota = async () => {
   if (resettingQuota.value) return
   resettingQuota.value = true
   try {
-    await adminAPI.subscriptions.resetQuota(resettingSubscription.value.id, { daily: true, weekly: true, monthly: true })
+    await adminAPI.subscriptions.resetQuota(
+      resettingSubscription.value.id,
+      { daily: true, weekly: true, monthly: true },
+      resetQuotaIdempotencyKey.value ?? undefined
+    )
     appStore.showSuccess(t('admin.subscriptions.quotaResetSuccess'))
     showResetQuotaConfirm.value = false
     resettingSubscription.value = null
+    resetQuotaIdempotencyKey.value = null
     await loadSubscriptions()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToResetQuota'))

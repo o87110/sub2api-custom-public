@@ -216,6 +216,20 @@ func (_u *SubscriptionPlanUpdate) SetNillableForSale(v *bool) *SubscriptionPlanU
 	return _u
 }
 
+// SetAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field.
+func (_u *SubscriptionPlanUpdate) SetAllowBulkQuotaReset(v bool) *SubscriptionPlanUpdate {
+	_u.mutation.SetAllowBulkQuotaReset(v)
+	return _u
+}
+
+// SetNillableAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableAllowBulkQuotaReset(v *bool) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetAllowBulkQuotaReset(*v)
+	}
+	return _u
+}
+
 // SetRemainingQuantity sets the "remaining_quantity" field.
 func (_u *SubscriptionPlanUpdate) SetRemainingQuantity(v int) *SubscriptionPlanUpdate {
 	_u.mutation.ResetRemainingQuantity()
@@ -428,6 +442,9 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AllowBulkQuotaReset(); ok {
+		_spec.SetField(subscriptionplan.FieldAllowBulkQuotaReset, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.RemainingQuantity(); ok {
 		_spec.SetField(subscriptionplan.FieldRemainingQuantity, field.TypeInt, value)
@@ -657,6 +674,20 @@ func (_u *SubscriptionPlanUpdateOne) SetForSale(v bool) *SubscriptionPlanUpdateO
 func (_u *SubscriptionPlanUpdateOne) SetNillableForSale(v *bool) *SubscriptionPlanUpdateOne {
 	if v != nil {
 		_u.SetForSale(*v)
+	}
+	return _u
+}
+
+// SetAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field.
+func (_u *SubscriptionPlanUpdateOne) SetAllowBulkQuotaReset(v bool) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetAllowBulkQuotaReset(v)
+	return _u
+}
+
+// SetNillableAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableAllowBulkQuotaReset(v *bool) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetAllowBulkQuotaReset(*v)
 	}
 	return _u
 }
@@ -903,6 +934,9 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AllowBulkQuotaReset(); ok {
+		_spec.SetField(subscriptionplan.FieldAllowBulkQuotaReset, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.RemainingQuantity(); ok {
 		_spec.SetField(subscriptionplan.FieldRemainingQuantity, field.TypeInt, value)

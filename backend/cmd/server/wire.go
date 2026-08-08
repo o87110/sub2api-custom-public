@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	customchannelmonitor "github.com/Wei-Shaw/sub2api/internal/custom/channelmonitor"
 	custommoderation "github.com/Wei-Shaw/sub2api/internal/custom/moderation"
+	customsubscriptionrepository "github.com/Wei-Shaw/sub2api/internal/custom/subscriptionrepository"
 	customupdater "github.com/Wei-Shaw/sub2api/internal/custom/updater"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
@@ -40,6 +41,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 
 		// Business layer ProviderSets
 		repository.ProviderSet,
+		customsubscriptionrepository.ProviderSet,
 		service.ProviderSet,
 		customchannelmonitor.ProviderSet,
 		custommoderation.ProviderSet,

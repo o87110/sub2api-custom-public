@@ -9,7 +9,12 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
+	"github.com/Wei-Shaw/sub2api/internal/custom/idempotencyexecution"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionquota"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionrepository"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/suite"
 )
@@ -18,14 +23,15 @@ type UserSubscriptionRepoSuite struct {
 	suite.Suite
 	ctx    context.Context
 	client *dbent.Client
-	repo   *userSubscriptionRepository
+	repo   *subscriptionrepository.Repository
 }
 
 func (s *UserSubscriptionRepoSuite) SetupTest() {
-	s.ctx = context.Background()
+	ctx := context.Background()
 	tx := testEntTx(s.T())
+	s.ctx = dbent.NewTxContext(ctx, tx)
 	s.client = tx.Client()
-	s.repo = NewUserSubscriptionRepository(s.client).(*userSubscriptionRepository)
+	s.repo = subscriptionrepository.New(s.client, NewUserSubscriptionRepository(s.client))
 }
 
 func TestUserSubscriptionRepoSuite(t *testing.T) {
@@ -61,6 +67,21 @@ func (s *UserSubscriptionRepoSuite) mustCreateGroup(name string) *service.Group 
 }
 
 func (s *UserSubscriptionRepoSuite) mustCreateSubscription(userID, groupID int64, mutate func(*dbent.UserSubscriptionCreate)) *dbent.UserSubscription {
+	return s.mustCreateSubscriptionWithCycle(userID, groupID, mutate, nil)
+}
+
+type subscriptionCycleFixture struct {
+	startsAt   time.Time
+	endsAt     time.Time
+	sourceType string
+	sourceRef  *string
+}
+
+func (s *UserSubscriptionRepoSuite) mustCreateSubscriptionWithCycle(
+	userID, groupID int64,
+	mutate func(*dbent.UserSubscriptionCreate),
+	cycle *subscriptionCycleFixture,
+) *dbent.UserSubscription {
 	s.T().Helper()
 
 	now := time.Now()
@@ -79,6 +100,30 @@ func (s *UserSubscriptionRepoSuite) mustCreateSubscription(userID, groupID int64
 
 	sub, err := create.Save(s.ctx)
 	s.Require().NoError(err, "create user subscription")
+	cycleStartsAt := sub.StartsAt
+	cycleEndsAt := sub.ExpiresAt
+	cycleSourceType := subscriptionquota.CycleSourceAssignment
+	var cycleSourceRef *string
+	if cycle != nil {
+		cycleStartsAt = cycle.startsAt
+		cycleEndsAt = cycle.endsAt
+		cycleSourceType = cycle.sourceType
+		cycleSourceRef = cycle.sourceRef
+	}
+	err = subscriptionquota.InitializeCurrentCycle(
+		s.ctx,
+		s.client,
+		sub.ID,
+		cycleStartsAt,
+		cycleEndsAt,
+		sub.CycleUsageUsd,
+		sub.ManualQuotaResetCount,
+		cycleSourceType,
+		cycleSourceRef,
+	)
+	s.Require().NoError(err, "create current subscription cycle")
+	sub.CurrentCycleStartsAt = cycleStartsAt
+	sub.CurrentCycleEndsAt = cycleEndsAt
 	return sub
 }
 
@@ -444,6 +489,7 @@ func (s *UserSubscriptionRepoSuite) TestIncrementUsage_Accumulates() {
 	got, err := s.repo.GetByID(s.ctx, sub.ID)
 	s.Require().NoError(err)
 	s.Require().InDelta(3.5, got.DailyUsageUSD, 1e-6)
+	s.Require().InDelta(3.5, got.CycleUsageUSD, 1e-6)
 }
 
 func (s *UserSubscriptionRepoSuite) TestActivateWindows() {
@@ -544,7 +590,376 @@ func (s *UserSubscriptionRepoSuite) TestResetUsageWindows_ClearsUsageAfterAutoma
 	got, err := s.repo.GetByID(s.ctx, sub.ID)
 	s.Require().NoError(err)
 	s.Require().InDelta(0, got.DailyUsageUSD, 1e-6)
+	s.Require().InDelta(3, got.CycleUsageUSD, 1e-6)
+	s.Require().Equal(int64(1), got.ManualQuotaResetCount)
 	s.Require().WithinDuration(newWindowStart, *got.DailyWindowStart, time.Microsecond)
+}
+
+func (s *UserSubscriptionRepoSuite) TestAdvanceCycleAfterEarlyRenewal() {
+	user := s.mustCreateUser("advance-cycle@test.com", service.RoleUser)
+	group := s.mustCreateGroup("g-advance-cycle")
+	currentEndsAt := time.Now().Add(24 * time.Hour)
+	sub := s.mustCreateSubscription(user.ID, group.ID, func(c *dbent.UserSubscriptionCreate) {
+		c.SetExpiresAt(currentEndsAt)
+		c.SetDailyUsageUsd(8)
+		c.SetWeeklyUsageUsd(8)
+		c.SetMonthlyUsageUsd(8)
+		c.SetCycleUsageUsd(12.5)
+		c.SetManualQuotaResetCount(2)
+	})
+	nextEndsAt := currentEndsAt.Add(30 * 24 * time.Hour)
+	s.Require().NoError(s.repo.AppendRenewalCycle(
+		s.ctx,
+		sub.ID,
+		currentEndsAt,
+		nextEndsAt,
+		subscriptionquota.CycleSourceRedeem,
+		nil,
+	))
+
+	advanceAt := currentEndsAt.Add(time.Minute)
+	advanced, err := s.repo.AdvanceCycle(s.ctx, sub.ID, advanceAt, timezone.StartOfDay(advanceAt))
+	s.Require().NoError(err)
+	s.Require().True(advanced)
+
+	got, err := s.repo.GetByID(s.ctx, sub.ID)
+	s.Require().NoError(err)
+	s.Require().WithinDuration(currentEndsAt, got.CurrentCycleStartsAt, time.Microsecond)
+	s.Require().WithinDuration(nextEndsAt, got.CurrentCycleEndsAt, time.Microsecond)
+	s.Require().Zero(got.CycleUsageUSD)
+	s.Require().Zero(got.ManualQuotaResetCount)
+	s.Require().Zero(got.DailyUsageUSD)
+}
+
+func (s *UserSubscriptionRepoSuite) TestExtendExpiryRestoresLatestCompletedCycleForExpiredSubscription() {
+	user := s.mustCreateUser("extend-expired-cycle@test.com", service.RoleUser)
+	group := s.mustCreateGroup("g-extend-expired-cycle")
+	now := time.Now().UTC()
+	startsAt := now.Add(-30 * 24 * time.Hour)
+	oldEndsAt := now.Add(-time.Hour)
+	newEndsAt := now.Add(30 * 24 * time.Hour)
+	sub := s.mustCreateSubscriptionWithCycle(user.ID, group.ID, func(c *dbent.UserSubscriptionCreate) {
+		c.SetStartsAt(startsAt).
+			SetExpiresAt(oldEndsAt).
+			SetStatus(service.SubscriptionStatusExpired).
+			SetCurrentCycleStartsAt(startsAt).
+			SetCurrentCycleEndsAt(oldEndsAt).
+			SetCycleUsageUsd(17.25).
+			SetManualQuotaResetCount(2)
+	}, &subscriptionCycleFixture{
+		startsAt:   startsAt,
+		endsAt:     oldEndsAt,
+		sourceType: subscriptionquota.CycleSourceAssignment,
+	})
+	completedAt := oldEndsAt
+	snapshot, err := s.repo.CaptureTermSnapshot(s.ctx, sub.ID)
+	s.Require().NoError(err)
+	s.Require().Len(snapshot.Cycles, 1)
+	snapshot.Expected, err = subscriptionquota.CaptureExpectedTermState(s.ctx, s.client, sub.ID)
+	s.Require().NoError(err)
+	snapshot.Cycles[0].Status = subscriptionquota.CycleStatusCompleted
+	snapshot.Cycles[0].FinalUsageUSD = 17.25
+	snapshot.Cycles[0].FinalManualQuotaResetCount = 2
+	snapshot.Cycles[0].CompletedAt = &completedAt
+	s.Require().NoError(s.repo.RestoreTermSnapshot(s.ctx, snapshot))
+
+	s.Require().NoError(s.repo.ExtendExpiry(s.ctx, sub.ID, newEndsAt))
+
+	restoredSnapshot, err := s.repo.CaptureTermSnapshot(s.ctx, sub.ID)
+	s.Require().NoError(err)
+	s.Require().Len(restoredSnapshot.Cycles, 1)
+	restored := restoredSnapshot.Cycles[0]
+	s.Require().Equal(subscriptionquota.CycleStatusCurrent, restored.Status)
+	s.Require().WithinDuration(newEndsAt, restored.EndsAt, time.Microsecond)
+	s.Require().Nil(restored.CompletedAt)
+	s.Require().Zero(restored.FinalUsageUSD)
+	s.Require().Zero(restored.FinalManualQuotaResetCount)
+	updated, err := s.repo.GetByID(s.ctx, sub.ID)
+	s.Require().NoError(err)
+	s.Require().WithinDuration(startsAt, updated.CurrentCycleStartsAt, time.Microsecond)
+	s.Require().WithinDuration(newEndsAt, updated.CurrentCycleEndsAt, time.Microsecond)
+}
+
+func (s *UserSubscriptionRepoSuite) TestRestoreTermSnapshotRestoresCancelledRenewalAttribution() {
+	user := s.mustCreateUser("refund-cycle-restore@test.com", service.RoleUser)
+	group := s.mustCreateGroup("g-refund-cycle-restore")
+	now := time.Now().UTC()
+	currentStartsAt := now.Add(-25 * 24 * time.Hour)
+	currentEndsAt := now.Add(5 * 24 * time.Hour)
+	pendingEndsAt := currentEndsAt.Add(30 * 24 * time.Hour)
+	sub := s.mustCreateSubscriptionWithCycle(user.ID, group.ID, func(c *dbent.UserSubscriptionCreate) {
+		c.SetStartsAt(currentStartsAt).
+			SetExpiresAt(pendingEndsAt).
+			SetCurrentCycleStartsAt(currentStartsAt).
+			SetCurrentCycleEndsAt(currentEndsAt)
+	}, &subscriptionCycleFixture{
+		startsAt:   currentStartsAt,
+		endsAt:     currentEndsAt,
+		sourceType: subscriptionquota.CycleSourcePayment,
+		sourceRef:  stringPointer("1001"),
+	})
+	s.Require().NoError(s.repo.AppendRenewalCycle(
+		s.ctx,
+		sub.ID,
+		currentEndsAt,
+		pendingEndsAt,
+		subscriptionquota.CycleSourcePayment,
+		stringPointer("1002"),
+	))
+
+	shortenedEndsAt := currentEndsAt.Add(-24 * time.Hour)
+	snapshot, err := s.repo.AdjustExpiryWithSnapshot(s.ctx, sub.ID, shortenedEndsAt)
+	s.Require().NoError(err)
+	adjustedSnapshot, err := s.repo.CaptureTermSnapshot(s.ctx, sub.ID)
+	s.Require().NoError(err)
+	cancelledIndex, cancelled := findCycleSnapshotBySourceRef(adjustedSnapshot, "1002")
+	s.Require().NotEqual(-1, cancelledIndex)
+	s.Require().Equal(subscriptionquota.CycleStatusCancelled, cancelled.Status)
+
+	s.Require().NoError(s.repo.RestoreTermSnapshot(s.ctx, snapshot))
+
+	restoredSub, err := s.repo.GetByID(s.ctx, sub.ID)
+	s.Require().NoError(err)
+	s.Require().WithinDuration(pendingEndsAt, restoredSub.ExpiresAt, time.Microsecond)
+	s.Require().WithinDuration(currentStartsAt, restoredSub.CurrentCycleStartsAt, time.Microsecond)
+	s.Require().WithinDuration(currentEndsAt, restoredSub.CurrentCycleEndsAt, time.Microsecond)
+	restoredSnapshot, err := s.repo.CaptureTermSnapshot(s.ctx, sub.ID)
+	s.Require().NoError(err)
+	currentIndex, restoredCurrent := findCycleSnapshotBySourceRef(restoredSnapshot, "1001")
+	pendingIndex, restoredPending := findCycleSnapshotBySourceRef(restoredSnapshot, "1002")
+	s.Require().NotEqual(-1, currentIndex)
+	s.Require().NotEqual(-1, pendingIndex)
+	s.Require().Equal(subscriptionquota.CycleStatusCurrent, restoredCurrent.Status)
+	s.Require().Equal(subscriptionquota.CycleSourcePayment, restoredCurrent.SourceType)
+	s.Require().Equal("1001", *restoredCurrent.SourceRef)
+	s.Require().WithinDuration(currentEndsAt, restoredCurrent.EndsAt, time.Microsecond)
+	s.Require().Equal(subscriptionquota.CycleStatusPending, restoredPending.Status)
+	s.Require().Equal(subscriptionquota.CycleSourcePayment, restoredPending.SourceType)
+	s.Require().Equal("1002", *restoredPending.SourceRef)
+	s.Require().WithinDuration(pendingEndsAt, restoredPending.EndsAt, time.Microsecond)
+}
+
+func (s *UserSubscriptionRepoSuite) TestResetUsageWindowsIdempotentOnlyIncrementsResetCountOnce() {
+	user := s.mustCreateUser("idempotent-reset@test.com", service.RoleUser)
+	group := s.mustCreateGroup("g-idempotent-reset")
+	now := time.Now().UTC()
+	sub := s.mustCreateSubscription(user.ID, group.ID, func(c *dbent.UserSubscriptionCreate) {
+		c.SetDailyUsageUsd(8).
+			SetWeeklyUsageUsd(9).
+			SetMonthlyUsageUsd(10)
+	})
+	operation, err := idempotencyexecution.New("admin.subscriptions.bulk_reset_quota", "admin:1", service.HashIdempotencyKey("same-bulk-operation"), now, now.Add(24*time.Hour))
+	s.Require().NoError(err)
+
+	applied, err := s.repo.ResetUsageWindowsIdempotent(s.ctx, sub.ID, true, true, true, now, now, operation)
+	s.Require().NoError(err)
+	s.Require().True(applied)
+	applied, err = s.repo.ResetUsageWindowsIdempotent(s.ctx, sub.ID, true, true, true, now, now, operation)
+	s.Require().NoError(err)
+	s.Require().False(applied)
+
+	got, err := s.repo.GetByID(s.ctx, sub.ID)
+	s.Require().NoError(err)
+	s.Require().Zero(got.DailyUsageUSD)
+	s.Require().Zero(got.WeeklyUsageUSD)
+	s.Require().Zero(got.MonthlyUsageUSD)
+	s.Require().Equal(int64(1), got.ManualQuotaResetCount)
+}
+
+func (s *UserSubscriptionRepoSuite) TestResetQuotaIdempotencyClaimCommitsWithSideEffects() {
+	user := s.mustCreateUser("application-idempotent-reset@test.com", service.RoleUser)
+	group := s.mustCreateGroup("g-application-idempotent-reset")
+	now := time.Now().UTC()
+	sub := s.mustCreateSubscription(user.ID, group.ID, func(c *dbent.UserSubscriptionCreate) {
+		c.SetDailyUsageUsd(3).
+			SetWeeklyUsageUsd(4).
+			SetMonthlyUsageUsd(5)
+	})
+	operation, err := idempotencyexecution.New("admin.subscriptions.reset_quota", "admin:1", service.HashIdempotencyKey("same-single-reset-operation"), now, now.Add(24*time.Hour))
+	s.Require().NoError(err)
+
+	first, err := s.repo.ResetQuota(s.ctx, sub.ID, true, true, true, &operation, now)
+	s.Require().NoError(err)
+	second, err := s.repo.ResetQuota(s.ctx, sub.ID, true, true, true, &operation, now.Add(time.Second))
+	s.Require().NoError(err)
+
+	s.Require().Equal(int64(1), first.ManualQuotaResetCount)
+	s.Require().Equal(int64(1), second.ManualQuotaResetCount)
+	s.Require().Zero(second.DailyUsageUSD)
+	s.Require().Zero(second.WeeklyUsageUSD)
+	s.Require().Zero(second.MonthlyUsageUSD)
+}
+
+func (s *UserSubscriptionRepoSuite) TestResetQuotaIdempotencySeparatesScopesAndReclaimsExpiredClaim() {
+	user := s.mustCreateUser("scoped-idempotent-reset@test.com", service.RoleUser)
+	group := s.mustCreateGroup("g-scoped-idempotent-reset")
+	now := time.Now().UTC()
+	sub := s.mustCreateSubscription(user.ID, group.ID, func(c *dbent.UserSubscriptionCreate) {
+		c.SetDailyUsageUsd(3).
+			SetWeeklyUsageUsd(4).
+			SetMonthlyUsageUsd(5)
+	})
+	keyHash := service.HashIdempotencyKey("shared-reset-key")
+	single, err := idempotencyexecution.New("admin.subscriptions.reset_quota", "admin:9", keyHash, now, now.Add(time.Hour))
+	s.Require().NoError(err)
+	bulk, err := idempotencyexecution.New("admin.subscriptions.bulk_reset_quota", "admin:9", keyHash, now.Add(time.Minute), now.Add(2*time.Hour))
+	s.Require().NoError(err)
+	s.Require().NotEqual(single.OperationKeyHash, bulk.OperationKeyHash)
+
+	first, err := s.repo.ResetQuota(s.ctx, sub.ID, true, true, true, &single, now)
+	s.Require().NoError(err)
+	s.Require().Equal(int64(1), first.ManualQuotaResetCount)
+	first.DailyUsageUSD = 6
+	first.WeeklyUsageUSD = 7
+	first.MonthlyUsageUSD = 8
+	err = s.repo.Update(s.ctx, first)
+	s.Require().NoError(err)
+
+	second, err := s.repo.ResetQuota(s.ctx, sub.ID, true, true, true, &bulk, now.Add(time.Minute))
+	s.Require().NoError(err)
+	s.Require().Equal(int64(2), second.ManualQuotaResetCount)
+
+	retry := bulk
+	retry.ClaimedAt = now.Add(2 * time.Minute)
+	retry.ExpiresAt = now.Add(3 * time.Hour)
+	replayed, err := s.repo.ResetQuota(s.ctx, sub.ID, true, true, true, &retry, retry.ClaimedAt)
+	s.Require().NoError(err)
+	s.Require().Equal(int64(2), replayed.ManualQuotaResetCount)
+	replayed.DailyUsageUSD = 9
+	replayed.WeeklyUsageUSD = 10
+	replayed.MonthlyUsageUSD = 11
+	err = s.repo.Update(s.ctx, replayed)
+	s.Require().NoError(err)
+
+	beforeExtendedExpiry := retry
+	beforeExtendedExpiry.ClaimedAt = bulk.ExpiresAt.Add(time.Minute)
+	beforeExtendedExpiry.ExpiresAt = retry.ExpiresAt
+	stillReplayed, err := s.repo.ResetQuota(s.ctx, sub.ID, true, true, true, &beforeExtendedExpiry, beforeExtendedExpiry.ClaimedAt)
+	s.Require().NoError(err)
+	s.Require().Equal(int64(2), stillReplayed.ManualQuotaResetCount)
+	s.Require().InDelta(9, stillReplayed.DailyUsageUSD, 1e-6)
+	s.Require().InDelta(10, stillReplayed.WeeklyUsageUSD, 1e-6)
+	s.Require().InDelta(11, stillReplayed.MonthlyUsageUSD, 1e-6)
+
+	reclaimed := retry
+	reclaimed.ClaimedAt = retry.ExpiresAt.Add(time.Minute)
+	reclaimed.ExpiresAt = reclaimed.ClaimedAt.Add(24 * time.Hour)
+	third, err := s.repo.ResetQuota(s.ctx, sub.ID, true, true, true, &reclaimed, reclaimed.ClaimedAt)
+	s.Require().NoError(err)
+	s.Require().Equal(int64(3), third.ManualQuotaResetCount)
+	s.Require().Zero(third.DailyUsageUSD)
+	s.Require().Zero(third.WeeklyUsageUSD)
+	s.Require().Zero(third.MonthlyUsageUSD)
+}
+
+func (s *UserSubscriptionRepoSuite) TestRestoreTermSnapshotRejectsConcurrentCycleAdvance() {
+	user := s.mustCreateUser("cycle-cas-advance@test.com", service.RoleUser)
+	group := s.mustCreateGroup("g-cycle-cas-advance")
+	now := time.Now().UTC()
+	boundary := now.Add(time.Hour)
+	startsAt := boundary.Add(-30 * 24 * time.Hour)
+	nextEndsAt := boundary.Add(30 * 24 * time.Hour)
+	sub := s.mustCreateSubscriptionWithCycle(user.ID, group.ID, func(c *dbent.UserSubscriptionCreate) {
+		c.SetStartsAt(startsAt).
+			SetExpiresAt(nextEndsAt).
+			SetCurrentCycleStartsAt(startsAt).
+			SetCurrentCycleEndsAt(boundary)
+	}, &subscriptionCycleFixture{
+		startsAt:   startsAt,
+		endsAt:     boundary,
+		sourceType: subscriptionquota.CycleSourcePayment,
+		sourceRef:  stringPointer("cycle-cas-current"),
+	})
+	s.Require().NoError(s.repo.AppendRenewalCycle(
+		s.ctx,
+		sub.ID,
+		boundary,
+		nextEndsAt,
+		subscriptionquota.CycleSourcePayment,
+		stringPointer("cycle-cas-pending"),
+	))
+
+	_, snapshot, err := s.repo.AdjustTerm(
+		s.ctx,
+		sub.ID,
+		-1,
+		true,
+		true,
+		now,
+		service.MaxExpiresAt,
+		service.MaxValidityDays,
+	)
+	s.Require().NoError(err)
+	s.Require().NotNil(snapshot)
+	s.Require().NotNil(snapshot.Expected)
+
+	advanceAt := boundary.Add(time.Second)
+	advanced, err := s.repo.AdvanceCycle(s.ctx, sub.ID, advanceAt, timezone.StartOfDay(advanceAt))
+	s.Require().NoError(err)
+	s.Require().True(advanced)
+
+	err = s.repo.RestoreTermSnapshot(s.ctx, snapshot)
+	s.Require().ErrorIs(err, subscriptionquota.ErrTermSnapshotStale)
+	current, err := s.repo.GetByID(s.ctx, sub.ID)
+	s.Require().NoError(err)
+	s.Require().WithinDuration(boundary, current.CurrentCycleStartsAt, time.Microsecond)
+	s.Require().WithinDuration(nextEndsAt.AddDate(0, 0, -1), current.CurrentCycleEndsAt, time.Microsecond)
+}
+
+func (s *UserSubscriptionRepoSuite) TestAdjustTermAtomicallyCapturesAndRevokesThenRestores() {
+	user := s.mustCreateUser("atomic-refund-revoke@test.com", service.RoleUser)
+	group := s.mustCreateGroup("g-atomic-refund-revoke")
+	now := time.Now().UTC()
+	startsAt := now.Add(-25 * 24 * time.Hour)
+	endsAt := now.Add(5 * 24 * time.Hour)
+	sub := s.mustCreateSubscriptionWithCycle(user.ID, group.ID, func(c *dbent.UserSubscriptionCreate) {
+		c.SetStartsAt(startsAt).
+			SetExpiresAt(endsAt).
+			SetCurrentCycleStartsAt(startsAt).
+			SetCurrentCycleEndsAt(endsAt)
+	}, &subscriptionCycleFixture{
+		startsAt:   startsAt,
+		endsAt:     endsAt,
+		sourceType: subscriptionquota.CycleSourcePayment,
+		sourceRef:  stringPointer("atomic-refund-order"),
+	})
+
+	subject, snapshot, err := s.repo.AdjustTerm(
+		s.ctx,
+		sub.ID,
+		-10,
+		true,
+		true,
+		now,
+		service.MaxExpiresAt,
+		service.MaxValidityDays,
+	)
+	s.Require().ErrorIs(err, service.ErrAdjustWouldExpire)
+	s.Require().Equal(sub.ID, subject.ID)
+	s.Require().NotNil(snapshot)
+	s.Require().NotNil(snapshot.Expected)
+	s.Require().NotNil(snapshot.Expected.DeletedAt)
+	_, err = s.repo.GetByID(s.ctx, sub.ID)
+	s.Require().ErrorIs(err, service.ErrSubscriptionNotFound)
+
+	restored, err := s.repo.RestoreTermSnapshotExact(s.ctx, snapshot)
+	s.Require().NoError(err)
+	s.Require().Equal(sub.ID, restored.ID)
+	s.Require().Nil(restored.DeletedAt)
+	s.Require().Len(snapshot.Cycles, 1)
+	s.Require().Equal(subscriptionquota.CycleSourcePayment, snapshot.Cycles[0].SourceType)
+	s.Require().Equal("atomic-refund-order", *snapshot.Cycles[0].SourceRef)
+}
+
+func stringPointer(value string) *string { return &value }
+
+func findCycleSnapshotBySourceRef(snapshot *subscriptionquota.TermSnapshot, sourceRef string) (int, subscriptionquota.TermCycleSnapshot) {
+	for index, cycle := range snapshot.Cycles {
+		if cycle.SourceRef != nil && *cycle.SourceRef == sourceRef {
+			return index, cycle
+		}
+	}
+	return -1, subscriptionquota.TermCycleSnapshot{}
 }
 
 func (s *UserSubscriptionRepoSuite) TestResetWeeklyUsage() {
@@ -605,7 +1020,7 @@ func (s *UserSubscriptionRepoSuite) TestExtendExpiry() {
 	group := s.mustCreateGroup("g-extend")
 	sub := s.mustCreateSubscription(user.ID, group.ID, nil)
 
-	newExpiry := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	newExpiry := sub.ExpiresAt.Add(7 * 24 * time.Hour)
 	err := s.repo.ExtendExpiry(s.ctx, sub.ID, newExpiry)
 	s.Require().NoError(err, "ExtendExpiry")
 
@@ -843,9 +1258,27 @@ func (s *UserSubscriptionRepoSuite) TestUpdate_NilInput() {
 // --- 并发用量更新测试 ---
 
 func (s *UserSubscriptionRepoSuite) TestIncrementUsage_Concurrent() {
-	user := s.mustCreateUser("concurrent@test.com", service.RoleUser)
-	group := s.mustCreateGroup("g-concurrent")
-	sub := s.mustCreateSubscription(user.ID, group.ID, nil)
+	ctx := context.Background()
+	client := testEntClient(s.T())
+	repo := subscriptionrepository.New(client, NewUserSubscriptionRepository(client))
+	user := mustCreateUser(s.T(), client, &service.User{
+		Email: fmt.Sprintf("subscription-concurrent-%d@test.com", time.Now().UnixNano()),
+		Role:  service.RoleUser,
+	})
+	group := mustCreateGroup(s.T(), client, &service.Group{
+		Name: fmt.Sprintf("subscription-concurrent-%d", time.Now().UnixNano()),
+	})
+	sub := mustCreateSubscription(s.T(), client, &service.UserSubscription{
+		UserID:  user.ID,
+		GroupID: group.ID,
+	})
+	t := s.T()
+	t.Cleanup(func() {
+		cleanupCtx := mixins.SkipSoftDelete(context.Background())
+		client.UserSubscription.DeleteOneID(sub.ID).ExecX(cleanupCtx)
+		client.Group.DeleteOneID(group.ID).ExecX(cleanupCtx)
+		client.User.DeleteOneID(user.ID).ExecX(cleanupCtx)
+	})
 
 	const numGoroutines = 10
 	const incrementPerGoroutine = 1.5
@@ -854,7 +1287,7 @@ func (s *UserSubscriptionRepoSuite) TestIncrementUsage_Concurrent() {
 	errCh := make(chan error, numGoroutines)
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
-			errCh <- s.repo.IncrementUsage(s.ctx, sub.ID, incrementPerGoroutine)
+			errCh <- repo.IncrementUsage(ctx, sub.ID, incrementPerGoroutine)
 		}()
 	}
 
@@ -865,7 +1298,7 @@ func (s *UserSubscriptionRepoSuite) TestIncrementUsage_Concurrent() {
 	}
 
 	// 验证累加结果正确
-	got, err := s.repo.GetByID(s.ctx, sub.ID)
+	got, err := repo.GetByID(ctx, sub.ID)
 	s.Require().NoError(err)
 	expectedUsage := float64(numGoroutines) * incrementPerGoroutine
 	s.Require().InDelta(expectedUsage, got.DailyUsageUSD, 1e-6, "daily usage should be correctly accumulated")

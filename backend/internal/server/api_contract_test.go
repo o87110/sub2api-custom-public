@@ -403,20 +403,22 @@ func TestAPIContracts(t *testing.T) {
 				// 普通用户订阅接口不应包含 assigned_* / notes 等管理员字段。
 				deps.userSubRepo.SetByUserID(1, []service.UserSubscription{
 					{
-						ID:              501,
-						UserID:          1,
-						GroupID:         10,
-						StartsAt:        deps.now,
-						ExpiresAt:       time.Date(2099, 1, 2, 3, 4, 5, 0, time.UTC), // 使用未来日期避免 normalizeSubscriptionStatus 标记为过期
-						Status:          service.SubscriptionStatusActive,
-						DailyUsageUSD:   1.23,
-						WeeklyUsageUSD:  2.34,
-						MonthlyUsageUSD: 3.45,
-						AssignedBy:      ptr(int64(999)),
-						AssignedAt:      deps.now,
-						Notes:           "admin-note",
-						CreatedAt:       deps.now,
-						UpdatedAt:       deps.now,
+						ID:                    501,
+						UserID:                1,
+						GroupID:               10,
+						StartsAt:              deps.now,
+						ExpiresAt:             time.Date(2099, 1, 2, 3, 4, 5, 0, time.UTC), // 使用未来日期避免 normalizeSubscriptionStatus 标记为过期
+						Status:                service.SubscriptionStatusActive,
+						DailyUsageUSD:         1.23,
+						WeeklyUsageUSD:        2.34,
+						MonthlyUsageUSD:       3.45,
+						CycleUsageUSD:         4.56,
+						ManualQuotaResetCount: 2,
+						AssignedBy:            ptr(int64(999)),
+						AssignedAt:            deps.now,
+						Notes:                 "admin-note",
+						CreatedAt:             deps.now,
+						UpdatedAt:             deps.now,
 					},
 				})
 			},
@@ -440,6 +442,8 @@ func TestAPIContracts(t *testing.T) {
 						"daily_usage_usd": 1.23,
 						"weekly_usage_usd": 2.34,
 						"monthly_usage_usd": 3.45,
+						"cycle_usage_usd": 4.56,
+						"manual_quota_reset_count": 2,
 						"created_at": "2025-01-02T03:04:05Z",
 						"updated_at": "2025-01-02T03:04:05Z"
 					}

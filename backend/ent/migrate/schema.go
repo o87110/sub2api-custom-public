@@ -1534,6 +1534,7 @@ var (
 		{Name: "features", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "product_name", Type: field.TypeString, Size: 100, Default: ""},
 		{Name: "for_sale", Type: field.TypeBool, Default: true},
+		{Name: "allow_bulk_quota_reset", Type: field.TypeBool, Default: false},
 		{Name: "remaining_quantity", Type: field.TypeInt, Nullable: true},
 		{Name: "inventory_auto_delisted", Type: field.TypeBool, Default: false},
 		{Name: "sold_out_action", Type: field.TypeString, Size: 32, Default: "delist"},
@@ -1999,6 +2000,10 @@ var (
 		{Name: "daily_usage_usd", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "weekly_usage_usd", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "monthly_usage_usd", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "cycle_usage_usd", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "manual_quota_reset_count", Type: field.TypeInt64, Default: 0},
+		{Name: "current_cycle_starts_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "current_cycle_ends_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "assigned_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "notes", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "group_id", Type: field.TypeInt64},
@@ -2013,19 +2018,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "user_subscriptions_groups_subscriptions",
-				Columns:    []*schema.Column{UserSubscriptionsColumns[15]},
+				Columns:    []*schema.Column{UserSubscriptionsColumns[19]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "user_subscriptions_users_subscriptions",
-				Columns:    []*schema.Column{UserSubscriptionsColumns[16]},
+				Columns:    []*schema.Column{UserSubscriptionsColumns[20]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "user_subscriptions_users_assigned_subscriptions",
-				Columns:    []*schema.Column{UserSubscriptionsColumns[17]},
+				Columns:    []*schema.Column{UserSubscriptionsColumns[21]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -2034,12 +2039,12 @@ var (
 			{
 				Name:    "usersubscription_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionsColumns[16]},
+				Columns: []*schema.Column{UserSubscriptionsColumns[20]},
 			},
 			{
 				Name:    "usersubscription_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionsColumns[15]},
+				Columns: []*schema.Column{UserSubscriptionsColumns[19]},
 			},
 			{
 				Name:    "usersubscription_status",
@@ -2054,22 +2059,79 @@ var (
 			{
 				Name:    "usersubscription_user_id_status_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionsColumns[16], UserSubscriptionsColumns[6], UserSubscriptionsColumns[5]},
+				Columns: []*schema.Column{UserSubscriptionsColumns[20], UserSubscriptionsColumns[6], UserSubscriptionsColumns[5]},
 			},
 			{
 				Name:    "usersubscription_assigned_by",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionsColumns[17]},
+				Columns: []*schema.Column{UserSubscriptionsColumns[21]},
 			},
 			{
 				Name:    "usersubscription_user_id_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionsColumns[16], UserSubscriptionsColumns[15]},
+				Columns: []*schema.Column{UserSubscriptionsColumns[20], UserSubscriptionsColumns[19]},
 			},
 			{
 				Name:    "usersubscription_deleted_at",
 				Unique:  false,
 				Columns: []*schema.Column{UserSubscriptionsColumns[3]},
+			},
+		},
+	}
+	// UserSubscriptionCyclesColumns holds the columns for the "user_subscription_cycles" table.
+	UserSubscriptionCyclesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "starts_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "ends_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "pending"},
+		{Name: "source_type", Type: field.TypeString, Size: 32, Default: "assignment"},
+		{Name: "source_ref", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "final_usage_usd", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "final_manual_quota_reset_count", Type: field.TypeInt64, Default: 0},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "subscription_id", Type: field.TypeInt64},
+	}
+	// UserSubscriptionCyclesTable holds the schema information for the "user_subscription_cycles" table.
+	UserSubscriptionCyclesTable = &schema.Table{
+		Name:       "user_subscription_cycles",
+		Columns:    UserSubscriptionCyclesColumns,
+		PrimaryKey: []*schema.Column{UserSubscriptionCyclesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_subscription_cycles_user_subscriptions_cycles",
+				Columns:    []*schema.Column{UserSubscriptionCyclesColumns[11]},
+				RefColumns: []*schema.Column{UserSubscriptionsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "usersubscriptioncycle_subscription_id_starts_at",
+				Unique:  false,
+				Columns: []*schema.Column{UserSubscriptionCyclesColumns[11], UserSubscriptionCyclesColumns[3]},
+			},
+			{
+				Name:    "usersubscriptioncycle_subscription_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{UserSubscriptionCyclesColumns[11], UserSubscriptionCyclesColumns[5]},
+			},
+			{
+				Name:    "usersubscriptioncycle_source_type_source_ref",
+				Unique:  true,
+				Columns: []*schema.Column{UserSubscriptionCyclesColumns[6], UserSubscriptionCyclesColumns[7]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "source_ref IS NOT NULL",
+				},
+			},
+			{
+				Name:    "usersubscriptioncycle_subscription_id",
+				Unique:  true,
+				Columns: []*schema.Column{UserSubscriptionCyclesColumns[11]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status = 'current'",
+				},
 			},
 		},
 	}
@@ -2114,6 +2176,7 @@ var (
 		UserAttributeValuesTable,
 		UserPlatformQuotasTable,
 		UserSubscriptionsTable,
+		UserSubscriptionCyclesTable,
 	}
 )
 
@@ -2270,5 +2333,9 @@ func init() {
 	UserSubscriptionsTable.ForeignKeys[2].RefTable = UsersTable
 	UserSubscriptionsTable.Annotation = &entsql.Annotation{
 		Table: "user_subscriptions",
+	}
+	UserSubscriptionCyclesTable.ForeignKeys[0].RefTable = UserSubscriptionsTable
+	UserSubscriptionCyclesTable.Annotation = &entsql.Annotation{
+		Table: "user_subscription_cycles",
 	}
 }

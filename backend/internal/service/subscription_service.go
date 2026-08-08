@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -11,6 +12,8 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/idempotencyexecution"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionquota"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
@@ -192,11 +195,13 @@ func (s *SubscriptionService) invalidateSubscriptionCaches(userID, groupID int64
 
 // AssignSubscriptionInput 分配订阅输入
 type AssignSubscriptionInput struct {
-	UserID       int64
-	GroupID      int64
-	ValidityDays int
-	AssignedBy   int64
-	Notes        string
+	UserID          int64
+	GroupID         int64
+	ValidityDays    int
+	AssignedBy      int64
+	Notes           string
+	CycleSourceType string
+	CycleSourceRef  *string
 }
 
 // AssignSubscription 分配订阅给用户（不允许重复分配）
@@ -245,7 +250,7 @@ func (s *SubscriptionService) assignOrExtendSubscription(ctx context.Context, in
 
 	// 已有订阅，执行续期（在事务中完成所有更新）
 	if existingSub != nil {
-		if err := s.updateExistingSubscriptionTerm(ctx, existingSub.ID, validityDays, input.Notes, false); err != nil {
+		if err := s.updateExistingSubscriptionTerm(ctx, existingSub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, false); err != nil {
 			return nil, false, err
 		}
 
@@ -292,8 +297,17 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 	subscriptionID int64,
 	validityDays int,
 	notes string,
+	cycleSourceType string,
+	cycleSourceRef *string,
 	assignmentSemantics bool,
 ) error {
+	if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {
+		now := time.Now()
+		if s.now != nil {
+			now = s.now()
+		}
+		return repo.RenewExistingTerm(ctx, subscriptionID, validityDays, notes, cycleSourceType, cycleSourceRef, assignmentSemantics, now, MaxExpiresAt)
+	}
 	return s.withSubscriptionUpdateTx(ctx, func(txCtx context.Context) error {
 		existingSub, err := s.userSubRepo.GetByIDForUpdate(txCtx, subscriptionID)
 		if err != nil {
@@ -424,15 +438,19 @@ func (s *SubscriptionService) createSubscription(ctx context.Context, input *Ass
 	}
 
 	sub := &UserSubscription{
-		UserID:     input.UserID,
-		GroupID:    input.GroupID,
-		StartsAt:   now,
-		ExpiresAt:  expiresAt,
-		Status:     SubscriptionStatusActive,
-		AssignedAt: now,
-		Notes:      input.Notes,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		UserID:               input.UserID,
+		GroupID:              input.GroupID,
+		StartsAt:             now,
+		ExpiresAt:            expiresAt,
+		Status:               SubscriptionStatusActive,
+		AssignedAt:           now,
+		Notes:                input.Notes,
+		CreatedAt:            now,
+		UpdatedAt:            now,
+		CurrentCycleStartsAt: now,
+		CurrentCycleEndsAt:   expiresAt,
+		CycleSourceType:      input.CycleSourceType,
+		CycleSourceRef:       input.CycleSourceRef,
 	}
 	// 只有当 AssignedBy > 0 时才设置（0 表示系统分配，如兑换码）
 	if input.AssignedBy > 0 {
@@ -527,7 +545,7 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 		if sub.Status == SubscriptionStatusExpired ||
 			(sub.Status != SubscriptionStatusSuspended && !sub.ExpiresAt.After(now)) {
 			validityDays := normalizeAssignValidityDays(input.ValidityDays)
-			if err := s.updateExistingSubscriptionTerm(ctx, sub.ID, validityDays, input.Notes, true); err != nil {
+			if err := s.updateExistingSubscriptionTerm(ctx, sub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, true); err != nil {
 				return nil, false, err
 			}
 			s.maybeInvalidateAssignmentCaches(input.UserID, input.GroupID, false)
@@ -652,6 +670,15 @@ func (s *SubscriptionService) RestoreSubscription(ctx context.Context, subscript
 
 // ExtendSubscription 调整订阅时长（正数延长，负数缩短）
 func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscriptionID int64, days int) (*UserSubscription, error) {
+	if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {
+		sub, _, err := repo.AdjustTerm(ctx, subscriptionID, days, false, false, s.now(), MaxExpiresAt, MaxValidityDays)
+		if err != nil {
+			return nil, err
+		}
+		s.invalidateAdjustedSubscriptionCache(sub)
+		return sub, nil
+	}
+
 	sub, err := s.userSubRepo.GetByID(ctx, subscriptionID)
 	if err != nil {
 		return nil, ErrSubscriptionNotFound
@@ -715,6 +742,61 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 	}
 
 	return s.userSubRepo.GetByID(ctx, subscriptionID)
+}
+
+// AdjustSubscriptionForRefund adjusts a subscription while capturing the exact
+// term schedule required to compensate a failed gateway refund.
+func (s *SubscriptionService) AdjustSubscriptionForRefund(ctx context.Context, subscriptionID int64, days int) (*UserSubscription, *subscriptionquota.TermSnapshot, error) {
+	repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository)
+	if !ok {
+		return nil, nil, infraerrors.InternalServer("SUBSCRIPTION_TERM_SNAPSHOT_UNAVAILABLE", "subscription term snapshot is unavailable")
+	}
+	sub, snapshot, err := repo.AdjustTerm(ctx, subscriptionID, days, true, true, s.now(), MaxExpiresAt, MaxValidityDays)
+	s.invalidateAdjustedSubscriptionCache(sub)
+	return sub, snapshot, err
+}
+
+// FinalizeSubscriptionRefundDeduction atomically shortens or revokes a
+// subscription after an already-successful asynchronous gateway refund.
+func (s *SubscriptionService) FinalizeSubscriptionRefundDeduction(ctx context.Context, subscriptionID int64, days int) error {
+	repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository)
+	if !ok {
+		return infraerrors.InternalServer("SUBSCRIPTION_TERM_SNAPSHOT_UNAVAILABLE", "subscription term adjustment is unavailable")
+	}
+	sub, _, err := repo.AdjustTerm(ctx, subscriptionID, days, false, true, s.now(), MaxExpiresAt, MaxValidityDays)
+	s.invalidateAdjustedSubscriptionCache(sub)
+	if errors.Is(err, ErrAdjustWouldExpire) {
+		return nil
+	}
+	return err
+}
+
+func (s *SubscriptionService) RestoreSubscriptionTermAfterRefund(ctx context.Context, snapshot *subscriptionquota.TermSnapshot) (*UserSubscription, error) {
+	repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository)
+	if !ok {
+		return nil, infraerrors.InternalServer("SUBSCRIPTION_TERM_SNAPSHOT_UNAVAILABLE", "subscription term snapshot is unavailable")
+	}
+	restored, err := repo.RestoreTermSnapshotExact(ctx, snapshot)
+	if err != nil {
+		return nil, err
+	}
+	s.invalidateAdjustedSubscriptionCache(restored)
+	return restored, nil
+}
+
+func (s *SubscriptionService) invalidateAdjustedSubscriptionCache(sub *UserSubscription) {
+	if sub == nil {
+		return
+	}
+	s.InvalidateSubCache(sub.UserID, sub.GroupID)
+	if s.billingCacheService != nil {
+		userID, groupID := sub.UserID, sub.GroupID
+		go func() {
+			cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = s.billingCacheService.InvalidateSubscription(cacheCtx, userID, groupID)
+		}()
+	}
 }
 
 // GetByID 根据ID获取订阅
@@ -816,6 +898,17 @@ func normalizeExpiredWindows(subs []UserSubscription) {
 func normalizeExpiredWindowsAt(subs []UserSubscription, now time.Time) {
 	for i := range subs {
 		sub := &subs[i]
+		if subscriptionquota.NeedsAdvance(sub.CurrentCycleEndsAt, sub.ExpiresAt, now) {
+			sub.DailyWindowStart = nil
+			sub.WeeklyWindowStart = nil
+			sub.MonthlyWindowStart = nil
+			sub.DailyUsageUSD = 0
+			sub.WeeklyUsageUSD = 0
+			sub.MonthlyUsageUSD = 0
+			sub.CycleUsageUSD = 0
+			sub.ManualQuotaResetCount = 0
+			continue
+		}
 		// 日窗口过期：清零展示数据
 		if sub.canAutomaticallyResetDailyAt(now) {
 			sub.DailyWindowStart = nil
@@ -868,6 +961,15 @@ func (s *SubscriptionService) checkAndActivateWindowAt(ctx context.Context, sub 
 
 // AdminResetQuota manually resets the daily, weekly, and/or monthly usage windows.
 func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionID int64, resetDaily, resetWeekly, resetMonthly bool) (*UserSubscription, error) {
+	if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {
+		result, err := repo.ResetQuota(ctx, subscriptionID, resetDaily, resetWeekly, resetMonthly, nil, s.now())
+		if err != nil {
+			return nil, err
+		}
+		_ = s.invalidateSubscriptionCaches(result.UserID, result.GroupID)
+		return result, nil
+	}
+
 	if !resetDaily && !resetWeekly && !resetMonthly {
 		return nil, ErrInvalidInput
 	}
@@ -890,6 +992,19 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 	}
 	// Return the refreshed subscription from DB
 	return s.userSubRepo.GetByID(ctx, subscriptionID)
+}
+
+func (s *SubscriptionService) AdminResetQuotaIdempotent(ctx context.Context, subscriptionID int64, resetDaily, resetWeekly, resetMonthly bool, operation idempotencyexecution.Execution) (*UserSubscription, error) {
+	repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository)
+	if !ok {
+		return nil, infraerrors.InternalServer("SUBSCRIPTION_RESET_IDEMPOTENCY_UNAVAILABLE", "subscription reset idempotency is unavailable")
+	}
+	result, err := repo.ResetQuota(ctx, subscriptionID, resetDaily, resetWeekly, resetMonthly, &operation, s.now())
+	if err != nil {
+		return nil, err
+	}
+	_ = s.invalidateSubscriptionCaches(result.UserID, result.GroupID)
+	return result, nil
 }
 
 // CheckAndResetWindows 检查并重置过期的窗口
@@ -948,6 +1063,13 @@ func (s *SubscriptionService) EnsureWindowMaintenance(ctx context.Context, sub *
 	if sub == nil {
 		return nil, ErrSubscriptionNilInput
 	}
+	if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {
+		refreshed, err := repo.EnsureWindowMaintenance(ctx, sub, s.now())
+		if err != nil {
+			return nil, err
+		}
+		sub = refreshed
+	}
 	if !sub.IsWindowActivated() {
 		if err := s.CheckAndActivateWindow(ctx, sub); err != nil {
 			return nil, err
@@ -1000,6 +1122,14 @@ func (s *SubscriptionService) ValidateAndCheckLimits(sub *UserSubscription, grou
 
 	// 2. 内存中修正过期窗口的用量，确保预检查不会误拒绝用户。
 	//    调用方随后同步推进 DB 窗口，并用回读快照重新校验。
+	if subscriptionquota.NeedsAdvance(sub.CurrentCycleEndsAt, sub.ExpiresAt, now) {
+		sub.DailyUsageUSD = 0
+		sub.WeeklyUsageUSD = 0
+		sub.MonthlyUsageUSD = 0
+		sub.CycleUsageUSD = 0
+		sub.ManualQuotaResetCount = 0
+		needsMaintenance = true
+	}
 	if sub.canAutomaticallyResetDailyAt(now) {
 		sub.DailyUsageUSD = 0
 		needsMaintenance = true

@@ -529,6 +529,18 @@ class ThinBridgeContractTests(unittest.TestCase):
             approved_control,
         )
 
+    def test_idempotency_execution_bridge_is_explicitly_scoped(self) -> None:
+        path = "backend/internal/service/idempotency.go"
+        approved_calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[path]
+        for call in (
+            ("Execute", "idempotencyexecution.New"),
+            ("Execute", "idempotencyexecution.WithContext"),
+        ):
+            self.assertEqual(approved_calls.count(call), 1)
+
+        approved_control = validator.APPROVED_DELEGATE_VIEW_CONTROL[path]
+        self.assertIn(("Execute", "if err != nil {"), approved_control)
+
     def test_payment_view_sold_out_refresh_bridge_is_explicitly_scoped(self) -> None:
         path = "frontend/src/views/user/PaymentView.vue"
         approved_calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[path]

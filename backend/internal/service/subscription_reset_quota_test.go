@@ -37,6 +37,15 @@ func (r *resetQuotaUserSubRepoStub) GetByID(_ context.Context, id int64) (*UserS
 	return &cp, nil
 }
 
+func (r *resetQuotaUserSubRepoStub) ActivateWindows(_ context.Context, _ int64, dailyStart, periodicStart time.Time) error {
+	if r.sub != nil {
+		r.sub.DailyWindowStart = &dailyStart
+		r.sub.WeeklyWindowStart = &periodicStart
+		r.sub.MonthlyWindowStart = &periodicStart
+	}
+	return nil
+}
+
 func (r *resetQuotaUserSubRepoStub) ResetUsageWindows(_ context.Context, _ int64, resetDaily, resetWeekly, resetMonthly bool, dailyStart, periodicStart time.Time) error {
 	r.resetDailyCalled = resetDaily
 	r.resetWeeklyCalled = resetWeekly
@@ -55,6 +64,7 @@ func (r *resetQuotaUserSubRepoStub) ResetUsageWindows(_ context.Context, _ int64
 	if r.sub == nil {
 		return nil
 	}
+	r.sub.ManualQuotaResetCount++
 	if resetDaily {
 		r.sub.DailyUsageUSD = 0
 		r.sub.DailyWindowStart = &dailyStart
@@ -260,6 +270,7 @@ func TestAdminResetQuota_ReturnsRefreshedSub(t *testing.T) {
 			UserID:        10,
 			GroupID:       20,
 			DailyUsageUSD: 99.9,
+			CycleUsageUSD: 123.45,
 		},
 	}
 
@@ -270,5 +281,7 @@ func TestAdminResetQuota_ReturnsRefreshedSub(t *testing.T) {
 	// ResetUsageWindows stub 会将 sub.DailyUsageUSD 归零，
 	// 服务应返回第二次 GetByID 的刷新值而非初始的 99.9
 	require.Equal(t, float64(0), result.DailyUsageUSD, "返回的订阅应反映已归零的用量")
+	require.Equal(t, 123.45, result.CycleUsageUSD, "手动重置不得清空本周期累计")
+	require.Equal(t, int64(1), result.ManualQuotaResetCount, "手动重置次数应加一")
 	require.True(t, stub.resetDailyCalled)
 }

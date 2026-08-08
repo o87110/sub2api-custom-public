@@ -10,6 +10,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionquota"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -492,12 +493,15 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 			if validityDays == 0 {
 				validityDays = 30
 			}
+			cycleSourceRef := redeemCode.Code
 			_, _, err := s.subscriptionService.AssignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
-				UserID:       userID,
-				GroupID:      *redeemCode.GroupID,
-				ValidityDays: validityDays,
-				AssignedBy:   0, // 系统分配
-				Notes:        fmt.Sprintf("通过兑换码 %s 兑换", redeemCode.Code),
+				UserID:          userID,
+				GroupID:         *redeemCode.GroupID,
+				ValidityDays:    validityDays,
+				AssignedBy:      0, // 系统分配
+				Notes:           fmt.Sprintf("通过兑换码 %s 兑换", redeemCode.Code),
+				CycleSourceType: subscriptionquota.CycleSourceRedeem,
+				CycleSourceRef:  &cycleSourceRef,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("assign or extend subscription: %w", err)

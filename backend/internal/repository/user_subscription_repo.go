@@ -18,7 +18,7 @@ type userSubscriptionRepository struct {
 	client *dbent.Client
 }
 
-func NewUserSubscriptionRepository(client *dbent.Client) service.UserSubscriptionRepository {
+func NewUserSubscriptionRepository(client *dbent.Client) service.BaseUserSubscriptionRepository {
 	return &userSubscriptionRepository{client: client}
 }
 
@@ -641,24 +641,28 @@ func userSubscriptionEntityToServiceWithStatusMapping(m *dbent.UserSubscription,
 		status = service.SubscriptionStatusRevoked
 	}
 	out := &service.UserSubscription{
-		ID:                 m.ID,
-		UserID:             m.UserID,
-		GroupID:            m.GroupID,
-		StartsAt:           m.StartsAt,
-		ExpiresAt:          m.ExpiresAt,
-		Status:             status,
-		DailyWindowStart:   m.DailyWindowStart,
-		WeeklyWindowStart:  m.WeeklyWindowStart,
-		MonthlyWindowStart: m.MonthlyWindowStart,
-		DailyUsageUSD:      m.DailyUsageUsd,
-		WeeklyUsageUSD:     m.WeeklyUsageUsd,
-		MonthlyUsageUSD:    m.MonthlyUsageUsd,
-		AssignedBy:         m.AssignedBy,
-		AssignedAt:         m.AssignedAt,
-		Notes:              derefString(m.Notes),
-		CreatedAt:          m.CreatedAt,
-		UpdatedAt:          m.UpdatedAt,
-		DeletedAt:          m.DeletedAt,
+		ID:                    m.ID,
+		UserID:                m.UserID,
+		GroupID:               m.GroupID,
+		StartsAt:              m.StartsAt,
+		ExpiresAt:             m.ExpiresAt,
+		Status:                status,
+		DailyWindowStart:      m.DailyWindowStart,
+		WeeklyWindowStart:     m.WeeklyWindowStart,
+		MonthlyWindowStart:    m.MonthlyWindowStart,
+		DailyUsageUSD:         m.DailyUsageUsd,
+		WeeklyUsageUSD:        m.WeeklyUsageUsd,
+		MonthlyUsageUSD:       m.MonthlyUsageUsd,
+		CycleUsageUSD:         m.CycleUsageUsd,
+		ManualQuotaResetCount: m.ManualQuotaResetCount,
+		CurrentCycleStartsAt:  m.CurrentCycleStartsAt,
+		CurrentCycleEndsAt:    m.CurrentCycleEndsAt,
+		AssignedBy:            m.AssignedBy,
+		AssignedAt:            m.AssignedAt,
+		Notes:                 derefString(m.Notes),
+		CreatedAt:             m.CreatedAt,
+		UpdatedAt:             m.UpdatedAt,
+		DeletedAt:             m.DeletedAt,
 	}
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)
