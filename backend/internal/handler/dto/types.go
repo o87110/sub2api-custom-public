@@ -638,6 +638,9 @@ type UserSubscription struct {
 	DailyUsageUSD   float64 `json:"daily_usage_usd"`
 	WeeklyUsageUSD  float64 `json:"weekly_usage_usd"`
 	MonthlyUsageUSD float64 `json:"monthly_usage_usd"`
+	CycleUsageUSD   float64 `json:"cycle_usage_usd"`
+
+	ManualQuotaResetCount int64 `json:"manual_quota_reset_count"`
 
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`

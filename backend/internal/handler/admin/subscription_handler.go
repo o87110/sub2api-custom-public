@@ -3,7 +3,10 @@ package admin
 import (
 	"context"
 	"strconv"
+	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/idempotencyexecution"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionbulkreset"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -29,12 +32,26 @@ func toResponsePagination(p *pagination.PaginationResult) *response.PaginationRe
 // SubscriptionHandler handles admin subscription management
 type SubscriptionHandler struct {
 	subscriptionService *service.SubscriptionService
+	quotaResetter       subscriptionQuotaResetter
+	bulkResetService    *subscriptionbulkreset.Service
 }
 
+type subscriptionQuotaResetter interface {
+	AdminResetQuota(context.Context, int64, bool, bool, bool) (*service.UserSubscription, error)
+	AdminResetQuotaIdempotent(context.Context, int64, bool, bool, bool, idempotencyexecution.Execution) (*service.UserSubscription, error)
+}
+
+const (
+	subscriptionResetQuotaScope     = "admin.subscriptions.reset_quota"
+	subscriptionBulkResetQuotaScope = "admin.subscriptions.bulk_reset_quota"
+)
+
 // NewSubscriptionHandler creates a new admin subscription handler
-func NewSubscriptionHandler(subscriptionService *service.SubscriptionService) *SubscriptionHandler {
+func NewSubscriptionHandler(subscriptionService *service.SubscriptionService, bulkResetService *subscriptionbulkreset.Service) *SubscriptionHandler {
 	return &SubscriptionHandler{
 		subscriptionService: subscriptionService,
+		quotaResetter:       subscriptionService,
+		bulkResetService:    bulkResetService,
 	}
 }
 
@@ -140,7 +157,6 @@ func (h *SubscriptionHandler) Assign(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-
 	// Get admin user ID from context
 	adminID := getAdminIDFromContext(c)
 
@@ -241,12 +257,105 @@ func (h *SubscriptionHandler) ResetQuota(c *gin.Context) {
 		response.BadRequest(c, "At least one of 'daily', 'weekly', or 'monthly' must be true")
 		return
 	}
-	sub, err := h.subscriptionService.AdminResetQuota(c.Request.Context(), subscriptionID, req.Daily, req.Weekly, req.Monthly)
+	resetter := h.quotaResetter
+	if resetter == nil {
+		resetter = h.subscriptionService
+	}
+	idempotencyKey, err := service.NormalizeIdempotencyKey(c.GetHeader("Idempotency-Key"))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, dto.UserSubscriptionFromServiceAdmin(sub))
+	if idempotencyKey == "" {
+		sub, err := resetter.AdminResetQuota(c.Request.Context(), subscriptionID, req.Daily, req.Weekly, req.Monthly)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		response.Success(c, dto.UserSubscriptionFromServiceAdmin(sub))
+		return
+	}
+	idempotencyPayload := struct {
+		SubscriptionID int64                         `json:"subscription_id"`
+		Body           ResetSubscriptionQuotaRequest `json:"body"`
+	}{SubscriptionID: subscriptionID, Body: req}
+	ttl := service.DefaultWriteIdempotencyTTL()
+	claimedAt := time.Now()
+	fallbackExecution, err := idempotencyexecution.New(subscriptionResetQuotaScope, adminActorScope(c), service.HashIdempotencyKey(idempotencyKey), claimedAt, claimedAt.Add(ttl))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	executeAdminIdempotentJSON(c, subscriptionResetQuotaScope, idempotencyPayload, ttl, func(ctx context.Context) (any, error) {
+		execution, ok := idempotencyexecution.FromContext(ctx)
+		if !ok {
+			execution = fallbackExecution
+		}
+		sub, execErr := resetter.AdminResetQuotaIdempotent(ctx, subscriptionID, req.Daily, req.Weekly, req.Monthly, execution)
+		if execErr != nil {
+			return nil, execErr
+		}
+		return dto.UserSubscriptionFromServiceAdmin(sub), nil
+	})
+}
+
+// ListBulkResetQuotaCandidates lists active paid subscriptions whose current
+// plan explicitly allows bulk quota reset.
+// GET /api/v1/admin/subscriptions/bulk-reset-quota/candidates
+func (h *SubscriptionHandler) ListBulkResetQuotaCandidates(c *gin.Context) {
+	result, err := h.bulkResetService.ListCandidates(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+type BulkResetSubscriptionQuotaRequest struct {
+	SubscriptionIDs []int64 `json:"subscription_ids" binding:"required,min=1"`
+}
+
+// BulkResetQuota resets all quota windows for the selected eligible subscriptions.
+// POST /api/v1/admin/subscriptions/bulk-reset-quota
+func (h *SubscriptionHandler) BulkResetQuota(c *gin.Context) {
+	var req BulkResetSubscriptionQuotaRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if len(req.SubscriptionIDs) > subscriptionbulkreset.MaxBatchSize {
+		response.BadRequest(c, "subscription_ids must not contain more than "+strconv.Itoa(subscriptionbulkreset.MaxBatchSize)+" items")
+		return
+	}
+	for _, subscriptionID := range req.SubscriptionIDs {
+		if subscriptionID <= 0 {
+			response.BadRequest(c, "subscription_ids must contain only positive IDs")
+			return
+		}
+	}
+	idempotencyKey, err := service.NormalizeIdempotencyKey(c.GetHeader("Idempotency-Key"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if idempotencyKey == "" {
+		response.BadRequest(c, "Idempotency-Key header is required")
+		return
+	}
+	ttl := service.DefaultWriteIdempotencyTTL()
+	claimedAt := time.Now()
+	fallbackExecution, err := idempotencyexecution.New(subscriptionBulkResetQuotaScope, adminActorScope(c), service.HashIdempotencyKey(idempotencyKey), claimedAt, claimedAt.Add(ttl))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	executeAdminIdempotentJSON(c, subscriptionBulkResetQuotaScope, req, ttl, func(ctx context.Context) (any, error) {
+		execution, ok := idempotencyexecution.FromContext(ctx)
+		if !ok {
+			execution = fallbackExecution
+		}
+		return h.bulkResetService.ResetSelected(ctx, req.SubscriptionIDs, execution)
+	})
 }
 
 // Revoke handles revoking a subscription.

@@ -185,6 +185,7 @@ thin_bridge_allowed() {
       backend/internal/handler/admin/channel_monitor_handler.go | \
       backend/internal/handler/admin/setting_handler.go | \
       backend/internal/handler/admin/setting_handler_update.go | \
+      backend/internal/handler/admin/subscription_handler.go | \
       backend/internal/handler/auth_wechat_oauth.go | \
       backend/internal/handler/auth_wechat_oauth_test.go | \
       backend/internal/handler/api_key_handler.go | \
@@ -204,7 +205,11 @@ thin_bridge_allowed() {
       backend/internal/repository/api_key_minimum_balance_repo.go | \
       backend/internal/repository/api_key_repo.go | \
       backend/internal/repository/channel_monitor_repo.go | \
-      backend/internal/repository/group_repo.go | \
+	  backend/internal/repository/group_repo.go | \
+	  backend/internal/repository/usage_billing_repo.go | \
+      backend/internal/repository/user_subscription_repo.go | \
+      backend/internal/repository/wire.go | \
+      backend/internal/server/routes/admin.go | \
       backend/internal/service/admin_group.go | \
       backend/internal/service/admin_group_duplicate.go | \
       backend/internal/service/admin_service.go | \
@@ -220,6 +225,8 @@ thin_bridge_allowed() {
       backend/internal/service/content_moderation.go | \
       backend/internal/service/content_moderation_email.go | \
       backend/internal/service/group.go | \
+      backend/internal/service/idempotency.go | \
+      backend/internal/service/idempotency_test.go | \
       backend/internal/service/notification_email_service.go | \
       backend/internal/service/notification_email_service_test.go | \
       backend/internal/service/payment_config_limits.go | \
@@ -233,15 +240,22 @@ thin_bridge_allowed() {
       backend/internal/service/payment_order_lifecycle.go | \
       backend/internal/service/payment_order_lifecycle_test.go | \
       backend/internal/service/payment_order_result_test.go | \
+      backend/internal/service/payment_refund.go | \
       backend/internal/service/payment_refund_test.go | \
       backend/internal/service/payment_resume_service.go | \
       backend/internal/service/payment_resume_service_test.go | \
       backend/internal/service/payment_service.go | \
+      backend/internal/service/redeem_service.go | \
+      backend/internal/service/subscription_service.go | \
+      backend/internal/service/user_subscription.go | \
+      backend/internal/service/user_subscription_port.go | \
+      frontend/src/api/admin/subscriptions.ts | \
       frontend/src/api/admin/payment.ts | \
       frontend/src/api/admin/channelMonitor.ts | \
       frontend/src/api/admin/settings.ts | \
       frontend/src/api/channelMonitor.ts | \
       frontend/src/components/admin/monitor/MonitorFormDialog.vue | \
+      frontend/src/components/common/SubscriptionProgressMini.vue | \
       frontend/src/components/payment/AmountInput.vue | \
       frontend/src/components/payment/PaymentProviderDialog.vue | \
       frontend/src/components/payment/SubscriptionPlanCard.vue | \
@@ -263,6 +277,7 @@ thin_bridge_allowed() {
       frontend/src/types/payment.ts | \
       frontend/src/views/admin/GroupsView.vue | \
       frontend/src/views/admin/SettingsView.vue | \
+      frontend/src/views/admin/SubscriptionsView.vue | \
       frontend/src/views/admin/__tests__/SettingsView.spec.ts | \
       frontend/src/views/admin/orders/AdminPaymentPlansView.vue | \
       frontend/src/views/admin/orders/PlanEditDialog.vue | \
@@ -273,7 +288,8 @@ thin_bridge_allowed() {
       frontend/src/views/user/__tests__/PaymentView.spec.ts | \
       frontend/src/views/user/__tests__/paymentWechatResume.spec.ts | \
       frontend/src/views/user/paymentWechatResume.ts | \
-      frontend/src/views/user/KeysView.vue)
+      frontend/src/views/user/KeysView.vue | \
+      frontend/src/views/user/SubscriptionsView.vue)
       return 0
       ;;
     *)

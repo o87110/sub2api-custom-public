@@ -12,11 +12,129 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
+	"github.com/Wei-Shaw/sub2api/internal/custom/idempotencyexecution"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionquota"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
+
+type refundTermSnapshotRepo struct {
+	userSubRepoNoop
+	sub           UserSubscription
+	restoreCalls  int
+	restoredState *subscriptionquota.TermSnapshot
+}
+
+func (r *refundTermSnapshotRepo) GetByID(context.Context, int64) (*UserSubscription, error) {
+	copy := r.sub
+	return &copy, nil
+}
+
+func (r *refundTermSnapshotRepo) AppendRenewalCycle(context.Context, int64, time.Time, time.Time, string, *string) error {
+	panic("unexpected AppendRenewalCycle call")
+}
+
+func (r *refundTermSnapshotRepo) RenewExpiredWithCycle(context.Context, *UserSubscription) error {
+	panic("unexpected RenewExpiredWithCycle call")
+}
+
+func (r *refundTermSnapshotRepo) AdvanceCycle(context.Context, int64, time.Time, time.Time) (bool, error) {
+	panic("unexpected AdvanceCycle call")
+}
+
+func (r *refundTermSnapshotRepo) CaptureTermSnapshot(context.Context, int64) (*subscriptionquota.TermSnapshot, error) {
+	panic("unexpected CaptureTermSnapshot call")
+}
+
+func (r *refundTermSnapshotRepo) AdjustExpiryWithSnapshot(context.Context, int64, time.Time) (*subscriptionquota.TermSnapshot, error) {
+	panic("unexpected AdjustExpiryWithSnapshot call")
+}
+
+func (r *refundTermSnapshotRepo) RestoreTermSnapshot(_ context.Context, snapshot *subscriptionquota.TermSnapshot) error {
+	r.restoreCalls++
+	r.restoredState = snapshot
+	r.sub.ExpiresAt = snapshot.ExpiresAt
+	r.sub.Status = snapshot.Status
+	r.sub.CurrentCycleStartsAt = snapshot.CurrentCycleStartsAt
+	r.sub.CurrentCycleEndsAt = snapshot.CurrentCycleEndsAt
+	return nil
+}
+
+func (r *refundTermSnapshotRepo) RenewExistingTerm(context.Context, int64, int, string, string, *string, bool, time.Time, time.Time) error {
+	panic("unexpected RenewExistingTerm call")
+}
+
+func (r *refundTermSnapshotRepo) AdjustTerm(context.Context, int64, int, bool, bool, time.Time, time.Time, int) (*UserSubscription, *subscriptionquota.TermSnapshot, error) {
+	panic("unexpected AdjustTerm call")
+}
+
+func (r *refundTermSnapshotRepo) RestoreTermSnapshotExact(ctx context.Context, snapshot *subscriptionquota.TermSnapshot) (*UserSubscription, error) {
+	if err := r.RestoreTermSnapshot(ctx, snapshot); err != nil {
+		return nil, err
+	}
+	return r.GetByID(ctx, snapshot.SubscriptionID)
+}
+
+func (r *refundTermSnapshotRepo) ResetQuota(context.Context, int64, bool, bool, bool, *idempotencyexecution.Execution, time.Time) (*UserSubscription, error) {
+	panic("unexpected ResetQuota call")
+}
+
+func (r *refundTermSnapshotRepo) EnsureWindowMaintenance(context.Context, *UserSubscription, time.Time) (*UserSubscription, error) {
+	panic("unexpected EnsureWindowMaintenance call")
+}
+
+func (r *refundTermSnapshotRepo) NeedsCycleAdvance(*UserSubscription, time.Time) bool {
+	return false
+}
+
+func TestRollbackRefundRestoresExactSubscriptionTermSnapshot(t *testing.T) {
+	now := time.Date(2026, 8, 8, 12, 0, 0, 0, time.UTC)
+	currentEndsAt := now.Add(5 * 24 * time.Hour)
+	pendingEndsAt := currentEndsAt.Add(30 * 24 * time.Hour)
+	pendingSourceRef := "payment-order-1002"
+	snapshot := &subscriptionquota.TermSnapshot{
+		SubscriptionID:       10,
+		UserID:               20,
+		GroupID:              30,
+		ExpiresAt:            pendingEndsAt,
+		Status:               SubscriptionStatusActive,
+		CurrentCycleStartsAt: now.Add(-25 * 24 * time.Hour),
+		CurrentCycleEndsAt:   currentEndsAt,
+		Cycles: []subscriptionquota.TermCycleSnapshot{
+			{
+				ID:         101,
+				StartsAt:   currentEndsAt,
+				EndsAt:     pendingEndsAt,
+				Status:     subscriptionquota.CycleStatusPending,
+				SourceType: subscriptionquota.CycleSourcePayment,
+				SourceRef:  &pendingSourceRef,
+			},
+		},
+	}
+	repo := &refundTermSnapshotRepo{sub: UserSubscription{
+		ID:      snapshot.SubscriptionID,
+		UserID:  snapshot.UserID,
+		GroupID: snapshot.GroupID,
+	}}
+	subscriptionService := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, nil)
+	paymentService := &PaymentService{subscriptionSvc: subscriptionService}
+	plan := &RefundPlan{
+		DeductionType:            payment.DeductionTypeSubscription,
+		SubDaysToDeduct:          30,
+		SubscriptionID:           snapshot.SubscriptionID,
+		SubscriptionTermSnapshot: snapshot,
+	}
+
+	require.True(t, paymentService.RollbackRefund(context.Background(), plan, errors.New("gateway failed")))
+	require.Equal(t, 1, repo.restoreCalls)
+	require.Same(t, snapshot, repo.restoredState)
+	require.Len(t, repo.restoredState.Cycles, 1)
+	require.Equal(t, subscriptionquota.CycleStatusPending, repo.restoredState.Cycles[0].Status)
+	require.Equal(t, pendingSourceRef, *repo.restoredState.Cycles[0].SourceRef)
+	require.Nil(t, plan.SubscriptionTermSnapshot)
+}
 
 func TestValidateRefundRequestRejectsLegacyGuessedProviderInstance(t *testing.T) {
 	ctx := context.Background()

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionquota"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
@@ -235,7 +236,7 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 		return err
 	}
 	if affected > 0 {
-		return nil
+		return subscriptionquota.IncrementCycleUsageTx(ctx, tx, subscriptionID, costUSD)
 	}
 	return service.ErrSubscriptionNotFound
 }

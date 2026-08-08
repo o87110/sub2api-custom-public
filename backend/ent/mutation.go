@@ -52,6 +52,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
+	"github.com/Wei-Shaw/sub2api/ent/usersubscriptioncycle"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
@@ -103,6 +104,7 @@ const (
 	TypeUserAttributeValue            = "UserAttributeValue"
 	TypeUserPlatformQuota             = "UserPlatformQuota"
 	TypeUserSubscription              = "UserSubscription"
+	TypeUserSubscriptionCycle         = "UserSubscriptionCycle"
 )
 
 // APIKeyMutation represents an operation that mutates the APIKey nodes in the graph.
@@ -39993,6 +39995,7 @@ type SubscriptionPlanMutation struct {
 	features                *string
 	product_name            *string
 	for_sale                *bool
+	allow_bulk_quota_reset  *bool
 	remaining_quantity      *int
 	addremaining_quantity   *int
 	inventory_auto_delisted *bool
@@ -40595,6 +40598,42 @@ func (m *SubscriptionPlanMutation) ResetForSale() {
 	m.for_sale = nil
 }
 
+// SetAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field.
+func (m *SubscriptionPlanMutation) SetAllowBulkQuotaReset(b bool) {
+	m.allow_bulk_quota_reset = &b
+}
+
+// AllowBulkQuotaReset returns the value of the "allow_bulk_quota_reset" field in the mutation.
+func (m *SubscriptionPlanMutation) AllowBulkQuotaReset() (r bool, exists bool) {
+	v := m.allow_bulk_quota_reset
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAllowBulkQuotaReset returns the old "allow_bulk_quota_reset" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldAllowBulkQuotaReset(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAllowBulkQuotaReset is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAllowBulkQuotaReset requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAllowBulkQuotaReset: %w", err)
+	}
+	return oldValue.AllowBulkQuotaReset, nil
+}
+
+// ResetAllowBulkQuotaReset resets all changes to the "allow_bulk_quota_reset" field.
+func (m *SubscriptionPlanMutation) ResetAllowBulkQuotaReset() {
+	m.allow_bulk_quota_reset = nil
+}
+
 // SetRemainingQuantity sets the "remaining_quantity" field.
 func (m *SubscriptionPlanMutation) SetRemainingQuantity(i int) {
 	m.remaining_quantity = &i
@@ -40899,7 +40938,7 @@ func (m *SubscriptionPlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SubscriptionPlanMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 18)
 	if m.group_id != nil {
 		fields = append(fields, subscriptionplan.FieldGroupID)
 	}
@@ -40932,6 +40971,9 @@ func (m *SubscriptionPlanMutation) Fields() []string {
 	}
 	if m.for_sale != nil {
 		fields = append(fields, subscriptionplan.FieldForSale)
+	}
+	if m.allow_bulk_quota_reset != nil {
+		fields = append(fields, subscriptionplan.FieldAllowBulkQuotaReset)
 	}
 	if m.remaining_quantity != nil {
 		fields = append(fields, subscriptionplan.FieldRemainingQuantity)
@@ -40981,6 +41023,8 @@ func (m *SubscriptionPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.ProductName()
 	case subscriptionplan.FieldForSale:
 		return m.ForSale()
+	case subscriptionplan.FieldAllowBulkQuotaReset:
+		return m.AllowBulkQuotaReset()
 	case subscriptionplan.FieldRemainingQuantity:
 		return m.RemainingQuantity()
 	case subscriptionplan.FieldInventoryAutoDelisted:
@@ -41024,6 +41068,8 @@ func (m *SubscriptionPlanMutation) OldField(ctx context.Context, name string) (e
 		return m.OldProductName(ctx)
 	case subscriptionplan.FieldForSale:
 		return m.OldForSale(ctx)
+	case subscriptionplan.FieldAllowBulkQuotaReset:
+		return m.OldAllowBulkQuotaReset(ctx)
 	case subscriptionplan.FieldRemainingQuantity:
 		return m.OldRemainingQuantity(ctx)
 	case subscriptionplan.FieldInventoryAutoDelisted:
@@ -41121,6 +41167,13 @@ func (m *SubscriptionPlanMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetForSale(v)
+		return nil
+	case subscriptionplan.FieldAllowBulkQuotaReset:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAllowBulkQuotaReset(v)
 		return nil
 	case subscriptionplan.FieldRemainingQuantity:
 		v, ok := value.(int)
@@ -41335,6 +41388,9 @@ func (m *SubscriptionPlanMutation) ResetField(name string) error {
 		return nil
 	case subscriptionplan.FieldForSale:
 		m.ResetForSale()
+		return nil
+	case subscriptionplan.FieldAllowBulkQuotaReset:
+		m.ResetAllowBulkQuotaReset()
 		return nil
 	case subscriptionplan.FieldRemainingQuantity:
 		m.ResetRemainingQuantity()
@@ -54650,39 +54706,48 @@ func (m *UserPlatformQuotaMutation) ResetEdge(name string) error {
 // UserSubscriptionMutation represents an operation that mutates the UserSubscription nodes in the graph.
 type UserSubscriptionMutation struct {
 	config
-	op                      Op
-	typ                     string
-	id                      *int64
-	created_at              *time.Time
-	updated_at              *time.Time
-	deleted_at              *time.Time
-	starts_at               *time.Time
-	expires_at              *time.Time
-	status                  *string
-	daily_window_start      *time.Time
-	weekly_window_start     *time.Time
-	monthly_window_start    *time.Time
-	daily_usage_usd         *float64
-	adddaily_usage_usd      *float64
-	weekly_usage_usd        *float64
-	addweekly_usage_usd     *float64
-	monthly_usage_usd       *float64
-	addmonthly_usage_usd    *float64
-	assigned_at             *time.Time
-	notes                   *string
-	clearedFields           map[string]struct{}
-	user                    *int64
-	cleareduser             bool
-	group                   *int64
-	clearedgroup            bool
-	assigned_by_user        *int64
-	clearedassigned_by_user bool
-	usage_logs              map[int64]struct{}
-	removedusage_logs       map[int64]struct{}
-	clearedusage_logs       bool
-	done                    bool
-	oldValue                func(context.Context) (*UserSubscription, error)
-	predicates              []predicate.UserSubscription
+	op                          Op
+	typ                         string
+	id                          *int64
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	deleted_at                  *time.Time
+	starts_at                   *time.Time
+	expires_at                  *time.Time
+	status                      *string
+	daily_window_start          *time.Time
+	weekly_window_start         *time.Time
+	monthly_window_start        *time.Time
+	daily_usage_usd             *float64
+	adddaily_usage_usd          *float64
+	weekly_usage_usd            *float64
+	addweekly_usage_usd         *float64
+	monthly_usage_usd           *float64
+	addmonthly_usage_usd        *float64
+	cycle_usage_usd             *float64
+	addcycle_usage_usd          *float64
+	manual_quota_reset_count    *int64
+	addmanual_quota_reset_count *int64
+	current_cycle_starts_at     *time.Time
+	current_cycle_ends_at       *time.Time
+	assigned_at                 *time.Time
+	notes                       *string
+	clearedFields               map[string]struct{}
+	user                        *int64
+	cleareduser                 bool
+	group                       *int64
+	clearedgroup                bool
+	assigned_by_user            *int64
+	clearedassigned_by_user     bool
+	usage_logs                  map[int64]struct{}
+	removedusage_logs           map[int64]struct{}
+	clearedusage_logs           bool
+	cycles                      map[int64]struct{}
+	removedcycles               map[int64]struct{}
+	clearedcycles               bool
+	done                        bool
+	oldValue                    func(context.Context) (*UserSubscription, error)
+	predicates                  []predicate.UserSubscription
 }
 
 var _ ent.Mutation = (*UserSubscriptionMutation)(nil)
@@ -55399,6 +55464,190 @@ func (m *UserSubscriptionMutation) ResetMonthlyUsageUsd() {
 	m.addmonthly_usage_usd = nil
 }
 
+// SetCycleUsageUsd sets the "cycle_usage_usd" field.
+func (m *UserSubscriptionMutation) SetCycleUsageUsd(f float64) {
+	m.cycle_usage_usd = &f
+	m.addcycle_usage_usd = nil
+}
+
+// CycleUsageUsd returns the value of the "cycle_usage_usd" field in the mutation.
+func (m *UserSubscriptionMutation) CycleUsageUsd() (r float64, exists bool) {
+	v := m.cycle_usage_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCycleUsageUsd returns the old "cycle_usage_usd" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldCycleUsageUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCycleUsageUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCycleUsageUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCycleUsageUsd: %w", err)
+	}
+	return oldValue.CycleUsageUsd, nil
+}
+
+// AddCycleUsageUsd adds f to the "cycle_usage_usd" field.
+func (m *UserSubscriptionMutation) AddCycleUsageUsd(f float64) {
+	if m.addcycle_usage_usd != nil {
+		*m.addcycle_usage_usd += f
+	} else {
+		m.addcycle_usage_usd = &f
+	}
+}
+
+// AddedCycleUsageUsd returns the value that was added to the "cycle_usage_usd" field in this mutation.
+func (m *UserSubscriptionMutation) AddedCycleUsageUsd() (r float64, exists bool) {
+	v := m.addcycle_usage_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCycleUsageUsd resets all changes to the "cycle_usage_usd" field.
+func (m *UserSubscriptionMutation) ResetCycleUsageUsd() {
+	m.cycle_usage_usd = nil
+	m.addcycle_usage_usd = nil
+}
+
+// SetManualQuotaResetCount sets the "manual_quota_reset_count" field.
+func (m *UserSubscriptionMutation) SetManualQuotaResetCount(i int64) {
+	m.manual_quota_reset_count = &i
+	m.addmanual_quota_reset_count = nil
+}
+
+// ManualQuotaResetCount returns the value of the "manual_quota_reset_count" field in the mutation.
+func (m *UserSubscriptionMutation) ManualQuotaResetCount() (r int64, exists bool) {
+	v := m.manual_quota_reset_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldManualQuotaResetCount returns the old "manual_quota_reset_count" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldManualQuotaResetCount(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldManualQuotaResetCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldManualQuotaResetCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldManualQuotaResetCount: %w", err)
+	}
+	return oldValue.ManualQuotaResetCount, nil
+}
+
+// AddManualQuotaResetCount adds i to the "manual_quota_reset_count" field.
+func (m *UserSubscriptionMutation) AddManualQuotaResetCount(i int64) {
+	if m.addmanual_quota_reset_count != nil {
+		*m.addmanual_quota_reset_count += i
+	} else {
+		m.addmanual_quota_reset_count = &i
+	}
+}
+
+// AddedManualQuotaResetCount returns the value that was added to the "manual_quota_reset_count" field in this mutation.
+func (m *UserSubscriptionMutation) AddedManualQuotaResetCount() (r int64, exists bool) {
+	v := m.addmanual_quota_reset_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetManualQuotaResetCount resets all changes to the "manual_quota_reset_count" field.
+func (m *UserSubscriptionMutation) ResetManualQuotaResetCount() {
+	m.manual_quota_reset_count = nil
+	m.addmanual_quota_reset_count = nil
+}
+
+// SetCurrentCycleStartsAt sets the "current_cycle_starts_at" field.
+func (m *UserSubscriptionMutation) SetCurrentCycleStartsAt(t time.Time) {
+	m.current_cycle_starts_at = &t
+}
+
+// CurrentCycleStartsAt returns the value of the "current_cycle_starts_at" field in the mutation.
+func (m *UserSubscriptionMutation) CurrentCycleStartsAt() (r time.Time, exists bool) {
+	v := m.current_cycle_starts_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrentCycleStartsAt returns the old "current_cycle_starts_at" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldCurrentCycleStartsAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrentCycleStartsAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrentCycleStartsAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrentCycleStartsAt: %w", err)
+	}
+	return oldValue.CurrentCycleStartsAt, nil
+}
+
+// ResetCurrentCycleStartsAt resets all changes to the "current_cycle_starts_at" field.
+func (m *UserSubscriptionMutation) ResetCurrentCycleStartsAt() {
+	m.current_cycle_starts_at = nil
+}
+
+// SetCurrentCycleEndsAt sets the "current_cycle_ends_at" field.
+func (m *UserSubscriptionMutation) SetCurrentCycleEndsAt(t time.Time) {
+	m.current_cycle_ends_at = &t
+}
+
+// CurrentCycleEndsAt returns the value of the "current_cycle_ends_at" field in the mutation.
+func (m *UserSubscriptionMutation) CurrentCycleEndsAt() (r time.Time, exists bool) {
+	v := m.current_cycle_ends_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrentCycleEndsAt returns the old "current_cycle_ends_at" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldCurrentCycleEndsAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrentCycleEndsAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrentCycleEndsAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrentCycleEndsAt: %w", err)
+	}
+	return oldValue.CurrentCycleEndsAt, nil
+}
+
+// ResetCurrentCycleEndsAt resets all changes to the "current_cycle_ends_at" field.
+func (m *UserSubscriptionMutation) ResetCurrentCycleEndsAt() {
+	m.current_cycle_ends_at = nil
+}
+
 // SetAssignedBy sets the "assigned_by" field.
 func (m *UserSubscriptionMutation) SetAssignedBy(i int64) {
 	m.assigned_by_user = &i
@@ -55681,6 +55930,60 @@ func (m *UserSubscriptionMutation) ResetUsageLogs() {
 	m.removedusage_logs = nil
 }
 
+// AddCycleIDs adds the "cycles" edge to the UserSubscriptionCycle entity by ids.
+func (m *UserSubscriptionMutation) AddCycleIDs(ids ...int64) {
+	if m.cycles == nil {
+		m.cycles = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.cycles[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCycles clears the "cycles" edge to the UserSubscriptionCycle entity.
+func (m *UserSubscriptionMutation) ClearCycles() {
+	m.clearedcycles = true
+}
+
+// CyclesCleared reports if the "cycles" edge to the UserSubscriptionCycle entity was cleared.
+func (m *UserSubscriptionMutation) CyclesCleared() bool {
+	return m.clearedcycles
+}
+
+// RemoveCycleIDs removes the "cycles" edge to the UserSubscriptionCycle entity by IDs.
+func (m *UserSubscriptionMutation) RemoveCycleIDs(ids ...int64) {
+	if m.removedcycles == nil {
+		m.removedcycles = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.cycles, ids[i])
+		m.removedcycles[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCycles returns the removed IDs of the "cycles" edge to the UserSubscriptionCycle entity.
+func (m *UserSubscriptionMutation) RemovedCyclesIDs() (ids []int64) {
+	for id := range m.removedcycles {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CyclesIDs returns the "cycles" edge IDs in the mutation.
+func (m *UserSubscriptionMutation) CyclesIDs() (ids []int64) {
+	for id := range m.cycles {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCycles resets all changes to the "cycles" edge.
+func (m *UserSubscriptionMutation) ResetCycles() {
+	m.cycles = nil
+	m.clearedcycles = false
+	m.removedcycles = nil
+}
+
 // Where appends a list predicates to the UserSubscriptionMutation builder.
 func (m *UserSubscriptionMutation) Where(ps ...predicate.UserSubscription) {
 	m.predicates = append(m.predicates, ps...)
@@ -55715,7 +56018,7 @@ func (m *UserSubscriptionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserSubscriptionMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 21)
 	if m.created_at != nil {
 		fields = append(fields, usersubscription.FieldCreatedAt)
 	}
@@ -55757,6 +56060,18 @@ func (m *UserSubscriptionMutation) Fields() []string {
 	}
 	if m.monthly_usage_usd != nil {
 		fields = append(fields, usersubscription.FieldMonthlyUsageUsd)
+	}
+	if m.cycle_usage_usd != nil {
+		fields = append(fields, usersubscription.FieldCycleUsageUsd)
+	}
+	if m.manual_quota_reset_count != nil {
+		fields = append(fields, usersubscription.FieldManualQuotaResetCount)
+	}
+	if m.current_cycle_starts_at != nil {
+		fields = append(fields, usersubscription.FieldCurrentCycleStartsAt)
+	}
+	if m.current_cycle_ends_at != nil {
+		fields = append(fields, usersubscription.FieldCurrentCycleEndsAt)
 	}
 	if m.assigned_by_user != nil {
 		fields = append(fields, usersubscription.FieldAssignedBy)
@@ -55803,6 +56118,14 @@ func (m *UserSubscriptionMutation) Field(name string) (ent.Value, bool) {
 		return m.WeeklyUsageUsd()
 	case usersubscription.FieldMonthlyUsageUsd:
 		return m.MonthlyUsageUsd()
+	case usersubscription.FieldCycleUsageUsd:
+		return m.CycleUsageUsd()
+	case usersubscription.FieldManualQuotaResetCount:
+		return m.ManualQuotaResetCount()
+	case usersubscription.FieldCurrentCycleStartsAt:
+		return m.CurrentCycleStartsAt()
+	case usersubscription.FieldCurrentCycleEndsAt:
+		return m.CurrentCycleEndsAt()
 	case usersubscription.FieldAssignedBy:
 		return m.AssignedBy()
 	case usersubscription.FieldAssignedAt:
@@ -55846,6 +56169,14 @@ func (m *UserSubscriptionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldWeeklyUsageUsd(ctx)
 	case usersubscription.FieldMonthlyUsageUsd:
 		return m.OldMonthlyUsageUsd(ctx)
+	case usersubscription.FieldCycleUsageUsd:
+		return m.OldCycleUsageUsd(ctx)
+	case usersubscription.FieldManualQuotaResetCount:
+		return m.OldManualQuotaResetCount(ctx)
+	case usersubscription.FieldCurrentCycleStartsAt:
+		return m.OldCurrentCycleStartsAt(ctx)
+	case usersubscription.FieldCurrentCycleEndsAt:
+		return m.OldCurrentCycleEndsAt(ctx)
 	case usersubscription.FieldAssignedBy:
 		return m.OldAssignedBy(ctx)
 	case usersubscription.FieldAssignedAt:
@@ -55959,6 +56290,34 @@ func (m *UserSubscriptionMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetMonthlyUsageUsd(v)
 		return nil
+	case usersubscription.FieldCycleUsageUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCycleUsageUsd(v)
+		return nil
+	case usersubscription.FieldManualQuotaResetCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetManualQuotaResetCount(v)
+		return nil
+	case usersubscription.FieldCurrentCycleStartsAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrentCycleStartsAt(v)
+		return nil
+	case usersubscription.FieldCurrentCycleEndsAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrentCycleEndsAt(v)
+		return nil
 	case usersubscription.FieldAssignedBy:
 		v, ok := value.(int64)
 		if !ok {
@@ -55997,6 +56356,12 @@ func (m *UserSubscriptionMutation) AddedFields() []string {
 	if m.addmonthly_usage_usd != nil {
 		fields = append(fields, usersubscription.FieldMonthlyUsageUsd)
 	}
+	if m.addcycle_usage_usd != nil {
+		fields = append(fields, usersubscription.FieldCycleUsageUsd)
+	}
+	if m.addmanual_quota_reset_count != nil {
+		fields = append(fields, usersubscription.FieldManualQuotaResetCount)
+	}
 	return fields
 }
 
@@ -56011,6 +56376,10 @@ func (m *UserSubscriptionMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedWeeklyUsageUsd()
 	case usersubscription.FieldMonthlyUsageUsd:
 		return m.AddedMonthlyUsageUsd()
+	case usersubscription.FieldCycleUsageUsd:
+		return m.AddedCycleUsageUsd()
+	case usersubscription.FieldManualQuotaResetCount:
+		return m.AddedManualQuotaResetCount()
 	}
 	return nil, false
 }
@@ -56040,6 +56409,20 @@ func (m *UserSubscriptionMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddMonthlyUsageUsd(v)
+		return nil
+	case usersubscription.FieldCycleUsageUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCycleUsageUsd(v)
+		return nil
+	case usersubscription.FieldManualQuotaResetCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddManualQuotaResetCount(v)
 		return nil
 	}
 	return fmt.Errorf("unknown UserSubscription numeric field %s", name)
@@ -56149,6 +56532,18 @@ func (m *UserSubscriptionMutation) ResetField(name string) error {
 	case usersubscription.FieldMonthlyUsageUsd:
 		m.ResetMonthlyUsageUsd()
 		return nil
+	case usersubscription.FieldCycleUsageUsd:
+		m.ResetCycleUsageUsd()
+		return nil
+	case usersubscription.FieldManualQuotaResetCount:
+		m.ResetManualQuotaResetCount()
+		return nil
+	case usersubscription.FieldCurrentCycleStartsAt:
+		m.ResetCurrentCycleStartsAt()
+		return nil
+	case usersubscription.FieldCurrentCycleEndsAt:
+		m.ResetCurrentCycleEndsAt()
+		return nil
 	case usersubscription.FieldAssignedBy:
 		m.ResetAssignedBy()
 		return nil
@@ -56164,7 +56559,7 @@ func (m *UserSubscriptionMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserSubscriptionMutation) AddedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.user != nil {
 		edges = append(edges, usersubscription.EdgeUser)
 	}
@@ -56176,6 +56571,9 @@ func (m *UserSubscriptionMutation) AddedEdges() []string {
 	}
 	if m.usage_logs != nil {
 		edges = append(edges, usersubscription.EdgeUsageLogs)
+	}
+	if m.cycles != nil {
+		edges = append(edges, usersubscription.EdgeCycles)
 	}
 	return edges
 }
@@ -56202,15 +56600,24 @@ func (m *UserSubscriptionMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case usersubscription.EdgeCycles:
+		ids := make([]ent.Value, 0, len(m.cycles))
+		for id := range m.cycles {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserSubscriptionMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.removedusage_logs != nil {
 		edges = append(edges, usersubscription.EdgeUsageLogs)
+	}
+	if m.removedcycles != nil {
+		edges = append(edges, usersubscription.EdgeCycles)
 	}
 	return edges
 }
@@ -56225,13 +56632,19 @@ func (m *UserSubscriptionMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case usersubscription.EdgeCycles:
+		ids := make([]ent.Value, 0, len(m.removedcycles))
+		for id := range m.removedcycles {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserSubscriptionMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.cleareduser {
 		edges = append(edges, usersubscription.EdgeUser)
 	}
@@ -56243,6 +56656,9 @@ func (m *UserSubscriptionMutation) ClearedEdges() []string {
 	}
 	if m.clearedusage_logs {
 		edges = append(edges, usersubscription.EdgeUsageLogs)
+	}
+	if m.clearedcycles {
+		edges = append(edges, usersubscription.EdgeCycles)
 	}
 	return edges
 }
@@ -56259,6 +56675,8 @@ func (m *UserSubscriptionMutation) EdgeCleared(name string) bool {
 		return m.clearedassigned_by_user
 	case usersubscription.EdgeUsageLogs:
 		return m.clearedusage_logs
+	case usersubscription.EdgeCycles:
+		return m.clearedcycles
 	}
 	return false
 }
@@ -56296,6 +56714,1039 @@ func (m *UserSubscriptionMutation) ResetEdge(name string) error {
 	case usersubscription.EdgeUsageLogs:
 		m.ResetUsageLogs()
 		return nil
+	case usersubscription.EdgeCycles:
+		m.ResetCycles()
+		return nil
 	}
 	return fmt.Errorf("unknown UserSubscription edge %s", name)
+}
+
+// UserSubscriptionCycleMutation represents an operation that mutates the UserSubscriptionCycle nodes in the graph.
+type UserSubscriptionCycleMutation struct {
+	config
+	op                                Op
+	typ                               string
+	id                                *int64
+	created_at                        *time.Time
+	updated_at                        *time.Time
+	starts_at                         *time.Time
+	ends_at                           *time.Time
+	status                            *string
+	source_type                       *string
+	source_ref                        *string
+	final_usage_usd                   *float64
+	addfinal_usage_usd                *float64
+	final_manual_quota_reset_count    *int64
+	addfinal_manual_quota_reset_count *int64
+	completed_at                      *time.Time
+	clearedFields                     map[string]struct{}
+	subscription                      *int64
+	clearedsubscription               bool
+	done                              bool
+	oldValue                          func(context.Context) (*UserSubscriptionCycle, error)
+	predicates                        []predicate.UserSubscriptionCycle
+}
+
+var _ ent.Mutation = (*UserSubscriptionCycleMutation)(nil)
+
+// usersubscriptioncycleOption allows management of the mutation configuration using functional options.
+type usersubscriptioncycleOption func(*UserSubscriptionCycleMutation)
+
+// newUserSubscriptionCycleMutation creates new mutation for the UserSubscriptionCycle entity.
+func newUserSubscriptionCycleMutation(c config, op Op, opts ...usersubscriptioncycleOption) *UserSubscriptionCycleMutation {
+	m := &UserSubscriptionCycleMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserSubscriptionCycle,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserSubscriptionCycleID sets the ID field of the mutation.
+func withUserSubscriptionCycleID(id int64) usersubscriptioncycleOption {
+	return func(m *UserSubscriptionCycleMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserSubscriptionCycle
+		)
+		m.oldValue = func(ctx context.Context) (*UserSubscriptionCycle, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserSubscriptionCycle.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserSubscriptionCycle sets the old UserSubscriptionCycle of the mutation.
+func withUserSubscriptionCycle(node *UserSubscriptionCycle) usersubscriptioncycleOption {
+	return func(m *UserSubscriptionCycleMutation) {
+		m.oldValue = func(context.Context) (*UserSubscriptionCycle, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserSubscriptionCycleMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserSubscriptionCycleMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserSubscriptionCycleMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserSubscriptionCycleMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserSubscriptionCycle.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *UserSubscriptionCycleMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *UserSubscriptionCycleMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *UserSubscriptionCycleMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *UserSubscriptionCycleMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *UserSubscriptionCycleMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *UserSubscriptionCycleMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetSubscriptionID sets the "subscription_id" field.
+func (m *UserSubscriptionCycleMutation) SetSubscriptionID(i int64) {
+	m.subscription = &i
+}
+
+// SubscriptionID returns the value of the "subscription_id" field in the mutation.
+func (m *UserSubscriptionCycleMutation) SubscriptionID() (r int64, exists bool) {
+	v := m.subscription
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionID returns the old "subscription_id" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldSubscriptionID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionID: %w", err)
+	}
+	return oldValue.SubscriptionID, nil
+}
+
+// ResetSubscriptionID resets all changes to the "subscription_id" field.
+func (m *UserSubscriptionCycleMutation) ResetSubscriptionID() {
+	m.subscription = nil
+}
+
+// SetStartsAt sets the "starts_at" field.
+func (m *UserSubscriptionCycleMutation) SetStartsAt(t time.Time) {
+	m.starts_at = &t
+}
+
+// StartsAt returns the value of the "starts_at" field in the mutation.
+func (m *UserSubscriptionCycleMutation) StartsAt() (r time.Time, exists bool) {
+	v := m.starts_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartsAt returns the old "starts_at" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldStartsAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartsAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartsAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartsAt: %w", err)
+	}
+	return oldValue.StartsAt, nil
+}
+
+// ResetStartsAt resets all changes to the "starts_at" field.
+func (m *UserSubscriptionCycleMutation) ResetStartsAt() {
+	m.starts_at = nil
+}
+
+// SetEndsAt sets the "ends_at" field.
+func (m *UserSubscriptionCycleMutation) SetEndsAt(t time.Time) {
+	m.ends_at = &t
+}
+
+// EndsAt returns the value of the "ends_at" field in the mutation.
+func (m *UserSubscriptionCycleMutation) EndsAt() (r time.Time, exists bool) {
+	v := m.ends_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEndsAt returns the old "ends_at" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldEndsAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEndsAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEndsAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEndsAt: %w", err)
+	}
+	return oldValue.EndsAt, nil
+}
+
+// ResetEndsAt resets all changes to the "ends_at" field.
+func (m *UserSubscriptionCycleMutation) ResetEndsAt() {
+	m.ends_at = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *UserSubscriptionCycleMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *UserSubscriptionCycleMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *UserSubscriptionCycleMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetSourceType sets the "source_type" field.
+func (m *UserSubscriptionCycleMutation) SetSourceType(s string) {
+	m.source_type = &s
+}
+
+// SourceType returns the value of the "source_type" field in the mutation.
+func (m *UserSubscriptionCycleMutation) SourceType() (r string, exists bool) {
+	v := m.source_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceType returns the old "source_type" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldSourceType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceType: %w", err)
+	}
+	return oldValue.SourceType, nil
+}
+
+// ResetSourceType resets all changes to the "source_type" field.
+func (m *UserSubscriptionCycleMutation) ResetSourceType() {
+	m.source_type = nil
+}
+
+// SetSourceRef sets the "source_ref" field.
+func (m *UserSubscriptionCycleMutation) SetSourceRef(s string) {
+	m.source_ref = &s
+}
+
+// SourceRef returns the value of the "source_ref" field in the mutation.
+func (m *UserSubscriptionCycleMutation) SourceRef() (r string, exists bool) {
+	v := m.source_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceRef returns the old "source_ref" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldSourceRef(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceRef: %w", err)
+	}
+	return oldValue.SourceRef, nil
+}
+
+// ClearSourceRef clears the value of the "source_ref" field.
+func (m *UserSubscriptionCycleMutation) ClearSourceRef() {
+	m.source_ref = nil
+	m.clearedFields[usersubscriptioncycle.FieldSourceRef] = struct{}{}
+}
+
+// SourceRefCleared returns if the "source_ref" field was cleared in this mutation.
+func (m *UserSubscriptionCycleMutation) SourceRefCleared() bool {
+	_, ok := m.clearedFields[usersubscriptioncycle.FieldSourceRef]
+	return ok
+}
+
+// ResetSourceRef resets all changes to the "source_ref" field.
+func (m *UserSubscriptionCycleMutation) ResetSourceRef() {
+	m.source_ref = nil
+	delete(m.clearedFields, usersubscriptioncycle.FieldSourceRef)
+}
+
+// SetFinalUsageUsd sets the "final_usage_usd" field.
+func (m *UserSubscriptionCycleMutation) SetFinalUsageUsd(f float64) {
+	m.final_usage_usd = &f
+	m.addfinal_usage_usd = nil
+}
+
+// FinalUsageUsd returns the value of the "final_usage_usd" field in the mutation.
+func (m *UserSubscriptionCycleMutation) FinalUsageUsd() (r float64, exists bool) {
+	v := m.final_usage_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFinalUsageUsd returns the old "final_usage_usd" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldFinalUsageUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFinalUsageUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFinalUsageUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFinalUsageUsd: %w", err)
+	}
+	return oldValue.FinalUsageUsd, nil
+}
+
+// AddFinalUsageUsd adds f to the "final_usage_usd" field.
+func (m *UserSubscriptionCycleMutation) AddFinalUsageUsd(f float64) {
+	if m.addfinal_usage_usd != nil {
+		*m.addfinal_usage_usd += f
+	} else {
+		m.addfinal_usage_usd = &f
+	}
+}
+
+// AddedFinalUsageUsd returns the value that was added to the "final_usage_usd" field in this mutation.
+func (m *UserSubscriptionCycleMutation) AddedFinalUsageUsd() (r float64, exists bool) {
+	v := m.addfinal_usage_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFinalUsageUsd resets all changes to the "final_usage_usd" field.
+func (m *UserSubscriptionCycleMutation) ResetFinalUsageUsd() {
+	m.final_usage_usd = nil
+	m.addfinal_usage_usd = nil
+}
+
+// SetFinalManualQuotaResetCount sets the "final_manual_quota_reset_count" field.
+func (m *UserSubscriptionCycleMutation) SetFinalManualQuotaResetCount(i int64) {
+	m.final_manual_quota_reset_count = &i
+	m.addfinal_manual_quota_reset_count = nil
+}
+
+// FinalManualQuotaResetCount returns the value of the "final_manual_quota_reset_count" field in the mutation.
+func (m *UserSubscriptionCycleMutation) FinalManualQuotaResetCount() (r int64, exists bool) {
+	v := m.final_manual_quota_reset_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFinalManualQuotaResetCount returns the old "final_manual_quota_reset_count" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldFinalManualQuotaResetCount(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFinalManualQuotaResetCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFinalManualQuotaResetCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFinalManualQuotaResetCount: %w", err)
+	}
+	return oldValue.FinalManualQuotaResetCount, nil
+}
+
+// AddFinalManualQuotaResetCount adds i to the "final_manual_quota_reset_count" field.
+func (m *UserSubscriptionCycleMutation) AddFinalManualQuotaResetCount(i int64) {
+	if m.addfinal_manual_quota_reset_count != nil {
+		*m.addfinal_manual_quota_reset_count += i
+	} else {
+		m.addfinal_manual_quota_reset_count = &i
+	}
+}
+
+// AddedFinalManualQuotaResetCount returns the value that was added to the "final_manual_quota_reset_count" field in this mutation.
+func (m *UserSubscriptionCycleMutation) AddedFinalManualQuotaResetCount() (r int64, exists bool) {
+	v := m.addfinal_manual_quota_reset_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFinalManualQuotaResetCount resets all changes to the "final_manual_quota_reset_count" field.
+func (m *UserSubscriptionCycleMutation) ResetFinalManualQuotaResetCount() {
+	m.final_manual_quota_reset_count = nil
+	m.addfinal_manual_quota_reset_count = nil
+}
+
+// SetCompletedAt sets the "completed_at" field.
+func (m *UserSubscriptionCycleMutation) SetCompletedAt(t time.Time) {
+	m.completed_at = &t
+}
+
+// CompletedAt returns the value of the "completed_at" field in the mutation.
+func (m *UserSubscriptionCycleMutation) CompletedAt() (r time.Time, exists bool) {
+	v := m.completed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCompletedAt returns the old "completed_at" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldCompletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCompletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCompletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCompletedAt: %w", err)
+	}
+	return oldValue.CompletedAt, nil
+}
+
+// ClearCompletedAt clears the value of the "completed_at" field.
+func (m *UserSubscriptionCycleMutation) ClearCompletedAt() {
+	m.completed_at = nil
+	m.clearedFields[usersubscriptioncycle.FieldCompletedAt] = struct{}{}
+}
+
+// CompletedAtCleared returns if the "completed_at" field was cleared in this mutation.
+func (m *UserSubscriptionCycleMutation) CompletedAtCleared() bool {
+	_, ok := m.clearedFields[usersubscriptioncycle.FieldCompletedAt]
+	return ok
+}
+
+// ResetCompletedAt resets all changes to the "completed_at" field.
+func (m *UserSubscriptionCycleMutation) ResetCompletedAt() {
+	m.completed_at = nil
+	delete(m.clearedFields, usersubscriptioncycle.FieldCompletedAt)
+}
+
+// ClearSubscription clears the "subscription" edge to the UserSubscription entity.
+func (m *UserSubscriptionCycleMutation) ClearSubscription() {
+	m.clearedsubscription = true
+	m.clearedFields[usersubscriptioncycle.FieldSubscriptionID] = struct{}{}
+}
+
+// SubscriptionCleared reports if the "subscription" edge to the UserSubscription entity was cleared.
+func (m *UserSubscriptionCycleMutation) SubscriptionCleared() bool {
+	return m.clearedsubscription
+}
+
+// SubscriptionIDs returns the "subscription" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SubscriptionID instead. It exists only for internal usage by the builders.
+func (m *UserSubscriptionCycleMutation) SubscriptionIDs() (ids []int64) {
+	if id := m.subscription; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSubscription resets all changes to the "subscription" edge.
+func (m *UserSubscriptionCycleMutation) ResetSubscription() {
+	m.subscription = nil
+	m.clearedsubscription = false
+}
+
+// Where appends a list predicates to the UserSubscriptionCycleMutation builder.
+func (m *UserSubscriptionCycleMutation) Where(ps ...predicate.UserSubscriptionCycle) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserSubscriptionCycleMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserSubscriptionCycleMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserSubscriptionCycle, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserSubscriptionCycleMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserSubscriptionCycleMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserSubscriptionCycle).
+func (m *UserSubscriptionCycleMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserSubscriptionCycleMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.created_at != nil {
+		fields = append(fields, usersubscriptioncycle.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, usersubscriptioncycle.FieldUpdatedAt)
+	}
+	if m.subscription != nil {
+		fields = append(fields, usersubscriptioncycle.FieldSubscriptionID)
+	}
+	if m.starts_at != nil {
+		fields = append(fields, usersubscriptioncycle.FieldStartsAt)
+	}
+	if m.ends_at != nil {
+		fields = append(fields, usersubscriptioncycle.FieldEndsAt)
+	}
+	if m.status != nil {
+		fields = append(fields, usersubscriptioncycle.FieldStatus)
+	}
+	if m.source_type != nil {
+		fields = append(fields, usersubscriptioncycle.FieldSourceType)
+	}
+	if m.source_ref != nil {
+		fields = append(fields, usersubscriptioncycle.FieldSourceRef)
+	}
+	if m.final_usage_usd != nil {
+		fields = append(fields, usersubscriptioncycle.FieldFinalUsageUsd)
+	}
+	if m.final_manual_quota_reset_count != nil {
+		fields = append(fields, usersubscriptioncycle.FieldFinalManualQuotaResetCount)
+	}
+	if m.completed_at != nil {
+		fields = append(fields, usersubscriptioncycle.FieldCompletedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserSubscriptionCycleMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case usersubscriptioncycle.FieldCreatedAt:
+		return m.CreatedAt()
+	case usersubscriptioncycle.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case usersubscriptioncycle.FieldSubscriptionID:
+		return m.SubscriptionID()
+	case usersubscriptioncycle.FieldStartsAt:
+		return m.StartsAt()
+	case usersubscriptioncycle.FieldEndsAt:
+		return m.EndsAt()
+	case usersubscriptioncycle.FieldStatus:
+		return m.Status()
+	case usersubscriptioncycle.FieldSourceType:
+		return m.SourceType()
+	case usersubscriptioncycle.FieldSourceRef:
+		return m.SourceRef()
+	case usersubscriptioncycle.FieldFinalUsageUsd:
+		return m.FinalUsageUsd()
+	case usersubscriptioncycle.FieldFinalManualQuotaResetCount:
+		return m.FinalManualQuotaResetCount()
+	case usersubscriptioncycle.FieldCompletedAt:
+		return m.CompletedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserSubscriptionCycleMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case usersubscriptioncycle.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case usersubscriptioncycle.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case usersubscriptioncycle.FieldSubscriptionID:
+		return m.OldSubscriptionID(ctx)
+	case usersubscriptioncycle.FieldStartsAt:
+		return m.OldStartsAt(ctx)
+	case usersubscriptioncycle.FieldEndsAt:
+		return m.OldEndsAt(ctx)
+	case usersubscriptioncycle.FieldStatus:
+		return m.OldStatus(ctx)
+	case usersubscriptioncycle.FieldSourceType:
+		return m.OldSourceType(ctx)
+	case usersubscriptioncycle.FieldSourceRef:
+		return m.OldSourceRef(ctx)
+	case usersubscriptioncycle.FieldFinalUsageUsd:
+		return m.OldFinalUsageUsd(ctx)
+	case usersubscriptioncycle.FieldFinalManualQuotaResetCount:
+		return m.OldFinalManualQuotaResetCount(ctx)
+	case usersubscriptioncycle.FieldCompletedAt:
+		return m.OldCompletedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserSubscriptionCycle field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserSubscriptionCycleMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case usersubscriptioncycle.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case usersubscriptioncycle.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case usersubscriptioncycle.FieldSubscriptionID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionID(v)
+		return nil
+	case usersubscriptioncycle.FieldStartsAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartsAt(v)
+		return nil
+	case usersubscriptioncycle.FieldEndsAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEndsAt(v)
+		return nil
+	case usersubscriptioncycle.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case usersubscriptioncycle.FieldSourceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceType(v)
+		return nil
+	case usersubscriptioncycle.FieldSourceRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceRef(v)
+		return nil
+	case usersubscriptioncycle.FieldFinalUsageUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFinalUsageUsd(v)
+		return nil
+	case usersubscriptioncycle.FieldFinalManualQuotaResetCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFinalManualQuotaResetCount(v)
+		return nil
+	case usersubscriptioncycle.FieldCompletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCompletedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserSubscriptionCycle field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserSubscriptionCycleMutation) AddedFields() []string {
+	var fields []string
+	if m.addfinal_usage_usd != nil {
+		fields = append(fields, usersubscriptioncycle.FieldFinalUsageUsd)
+	}
+	if m.addfinal_manual_quota_reset_count != nil {
+		fields = append(fields, usersubscriptioncycle.FieldFinalManualQuotaResetCount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserSubscriptionCycleMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case usersubscriptioncycle.FieldFinalUsageUsd:
+		return m.AddedFinalUsageUsd()
+	case usersubscriptioncycle.FieldFinalManualQuotaResetCount:
+		return m.AddedFinalManualQuotaResetCount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserSubscriptionCycleMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case usersubscriptioncycle.FieldFinalUsageUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFinalUsageUsd(v)
+		return nil
+	case usersubscriptioncycle.FieldFinalManualQuotaResetCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFinalManualQuotaResetCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserSubscriptionCycle numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserSubscriptionCycleMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(usersubscriptioncycle.FieldSourceRef) {
+		fields = append(fields, usersubscriptioncycle.FieldSourceRef)
+	}
+	if m.FieldCleared(usersubscriptioncycle.FieldCompletedAt) {
+		fields = append(fields, usersubscriptioncycle.FieldCompletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserSubscriptionCycleMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserSubscriptionCycleMutation) ClearField(name string) error {
+	switch name {
+	case usersubscriptioncycle.FieldSourceRef:
+		m.ClearSourceRef()
+		return nil
+	case usersubscriptioncycle.FieldCompletedAt:
+		m.ClearCompletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserSubscriptionCycle nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserSubscriptionCycleMutation) ResetField(name string) error {
+	switch name {
+	case usersubscriptioncycle.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case usersubscriptioncycle.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case usersubscriptioncycle.FieldSubscriptionID:
+		m.ResetSubscriptionID()
+		return nil
+	case usersubscriptioncycle.FieldStartsAt:
+		m.ResetStartsAt()
+		return nil
+	case usersubscriptioncycle.FieldEndsAt:
+		m.ResetEndsAt()
+		return nil
+	case usersubscriptioncycle.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case usersubscriptioncycle.FieldSourceType:
+		m.ResetSourceType()
+		return nil
+	case usersubscriptioncycle.FieldSourceRef:
+		m.ResetSourceRef()
+		return nil
+	case usersubscriptioncycle.FieldFinalUsageUsd:
+		m.ResetFinalUsageUsd()
+		return nil
+	case usersubscriptioncycle.FieldFinalManualQuotaResetCount:
+		m.ResetFinalManualQuotaResetCount()
+		return nil
+	case usersubscriptioncycle.FieldCompletedAt:
+		m.ResetCompletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserSubscriptionCycle field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserSubscriptionCycleMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.subscription != nil {
+		edges = append(edges, usersubscriptioncycle.EdgeSubscription)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserSubscriptionCycleMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case usersubscriptioncycle.EdgeSubscription:
+		if id := m.subscription; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserSubscriptionCycleMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserSubscriptionCycleMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserSubscriptionCycleMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedsubscription {
+		edges = append(edges, usersubscriptioncycle.EdgeSubscription)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserSubscriptionCycleMutation) EdgeCleared(name string) bool {
+	switch name {
+	case usersubscriptioncycle.EdgeSubscription:
+		return m.clearedsubscription
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserSubscriptionCycleMutation) ClearEdge(name string) error {
+	switch name {
+	case usersubscriptioncycle.EdgeSubscription:
+		m.ClearSubscription()
+		return nil
+	}
+	return fmt.Errorf("unknown UserSubscriptionCycle unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserSubscriptionCycleMutation) ResetEdge(name string) error {
+	switch name {
+	case usersubscriptioncycle.EdgeSubscription:
+		m.ResetSubscription()
+		return nil
+	}
+	return fmt.Errorf("unknown UserSubscriptionCycle edge %s", name)
 }

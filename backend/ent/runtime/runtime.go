@@ -45,6 +45,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
+	"github.com/Wei-Shaw/sub2api/ent/usersubscriptioncycle"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
@@ -1868,26 +1869,30 @@ func init() {
 	subscriptionplanDescForSale := subscriptionplanFields[10].Descriptor()
 	// subscriptionplan.DefaultForSale holds the default value on creation for the for_sale field.
 	subscriptionplan.DefaultForSale = subscriptionplanDescForSale.Default.(bool)
+	// subscriptionplanDescAllowBulkQuotaReset is the schema descriptor for allow_bulk_quota_reset field.
+	subscriptionplanDescAllowBulkQuotaReset := subscriptionplanFields[11].Descriptor()
+	// subscriptionplan.DefaultAllowBulkQuotaReset holds the default value on creation for the allow_bulk_quota_reset field.
+	subscriptionplan.DefaultAllowBulkQuotaReset = subscriptionplanDescAllowBulkQuotaReset.Default.(bool)
 	// subscriptionplanDescInventoryAutoDelisted is the schema descriptor for inventory_auto_delisted field.
-	subscriptionplanDescInventoryAutoDelisted := subscriptionplanFields[12].Descriptor()
+	subscriptionplanDescInventoryAutoDelisted := subscriptionplanFields[13].Descriptor()
 	// subscriptionplan.DefaultInventoryAutoDelisted holds the default value on creation for the inventory_auto_delisted field.
 	subscriptionplan.DefaultInventoryAutoDelisted = subscriptionplanDescInventoryAutoDelisted.Default.(bool)
 	// subscriptionplanDescSoldOutAction is the schema descriptor for sold_out_action field.
-	subscriptionplanDescSoldOutAction := subscriptionplanFields[13].Descriptor()
+	subscriptionplanDescSoldOutAction := subscriptionplanFields[14].Descriptor()
 	// subscriptionplan.DefaultSoldOutAction holds the default value on creation for the sold_out_action field.
 	subscriptionplan.DefaultSoldOutAction = subscriptionplanDescSoldOutAction.Default.(string)
 	// subscriptionplan.SoldOutActionValidator is a validator for the "sold_out_action" field. It is called by the builders before save.
 	subscriptionplan.SoldOutActionValidator = subscriptionplanDescSoldOutAction.Validators[0].(func(string) error)
 	// subscriptionplanDescSortOrder is the schema descriptor for sort_order field.
-	subscriptionplanDescSortOrder := subscriptionplanFields[14].Descriptor()
+	subscriptionplanDescSortOrder := subscriptionplanFields[15].Descriptor()
 	// subscriptionplan.DefaultSortOrder holds the default value on creation for the sort_order field.
 	subscriptionplan.DefaultSortOrder = subscriptionplanDescSortOrder.Default.(int)
 	// subscriptionplanDescCreatedAt is the schema descriptor for created_at field.
-	subscriptionplanDescCreatedAt := subscriptionplanFields[15].Descriptor()
+	subscriptionplanDescCreatedAt := subscriptionplanFields[16].Descriptor()
 	// subscriptionplan.DefaultCreatedAt holds the default value on creation for the created_at field.
 	subscriptionplan.DefaultCreatedAt = subscriptionplanDescCreatedAt.Default.(func() time.Time)
 	// subscriptionplanDescUpdatedAt is the schema descriptor for updated_at field.
-	subscriptionplanDescUpdatedAt := subscriptionplanFields[16].Descriptor()
+	subscriptionplanDescUpdatedAt := subscriptionplanFields[17].Descriptor()
 	// subscriptionplan.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	subscriptionplan.DefaultUpdatedAt = subscriptionplanDescUpdatedAt.Default.(func() time.Time)
 	// subscriptionplan.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -2470,10 +2475,65 @@ func init() {
 	usersubscriptionDescMonthlyUsageUsd := usersubscriptionFields[10].Descriptor()
 	// usersubscription.DefaultMonthlyUsageUsd holds the default value on creation for the monthly_usage_usd field.
 	usersubscription.DefaultMonthlyUsageUsd = usersubscriptionDescMonthlyUsageUsd.Default.(float64)
+	// usersubscriptionDescCycleUsageUsd is the schema descriptor for cycle_usage_usd field.
+	usersubscriptionDescCycleUsageUsd := usersubscriptionFields[11].Descriptor()
+	// usersubscription.DefaultCycleUsageUsd holds the default value on creation for the cycle_usage_usd field.
+	usersubscription.DefaultCycleUsageUsd = usersubscriptionDescCycleUsageUsd.Default.(float64)
+	// usersubscriptionDescManualQuotaResetCount is the schema descriptor for manual_quota_reset_count field.
+	usersubscriptionDescManualQuotaResetCount := usersubscriptionFields[12].Descriptor()
+	// usersubscription.DefaultManualQuotaResetCount holds the default value on creation for the manual_quota_reset_count field.
+	usersubscription.DefaultManualQuotaResetCount = usersubscriptionDescManualQuotaResetCount.Default.(int64)
+	// usersubscriptionDescCurrentCycleStartsAt is the schema descriptor for current_cycle_starts_at field.
+	usersubscriptionDescCurrentCycleStartsAt := usersubscriptionFields[13].Descriptor()
+	// usersubscription.DefaultCurrentCycleStartsAt holds the default value on creation for the current_cycle_starts_at field.
+	usersubscription.DefaultCurrentCycleStartsAt = usersubscriptionDescCurrentCycleStartsAt.Default.(func() time.Time)
+	// usersubscriptionDescCurrentCycleEndsAt is the schema descriptor for current_cycle_ends_at field.
+	usersubscriptionDescCurrentCycleEndsAt := usersubscriptionFields[14].Descriptor()
+	// usersubscription.DefaultCurrentCycleEndsAt holds the default value on creation for the current_cycle_ends_at field.
+	usersubscription.DefaultCurrentCycleEndsAt = usersubscriptionDescCurrentCycleEndsAt.Default.(func() time.Time)
 	// usersubscriptionDescAssignedAt is the schema descriptor for assigned_at field.
-	usersubscriptionDescAssignedAt := usersubscriptionFields[12].Descriptor()
+	usersubscriptionDescAssignedAt := usersubscriptionFields[16].Descriptor()
 	// usersubscription.DefaultAssignedAt holds the default value on creation for the assigned_at field.
 	usersubscription.DefaultAssignedAt = usersubscriptionDescAssignedAt.Default.(func() time.Time)
+	usersubscriptioncycleMixin := schema.UserSubscriptionCycle{}.Mixin()
+	usersubscriptioncycleMixinFields0 := usersubscriptioncycleMixin[0].Fields()
+	_ = usersubscriptioncycleMixinFields0
+	usersubscriptioncycleFields := schema.UserSubscriptionCycle{}.Fields()
+	_ = usersubscriptioncycleFields
+	// usersubscriptioncycleDescCreatedAt is the schema descriptor for created_at field.
+	usersubscriptioncycleDescCreatedAt := usersubscriptioncycleMixinFields0[0].Descriptor()
+	// usersubscriptioncycle.DefaultCreatedAt holds the default value on creation for the created_at field.
+	usersubscriptioncycle.DefaultCreatedAt = usersubscriptioncycleDescCreatedAt.Default.(func() time.Time)
+	// usersubscriptioncycleDescUpdatedAt is the schema descriptor for updated_at field.
+	usersubscriptioncycleDescUpdatedAt := usersubscriptioncycleMixinFields0[1].Descriptor()
+	// usersubscriptioncycle.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	usersubscriptioncycle.DefaultUpdatedAt = usersubscriptioncycleDescUpdatedAt.Default.(func() time.Time)
+	// usersubscriptioncycle.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	usersubscriptioncycle.UpdateDefaultUpdatedAt = usersubscriptioncycleDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// usersubscriptioncycleDescStatus is the schema descriptor for status field.
+	usersubscriptioncycleDescStatus := usersubscriptioncycleFields[3].Descriptor()
+	// usersubscriptioncycle.DefaultStatus holds the default value on creation for the status field.
+	usersubscriptioncycle.DefaultStatus = usersubscriptioncycleDescStatus.Default.(string)
+	// usersubscriptioncycle.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	usersubscriptioncycle.StatusValidator = usersubscriptioncycleDescStatus.Validators[0].(func(string) error)
+	// usersubscriptioncycleDescSourceType is the schema descriptor for source_type field.
+	usersubscriptioncycleDescSourceType := usersubscriptioncycleFields[4].Descriptor()
+	// usersubscriptioncycle.DefaultSourceType holds the default value on creation for the source_type field.
+	usersubscriptioncycle.DefaultSourceType = usersubscriptioncycleDescSourceType.Default.(string)
+	// usersubscriptioncycle.SourceTypeValidator is a validator for the "source_type" field. It is called by the builders before save.
+	usersubscriptioncycle.SourceTypeValidator = usersubscriptioncycleDescSourceType.Validators[0].(func(string) error)
+	// usersubscriptioncycleDescSourceRef is the schema descriptor for source_ref field.
+	usersubscriptioncycleDescSourceRef := usersubscriptioncycleFields[5].Descriptor()
+	// usersubscriptioncycle.SourceRefValidator is a validator for the "source_ref" field. It is called by the builders before save.
+	usersubscriptioncycle.SourceRefValidator = usersubscriptioncycleDescSourceRef.Validators[0].(func(string) error)
+	// usersubscriptioncycleDescFinalUsageUsd is the schema descriptor for final_usage_usd field.
+	usersubscriptioncycleDescFinalUsageUsd := usersubscriptioncycleFields[6].Descriptor()
+	// usersubscriptioncycle.DefaultFinalUsageUsd holds the default value on creation for the final_usage_usd field.
+	usersubscriptioncycle.DefaultFinalUsageUsd = usersubscriptioncycleDescFinalUsageUsd.Default.(float64)
+	// usersubscriptioncycleDescFinalManualQuotaResetCount is the schema descriptor for final_manual_quota_reset_count field.
+	usersubscriptioncycleDescFinalManualQuotaResetCount := usersubscriptioncycleFields[7].Descriptor()
+	// usersubscriptioncycle.DefaultFinalManualQuotaResetCount holds the default value on creation for the final_manual_quota_reset_count field.
+	usersubscriptioncycle.DefaultFinalManualQuotaResetCount = usersubscriptioncycleDescFinalManualQuotaResetCount.Default.(int64)
 }
 
 const (

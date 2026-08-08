@@ -35,6 +35,8 @@ const (
 	FieldProductName = "product_name"
 	// FieldForSale holds the string denoting the for_sale field in the database.
 	FieldForSale = "for_sale"
+	// FieldAllowBulkQuotaReset holds the string denoting the allow_bulk_quota_reset field in the database.
+	FieldAllowBulkQuotaReset = "allow_bulk_quota_reset"
 	// FieldRemainingQuantity holds the string denoting the remaining_quantity field in the database.
 	FieldRemainingQuantity = "remaining_quantity"
 	// FieldInventoryAutoDelisted holds the string denoting the inventory_auto_delisted field in the database.
@@ -65,6 +67,7 @@ var Columns = []string{
 	FieldFeatures,
 	FieldProductName,
 	FieldForSale,
+	FieldAllowBulkQuotaReset,
 	FieldRemainingQuantity,
 	FieldInventoryAutoDelisted,
 	FieldSoldOutAction,
@@ -106,6 +109,8 @@ var (
 	ProductNameValidator func(string) error
 	// DefaultForSale holds the default value on creation for the "for_sale" field.
 	DefaultForSale bool
+	// DefaultAllowBulkQuotaReset holds the default value on creation for the "allow_bulk_quota_reset" field.
+	DefaultAllowBulkQuotaReset bool
 	// DefaultInventoryAutoDelisted holds the default value on creation for the "inventory_auto_delisted" field.
 	DefaultInventoryAutoDelisted bool
 	// DefaultSoldOutAction holds the default value on creation for the "sold_out_action" field.
@@ -183,6 +188,11 @@ func ByProductName(opts ...sql.OrderTermOption) OrderOption {
 // ByForSale orders the results by the for_sale field.
 func ByForSale(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldForSale, opts...).ToFunc()
+}
+
+// ByAllowBulkQuotaReset orders the results by the allow_bulk_quota_reset field.
+func ByAllowBulkQuotaReset(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAllowBulkQuotaReset, opts...).ToFunc()
 }
 
 // ByRemainingQuantity orders the results by the remaining_quantity field.

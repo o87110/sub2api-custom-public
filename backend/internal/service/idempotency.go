@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/idempotencyexecution"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
 )
@@ -242,6 +243,10 @@ func (c *IdempotencyCoordinator) Execute(
 	expiresAt := now.Add(ttl)
 	lockedUntil := now.Add(c.cfg.ProcessingTimeout)
 	keyHash := HashIdempotencyKey(key)
+	execution, err := idempotencyexecution.New(opts.Scope, opts.ActorScope, keyHash, now, expiresAt)
+	if err != nil {
+		return nil, err
+	}
 
 	record := &IdempotencyRecord{
 		Scope:              opts.Scope,
@@ -397,7 +402,7 @@ func (c *IdempotencyCoordinator) Execute(
 		recordIdempotencyProcessingDuration(opts.Route, opts.Scope, time.Since(execStart), nil)
 	}()
 
-	data, execErr := execute(ctx)
+	data, execErr := execute(idempotencyexecution.WithContext(ctx, execution))
 	if execErr != nil {
 		backoffUntil := time.Now().Add(c.cfg.FailedRetryBackoff)
 		reason := infraerrors.Reason(execErr)

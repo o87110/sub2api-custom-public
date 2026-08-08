@@ -155,7 +155,8 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 		SetGroupID(req.GroupID).SetName(req.Name).SetDescription(req.Description).
 		SetPrice(req.Price).SetCurrency(currency).SetValidityDays(req.ValidityDays).SetValidityUnit(req.ValidityUnit).
 		SetFeatures(req.Features).SetProductName(req.ProductName).
-		SetForSale(req.ForSale).SetNillableRemainingQuantity(req.RemainingQuantity).
+		SetForSale(req.ForSale).SetAllowBulkQuotaReset(req.AllowBulkQuotaReset).
+		SetNillableRemainingQuantity(req.RemainingQuantity).
 		SetSoldOutAction(soldOutAction).SetSortOrder(req.SortOrder)
 	if req.OriginalPrice != nil {
 		b.SetOriginalPrice(*req.OriginalPrice)
@@ -180,20 +181,21 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id int64, req Upd
 	}
 
 	return subscriptioninventory.UpdateAdminPlan(ctx, s.entClient, id, subscriptioninventory.AdminPlanPatch{
-		GroupID:           req.GroupID,
-		Name:              req.Name,
-		Description:       req.Description,
-		Price:             req.Price,
-		OriginalPrice:     req.OriginalPrice,
-		Currency:          normalizedCurrency,
-		ValidityDays:      req.ValidityDays,
-		ValidityUnit:      req.ValidityUnit,
-		Features:          req.Features,
-		ProductName:       req.ProductName,
-		ForSale:           req.ForSale,
-		RemainingQuantity: req.RemainingQuantity,
-		SoldOutAction:     req.SoldOutAction,
-		SortOrder:         req.SortOrder,
+		GroupID:             req.GroupID,
+		Name:                req.Name,
+		Description:         req.Description,
+		Price:               req.Price,
+		OriginalPrice:       req.OriginalPrice,
+		Currency:            normalizedCurrency,
+		ValidityDays:        req.ValidityDays,
+		ValidityUnit:        req.ValidityUnit,
+		Features:            req.Features,
+		ProductName:         req.ProductName,
+		ForSale:             req.ForSale,
+		AllowBulkQuotaReset: req.AllowBulkQuotaReset,
+		RemainingQuantity:   req.RemainingQuantity,
+		SoldOutAction:       req.SoldOutAction,
+		SortOrder:           req.SortOrder,
 	})
 }
 

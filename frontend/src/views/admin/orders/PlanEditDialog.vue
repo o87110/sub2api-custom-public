@@ -74,6 +74,7 @@
         <textarea v-model="planFeaturesText" rows="3" class="input" :placeholder="t('payment.admin.featuresPlaceholder')"></textarea>
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.featuresHint') }}</p>
       </div>
+      <BulkQuotaResetEligibilityToggle v-model="planForm.allow_bulk_quota_reset" />
       <div class="flex items-center gap-3">
         <label class="text-sm text-gray-700 dark:text-gray-300">{{ t('payment.admin.forSale') }}</label>
         <button
@@ -117,6 +118,7 @@ import GroupBadge from '@/components/common/GroupBadge.vue'
 import { platformTextClass } from '@/utils/platformColors'
 import InventoryQuantityInput from '@/custom/subscription-plan-inventory/InventoryQuantityInput.vue'
 import SoldOutActionSelect from '@/custom/subscription-plan-inventory/SoldOutActionSelect.vue'
+import BulkQuotaResetEligibilityToggle from '@/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue'
 import {
   SOLD_OUT_ACTION_DELIST,
   SOLD_OUT_ACTION_DISABLE_PURCHASE,
@@ -152,6 +154,7 @@ const planForm = reactive({
   validity_unit: 'days',
   sort_order: 0,
   for_sale: true,
+  allow_bulk_quota_reset: false,
   sold_out_action: SOLD_OUT_ACTION_DELIST as SoldOutAction,
 })
 const planFeaturesText = ref('')
@@ -224,12 +227,12 @@ watch(() => props.show, (visible) => {
   if (!visible) return
   if (props.plan) {
     const soldOutAction = props.plan.sold_out_action || SOLD_OUT_ACTION_DELIST
-    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price, original_price: props.plan.original_price || 0, currency: props.plan.currency || '', validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale, sold_out_action: soldOutAction })
+    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price, original_price: props.plan.original_price || 0, currency: props.plan.currency || '', validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale, allow_bulk_quota_reset: props.plan.allow_bulk_quota_reset ?? false, sold_out_action: soldOutAction })
     planFeaturesText.value = (props.plan.features || []).join('\n')
     remainingQuantityInput.value = props.plan.remaining_quantity == null ? '' : String(props.plan.remaining_quantity)
     initialSoldOutAction.value = soldOutAction
   } else {
-    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true, sold_out_action: SOLD_OUT_ACTION_DELIST })
+    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true, allow_bulk_quota_reset: false, sold_out_action: SOLD_OUT_ACTION_DELIST })
     planFeaturesText.value = ''
     remainingQuantityInput.value = ''
     initialSoldOutAction.value = SOLD_OUT_ACTION_DELIST
@@ -267,6 +270,7 @@ function buildPlanPayload() {
     validity_days: planForm.validity_days,
     validity_unit: planForm.validity_unit,
     sort_order: planForm.sort_order,
+    allow_bulk_quota_reset: planForm.allow_bulk_quota_reset,
     features,
   }
   if (!props.plan) {

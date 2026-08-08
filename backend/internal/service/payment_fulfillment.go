@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionquota"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -543,12 +544,15 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 		case lookupErr != nil && !errors.Is(lookupErr, ErrSubscriptionNotFound):
 			return fmt.Errorf("check existing subscription assignment: %w", lookupErr)
 		default:
+			cycleSourceRef := strconv.FormatInt(o.ID, 10)
 			if _, _, err := s.subscriptionSvc.assignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
-				UserID:       o.UserID,
-				GroupID:      groupID,
-				ValidityDays: days,
-				AssignedBy:   0,
-				Notes:        orderNote,
+				UserID:          o.UserID,
+				GroupID:         groupID,
+				ValidityDays:    days,
+				AssignedBy:      0,
+				Notes:           orderNote,
+				CycleSourceType: subscriptionquota.CycleSourcePayment,
+				CycleSourceRef:  &cycleSourceRef,
 			}, true); err != nil {
 				return fmt.Errorf("assign subscription: %w", err)
 			}

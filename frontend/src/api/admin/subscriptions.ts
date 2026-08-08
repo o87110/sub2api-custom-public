@@ -13,6 +13,40 @@ import type {
   PaginatedResponse
 } from '@/types'
 
+export interface BulkQuotaResetCandidate {
+  subscription_id: number
+  user_id: number
+  user_email: string
+  username: string
+  plan_id: number
+  plan_name: string
+  cycle_usage_usd: number
+  manual_quota_reset_count: number
+}
+
+export interface BulkQuotaResetCandidateList {
+  user_count: number
+  subscription_count: number
+  items: BulkQuotaResetCandidate[]
+}
+
+export type BulkQuotaResetItemStatus = 'success' | 'skipped' | 'failed'
+
+export interface BulkQuotaResetItemResult {
+  subscription_id: number
+  status: BulkQuotaResetItemStatus
+  reason_code?: string
+  message?: string
+}
+
+export interface BulkQuotaResetResult {
+  requested_count: number
+  success_count: number
+  skipped_count: number
+  failed_count: number
+	items: BulkQuotaResetItemResult[]
+}
+
 /**
  * List all subscriptions with pagination
  * @param page - Page number (default: 1)
@@ -139,11 +173,32 @@ export async function restore(id: number): Promise<UserSubscription> {
  */
 export async function resetQuota(
   id: number,
-  options: { daily: boolean; weekly: boolean; monthly: boolean }
+  options: { daily: boolean; weekly: boolean; monthly: boolean },
+  idempotencyKey?: string
 ): Promise<UserSubscription> {
   const { data } = await apiClient.post<UserSubscription>(
     `/admin/subscriptions/${id}/reset-quota`,
-    options
+    options,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+  )
+  return data
+}
+
+export async function listBulkResetQuotaCandidates(): Promise<BulkQuotaResetCandidateList> {
+  const { data } = await apiClient.get<BulkQuotaResetCandidateList>(
+    '/admin/subscriptions/bulk-reset-quota/candidates'
+  )
+  return data
+}
+
+export async function bulkResetQuota(
+  subscriptionIds: number[],
+  idempotencyKey: string
+): Promise<BulkQuotaResetResult> {
+  const { data } = await apiClient.post<BulkQuotaResetResult>(
+    '/admin/subscriptions/bulk-reset-quota',
+    { subscription_ids: subscriptionIds },
+    { headers: { 'Idempotency-Key': idempotencyKey } }
   )
   return data
 }
@@ -200,6 +255,8 @@ export const subscriptionsAPI = {
   revoke,
   restore,
   resetQuota,
+  listBulkResetQuotaCandidates,
+  bulkResetQuota,
   listByGroup,
   listByUser
 }

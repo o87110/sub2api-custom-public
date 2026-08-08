@@ -107,6 +107,10 @@ HIGH_RISK_DEFINITIONS: dict[str, tuple[re.Pattern[str], ...]] = {
 # names below are the reviewed persistence, DTO, or one-call adapter functions
 # required by the current Custom boundary.
 APPROVED_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
+    "backend/internal/handler/admin/subscription_handler.go": frozenset({
+        "BulkResetQuota",
+        "ListBulkResetQuotaCandidates",
+    }),
     "backend/internal/handler/channel_monitor_user_handler.go": frozenset({"SetGroupRateResolver"}),
     "backend/internal/payment/load_balancer.go": frozenset({
         "RevalidateSelection",
@@ -162,12 +166,20 @@ APPROVED_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
         "CreateWeChatPaymentOAuthToken",
         "ParseWeChatPaymentOAuthToken",
     }),
+    "backend/internal/service/subscription_service.go": frozenset({
+        "AdjustSubscriptionForRefund",
+        "AdminResetQuotaIdempotent",
+        "FinalizeSubscriptionRefundDeduction",
+        "RestoreSubscriptionTermAfterRefund",
+        "invalidateAdjustedSubscriptionCache",
+    }),
     "frontend/src/components/payment/SubscriptionPlanCard.vue": frozenset({"handleSelect"}),
     "frontend/src/views/admin/orders/PlanEditDialog.vue": frozenset({
         "handleRemainingQuantityInput",
         "remainingQuantityError",
         "togglePlanForSale",
     }),
+    "frontend/src/views/admin/SubscriptionsView.vue": frozenset({"cancelResetQuota"}),
     "frontend/src/views/user/KeysView.vue": frozenset({
         "refreshApiKeys",
         "handleTableSelectionChange",
@@ -190,8 +202,61 @@ def _approved_call_deltas(
 # count. Updating a ledger Blob or line budget cannot authorize an additional
 # delegate/view operation without an explicit structural review here.
 APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
+    'backend/internal/handler/admin/subscription_handler.go': _approved_call_deltas(
+        ('<top-level>', {
+            'AdminResetQuota': 1,
+            'AdminResetQuotaIdempotent': 1,
+            'const': 1,
+        }),
+        ('BulkResetQuota', {
+            'adminActorScope': 1,
+            'c.GetHeader': 1,
+            'c.ShouldBindJSON': 1,
+            'claimedAt.Add': 1,
+            'err.Error': 1,
+            'executeAdminIdempotentJSON': 1,
+            'h.bulkResetService.ResetSelected': 1,
+            'idempotencyexecution.FromContext': 1,
+            'idempotencyexecution.New': 1,
+            'response.BadRequest': 4,
+            'response.ErrorFrom': 2,
+            'service.DefaultWriteIdempotencyTTL': 1,
+            'service.HashIdempotencyKey': 1,
+            'service.NormalizeIdempotencyKey': 1,
+            'strconv.Itoa': 1,
+            'time.Now': 1,
+        }),
+        ('ListBulkResetQuotaCandidates', {
+            'c.Request.Context': 1,
+            'h.bulkResetService.ListCandidates': 1,
+            'response.ErrorFrom': 1,
+            'response.Success': 1,
+        }),
+        ('ResetQuota', {
+            'adminActorScope': 1,
+            'c.GetHeader': 1,
+            'claimedAt.Add': 1,
+            'dto.UserSubscriptionFromServiceAdmin': 1,
+            'executeAdminIdempotentJSON': 1,
+            'idempotencyexecution.FromContext': 1,
+            'idempotencyexecution.New': 1,
+            'resetter.AdminResetQuota': 1,
+            'resetter.AdminResetQuotaIdempotent': 1,
+            'response.ErrorFrom': 2,
+            'service.DefaultWriteIdempotencyTTL': 1,
+            'service.HashIdempotencyKey': 1,
+            'service.NormalizeIdempotencyKey': 1,
+            'time.Now': 1,
+        }),
+    ),
     'backend/internal/handler/admin/setting_handler.go': _approved_call_deltas(
         ('GetSettings', {'response.ErrorFrom': 1}),
+    ),
+    'backend/internal/service/idempotency.go': _approved_call_deltas(
+        ('Execute', {
+            'idempotencyexecution.New': 1,
+            'idempotencyexecution.WithContext': 1,
+        }),
     ),
     'backend/internal/handler/admin/setting_handler_update.go': _approved_call_deltas(
         ('UpdateSettings', {'response.ErrorFrom': 1}),
@@ -216,6 +281,12 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
     'backend/internal/handler/openai_gateway_handler.go': _approved_call_deltas(
         ('recordCyberPolicyIfMarked', {'c.Request.Context': 1, 'cmSvc.CyberPolicyGroupInScope': 1}),
         ('rejectIfCyberSessionBlocked', {'c.Request.Context': 1, 'h.contentModerationService.CyberPolicyGroupInScope': 1}),
+    ),
+    'backend/internal/server/routes/admin.go': _approved_call_deltas(
+        ('registerSubscriptionRoutes', {
+            'subscriptions.GET': 1,
+            'subscriptions.POST': 1,
+        }),
     ),
     'backend/internal/handler/payment_handler.go': _approved_call_deltas(
         ('GetCheckoutInfo', {'h.configService.GetAvailableMethodOptions': 1, 'response.ErrorFrom': 1, 'subscriptioninventory.IsSoldOut': 1}),
@@ -316,7 +387,7 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('pcPaymentProviderRecords', {'append': 1, 'int64': 1, 'paymentProviderConfigCurrency': 1, 's.decryptConfig': 1}),
     ),
     'backend/internal/service/payment_config_plans.go': _approved_call_deltas(
-        ('CreatePlan', {'SetNillableRemainingQuantity': 1, 'SetSoldOutAction': 1, 'subscriptioninventory.NormalizeSoldOutAction': 1, 'subscriptioninventory.ValidateConfiguredQuantity': 1}),
+        ('CreatePlan', {'SetAllowBulkQuotaReset': 1, 'SetNillableRemainingQuantity': 1, 'SetSoldOutAction': 1, 'subscriptioninventory.NormalizeSoldOutAction': 1, 'subscriptioninventory.ValidateConfiguredQuantity': 1}),
         ('ListPlansForSale', {'subscriptioninventory.ListPlansForSale': 1}),
         ('UpdatePlan', {'subscriptioninventory.UpdateAdminPlan': 1}),
         ('validatePlanPatch', {'subscriptioninventory.ValidateSoldOutActionPatch': 1}),
@@ -326,7 +397,11 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('UpdatePaymentConfig', {'err.Error': 1, 'infraerrors.BadRequest': 1, 'paymentchannels.SerializeChannelSettings': 1, 'setPaymentConfigValue': 26}),
     ),
     'backend/internal/service/payment_fulfillment.go': _approved_call_deltas(
-        ('ensurePaymentSubscriptionAssigned', {'fmt.Errorf': 1, 'subscriptioninventory.ConsumeForFulfillment': 1}),
+        ('ensurePaymentSubscriptionAssigned', {
+            'fmt.Errorf': 1,
+            'strconv.FormatInt': 1,
+            'subscriptioninventory.ConsumeForFulfillment': 1,
+        }),
     ),
     'backend/internal/service/payment_order.go': _approved_call_deltas(
         ('BuildWeChatOAuth', {'loader.service.buildWeChatOAuthRequiredResponse': 1}),
@@ -353,6 +428,62 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('ParseWeChatPaymentOAuthToken', {'err.Error': 1, 'infraerrors.BadRequest': 3, 'paymentchannels.ValidateWeChatOAuthClaims': 1, 's.ensureSigningKey': 1, 's.parseSignedToken': 1, 'validatePaymentResumeExpiry': 1}),
         ('ParseWeChatPaymentResumeToken', {'err.Error': 1, 'paymentchannels.ValidateWeChatResumeClaims': 1}),
         ('RevalidateSelection', {'lb.inner.RevalidateSelection': 1}),
+    ),
+    'backend/internal/service/payment_refund.go': _approved_call_deltas(
+        ('ExecuteRefund', {'s.subscriptionSvc.AdjustSubscriptionForRefund': 1}),
+        ('RollbackRefund', {'s.subscriptionSvc.RestoreSubscriptionTermAfterRefund': 1}),
+        ('applyRefundFinalDeduction', {'s.subscriptionSvc.FinalizeSubscriptionRefundDeduction': 1}),
+    ),
+    'backend/internal/service/subscription_service.go': _approved_call_deltas(
+        ('AdjustSubscriptionForRefund', {
+            'infraerrors.InternalServer': 1,
+            'repo.AdjustTerm': 1,
+            's.invalidateAdjustedSubscriptionCache': 1,
+            's.now': 1,
+        }),
+        ('AdminResetQuota', {
+            'repo.ResetQuota': 1,
+            's.invalidateSubscriptionCaches': 1,
+            's.now': 1,
+        }),
+        ('AdminResetQuotaIdempotent', {
+            'infraerrors.InternalServer': 1,
+            'repo.ResetQuota': 1,
+            's.invalidateSubscriptionCaches': 1,
+            's.now': 1,
+        }),
+        ('EnsureWindowMaintenance', {'repo.EnsureWindowMaintenance': 1, 's.now': 1}),
+        ('ExtendSubscription', {
+            'repo.AdjustTerm': 1,
+            's.invalidateAdjustedSubscriptionCache': 1,
+            's.now': 1,
+        }),
+        ('FinalizeSubscriptionRefundDeduction', {
+            'errors.Is': 1,
+            'infraerrors.InternalServer': 1,
+            'repo.AdjustTerm': 1,
+            's.invalidateAdjustedSubscriptionCache': 1,
+            's.now': 1,
+        }),
+        ('RestoreSubscriptionTermAfterRefund', {
+            'infraerrors.InternalServer': 1,
+            'repo.RestoreTermSnapshotExact': 1,
+            's.invalidateAdjustedSubscriptionCache': 1,
+        }),
+        ('ValidateAndCheckLimits', {'subscriptionquota.NeedsAdvance': 1}),
+        ('invalidateAdjustedSubscriptionCache', {
+            'cancel': 1,
+            'context.Background': 1,
+            'context.WithTimeout': 1,
+            's.InvalidateSubCache': 1,
+            's.billingCacheService.InvalidateSubscription': 1,
+        }),
+        ('normalizeExpiredWindowsAt', {'subscriptionquota.NeedsAdvance': 1}),
+        ('updateExistingSubscriptionTerm', {
+            'repo.RenewExistingTerm': 1,
+            's.now': 1,
+            'time.Now': 1,
+        }),
     ),
     'frontend/src/components/admin/monitor/MonitorFormDialog.vue': _approved_call_deltas(
         ('<top-level>', {'createEmptyMonitorGroupRateFormState': 1, 'ref': 1, 't': 1}),
@@ -404,6 +535,14 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
     'frontend/src/views/admin/SettingsView.vue': _approved_call_deltas(
         ('<top-level>', {'Number': 1}),
         ('saveSettings', {'appStore.showError': 1, 'localText': 1, 'paymentChannelSettingsRef.value.validate': 1}),
+    ),
+    'frontend/src/views/admin/SubscriptionsView.vue': _approved_call_deltas(
+        ('<template:@cancel>', {'cancelResetQuota': 1}),
+        ('<template:@click>', {'showBulkResetDialog = true': 1}),
+        ('<template:@close>', {'showBulkResetDialog = false': 1}),
+        ('<template:@completed>', {'loadSubscriptions': 1}),
+        ('<top-level>', {'ref': 1, 't': 1}),
+        ('handleResetQuota', {'Date.now': 1, 'Math.random': 1, 'randomUUID': 1}),
     ),
     'frontend/src/views/user/KeysView.vue': _approved_call_deltas(
         ('<top-level>', {'balanceRequirementForGroup': 2, 'balanceRequirementsByGroupID.value.get': 1, 'computed': 1, 'customApiKeyBulkText': 1, 'groupBalanceRequirement': 1, 'groupBalanceRequirementsByID': 1, 'ref': 1}),
@@ -503,8 +642,29 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
 # renames, additional branches, and moved orchestration fail even when the TSV
 # line budget and shadow mapping are updated.
 APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
+    "backend/internal/handler/admin/subscription_handler.go": (
+        ("BulkResetQuota", "for _, subscriptionID := range req.SubscriptionIDs {"),
+        ("BulkResetQuota", "if err := c.ShouldBindJSON(&req); err != nil {"),
+        ("BulkResetQuota", "if len(req.SubscriptionIDs) > subscriptionbulkreset.MaxBatchSize {"),
+        ("BulkResetQuota", "if !ok {"),
+        ("BulkResetQuota", "if err != nil {"),
+        ("BulkResetQuota", "if err != nil {"),
+        ("BulkResetQuota", 'if idempotencyKey == "" {'),
+        ("BulkResetQuota", "if subscriptionID <= 0 {"),
+        ("ResetQuota", 'if idempotencyKey == "" {'),
+        ("ResetQuota", "if !ok {"),
+        ("ResetQuota", "if err != nil {"),
+        ("ResetQuota", "if err != nil {"),
+        ("ResetQuota", "if err != nil {"),
+        ("ResetQuota", "if execErr != nil {"),
+        ("ResetQuota", "if resetter == nil {"),
+        ("ListBulkResetQuotaCandidates", "if err != nil {"),
+    ),
     "backend/internal/handler/admin/setting_handler.go": (
         ("GetSettings", "if err != nil {"),
+    ),
+    "backend/internal/service/idempotency.go": (
+        ("Execute", "if err != nil {"),
     ),
     "backend/internal/handler/admin/setting_handler_update.go": (
         ("UpdateSettings", "if err != nil {"),
@@ -661,6 +821,34 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "backend/internal/service/payment_fulfillment.go": (
         ("ensurePaymentSubscriptionAssigned", "if err := subscriptioninventory.ConsumeForFulfillment(txCtx, txClient, o.ID); err != nil {"),
+    ),
+    "backend/internal/service/payment_refund.go": (
+        ("applyRefundFinalDeduction", "if err := s.subscriptionSvc.FinalizeSubscriptionRefundDeduction(ctx, p.SubscriptionID, -p.SubDaysToDeduct); err != nil {"),
+        ("RollbackRefund", "if err != nil {"),
+        ("RollbackRefund", "if p.SubscriptionTermSnapshot != nil {"),
+    ),
+    "backend/internal/service/subscription_service.go": (
+        ("AdjustSubscriptionForRefund", "if !ok {"),
+        ("AdminResetQuota", "if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {"),
+        ("AdminResetQuota", "if err != nil {"),
+        ("AdminResetQuotaIdempotent", "if !ok {"),
+        ("AdminResetQuotaIdempotent", "if err != nil {"),
+        ("EnsureWindowMaintenance", "if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {"),
+        ("EnsureWindowMaintenance", "if err != nil {"),
+        ("ExtendSubscription", "if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {"),
+        ("ExtendSubscription", "if err != nil {"),
+        ("FinalizeSubscriptionRefundDeduction", "if !ok {"),
+        ("FinalizeSubscriptionRefundDeduction", "if errors.Is(err, ErrAdjustWouldExpire) {"),
+        ("RestoreSubscriptionTermAfterRefund", "if !ok {"),
+        ("RestoreSubscriptionTermAfterRefund", "if err != nil {"),
+        ("assignOrExtendSubscription", "if err := s.updateExistingSubscriptionTerm(ctx, existingSub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, false); err != nil {"),
+        ("assignSubscriptionWithReuse", "if err := s.updateExistingSubscriptionTerm(ctx, sub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, true); err != nil {"),
+        ("invalidateAdjustedSubscriptionCache", "if sub == nil {"),
+        ("invalidateAdjustedSubscriptionCache", "if s.billingCacheService != nil {"),
+        ("normalizeExpiredWindowsAt", "if subscriptionquota.NeedsAdvance(sub.CurrentCycleEndsAt, sub.ExpiresAt, now) {"),
+        ("updateExistingSubscriptionTerm", "if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {"),
+        ("updateExistingSubscriptionTerm", "if s.now != nil {"),
+        ("ValidateAndCheckLimits", "if subscriptionquota.NeedsAdvance(sub.CurrentCycleEndsAt, sub.ExpiresAt, now) {"),
     ),
     "backend/internal/service/payment_config_service.go": (
         ("GetPaymentConfig", "if err != nil {"),

@@ -47,6 +47,14 @@ type UserSubscription struct {
 	WeeklyUsageUsd float64 `json:"weekly_usage_usd,omitempty"`
 	// MonthlyUsageUsd holds the value of the "monthly_usage_usd" field.
 	MonthlyUsageUsd float64 `json:"monthly_usage_usd,omitempty"`
+	// CycleUsageUsd holds the value of the "cycle_usage_usd" field.
+	CycleUsageUsd float64 `json:"cycle_usage_usd,omitempty"`
+	// ManualQuotaResetCount holds the value of the "manual_quota_reset_count" field.
+	ManualQuotaResetCount int64 `json:"manual_quota_reset_count,omitempty"`
+	// CurrentCycleStartsAt holds the value of the "current_cycle_starts_at" field.
+	CurrentCycleStartsAt time.Time `json:"current_cycle_starts_at,omitempty"`
+	// CurrentCycleEndsAt holds the value of the "current_cycle_ends_at" field.
+	CurrentCycleEndsAt time.Time `json:"current_cycle_ends_at,omitempty"`
 	// AssignedBy holds the value of the "assigned_by" field.
 	AssignedBy *int64 `json:"assigned_by,omitempty"`
 	// AssignedAt holds the value of the "assigned_at" field.
@@ -69,9 +77,11 @@ type UserSubscriptionEdges struct {
 	AssignedByUser *User `json:"assigned_by_user,omitempty"`
 	// UsageLogs holds the value of the usage_logs edge.
 	UsageLogs []*UsageLog `json:"usage_logs,omitempty"`
+	// Cycles holds the value of the cycles edge.
+	Cycles []*UserSubscriptionCycle `json:"cycles,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [5]bool
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -116,18 +126,27 @@ func (e UserSubscriptionEdges) UsageLogsOrErr() ([]*UsageLog, error) {
 	return nil, &NotLoadedError{edge: "usage_logs"}
 }
 
+// CyclesOrErr returns the Cycles value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserSubscriptionEdges) CyclesOrErr() ([]*UserSubscriptionCycle, error) {
+	if e.loadedTypes[4] {
+		return e.Cycles, nil
+	}
+	return nil, &NotLoadedError{edge: "cycles"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*UserSubscription) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usersubscription.FieldDailyUsageUsd, usersubscription.FieldWeeklyUsageUsd, usersubscription.FieldMonthlyUsageUsd:
+		case usersubscription.FieldDailyUsageUsd, usersubscription.FieldWeeklyUsageUsd, usersubscription.FieldMonthlyUsageUsd, usersubscription.FieldCycleUsageUsd:
 			values[i] = new(sql.NullFloat64)
-		case usersubscription.FieldID, usersubscription.FieldUserID, usersubscription.FieldGroupID, usersubscription.FieldAssignedBy:
+		case usersubscription.FieldID, usersubscription.FieldUserID, usersubscription.FieldGroupID, usersubscription.FieldManualQuotaResetCount, usersubscription.FieldAssignedBy:
 			values[i] = new(sql.NullInt64)
 		case usersubscription.FieldStatus, usersubscription.FieldNotes:
 			values[i] = new(sql.NullString)
-		case usersubscription.FieldCreatedAt, usersubscription.FieldUpdatedAt, usersubscription.FieldDeletedAt, usersubscription.FieldStartsAt, usersubscription.FieldExpiresAt, usersubscription.FieldDailyWindowStart, usersubscription.FieldWeeklyWindowStart, usersubscription.FieldMonthlyWindowStart, usersubscription.FieldAssignedAt:
+		case usersubscription.FieldCreatedAt, usersubscription.FieldUpdatedAt, usersubscription.FieldDeletedAt, usersubscription.FieldStartsAt, usersubscription.FieldExpiresAt, usersubscription.FieldDailyWindowStart, usersubscription.FieldWeeklyWindowStart, usersubscription.FieldMonthlyWindowStart, usersubscription.FieldCurrentCycleStartsAt, usersubscription.FieldCurrentCycleEndsAt, usersubscription.FieldAssignedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -238,6 +257,30 @@ func (_m *UserSubscription) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.MonthlyUsageUsd = value.Float64
 			}
+		case usersubscription.FieldCycleUsageUsd:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field cycle_usage_usd", values[i])
+			} else if value.Valid {
+				_m.CycleUsageUsd = value.Float64
+			}
+		case usersubscription.FieldManualQuotaResetCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field manual_quota_reset_count", values[i])
+			} else if value.Valid {
+				_m.ManualQuotaResetCount = value.Int64
+			}
+		case usersubscription.FieldCurrentCycleStartsAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field current_cycle_starts_at", values[i])
+			} else if value.Valid {
+				_m.CurrentCycleStartsAt = value.Time
+			}
+		case usersubscription.FieldCurrentCycleEndsAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field current_cycle_ends_at", values[i])
+			} else if value.Valid {
+				_m.CurrentCycleEndsAt = value.Time
+			}
 		case usersubscription.FieldAssignedBy:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field assigned_by", values[i])
@@ -289,6 +332,11 @@ func (_m *UserSubscription) QueryAssignedByUser() *UserQuery {
 // QueryUsageLogs queries the "usage_logs" edge of the UserSubscription entity.
 func (_m *UserSubscription) QueryUsageLogs() *UsageLogQuery {
 	return NewUserSubscriptionClient(_m.config).QueryUsageLogs(_m)
+}
+
+// QueryCycles queries the "cycles" edge of the UserSubscription entity.
+func (_m *UserSubscription) QueryCycles() *UserSubscriptionCycleQuery {
+	return NewUserSubscriptionClient(_m.config).QueryCycles(_m)
 }
 
 // Update returns a builder for updating this UserSubscription.
@@ -363,6 +411,18 @@ func (_m *UserSubscription) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("monthly_usage_usd=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MonthlyUsageUsd))
+	builder.WriteString(", ")
+	builder.WriteString("cycle_usage_usd=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CycleUsageUsd))
+	builder.WriteString(", ")
+	builder.WriteString("manual_quota_reset_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ManualQuotaResetCount))
+	builder.WriteString(", ")
+	builder.WriteString("current_cycle_starts_at=")
+	builder.WriteString(_m.CurrentCycleStartsAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("current_cycle_ends_at=")
+	builder.WriteString(_m.CurrentCycleEndsAt.Format(time.ANSIC))
 	builder.WriteString(", ")
 	if v := _m.AssignedBy; v != nil {
 		builder.WriteString("assigned_by=")

@@ -54,6 +54,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
+	"github.com/Wei-Shaw/sub2api/ent/usersubscriptioncycle"
 
 	stdsql "database/sql"
 )
@@ -141,6 +142,8 @@ type Client struct {
 	UserPlatformQuota *UserPlatformQuotaClient
 	// UserSubscription is the client for interacting with the UserSubscription builders.
 	UserSubscription *UserSubscriptionClient
+	// UserSubscriptionCycle is the client for interacting with the UserSubscriptionCycle builders.
+	UserSubscriptionCycle *UserSubscriptionCycleClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -191,6 +194,7 @@ func (c *Client) init() {
 	c.UserAttributeValue = NewUserAttributeValueClient(c.config)
 	c.UserPlatformQuota = NewUserPlatformQuotaClient(c.config)
 	c.UserSubscription = NewUserSubscriptionClient(c.config)
+	c.UserSubscriptionCycle = NewUserSubscriptionCycleClient(c.config)
 }
 
 type (
@@ -322,6 +326,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
 		UserPlatformQuota:             NewUserPlatformQuotaClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
+		UserSubscriptionCycle:         NewUserSubscriptionCycleClient(cfg),
 	}, nil
 }
 
@@ -380,6 +385,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
 		UserPlatformQuota:             NewUserPlatformQuotaClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
+		UserSubscriptionCycle:         NewUserSubscriptionCycleClient(cfg),
 	}, nil
 }
 
@@ -419,7 +425,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
 		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
 		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.UserPlatformQuota, c.UserSubscription, c.UserSubscriptionCycle,
 	} {
 		n.Use(hooks...)
 	}
@@ -439,7 +445,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
 		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
 		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.UserPlatformQuota, c.UserSubscription, c.UserSubscriptionCycle,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -526,6 +532,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.UserPlatformQuota.mutate(ctx, m)
 	case *UserSubscriptionMutation:
 		return c.UserSubscription.mutate(ctx, m)
+	case *UserSubscriptionCycleMutation:
+		return c.UserSubscriptionCycle.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -6795,6 +6803,22 @@ func (c *UserSubscriptionClient) QueryUsageLogs(_m *UserSubscription) *UsageLogQ
 	return query
 }
 
+// QueryCycles queries the cycles edge of a UserSubscription.
+func (c *UserSubscriptionClient) QueryCycles(_m *UserSubscription) *UserSubscriptionCycleQuery {
+	query := (&UserSubscriptionCycleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usersubscription.Table, usersubscription.FieldID, id),
+			sqlgraph.To(usersubscriptioncycle.Table, usersubscriptioncycle.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, usersubscription.CyclesTable, usersubscription.CyclesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserSubscriptionClient) Hooks() []Hook {
 	hooks := c.hooks.UserSubscription
@@ -6822,6 +6846,155 @@ func (c *UserSubscriptionClient) mutate(ctx context.Context, m *UserSubscription
 	}
 }
 
+// UserSubscriptionCycleClient is a client for the UserSubscriptionCycle schema.
+type UserSubscriptionCycleClient struct {
+	config
+}
+
+// NewUserSubscriptionCycleClient returns a client for the UserSubscriptionCycle from the given config.
+func NewUserSubscriptionCycleClient(c config) *UserSubscriptionCycleClient {
+	return &UserSubscriptionCycleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `usersubscriptioncycle.Hooks(f(g(h())))`.
+func (c *UserSubscriptionCycleClient) Use(hooks ...Hook) {
+	c.hooks.UserSubscriptionCycle = append(c.hooks.UserSubscriptionCycle, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `usersubscriptioncycle.Intercept(f(g(h())))`.
+func (c *UserSubscriptionCycleClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserSubscriptionCycle = append(c.inters.UserSubscriptionCycle, interceptors...)
+}
+
+// Create returns a builder for creating a UserSubscriptionCycle entity.
+func (c *UserSubscriptionCycleClient) Create() *UserSubscriptionCycleCreate {
+	mutation := newUserSubscriptionCycleMutation(c.config, OpCreate)
+	return &UserSubscriptionCycleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserSubscriptionCycle entities.
+func (c *UserSubscriptionCycleClient) CreateBulk(builders ...*UserSubscriptionCycleCreate) *UserSubscriptionCycleCreateBulk {
+	return &UserSubscriptionCycleCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserSubscriptionCycleClient) MapCreateBulk(slice any, setFunc func(*UserSubscriptionCycleCreate, int)) *UserSubscriptionCycleCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserSubscriptionCycleCreateBulk{err: fmt.Errorf("calling to UserSubscriptionCycleClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserSubscriptionCycleCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserSubscriptionCycleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserSubscriptionCycle.
+func (c *UserSubscriptionCycleClient) Update() *UserSubscriptionCycleUpdate {
+	mutation := newUserSubscriptionCycleMutation(c.config, OpUpdate)
+	return &UserSubscriptionCycleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserSubscriptionCycleClient) UpdateOne(_m *UserSubscriptionCycle) *UserSubscriptionCycleUpdateOne {
+	mutation := newUserSubscriptionCycleMutation(c.config, OpUpdateOne, withUserSubscriptionCycle(_m))
+	return &UserSubscriptionCycleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserSubscriptionCycleClient) UpdateOneID(id int64) *UserSubscriptionCycleUpdateOne {
+	mutation := newUserSubscriptionCycleMutation(c.config, OpUpdateOne, withUserSubscriptionCycleID(id))
+	return &UserSubscriptionCycleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserSubscriptionCycle.
+func (c *UserSubscriptionCycleClient) Delete() *UserSubscriptionCycleDelete {
+	mutation := newUserSubscriptionCycleMutation(c.config, OpDelete)
+	return &UserSubscriptionCycleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserSubscriptionCycleClient) DeleteOne(_m *UserSubscriptionCycle) *UserSubscriptionCycleDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserSubscriptionCycleClient) DeleteOneID(id int64) *UserSubscriptionCycleDeleteOne {
+	builder := c.Delete().Where(usersubscriptioncycle.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserSubscriptionCycleDeleteOne{builder}
+}
+
+// Query returns a query builder for UserSubscriptionCycle.
+func (c *UserSubscriptionCycleClient) Query() *UserSubscriptionCycleQuery {
+	return &UserSubscriptionCycleQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserSubscriptionCycle},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserSubscriptionCycle entity by its id.
+func (c *UserSubscriptionCycleClient) Get(ctx context.Context, id int64) (*UserSubscriptionCycle, error) {
+	return c.Query().Where(usersubscriptioncycle.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserSubscriptionCycleClient) GetX(ctx context.Context, id int64) *UserSubscriptionCycle {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySubscription queries the subscription edge of a UserSubscriptionCycle.
+func (c *UserSubscriptionCycleClient) QuerySubscription(_m *UserSubscriptionCycle) *UserSubscriptionQuery {
+	query := (&UserSubscriptionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usersubscriptioncycle.Table, usersubscriptioncycle.FieldID, id),
+			sqlgraph.To(usersubscription.Table, usersubscription.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, usersubscriptioncycle.SubscriptionTable, usersubscriptioncycle.SubscriptionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserSubscriptionCycleClient) Hooks() []Hook {
+	return c.hooks.UserSubscriptionCycle
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserSubscriptionCycleClient) Interceptors() []Interceptor {
+	return c.inters.UserSubscriptionCycle
+}
+
+func (c *UserSubscriptionCycleClient) mutate(ctx context.Context, m *UserSubscriptionCycleMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserSubscriptionCycleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserSubscriptionCycleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserSubscriptionCycleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserSubscriptionCycleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserSubscriptionCycle mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
@@ -6834,7 +7007,7 @@ type (
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
 		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Hook
+		UserSubscription, UserSubscriptionCycle []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
@@ -6846,7 +7019,7 @@ type (
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
 		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Interceptor
+		UserSubscription, UserSubscriptionCycle []ent.Interceptor
 	}
 )
 

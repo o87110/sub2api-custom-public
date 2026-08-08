@@ -1945,6 +1945,8 @@ export interface UserSubscription {
   daily_usage_usd: number
   weekly_usage_usd: number
   monthly_usage_usd: number
+  cycle_usage_usd?: number
+  manual_quota_reset_count?: number
   daily_window_start: string | null
   weekly_window_start: string | null
   monthly_window_start: string | null

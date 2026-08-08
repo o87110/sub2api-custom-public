@@ -152,6 +152,20 @@ func (_c *SubscriptionPlanCreate) SetNillableForSale(v *bool) *SubscriptionPlanC
 	return _c
 }
 
+// SetAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field.
+func (_c *SubscriptionPlanCreate) SetAllowBulkQuotaReset(v bool) *SubscriptionPlanCreate {
+	_c.mutation.SetAllowBulkQuotaReset(v)
+	return _c
+}
+
+// SetNillableAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableAllowBulkQuotaReset(v *bool) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetAllowBulkQuotaReset(*v)
+	}
+	return _c
+}
+
 // SetRemainingQuantity sets the "remaining_quantity" field.
 func (_c *SubscriptionPlanCreate) SetRemainingQuantity(v int) *SubscriptionPlanCreate {
 	_c.mutation.SetRemainingQuantity(v)
@@ -299,6 +313,10 @@ func (_c *SubscriptionPlanCreate) defaults() {
 		v := subscriptionplan.DefaultForSale
 		_c.mutation.SetForSale(v)
 	}
+	if _, ok := _c.mutation.AllowBulkQuotaReset(); !ok {
+		v := subscriptionplan.DefaultAllowBulkQuotaReset
+		_c.mutation.SetAllowBulkQuotaReset(v)
+	}
 	if _, ok := _c.mutation.InventoryAutoDelisted(); !ok {
 		v := subscriptionplan.DefaultInventoryAutoDelisted
 		_c.mutation.SetInventoryAutoDelisted(v)
@@ -372,6 +390,9 @@ func (_c *SubscriptionPlanCreate) check() error {
 	}
 	if _, ok := _c.mutation.ForSale(); !ok {
 		return &ValidationError{Name: "for_sale", err: errors.New(`ent: missing required field "SubscriptionPlan.for_sale"`)}
+	}
+	if _, ok := _c.mutation.AllowBulkQuotaReset(); !ok {
+		return &ValidationError{Name: "allow_bulk_quota_reset", err: errors.New(`ent: missing required field "SubscriptionPlan.allow_bulk_quota_reset"`)}
 	}
 	if _, ok := _c.mutation.InventoryAutoDelisted(); !ok {
 		return &ValidationError{Name: "inventory_auto_delisted", err: errors.New(`ent: missing required field "SubscriptionPlan.inventory_auto_delisted"`)}
@@ -463,6 +484,10 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
 		_node.ForSale = value
+	}
+	if value, ok := _c.mutation.AllowBulkQuotaReset(); ok {
+		_spec.SetField(subscriptionplan.FieldAllowBulkQuotaReset, field.TypeBool, value)
+		_node.AllowBulkQuotaReset = value
 	}
 	if value, ok := _c.mutation.RemainingQuantity(); ok {
 		_spec.SetField(subscriptionplan.FieldRemainingQuantity, field.TypeInt, value)
@@ -699,6 +724,18 @@ func (u *SubscriptionPlanUpsert) SetForSale(v bool) *SubscriptionPlanUpsert {
 // UpdateForSale sets the "for_sale" field to the value that was provided on create.
 func (u *SubscriptionPlanUpsert) UpdateForSale() *SubscriptionPlanUpsert {
 	u.SetExcluded(subscriptionplan.FieldForSale)
+	return u
+}
+
+// SetAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field.
+func (u *SubscriptionPlanUpsert) SetAllowBulkQuotaReset(v bool) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldAllowBulkQuotaReset, v)
+	return u
+}
+
+// UpdateAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateAllowBulkQuotaReset() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldAllowBulkQuotaReset)
 	return u
 }
 
@@ -1011,6 +1048,20 @@ func (u *SubscriptionPlanUpsertOne) SetForSale(v bool) *SubscriptionPlanUpsertOn
 func (u *SubscriptionPlanUpsertOne) UpdateForSale() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateForSale()
+	})
+}
+
+// SetAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field.
+func (u *SubscriptionPlanUpsertOne) SetAllowBulkQuotaReset(v bool) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetAllowBulkQuotaReset(v)
+	})
+}
+
+// UpdateAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateAllowBulkQuotaReset() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateAllowBulkQuotaReset()
 	})
 }
 
@@ -1502,6 +1553,20 @@ func (u *SubscriptionPlanUpsertBulk) SetForSale(v bool) *SubscriptionPlanUpsertB
 func (u *SubscriptionPlanUpsertBulk) UpdateForSale() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateForSale()
+	})
+}
+
+// SetAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field.
+func (u *SubscriptionPlanUpsertBulk) SetAllowBulkQuotaReset(v bool) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetAllowBulkQuotaReset(v)
+	})
+}
+
+// UpdateAllowBulkQuotaReset sets the "allow_bulk_quota_reset" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateAllowBulkQuotaReset() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateAllowBulkQuotaReset()
 	})
 }
 

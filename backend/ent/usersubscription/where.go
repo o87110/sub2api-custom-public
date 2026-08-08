@@ -125,6 +125,26 @@ func MonthlyUsageUsd(v float64) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldMonthlyUsageUsd, v))
 }
 
+// CycleUsageUsd applies equality check predicate on the "cycle_usage_usd" field. It's identical to CycleUsageUsdEQ.
+func CycleUsageUsd(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldCycleUsageUsd, v))
+}
+
+// ManualQuotaResetCount applies equality check predicate on the "manual_quota_reset_count" field. It's identical to ManualQuotaResetCountEQ.
+func ManualQuotaResetCount(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldManualQuotaResetCount, v))
+}
+
+// CurrentCycleStartsAt applies equality check predicate on the "current_cycle_starts_at" field. It's identical to CurrentCycleStartsAtEQ.
+func CurrentCycleStartsAt(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldCurrentCycleStartsAt, v))
+}
+
+// CurrentCycleEndsAt applies equality check predicate on the "current_cycle_ends_at" field. It's identical to CurrentCycleEndsAtEQ.
+func CurrentCycleEndsAt(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldCurrentCycleEndsAt, v))
+}
+
 // AssignedBy applies equality check predicate on the "assigned_by" field. It's identical to AssignedByEQ.
 func AssignedBy(v int64) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldAssignedBy, v))
@@ -725,6 +745,166 @@ func MonthlyUsageUsdLTE(v float64) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldLTE(FieldMonthlyUsageUsd, v))
 }
 
+// CycleUsageUsdEQ applies the EQ predicate on the "cycle_usage_usd" field.
+func CycleUsageUsdEQ(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldCycleUsageUsd, v))
+}
+
+// CycleUsageUsdNEQ applies the NEQ predicate on the "cycle_usage_usd" field.
+func CycleUsageUsdNEQ(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldCycleUsageUsd, v))
+}
+
+// CycleUsageUsdIn applies the In predicate on the "cycle_usage_usd" field.
+func CycleUsageUsdIn(vs ...float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIn(FieldCycleUsageUsd, vs...))
+}
+
+// CycleUsageUsdNotIn applies the NotIn predicate on the "cycle_usage_usd" field.
+func CycleUsageUsdNotIn(vs ...float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotIn(FieldCycleUsageUsd, vs...))
+}
+
+// CycleUsageUsdGT applies the GT predicate on the "cycle_usage_usd" field.
+func CycleUsageUsdGT(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGT(FieldCycleUsageUsd, v))
+}
+
+// CycleUsageUsdGTE applies the GTE predicate on the "cycle_usage_usd" field.
+func CycleUsageUsdGTE(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGTE(FieldCycleUsageUsd, v))
+}
+
+// CycleUsageUsdLT applies the LT predicate on the "cycle_usage_usd" field.
+func CycleUsageUsdLT(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLT(FieldCycleUsageUsd, v))
+}
+
+// CycleUsageUsdLTE applies the LTE predicate on the "cycle_usage_usd" field.
+func CycleUsageUsdLTE(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLTE(FieldCycleUsageUsd, v))
+}
+
+// ManualQuotaResetCountEQ applies the EQ predicate on the "manual_quota_reset_count" field.
+func ManualQuotaResetCountEQ(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldManualQuotaResetCount, v))
+}
+
+// ManualQuotaResetCountNEQ applies the NEQ predicate on the "manual_quota_reset_count" field.
+func ManualQuotaResetCountNEQ(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldManualQuotaResetCount, v))
+}
+
+// ManualQuotaResetCountIn applies the In predicate on the "manual_quota_reset_count" field.
+func ManualQuotaResetCountIn(vs ...int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIn(FieldManualQuotaResetCount, vs...))
+}
+
+// ManualQuotaResetCountNotIn applies the NotIn predicate on the "manual_quota_reset_count" field.
+func ManualQuotaResetCountNotIn(vs ...int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotIn(FieldManualQuotaResetCount, vs...))
+}
+
+// ManualQuotaResetCountGT applies the GT predicate on the "manual_quota_reset_count" field.
+func ManualQuotaResetCountGT(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGT(FieldManualQuotaResetCount, v))
+}
+
+// ManualQuotaResetCountGTE applies the GTE predicate on the "manual_quota_reset_count" field.
+func ManualQuotaResetCountGTE(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGTE(FieldManualQuotaResetCount, v))
+}
+
+// ManualQuotaResetCountLT applies the LT predicate on the "manual_quota_reset_count" field.
+func ManualQuotaResetCountLT(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLT(FieldManualQuotaResetCount, v))
+}
+
+// ManualQuotaResetCountLTE applies the LTE predicate on the "manual_quota_reset_count" field.
+func ManualQuotaResetCountLTE(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLTE(FieldManualQuotaResetCount, v))
+}
+
+// CurrentCycleStartsAtEQ applies the EQ predicate on the "current_cycle_starts_at" field.
+func CurrentCycleStartsAtEQ(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldCurrentCycleStartsAt, v))
+}
+
+// CurrentCycleStartsAtNEQ applies the NEQ predicate on the "current_cycle_starts_at" field.
+func CurrentCycleStartsAtNEQ(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldCurrentCycleStartsAt, v))
+}
+
+// CurrentCycleStartsAtIn applies the In predicate on the "current_cycle_starts_at" field.
+func CurrentCycleStartsAtIn(vs ...time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIn(FieldCurrentCycleStartsAt, vs...))
+}
+
+// CurrentCycleStartsAtNotIn applies the NotIn predicate on the "current_cycle_starts_at" field.
+func CurrentCycleStartsAtNotIn(vs ...time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotIn(FieldCurrentCycleStartsAt, vs...))
+}
+
+// CurrentCycleStartsAtGT applies the GT predicate on the "current_cycle_starts_at" field.
+func CurrentCycleStartsAtGT(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGT(FieldCurrentCycleStartsAt, v))
+}
+
+// CurrentCycleStartsAtGTE applies the GTE predicate on the "current_cycle_starts_at" field.
+func CurrentCycleStartsAtGTE(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGTE(FieldCurrentCycleStartsAt, v))
+}
+
+// CurrentCycleStartsAtLT applies the LT predicate on the "current_cycle_starts_at" field.
+func CurrentCycleStartsAtLT(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLT(FieldCurrentCycleStartsAt, v))
+}
+
+// CurrentCycleStartsAtLTE applies the LTE predicate on the "current_cycle_starts_at" field.
+func CurrentCycleStartsAtLTE(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLTE(FieldCurrentCycleStartsAt, v))
+}
+
+// CurrentCycleEndsAtEQ applies the EQ predicate on the "current_cycle_ends_at" field.
+func CurrentCycleEndsAtEQ(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldCurrentCycleEndsAt, v))
+}
+
+// CurrentCycleEndsAtNEQ applies the NEQ predicate on the "current_cycle_ends_at" field.
+func CurrentCycleEndsAtNEQ(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldCurrentCycleEndsAt, v))
+}
+
+// CurrentCycleEndsAtIn applies the In predicate on the "current_cycle_ends_at" field.
+func CurrentCycleEndsAtIn(vs ...time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIn(FieldCurrentCycleEndsAt, vs...))
+}
+
+// CurrentCycleEndsAtNotIn applies the NotIn predicate on the "current_cycle_ends_at" field.
+func CurrentCycleEndsAtNotIn(vs ...time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotIn(FieldCurrentCycleEndsAt, vs...))
+}
+
+// CurrentCycleEndsAtGT applies the GT predicate on the "current_cycle_ends_at" field.
+func CurrentCycleEndsAtGT(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGT(FieldCurrentCycleEndsAt, v))
+}
+
+// CurrentCycleEndsAtGTE applies the GTE predicate on the "current_cycle_ends_at" field.
+func CurrentCycleEndsAtGTE(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGTE(FieldCurrentCycleEndsAt, v))
+}
+
+// CurrentCycleEndsAtLT applies the LT predicate on the "current_cycle_ends_at" field.
+func CurrentCycleEndsAtLT(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLT(FieldCurrentCycleEndsAt, v))
+}
+
+// CurrentCycleEndsAtLTE applies the LTE predicate on the "current_cycle_ends_at" field.
+func CurrentCycleEndsAtLTE(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLTE(FieldCurrentCycleEndsAt, v))
+}
+
 // AssignedByEQ applies the EQ predicate on the "assigned_by" field.
 func AssignedByEQ(v int64) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldAssignedBy, v))
@@ -954,6 +1134,29 @@ func HasUsageLogs() predicate.UserSubscription {
 func HasUsageLogsWith(preds ...predicate.UsageLog) predicate.UserSubscription {
 	return predicate.UserSubscription(func(s *sql.Selector) {
 		step := newUsageLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCycles applies the HasEdge predicate on the "cycles" edge.
+func HasCycles() predicate.UserSubscription {
+	return predicate.UserSubscription(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CyclesTable, CyclesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCyclesWith applies the HasEdge predicate on the "cycles" edge with a given conditions (other predicates).
+func HasCyclesWith(preds ...predicate.UserSubscriptionCycle) predicate.UserSubscription {
+	return predicate.UserSubscription(func(s *sql.Selector) {
+		step := newCyclesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

@@ -59,6 +59,8 @@ func (SubscriptionPlan) Fields() []ent.Field {
 			Default(""),
 		field.Bool("for_sale").
 			Default(true),
+		field.Bool("allow_bulk_quota_reset").
+			Default(false),
 		field.Int("remaining_quantity").
 			Optional().
 			Nillable(),

@@ -14,6 +14,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionquota"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/payment/provider"
 )
@@ -125,17 +126,18 @@ type OrderListParams struct {
 }
 
 type RefundPlan struct {
-	OrderID         int64
-	Order           *dbent.PaymentOrder
-	RefundAmount    float64
-	GatewayAmount   float64
-	Reason          string
-	Force           bool
-	DeductBalance   bool
-	DeductionType   string
-	BalanceToDeduct float64
-	SubDaysToDeduct int
-	SubscriptionID  int64
+	OrderID                  int64
+	Order                    *dbent.PaymentOrder
+	RefundAmount             float64
+	GatewayAmount            float64
+	Reason                   string
+	Force                    bool
+	DeductBalance            bool
+	DeductionType            string
+	BalanceToDeduct          float64
+	SubDaysToDeduct          int
+	SubscriptionID           int64
+	SubscriptionTermSnapshot *subscriptionquota.TermSnapshot
 }
 
 type RefundResult struct {

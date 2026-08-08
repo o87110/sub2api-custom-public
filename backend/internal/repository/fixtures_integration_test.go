@@ -9,6 +9,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	dbaccount "github.com/Wei-Shaw/sub2api/ent/account"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionquota"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
@@ -392,6 +393,12 @@ func mustCreateSubscription(t *testing.T, client *dbent.Client, s *service.UserS
 	if s.UpdatedAt.IsZero() {
 		s.UpdatedAt = now
 	}
+	if s.CurrentCycleStartsAt.IsZero() {
+		s.CurrentCycleStartsAt = s.StartsAt
+	}
+	if s.CurrentCycleEndsAt.IsZero() {
+		s.CurrentCycleEndsAt = s.ExpiresAt
+	}
 
 	create := client.UserSubscription.Create().
 		SetUserID(s.UserID).
@@ -417,6 +424,18 @@ func mustCreateSubscription(t *testing.T, client *dbent.Client, s *service.UserS
 
 	created, err := create.Save(ctx)
 	require.NoError(t, err, "create user subscription")
+	err = subscriptionquota.InitializeCurrentCycle(
+		ctx,
+		client,
+		created.ID,
+		s.CurrentCycleStartsAt,
+		s.CurrentCycleEndsAt,
+		s.CycleUsageUSD,
+		s.ManualQuotaResetCount,
+		subscriptionquota.CycleSourceAssignment,
+		nil,
+	)
+	require.NoError(t, err, "create current subscription cycle")
 
 	s.ID = created.ID
 	s.CreatedAt = created.CreatedAt

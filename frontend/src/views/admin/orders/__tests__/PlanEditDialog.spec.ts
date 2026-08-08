@@ -233,6 +233,22 @@ describe('PlanEditDialog', () => {
     expect(createPlan.mock.calls[0][0]).toMatchObject({ remaining_quantity: 8 })
   })
 
+  it('defaults bulk reset eligibility off and submits the selected value', async () => {
+    const group = groupFixture({})
+    const wrapper = mountDialog({ groups: [group] })
+    const toggle = wrapper.get('#subscription-plan-bulk-quota-reset')
+
+    expect((toggle.element as HTMLInputElement).checked).toBe(false)
+    await toggle.setValue(true)
+    await wrapper.find('input[type="text"]').setValue('Bulk reset plan')
+    await wrapper.find('select').setValue(String(group.id))
+    await wrapper.find('textarea').setValue('Bulk reset plan description')
+    await wrapper.findAll('input[type="number"]')[0].setValue('10')
+    await wrapper.find('form').trigger('submit')
+
+    expect(createPlan.mock.calls[0][0]).toMatchObject({ allow_bulk_quota_reset: true })
+  })
+
   it('rejects zero, negative, decimal, and unsafe inventory values', async () => {
     const group = groupFixture({})
     const wrapper = mountDialog({ groups: [group] })
