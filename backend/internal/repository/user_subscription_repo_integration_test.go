@@ -1256,9 +1256,20 @@ func (s *UserSubscriptionRepoSuite) TestUpdate_NilInput() {
 // --- 并发用量更新测试 ---
 
 func (s *UserSubscriptionRepoSuite) TestIncrementUsage_Concurrent() {
-	user := s.mustCreateUser("concurrent@test.com", service.RoleUser)
-	group := s.mustCreateGroup("g-concurrent")
-	sub := s.mustCreateSubscription(user.ID, group.ID, nil)
+	ctx := context.Background()
+	client := testEntClient(s.T())
+	repo := subscriptionrepository.New(client, NewUserSubscriptionRepository(client))
+	user := mustCreateUser(s.T(), client, &service.User{
+		Email: fmt.Sprintf("subscription-concurrent-%d@test.com", time.Now().UnixNano()),
+		Role:  service.RoleUser,
+	})
+	group := mustCreateGroup(s.T(), client, &service.Group{
+		Name: fmt.Sprintf("subscription-concurrent-%d", time.Now().UnixNano()),
+	})
+	sub := mustCreateSubscription(s.T(), client, &service.UserSubscription{
+		UserID:  user.ID,
+		GroupID: group.ID,
+	})
 
 	const numGoroutines = 10
 	const incrementPerGoroutine = 1.5
@@ -1267,7 +1278,7 @@ func (s *UserSubscriptionRepoSuite) TestIncrementUsage_Concurrent() {
 	errCh := make(chan error, numGoroutines)
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
-			errCh <- s.repo.IncrementUsage(s.ctx, sub.ID, incrementPerGoroutine)
+			errCh <- repo.IncrementUsage(ctx, sub.ID, incrementPerGoroutine)
 		}()
 	}
 
@@ -1278,7 +1289,7 @@ func (s *UserSubscriptionRepoSuite) TestIncrementUsage_Concurrent() {
 	}
 
 	// 验证累加结果正确
-	got, err := s.repo.GetByID(s.ctx, sub.ID)
+	got, err := repo.GetByID(ctx, sub.ID)
 	s.Require().NoError(err)
 	expectedUsage := float64(numGoroutines) * incrementPerGoroutine
 	s.Require().InDelta(expectedUsage, got.DailyUsageUSD, 1e-6, "daily usage should be correctly accumulated")
