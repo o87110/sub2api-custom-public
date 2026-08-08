@@ -9,6 +9,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
 	"github.com/Wei-Shaw/sub2api/internal/custom/idempotencyexecution"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionquota"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionrepository"
@@ -892,7 +893,8 @@ func (s *UserSubscriptionRepoSuite) TestRestoreTermSnapshotRejectsConcurrentCycl
 	s.Require().NotNil(snapshot)
 	s.Require().NotNil(snapshot.Expected)
 
-	advanced, err := s.repo.AdvanceCycle(s.ctx, sub.ID, boundary, timezone.StartOfDay(boundary))
+	advanceAt := boundary.Add(time.Second)
+	advanced, err := s.repo.AdvanceCycle(s.ctx, sub.ID, advanceAt, timezone.StartOfDay(advanceAt))
 	s.Require().NoError(err)
 	s.Require().True(advanced)
 
@@ -1270,8 +1272,18 @@ func (s *UserSubscriptionRepoSuite) TestIncrementUsage_Concurrent() {
 		UserID:  user.ID,
 		GroupID: group.ID,
 	})
-	s.T().Cleanup(func() {
-		_ = repo.Delete(context.Background(), sub.ID)
+	t := s.T()
+	t.Cleanup(func() {
+		cleanupCtx := mixins.SkipSoftDelete(context.Background())
+		if err := client.UserSubscription.DeleteOneID(sub.ID).Exec(cleanupCtx); err != nil {
+			t.Errorf("hard-delete concurrent subscription fixture: %v", err)
+		}
+		if err := client.Group.DeleteOneID(group.ID).Exec(cleanupCtx); err != nil {
+			t.Errorf("hard-delete concurrent group fixture: %v", err)
+		}
+		if err := client.User.DeleteOneID(user.ID).Exec(cleanupCtx); err != nil {
+			t.Errorf("hard-delete concurrent user fixture: %v", err)
+		}
 	})
 
 	const numGoroutines = 10
