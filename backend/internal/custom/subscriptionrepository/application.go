@@ -98,7 +98,7 @@ func (r *Repository) AdjustTerm(
 	var subject *service.UserSubscription
 	wouldExpire := false
 	err := r.withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
-		sub, err := r.BaseUserSubscriptionRepository.GetByIDForUpdate(txCtx, subscriptionID)
+		sub, err := r.GetByIDForUpdate(txCtx, subscriptionID)
 		if err != nil {
 			return err
 		}
@@ -126,7 +126,7 @@ func (r *Repository) AdjustTerm(
 					return err
 				}
 			}
-			if err := r.BaseUserSubscriptionRepository.Delete(txCtx, subscriptionID); err != nil {
+			if err := r.Delete(txCtx, subscriptionID); err != nil {
 				return err
 			}
 			if snapshot != nil {
@@ -148,7 +148,7 @@ func (r *Repository) AdjustTerm(
 			return err
 		}
 		if sub.Status == service.SubscriptionStatusExpired {
-			if err := r.BaseUserSubscriptionRepository.UpdateStatus(txCtx, subscriptionID, service.SubscriptionStatusActive); err != nil {
+			if err := r.UpdateStatus(txCtx, subscriptionID, service.SubscriptionStatusActive); err != nil {
 				return err
 			}
 		}
@@ -163,7 +163,7 @@ func (r *Repository) AdjustTerm(
 	if wouldExpire {
 		return subject, snapshot, service.ErrAdjustWouldExpire
 	}
-	adjusted, err := r.BaseUserSubscriptionRepository.GetByID(ctx, subscriptionID)
+	adjusted, err := r.GetByID(ctx, subscriptionID)
 	return adjusted, snapshot, err
 }
 
@@ -174,7 +174,7 @@ func (r *Repository) RestoreTermSnapshotExact(ctx context.Context, snapshot *sub
 	if err := r.RestoreTermSnapshot(ctx, snapshot); err != nil {
 		return nil, err
 	}
-	return r.BaseUserSubscriptionRepository.GetByID(ctx, snapshot.SubscriptionID)
+	return r.GetByID(ctx, snapshot.SubscriptionID)
 }
 
 func (r *Repository) ResetQuota(ctx context.Context, subscriptionID int64, resetDaily, resetWeekly, resetMonthly bool, operation *idempotencyexecution.Execution, now time.Time) (*service.UserSubscription, error) {
@@ -192,7 +192,7 @@ func (r *Repository) ResetQuota(ctx context.Context, subscriptionID int64, reset
 				return err
 			}
 			if !claimed {
-				result, err = r.BaseUserSubscriptionRepository.GetByID(txCtx, subscriptionID)
+				result, err = r.GetByID(txCtx, subscriptionID)
 				return err
 			}
 		}
@@ -203,7 +203,7 @@ func (r *Repository) ResetQuota(ctx context.Context, subscriptionID int64, reset
 			return err
 		}
 		var err error
-		result, err = r.BaseUserSubscriptionRepository.GetByID(txCtx, subscriptionID)
+		result, err = r.GetByID(txCtx, subscriptionID)
 		return err
 	})
 	return result, translateCycleError(err, service.ErrSubscriptionNotFound, nil)
@@ -220,7 +220,7 @@ func (r *Repository) EnsureWindowMaintenance(ctx context.Context, sub *service.U
 	if !advanced {
 		return sub, nil
 	}
-	return r.BaseUserSubscriptionRepository.GetByID(ctx, sub.ID)
+	return r.GetByID(ctx, sub.ID)
 }
 
 func appendNotes(existing, added string) string {
