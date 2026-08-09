@@ -33,3 +33,10 @@ func NormalizeSource(source string) string {
 		return CycleSourceAssignment
 	}
 }
+
+// NormalizeManualBulkQuotaResetEligibility limits per-cycle eligibility to
+// sources that are administered directly instead of through a payment plan.
+func NormalizeManualBulkQuotaResetEligibility(source string, enabled bool) bool {
+	normalizedSource := NormalizeSource(source)
+	return enabled && (normalizedSource == CycleSourceAssignment || normalizedSource == CycleSourceLegacy)
+}

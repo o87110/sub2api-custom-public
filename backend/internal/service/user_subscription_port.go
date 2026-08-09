@@ -61,9 +61,15 @@ type BaseUserSubscriptionRepository interface {
 // under internal/custom. Upstream service code delegates Custom cycle, refund,
 // and quota-reset orchestration through this interface.
 type UserSubscriptionCustomRepository interface {
-	RenewExistingTerm(ctx context.Context, subscriptionID int64, validityDays int, notes, sourceType string, sourceRef *string, assignmentSemantics bool, now, maxExpiresAt time.Time) error
+	RenewExistingTerm(ctx context.Context, subscriptionID int64, validityDays int, notes, sourceType string, sourceRef *string, manualBulkQuotaResetEnabled, assignmentSemantics bool, now, maxExpiresAt time.Time) error
 	AdjustTerm(ctx context.Context, subscriptionID int64, days int, captureSnapshot, revokeIfExpired bool, now, maxExpiresAt time.Time, maxValidityDays int) (*UserSubscription, *subscriptionquota.TermSnapshot, error)
 	RestoreTermSnapshotExact(ctx context.Context, snapshot *subscriptionquota.TermSnapshot) (*UserSubscription, error)
 	ResetQuota(ctx context.Context, subscriptionID int64, resetDaily, resetWeekly, resetMonthly bool, operation *idempotencyexecution.Execution, now time.Time) (*UserSubscription, error)
 	EnsureWindowMaintenance(ctx context.Context, sub *UserSubscription, now time.Time) (*UserSubscription, error)
+}
+
+// UserSubscriptionBulkResetRepository is the narrow Custom port for the
+// transactional bulk-reset eligibility check and its quota-reset side effects.
+type UserSubscriptionBulkResetRepository interface {
+	ResetQuotaIfBulkEligible(ctx context.Context, subscriptionID int64, operation idempotencyexecution.Execution, now time.Time) (*UserSubscription, bool, error)
 }

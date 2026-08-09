@@ -125,6 +125,20 @@ func (_u *UserSubscriptionCycleUpdate) ClearSourceRef() *UserSubscriptionCycleUp
 	return _u
 }
 
+// SetManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field.
+func (_u *UserSubscriptionCycleUpdate) SetManualBulkQuotaResetEnabled(v bool) *UserSubscriptionCycleUpdate {
+	_u.mutation.SetManualBulkQuotaResetEnabled(v)
+	return _u
+}
+
+// SetNillableManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field if the given value is not nil.
+func (_u *UserSubscriptionCycleUpdate) SetNillableManualBulkQuotaResetEnabled(v *bool) *UserSubscriptionCycleUpdate {
+	if v != nil {
+		_u.SetManualBulkQuotaResetEnabled(*v)
+	}
+	return _u
+}
+
 // SetFinalUsageUsd sets the "final_usage_usd" field.
 func (_u *UserSubscriptionCycleUpdate) SetFinalUsageUsd(v float64) *UserSubscriptionCycleUpdate {
 	_u.mutation.ResetFinalUsageUsd()
@@ -295,6 +309,9 @@ func (_u *UserSubscriptionCycleUpdate) sqlSave(ctx context.Context) (_node int, 
 	if _u.mutation.SourceRefCleared() {
 		_spec.ClearField(usersubscriptioncycle.FieldSourceRef, field.TypeString)
 	}
+	if value, ok := _u.mutation.ManualBulkQuotaResetEnabled(); ok {
+		_spec.SetField(usersubscriptioncycle.FieldManualBulkQuotaResetEnabled, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.FinalUsageUsd(); ok {
 		_spec.SetField(usersubscriptioncycle.FieldFinalUsageUsd, field.TypeFloat64, value)
 	}
@@ -455,6 +472,20 @@ func (_u *UserSubscriptionCycleUpdateOne) SetNillableSourceRef(v *string) *UserS
 // ClearSourceRef clears the value of the "source_ref" field.
 func (_u *UserSubscriptionCycleUpdateOne) ClearSourceRef() *UserSubscriptionCycleUpdateOne {
 	_u.mutation.ClearSourceRef()
+	return _u
+}
+
+// SetManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field.
+func (_u *UserSubscriptionCycleUpdateOne) SetManualBulkQuotaResetEnabled(v bool) *UserSubscriptionCycleUpdateOne {
+	_u.mutation.SetManualBulkQuotaResetEnabled(v)
+	return _u
+}
+
+// SetNillableManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field if the given value is not nil.
+func (_u *UserSubscriptionCycleUpdateOne) SetNillableManualBulkQuotaResetEnabled(v *bool) *UserSubscriptionCycleUpdateOne {
+	if v != nil {
+		_u.SetManualBulkQuotaResetEnabled(*v)
+	}
 	return _u
 }
 
@@ -657,6 +688,9 @@ func (_u *UserSubscriptionCycleUpdateOne) sqlSave(ctx context.Context) (_node *U
 	}
 	if _u.mutation.SourceRefCleared() {
 		_spec.ClearField(usersubscriptioncycle.FieldSourceRef, field.TypeString)
+	}
+	if value, ok := _u.mutation.ManualBulkQuotaResetEnabled(); ok {
+		_spec.SetField(usersubscriptioncycle.FieldManualBulkQuotaResetEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.FinalUsageUsd(); ok {
 		_spec.SetField(usersubscriptioncycle.FieldFinalUsageUsd, field.TypeFloat64, value)

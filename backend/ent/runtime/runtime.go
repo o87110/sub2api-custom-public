@@ -2526,12 +2526,16 @@ func init() {
 	usersubscriptioncycleDescSourceRef := usersubscriptioncycleFields[5].Descriptor()
 	// usersubscriptioncycle.SourceRefValidator is a validator for the "source_ref" field. It is called by the builders before save.
 	usersubscriptioncycle.SourceRefValidator = usersubscriptioncycleDescSourceRef.Validators[0].(func(string) error)
+	// usersubscriptioncycleDescManualBulkQuotaResetEnabled is the schema descriptor for manual_bulk_quota_reset_enabled field.
+	usersubscriptioncycleDescManualBulkQuotaResetEnabled := usersubscriptioncycleFields[6].Descriptor()
+	// usersubscriptioncycle.DefaultManualBulkQuotaResetEnabled holds the default value on creation for the manual_bulk_quota_reset_enabled field.
+	usersubscriptioncycle.DefaultManualBulkQuotaResetEnabled = usersubscriptioncycleDescManualBulkQuotaResetEnabled.Default.(bool)
 	// usersubscriptioncycleDescFinalUsageUsd is the schema descriptor for final_usage_usd field.
-	usersubscriptioncycleDescFinalUsageUsd := usersubscriptioncycleFields[6].Descriptor()
+	usersubscriptioncycleDescFinalUsageUsd := usersubscriptioncycleFields[7].Descriptor()
 	// usersubscriptioncycle.DefaultFinalUsageUsd holds the default value on creation for the final_usage_usd field.
 	usersubscriptioncycle.DefaultFinalUsageUsd = usersubscriptioncycleDescFinalUsageUsd.Default.(float64)
 	// usersubscriptioncycleDescFinalManualQuotaResetCount is the schema descriptor for final_manual_quota_reset_count field.
-	usersubscriptioncycleDescFinalManualQuotaResetCount := usersubscriptioncycleFields[7].Descriptor()
+	usersubscriptioncycleDescFinalManualQuotaResetCount := usersubscriptioncycleFields[8].Descriptor()
 	// usersubscriptioncycle.DefaultFinalManualQuotaResetCount holds the default value on creation for the final_manual_quota_reset_count field.
 	usersubscriptioncycle.DefaultFinalManualQuotaResetCount = usersubscriptioncycleDescFinalManualQuotaResetCount.Default.(int64)
 }

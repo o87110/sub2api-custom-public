@@ -660,6 +660,10 @@ type AdminUserSubscription struct {
 	Notes      string    `json:"notes"`
 
 	AssignedByUser *User `json:"assigned_by_user,omitempty"`
+
+	CurrentCycleSourceType       string `json:"current_cycle_source_type"`
+	ManualBulkQuotaResetEnabled  bool   `json:"manual_bulk_quota_reset_enabled"`
+	ManualBulkQuotaResetEditable bool   `json:"manual_bulk_quota_reset_editable"`
 }
 
 type BulkAssignResult struct {

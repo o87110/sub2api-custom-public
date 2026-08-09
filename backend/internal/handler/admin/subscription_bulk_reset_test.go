@@ -31,3 +31,16 @@ func TestBulkResetQuotaRejectsRequestsAboveMaximumBatchSize(t *testing.T) {
 
 	require.Equal(t, http.StatusBadRequest, recorder.Code)
 }
+
+func TestUpdateCurrentCycleBulkResetEligibilityRequiresEnabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Params = gin.Params{{Key: "id", Value: "7"}}
+	ctx.Request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/subscriptions/7/current-cycle-bulk-reset-eligibility", bytes.NewBufferString(`{}`))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+
+	(&SubscriptionHandler{}).UpdateCurrentCycleBulkResetEligibility(ctx)
+
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+}

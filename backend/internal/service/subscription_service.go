@@ -193,15 +193,22 @@ func (s *SubscriptionService) invalidateSubscriptionCaches(userID, groupID int64
 	return nil
 }
 
+// InvalidateSubscriptionCachesAfterCycleMutation is the Custom bridge used
+// after a committed cycle transition outside this package.
+func (s *SubscriptionService) InvalidateSubscriptionCachesAfterCycleMutation(userID, groupID int64) {
+	_ = s.invalidateSubscriptionCaches(userID, groupID)
+}
+
 // AssignSubscriptionInput 分配订阅输入
 type AssignSubscriptionInput struct {
-	UserID          int64
-	GroupID         int64
-	ValidityDays    int
-	AssignedBy      int64
-	Notes           string
-	CycleSourceType string
-	CycleSourceRef  *string
+	UserID              int64
+	GroupID             int64
+	ValidityDays        int
+	AssignedBy          int64
+	Notes               string
+	CycleSourceType     string
+	CycleSourceRef      *string
+	AllowBulkQuotaReset bool
 }
 
 // AssignSubscription 分配订阅给用户（不允许重复分配）
@@ -250,7 +257,7 @@ func (s *SubscriptionService) assignOrExtendSubscription(ctx context.Context, in
 
 	// 已有订阅，执行续期（在事务中完成所有更新）
 	if existingSub != nil {
-		if err := s.updateExistingSubscriptionTerm(ctx, existingSub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, false); err != nil {
+		if err := s.updateExistingSubscriptionTerm(ctx, existingSub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, input.AllowBulkQuotaReset, false); err != nil {
 			return nil, false, err
 		}
 
@@ -299,6 +306,7 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 	notes string,
 	cycleSourceType string,
 	cycleSourceRef *string,
+	manualBulkQuotaResetEnabled bool,
 	assignmentSemantics bool,
 ) error {
 	if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {
@@ -306,7 +314,7 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 		if s.now != nil {
 			now = s.now()
 		}
-		return repo.RenewExistingTerm(ctx, subscriptionID, validityDays, notes, cycleSourceType, cycleSourceRef, assignmentSemantics, now, MaxExpiresAt)
+		return repo.RenewExistingTerm(ctx, subscriptionID, validityDays, notes, cycleSourceType, cycleSourceRef, manualBulkQuotaResetEnabled, assignmentSemantics, now, MaxExpiresAt)
 	}
 	return s.withSubscriptionUpdateTx(ctx, func(txCtx context.Context) error {
 		existingSub, err := s.userSubRepo.GetByIDForUpdate(txCtx, subscriptionID)
@@ -339,6 +347,7 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 
 		if isExpired {
 			renewed := renewedSubscriptionTerm(existingSub, notes, now, newExpiresAt)
+			renewed.ManualBulkQuotaResetEnabled = manualBulkQuotaResetEnabled
 			if err := s.userSubRepo.Update(txCtx, renewed); err != nil {
 				return fmt.Errorf("renew expired subscription: %w", err)
 			}
@@ -438,19 +447,20 @@ func (s *SubscriptionService) createSubscription(ctx context.Context, input *Ass
 	}
 
 	sub := &UserSubscription{
-		UserID:               input.UserID,
-		GroupID:              input.GroupID,
-		StartsAt:             now,
-		ExpiresAt:            expiresAt,
-		Status:               SubscriptionStatusActive,
-		AssignedAt:           now,
-		Notes:                input.Notes,
-		CreatedAt:            now,
-		UpdatedAt:            now,
-		CurrentCycleStartsAt: now,
-		CurrentCycleEndsAt:   expiresAt,
-		CycleSourceType:      input.CycleSourceType,
-		CycleSourceRef:       input.CycleSourceRef,
+		UserID:                      input.UserID,
+		GroupID:                     input.GroupID,
+		StartsAt:                    now,
+		ExpiresAt:                   expiresAt,
+		Status:                      SubscriptionStatusActive,
+		AssignedAt:                  now,
+		Notes:                       input.Notes,
+		CreatedAt:                   now,
+		UpdatedAt:                   now,
+		CurrentCycleStartsAt:        now,
+		CurrentCycleEndsAt:          expiresAt,
+		CycleSourceType:             input.CycleSourceType,
+		CycleSourceRef:              input.CycleSourceRef,
+		ManualBulkQuotaResetEnabled: input.AllowBulkQuotaReset,
 	}
 	// 只有当 AssignedBy > 0 时才设置（0 表示系统分配，如兑换码）
 	if input.AssignedBy > 0 {
@@ -467,11 +477,12 @@ func (s *SubscriptionService) createSubscription(ctx context.Context, input *Ass
 
 // BulkAssignSubscriptionInput 批量分配订阅输入
 type BulkAssignSubscriptionInput struct {
-	UserIDs      []int64
-	GroupID      int64
-	ValidityDays int
-	AssignedBy   int64
-	Notes        string
+	UserIDs             []int64
+	GroupID             int64
+	ValidityDays        int
+	AssignedBy          int64
+	Notes               string
+	AllowBulkQuotaReset bool
 }
 
 // BulkAssignResult 批量分配结果
@@ -495,11 +506,12 @@ func (s *SubscriptionService) BulkAssignSubscription(ctx context.Context, input 
 
 	for _, userID := range input.UserIDs {
 		sub, reused, err := s.assignSubscriptionWithReuse(ctx, &AssignSubscriptionInput{
-			UserID:       userID,
-			GroupID:      input.GroupID,
-			ValidityDays: input.ValidityDays,
-			AssignedBy:   input.AssignedBy,
-			Notes:        input.Notes,
+			UserID:              userID,
+			GroupID:             input.GroupID,
+			ValidityDays:        input.ValidityDays,
+			AssignedBy:          input.AssignedBy,
+			Notes:               input.Notes,
+			AllowBulkQuotaReset: input.AllowBulkQuotaReset,
 		})
 		if err != nil {
 			result.FailedCount++
@@ -545,7 +557,7 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 		if sub.Status == SubscriptionStatusExpired ||
 			(sub.Status != SubscriptionStatusSuspended && !sub.ExpiresAt.After(now)) {
 			validityDays := normalizeAssignValidityDays(input.ValidityDays)
-			if err := s.updateExistingSubscriptionTerm(ctx, sub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, true); err != nil {
+			if err := s.updateExistingSubscriptionTerm(ctx, sub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, input.AllowBulkQuotaReset, true); err != nil {
 				return nil, false, err
 			}
 			s.maybeInvalidateAssignmentCaches(input.UserID, input.GroupID, false)
@@ -599,6 +611,9 @@ func detectAssignSemanticConflict(existing *UserSubscription, input *AssignSubsc
 	inputNotes := strings.TrimSpace(input.Notes)
 	if existingNotes != inputNotes {
 		return "notes_mismatch", true
+	}
+	if existing.ManualBulkQuotaResetEnabled != input.AllowBulkQuotaReset {
+		return "bulk_reset_eligibility_mismatch", true
 	}
 
 	return "", false
@@ -1005,6 +1020,23 @@ func (s *SubscriptionService) AdminResetQuotaIdempotent(ctx context.Context, sub
 	}
 	_ = s.invalidateSubscriptionCaches(result.UserID, result.GroupID)
 	return result, nil
+}
+
+// AdminResetQuotaIfBulkEligible atomically revalidates bulk-reset eligibility
+// and resets all quota windows when the current subscription cycle still qualifies.
+func (s *SubscriptionService) AdminResetQuotaIfBulkEligible(ctx context.Context, subscriptionID int64, operation idempotencyexecution.Execution) (*UserSubscription, bool, error) {
+	repo, ok := s.userSubRepo.(UserSubscriptionBulkResetRepository)
+	if !ok {
+		return nil, false, infraerrors.InternalServer("SUBSCRIPTION_BULK_RESET_UNAVAILABLE", "bulk subscription quota reset is unavailable")
+	}
+	result, eligible, err := repo.ResetQuotaIfBulkEligible(ctx, subscriptionID, operation, s.now())
+	if err != nil {
+		return result, eligible, err
+	}
+	if result != nil {
+		_ = s.invalidateSubscriptionCaches(result.UserID, result.GroupID)
+	}
+	return result, eligible, nil
 }
 
 // CheckAndResetWindows 检查并重置过期的窗口

@@ -391,7 +391,7 @@
           </template>
 
           <template #cell-actions="{ row }">
-            <div class="flex items-center gap-1">
+            <div class="flex flex-wrap items-center gap-1">
               <button
                 v-if="row.status === 'active' || row.status === 'expired'"
                 @click="handleExtend(row)"
@@ -409,6 +409,7 @@
                 <Icon name="refresh" size="sm" />
                 <span class="text-xs">{{ t('admin.subscriptions.resetQuota') }}</span>
               </button>
+              <ManualBulkResetEligibilityAction :subscription="row" @updated="loadSubscriptions" />
               <button
                 v-if="row.status === 'active'"
                 @click="handleRevoke(row)"
@@ -554,6 +555,7 @@
           <input v-model.number="assignForm.validity_days" type="number" min="1" class="input" />
           <p class="input-hint">{{ t('admin.subscriptions.validityHint') }}</p>
         </div>
+        <ManualBulkResetAssignmentToggle v-model="assignForm.allow_bulk_quota_reset" />
       </form>
       <template #footer>
         <div class="flex justify-end gap-3">
@@ -798,6 +800,8 @@ import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
 import SubscriptionCycleStats from '@/custom/subscription-quota/SubscriptionCycleStats.vue'
 import BulkQuotaResetDialog from '@/custom/subscription-quota/BulkQuotaResetDialog.vue'
+import ManualBulkResetAssignmentToggle from '@/custom/subscription-quota/ManualBulkResetAssignmentToggle.vue'
+import ManualBulkResetEligibilityAction from '@/custom/subscription-quota/ManualBulkResetEligibilityAction.vue'
 import {
   getRemainingDurationParts,
   getRemainingExpiryDuration,
@@ -999,7 +1003,8 @@ const restoringSubscription = ref<UserSubscription | null>(null)
 const assignForm = reactive({
   user_id: null as number | null,
   group_id: null as number | null,
-  validity_days: 30
+  validity_days: 30,
+  allow_bulk_quota_reset: false
 })
 
 const extendForm = reactive({
@@ -1211,6 +1216,7 @@ const closeAssignModal = () => {
   assignForm.user_id = null
   assignForm.group_id = null
   assignForm.validity_days = 30
+  assignForm.allow_bulk_quota_reset = false
   // Clear user search state
   selectedUser.value = null
   userSearchKeyword.value = ''
@@ -1237,7 +1243,8 @@ const handleAssignSubscription = async () => {
     await adminAPI.subscriptions.assign({
       user_id: assignForm.user_id,
       group_id: assignForm.group_id,
-      validity_days: assignForm.validity_days
+      validity_days: assignForm.validity_days,
+      allow_bulk_quota_reset: assignForm.allow_bulk_quota_reset
     })
     appStore.showSuccess(t('admin.subscriptions.subscriptionAssigned'))
     closeAssignModal()

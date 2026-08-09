@@ -62,7 +62,7 @@ func (r *refundTermSnapshotRepo) RestoreTermSnapshot(_ context.Context, snapshot
 	return nil
 }
 
-func (r *refundTermSnapshotRepo) RenewExistingTerm(context.Context, int64, int, string, string, *string, bool, time.Time, time.Time) error {
+func (r *refundTermSnapshotRepo) RenewExistingTerm(context.Context, int64, int, string, string, *string, bool, bool, time.Time, time.Time) error {
 	panic("unexpected RenewExistingTerm call")
 }
 

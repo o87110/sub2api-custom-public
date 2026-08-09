@@ -18,8 +18,12 @@ export interface BulkQuotaResetCandidate {
   user_id: number
   user_email: string
   username: string
-  plan_id: number
-  plan_name: string
+  source_type: 'assignment' | 'legacy' | 'payment'
+  source_name: string
+  group_id: number
+  group_name: string
+  plan_id: number | null
+  plan_name: string | null
   cycle_usage_usd: number
   manual_quota_reset_count: number
 }
@@ -44,7 +48,7 @@ export interface BulkQuotaResetResult {
   success_count: number
   skipped_count: number
   failed_count: number
-	items: BulkQuotaResetItemResult[]
+  items: BulkQuotaResetItemResult[]
 }
 
 /**
@@ -203,6 +207,17 @@ export async function bulkResetQuota(
   return data
 }
 
+export async function updateCurrentCycleBulkResetEligibility(
+  subscriptionId: number,
+  enabled: boolean
+): Promise<UserSubscription> {
+  const { data } = await apiClient.put<UserSubscription>(
+    `/admin/subscriptions/${subscriptionId}/current-cycle-bulk-reset-eligibility`,
+    { enabled }
+  )
+  return data
+}
+
 /**
  * List subscriptions by group
  * @param groupId - Group ID
@@ -257,6 +272,7 @@ export const subscriptionsAPI = {
   resetQuota,
   listBulkResetQuotaCandidates,
   bulkResetQuota,
+  updateCurrentCycleBulkResetEligibility,
   listByGroup,
   listByUser
 }

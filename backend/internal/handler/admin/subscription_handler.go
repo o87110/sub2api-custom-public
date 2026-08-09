@@ -57,18 +57,20 @@ func NewSubscriptionHandler(subscriptionService *service.SubscriptionService, bu
 
 // AssignSubscriptionRequest represents assign subscription request
 type AssignSubscriptionRequest struct {
-	UserID       int64  `json:"user_id" binding:"required"`
-	GroupID      int64  `json:"group_id" binding:"required"`
-	ValidityDays int    `json:"validity_days" binding:"omitempty,max=36500"` // max 100 years
-	Notes        string `json:"notes"`
+	UserID              int64  `json:"user_id" binding:"required"`
+	GroupID             int64  `json:"group_id" binding:"required"`
+	ValidityDays        int    `json:"validity_days" binding:"omitempty,max=36500"` // max 100 years
+	Notes               string `json:"notes"`
+	AllowBulkQuotaReset bool   `json:"allow_bulk_quota_reset"`
 }
 
 // BulkAssignSubscriptionRequest represents bulk assign subscription request
 type BulkAssignSubscriptionRequest struct {
-	UserIDs      []int64 `json:"user_ids" binding:"required,min=1"`
-	GroupID      int64   `json:"group_id" binding:"required"`
-	ValidityDays int     `json:"validity_days" binding:"omitempty,max=36500"` // max 100 years
-	Notes        string  `json:"notes"`
+	UserIDs             []int64 `json:"user_ids" binding:"required,min=1"`
+	GroupID             int64   `json:"group_id" binding:"required"`
+	ValidityDays        int     `json:"validity_days" binding:"omitempty,max=36500"` // max 100 years
+	Notes               string  `json:"notes"`
+	AllowBulkQuotaReset bool    `json:"allow_bulk_quota_reset"`
 }
 
 // AdjustSubscriptionRequest represents adjust subscription request (extend or shorten)
@@ -161,11 +163,12 @@ func (h *SubscriptionHandler) Assign(c *gin.Context) {
 	adminID := getAdminIDFromContext(c)
 
 	subscription, err := h.subscriptionService.AssignSubscription(c.Request.Context(), &service.AssignSubscriptionInput{
-		UserID:       req.UserID,
-		GroupID:      req.GroupID,
-		ValidityDays: req.ValidityDays,
-		AssignedBy:   adminID,
-		Notes:        req.Notes,
+		UserID:              req.UserID,
+		GroupID:             req.GroupID,
+		ValidityDays:        req.ValidityDays,
+		AssignedBy:          adminID,
+		Notes:               req.Notes,
+		AllowBulkQuotaReset: req.AllowBulkQuotaReset,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -188,11 +191,12 @@ func (h *SubscriptionHandler) BulkAssign(c *gin.Context) {
 	adminID := getAdminIDFromContext(c)
 
 	result, err := h.subscriptionService.BulkAssignSubscription(c.Request.Context(), &service.BulkAssignSubscriptionInput{
-		UserIDs:      req.UserIDs,
-		GroupID:      req.GroupID,
-		ValidityDays: req.ValidityDays,
-		AssignedBy:   adminID,
-		Notes:        req.Notes,
+		UserIDs:             req.UserIDs,
+		GroupID:             req.GroupID,
+		ValidityDays:        req.ValidityDays,
+		AssignedBy:          adminID,
+		Notes:               req.Notes,
+		AllowBulkQuotaReset: req.AllowBulkQuotaReset,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -299,8 +303,8 @@ func (h *SubscriptionHandler) ResetQuota(c *gin.Context) {
 	})
 }
 
-// ListBulkResetQuotaCandidates lists active paid subscriptions whose current
-// plan explicitly allows bulk quota reset.
+// ListBulkResetQuotaCandidates lists active subscriptions whose effective
+// payment plan or manual cycle allows bulk quota reset.
 // GET /api/v1/admin/subscriptions/bulk-reset-quota/candidates
 func (h *SubscriptionHandler) ListBulkResetQuotaCandidates(c *gin.Context) {
 	result, err := h.bulkResetService.ListCandidates(c.Request.Context())
@@ -356,6 +360,36 @@ func (h *SubscriptionHandler) BulkResetQuota(c *gin.Context) {
 		}
 		return h.bulkResetService.ResetSelected(ctx, req.SubscriptionIDs, execution)
 	})
+}
+
+type UpdateCurrentCycleBulkResetEligibilityRequest struct {
+	Enabled *bool `json:"enabled" binding:"required"`
+}
+
+// UpdateCurrentCycleBulkResetEligibility changes per-cycle eligibility for an
+// active assignment or legacy subscription cycle.
+// PUT /api/v1/admin/subscriptions/:id/current-cycle-bulk-reset-eligibility
+func (h *SubscriptionHandler) UpdateCurrentCycleBulkResetEligibility(c *gin.Context) {
+	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || subscriptionID <= 0 {
+		response.BadRequest(c, "Invalid subscription ID")
+		return
+	}
+	var req UpdateCurrentCycleBulkResetEligibilityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if err := h.bulkResetService.UpdateCurrentCycleManualEligibility(c.Request.Context(), subscriptionID, *req.Enabled); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	subscription, err := h.subscriptionService.GetByID(c.Request.Context(), subscriptionID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, dto.UserSubscriptionFromServiceAdmin(subscription))
 }
 
 // Revoke handles revoking a subscription.

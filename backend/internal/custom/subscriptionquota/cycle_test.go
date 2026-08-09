@@ -15,3 +15,11 @@ func TestNeedsAdvanceOnlyAfterCurrentBoundaryWithRemainingEntitlement(t *testing
 	require.False(t, NeedsAdvance(boundary, boundary, boundary))
 	require.False(t, NeedsAdvance(time.Time{}, boundary.Add(30*24*time.Hour), boundary))
 }
+
+func TestNormalizeManualBulkQuotaResetEligibilityOnlyAllowsManualSources(t *testing.T) {
+	require.True(t, NormalizeManualBulkQuotaResetEligibility(CycleSourceAssignment, true))
+	require.True(t, NormalizeManualBulkQuotaResetEligibility(CycleSourceLegacy, true))
+	require.False(t, NormalizeManualBulkQuotaResetEligibility(CycleSourcePayment, true))
+	require.False(t, NormalizeManualBulkQuotaResetEligibility(CycleSourceRedeem, true))
+	require.False(t, NormalizeManualBulkQuotaResetEligibility(CycleSourceAssignment, false))
+}

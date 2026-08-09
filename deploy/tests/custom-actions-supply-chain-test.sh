@@ -166,6 +166,7 @@ grep -Fq 'retention-days: 30' "$backend_ci" ||
 integration_fixture="$(mktemp -d)"
 for package in \
   internal/custom/subscriptioninventory \
+  internal/custom/subscriptionrepository \
   internal/middleware \
   internal/pkg/tlsfingerprint \
   internal/repository \
@@ -179,6 +180,7 @@ integration_log="$integration_fixture/check.log"
   --backend-root "$integration_fixture" > "$integration_log"
 for package in \
   ./internal/custom/subscriptioninventory \
+  ./internal/custom/subscriptionrepository \
   ./internal/middleware \
   ./internal/pkg/tlsfingerprint \
   ./internal/repository \

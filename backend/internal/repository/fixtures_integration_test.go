@@ -434,6 +434,7 @@ func mustCreateSubscription(t *testing.T, client *dbent.Client, s *service.UserS
 		s.ManualQuotaResetCount,
 		subscriptionquota.CycleSourceAssignment,
 		nil,
+		false,
 	)
 	require.NoError(t, err, "create current subscription cycle")
 

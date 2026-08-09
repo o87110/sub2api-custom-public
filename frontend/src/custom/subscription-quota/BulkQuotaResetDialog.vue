@@ -38,7 +38,7 @@
           <thead class="bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500 dark:bg-dark-800 dark:text-gray-400">
             <tr>
               <th class="px-4 py-3">{{ t('admin.subscriptions.bulkReset.user') }}</th>
-              <th class="px-4 py-3">{{ t('admin.subscriptions.bulkReset.plan') }}</th>
+              <th class="px-4 py-3">{{ t('admin.subscriptions.bulkReset.source') }}</th>
               <th class="px-4 py-3">{{ t('admin.subscriptions.bulkReset.status') }}</th>
               <th class="px-4 py-3">{{ t('admin.subscriptions.bulkReset.reason') }}</th>
             </tr>
@@ -52,7 +52,7 @@
                 </div>
               </td>
               <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
-                {{ candidateByID.get(item.subscription_id)?.plan_name || '—' }}
+                {{ candidateByID.get(item.subscription_id) ? sourceLabel(candidateByID.get(item.subscription_id)!) : '—' }}
               </td>
               <td class="px-4 py-3">
                 <span :class="statusClass(item.status)" class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium">
@@ -114,7 +114,7 @@
                 />
               </th>
               <th class="px-4 py-3">{{ t('admin.subscriptions.bulkReset.user') }}</th>
-              <th class="px-4 py-3">{{ t('admin.subscriptions.bulkReset.plan') }}</th>
+              <th class="px-4 py-3">{{ t('admin.subscriptions.bulkReset.source') }}</th>
               <th class="px-4 py-3 text-right">{{ t('admin.subscriptions.bulkReset.cycleUsage') }}</th>
               <th class="px-4 py-3 text-right">{{ t('admin.subscriptions.bulkReset.resetCount') }}</th>
             </tr>
@@ -128,7 +128,7 @@
                   class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-500 dark:bg-dark-700"
                   :checked="selectedIDs.has(candidate.subscription_id)"
                   :disabled="submitError || (!selectedIDs.has(candidate.subscription_id) && selectedCount >= BULK_QUOTA_RESET_MAX_SUBSCRIPTIONS)"
-                  :aria-label="t('admin.subscriptions.bulkReset.selectSubscription', { email: candidate.user_email, plan: candidate.plan_name })"
+                  :aria-label="t('admin.subscriptions.bulkReset.selectSubscription', { email: candidate.user_email, source: sourceLabel(candidate) })"
                   @change="toggleOne(candidate.subscription_id, ($event.target as HTMLInputElement).checked)"
                 />
               </td>
@@ -141,7 +141,7 @@
                 </div>
               </td>
               <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
-                {{ candidate.plan_name }}
+                {{ sourceLabel(candidate) }}
               </td>
               <td class="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-200">
                 {{ formatUsage(candidate.cycle_usage_usd) }}
@@ -192,6 +192,7 @@ import ResultCount from './BulkQuotaResetResultCount.vue'
 import {
   listBulkResetQuotaCandidates,
   type BulkQuotaResetCandidateList,
+  type BulkQuotaResetCandidate,
   type BulkQuotaResetItemResult,
   type BulkQuotaResetItemStatus,
   type BulkQuotaResetResult
@@ -316,6 +317,13 @@ function handleClose() {
 function formatUsage(value: number) {
   const normalized = Number.isFinite(value) ? Math.max(value, 0) : 0
   return `$${normalized.toFixed(2)}`
+}
+
+function sourceLabel(candidate: BulkQuotaResetCandidate) {
+  if (candidate.source_type === 'payment') {
+    return candidate.plan_name || candidate.source_name || '—'
+  }
+  return t('admin.subscriptions.bulkReset.manualSource', { group: candidate.group_name })
 }
 
 function statusLabel(status: BulkQuotaResetItemStatus) {

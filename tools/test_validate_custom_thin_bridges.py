@@ -541,6 +541,86 @@ class ThinBridgeContractTests(unittest.TestCase):
         approved_control = validator.APPROVED_DELEGATE_VIEW_CONTROL[path]
         self.assertIn(("Execute", "if err != nil {"), approved_control)
 
+    def test_manual_subscription_bulk_reset_eligibility_bridge_is_explicitly_scoped(self) -> None:
+        path = "backend/internal/handler/admin/subscription_handler.go"
+        self.assertIn(
+            "UpdateCurrentCycleBulkResetEligibility",
+            validator.APPROVED_NEW_BRIDGE_FUNCTIONS[path],
+        )
+
+        approved_calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[path]
+        for call in (
+            (
+                "UpdateCurrentCycleBulkResetEligibility",
+                "h.bulkResetService.UpdateCurrentCycleManualEligibility",
+            ),
+            (
+                "UpdateCurrentCycleBulkResetEligibility",
+                "h.subscriptionService.GetByID",
+            ),
+            (
+                "UpdateCurrentCycleBulkResetEligibility",
+                "dto.UserSubscriptionFromServiceAdmin",
+            ),
+        ):
+            self.assertEqual(approved_calls.count(call), 1)
+
+        approved_control = validator.APPROVED_DELEGATE_VIEW_CONTROL[path]
+        self.assertIn(
+            (
+                "UpdateCurrentCycleBulkResetEligibility",
+                "if err != nil || subscriptionID <= 0 {",
+            ),
+            approved_control,
+        )
+
+        service_path = "backend/internal/service/subscription_service.go"
+        self.assertIn(
+            "AdminResetQuotaIfBulkEligible",
+            validator.APPROVED_NEW_BRIDGE_FUNCTIONS[service_path],
+        )
+        self.assertIn(
+            "InvalidateSubscriptionCachesAfterCycleMutation",
+            validator.APPROVED_NEW_BRIDGE_FUNCTIONS[service_path],
+        )
+        service_calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[service_path]
+        for call in (
+            ("AdminResetQuotaIfBulkEligible", "repo.ResetQuotaIfBulkEligible"),
+            ("AdminResetQuotaIfBulkEligible", "s.invalidateSubscriptionCaches"),
+            ("InvalidateSubscriptionCachesAfterCycleMutation", "s.invalidateSubscriptionCaches"),
+        ):
+            self.assertEqual(service_calls.count(call), 1)
+        service_control = validator.APPROVED_DELEGATE_VIEW_CONTROL[service_path]
+        self.assertIn(
+            (
+                "detectAssignSemanticConflict",
+                "if existing.ManualBulkQuotaResetEnabled != input.AllowBulkQuotaReset {",
+            ),
+            service_control,
+        )
+        self.assertIn(
+            (
+                "AdminResetQuotaIfBulkEligible",
+                "if err != nil {",
+            ),
+            service_control,
+        )
+        self.assertIn(
+            (
+                "AdminResetQuotaIfBulkEligible",
+                "if result != nil {",
+            ),
+            service_control,
+        )
+
+        view_path = "frontend/src/views/admin/SubscriptionsView.vue"
+        self.assertEqual(
+            validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[view_path].count(
+                ("<template:@updated>", "loadSubscriptions")
+            ),
+            1,
+        )
+
     def test_payment_view_sold_out_refresh_bridge_is_explicitly_scoped(self) -> None:
         path = "frontend/src/views/user/PaymentView.vue"
         approved_calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[path]
