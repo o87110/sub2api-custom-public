@@ -5,7 +5,7 @@
     data-testid="subscription-cycle-stats"
   >
     {{
-      t('userSubscriptions.cycleStats', {
+      t('subscriptionProgress.cycleStats', {
         usage: normalizedUsage.toFixed(2),
         count: manualQuotaResetCount
       })
