@@ -199,9 +199,13 @@ class ThinBridgeContractTests(unittest.TestCase):
         target = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
             ("155c494964c3ea6ecc31f52679525c1034bf0f16", path)
         ]
+        next_target = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+            ("29009f0b2ea14edf3b11ae2564fb617ff91a03b4", path)
+        ]
         self.assertEqual(previous, current)
         self.assertEqual(current, target)
-        self.assertNotIn(("UpdatePaymentConfig", "setPaymentConfigValue"), target)
+        self.assertEqual(target, next_target)
+        self.assertNotIn(("UpdatePaymentConfig", "setPaymentConfigValue"), next_target)
 
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
         fixture = self.fixture(candidate_content="if (enabled) { value = 2 }\n", kind="dto")

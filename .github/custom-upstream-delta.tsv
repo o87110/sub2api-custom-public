@@ -1,7 +1,7 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
 .github/CODEOWNERS	A	keep	A	fixed-path	@absent	0f4e1e7a5124f944379c119ab84e23ae70eeea70	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、订阅周期与批量重置、内容审计、CI Integration 与前端 Artifact 回归测试路径
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	c37a91e1936a1b3c094e8f1f8519ce3cea49341d	-	-	database-boundary-unit+candidate-tree-test	精确绑定已审核的渠道监控、分组最低余额、套餐库存及订阅统计周期 Migration、Ent Schema 和生成文件结构指纹
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	b03caacd338bd7f9b864d894a6f7f8a36dd28547	-	-	thin-bridge-contract-unit+candidate-tree-test	为 v0.1.172 基线固定订阅周期统计、精确退款恢复、事务内批量资格重置与提交后缓存失效薄桥预算
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	64253cc71fbd4dc6d139f518e7a7086a3d1875e1	-	-	thin-bridge-contract-unit+candidate-tree-test	固定订阅周期统计、精确退款恢复、事务内批量资格重置与提交后缓存失效薄桥预算，并为后续 Vendor 基线保留最小 Wire 接入预算
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	81fdcb3715638df65640281cb51e1e8f9fb15274	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -445,7 +445,7 @@ Makefile	M	keep	M	fixed-path	b0bc1b99f687a9156cfb543c41ddc0d401d3c63d	81072b096f
 README_CN.md	M	keep	M	custom-docs-ops	819d6e63bbd961837e4f4892d1cc000e582bdfc2	a0709039c8f3c32f6003bfd2542b683ad73c5e5c	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
 README_JA.md	M	keep	M	custom-docs-ops	80abdac22c9d1e20cfb9fdbd901040a795f365d6	c3d1b8fab595a60adba79c3009a2b0cd89871907	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
 README.md	M	keep	M	custom-docs-ops	72b912833dbb059faee88fbb6a01fbc26d7a34c8	700cb6c46898d84ec1c684b7b2d580e8487b0220	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
-tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	dd99bd625409bceebbc5b51d1be1d38b873134ec	-	-	thin-bridge-contract-unit+candidate-tree-test	验证精确基线预算、事务内批量资格重置、提交后缓存失效薄委托、作用域化幂等身份及前端调用与控制流契约
+tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	f1c6766ddcf143d745c04a460b0ce7c311ef9f4e	-	-	thin-bridge-contract-unit+candidate-tree-test	验证精确 Vendor 基线预算与支付配置调用面，以及事务内批量资格重置、提交后缓存失效、作用域化幂等身份及前端控制流契约
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
-tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	a96b28eabd0e1e11ccf6699eb877bc930cc59a35	-	-	thin-bridge-contract-unit+candidate-tree-test	按精确 Vendor Commit 审批事务内批量资格重置、提交后缓存失效、作用域化幂等身份、调用面及控制流并拒绝业务编排回流
+tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	b131831a34659803006a06102cc4af12195068f4	-	-	thin-bridge-contract-unit+candidate-tree-test	按精确 Vendor Commit 审批支付配置、事务内批量资格重置、提交后缓存失效、作用域化幂等身份、调用面及控制流并拒绝业务编排回流
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
