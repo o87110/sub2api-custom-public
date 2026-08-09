@@ -662,6 +662,20 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
             "paymentchannels.SerializeChannelSettings": 1,
         }),
     ),
+    (
+        "29009f0b2ea14edf3b11ae2564fb617ff91a03b4",
+        "backend/internal/service/payment_config_service.go",
+    ): _approved_call_deltas(
+        ("GetPaymentConfig", {
+            "fmt.Errorf": 1,
+            "paymentchannels.ParseChannelSettings": 1,
+        }),
+        ("UpdatePaymentConfig", {
+            "err.Error": 1,
+            "infraerrors.BadRequest": 1,
+            "paymentchannels.SerializeChannelSettings": 1,
+        }),
+    ),
 }
 
 # Control-flow additions in delegate/view bridges use an exact structural
