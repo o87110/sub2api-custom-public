@@ -1947,6 +1947,9 @@ export interface UserSubscription {
   monthly_usage_usd: number
   cycle_usage_usd?: number
   manual_quota_reset_count?: number
+  current_cycle_source_type?: 'assignment' | 'legacy' | 'payment' | 'redeem' | string
+  manual_bulk_quota_reset_enabled?: boolean
+  manual_bulk_quota_reset_editable?: boolean
   daily_window_start: string | null
   weekly_window_start: string | null
   monthly_window_start: string | null
@@ -1986,12 +1989,14 @@ export interface AssignSubscriptionRequest {
   user_id: number
   group_id: number
   validity_days?: number
+  allow_bulk_quota_reset?: boolean
 }
 
 export interface BulkAssignSubscriptionRequest {
   user_ids: number[]
   group_id: number
   validity_days?: number
+  allow_bulk_quota_reset?: boolean
 }
 
 export interface ExtendSubscriptionRequest {

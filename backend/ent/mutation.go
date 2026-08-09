@@ -56734,6 +56734,7 @@ type UserSubscriptionCycleMutation struct {
 	status                            *string
 	source_type                       *string
 	source_ref                        *string
+	manual_bulk_quota_reset_enabled   *bool
 	final_usage_usd                   *float64
 	addfinal_usage_usd                *float64
 	final_manual_quota_reset_count    *int64
@@ -57146,6 +57147,42 @@ func (m *UserSubscriptionCycleMutation) ResetSourceRef() {
 	delete(m.clearedFields, usersubscriptioncycle.FieldSourceRef)
 }
 
+// SetManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field.
+func (m *UserSubscriptionCycleMutation) SetManualBulkQuotaResetEnabled(b bool) {
+	m.manual_bulk_quota_reset_enabled = &b
+}
+
+// ManualBulkQuotaResetEnabled returns the value of the "manual_bulk_quota_reset_enabled" field in the mutation.
+func (m *UserSubscriptionCycleMutation) ManualBulkQuotaResetEnabled() (r bool, exists bool) {
+	v := m.manual_bulk_quota_reset_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldManualBulkQuotaResetEnabled returns the old "manual_bulk_quota_reset_enabled" field's value of the UserSubscriptionCycle entity.
+// If the UserSubscriptionCycle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionCycleMutation) OldManualBulkQuotaResetEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldManualBulkQuotaResetEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldManualBulkQuotaResetEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldManualBulkQuotaResetEnabled: %w", err)
+	}
+	return oldValue.ManualBulkQuotaResetEnabled, nil
+}
+
+// ResetManualBulkQuotaResetEnabled resets all changes to the "manual_bulk_quota_reset_enabled" field.
+func (m *UserSubscriptionCycleMutation) ResetManualBulkQuotaResetEnabled() {
+	m.manual_bulk_quota_reset_enabled = nil
+}
+
 // SetFinalUsageUsd sets the "final_usage_usd" field.
 func (m *UserSubscriptionCycleMutation) SetFinalUsageUsd(f float64) {
 	m.final_usage_usd = &f
@@ -57368,7 +57405,7 @@ func (m *UserSubscriptionCycleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserSubscriptionCycleMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 12)
 	if m.created_at != nil {
 		fields = append(fields, usersubscriptioncycle.FieldCreatedAt)
 	}
@@ -57392,6 +57429,9 @@ func (m *UserSubscriptionCycleMutation) Fields() []string {
 	}
 	if m.source_ref != nil {
 		fields = append(fields, usersubscriptioncycle.FieldSourceRef)
+	}
+	if m.manual_bulk_quota_reset_enabled != nil {
+		fields = append(fields, usersubscriptioncycle.FieldManualBulkQuotaResetEnabled)
 	}
 	if m.final_usage_usd != nil {
 		fields = append(fields, usersubscriptioncycle.FieldFinalUsageUsd)
@@ -57426,6 +57466,8 @@ func (m *UserSubscriptionCycleMutation) Field(name string) (ent.Value, bool) {
 		return m.SourceType()
 	case usersubscriptioncycle.FieldSourceRef:
 		return m.SourceRef()
+	case usersubscriptioncycle.FieldManualBulkQuotaResetEnabled:
+		return m.ManualBulkQuotaResetEnabled()
 	case usersubscriptioncycle.FieldFinalUsageUsd:
 		return m.FinalUsageUsd()
 	case usersubscriptioncycle.FieldFinalManualQuotaResetCount:
@@ -57457,6 +57499,8 @@ func (m *UserSubscriptionCycleMutation) OldField(ctx context.Context, name strin
 		return m.OldSourceType(ctx)
 	case usersubscriptioncycle.FieldSourceRef:
 		return m.OldSourceRef(ctx)
+	case usersubscriptioncycle.FieldManualBulkQuotaResetEnabled:
+		return m.OldManualBulkQuotaResetEnabled(ctx)
 	case usersubscriptioncycle.FieldFinalUsageUsd:
 		return m.OldFinalUsageUsd(ctx)
 	case usersubscriptioncycle.FieldFinalManualQuotaResetCount:
@@ -57527,6 +57571,13 @@ func (m *UserSubscriptionCycleMutation) SetField(name string, value ent.Value) e
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSourceRef(v)
+		return nil
+	case usersubscriptioncycle.FieldManualBulkQuotaResetEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetManualBulkQuotaResetEnabled(v)
 		return nil
 	case usersubscriptioncycle.FieldFinalUsageUsd:
 		v, ok := value.(float64)
@@ -57663,6 +57714,9 @@ func (m *UserSubscriptionCycleMutation) ResetField(name string) error {
 		return nil
 	case usersubscriptioncycle.FieldSourceRef:
 		m.ResetSourceRef()
+		return nil
+	case usersubscriptioncycle.FieldManualBulkQuotaResetEnabled:
+		m.ResetManualBulkQuotaResetEnabled()
 		return nil
 	case usersubscriptioncycle.FieldFinalUsageUsd:
 		m.ResetFinalUsageUsd()

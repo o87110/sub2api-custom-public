@@ -91,6 +91,8 @@ sha256sum runtime/sub2api
 至少备份：
 
 - PostgreSQL 数据库；
+- 涉及订阅周期 Migration 时，确认数据库备份明确包含 `user_subscriptions`、
+  `user_subscription_cycles` 和 `subscription_plans`；
 - `.env` 和配置文件；
 - `runtime/sub2api` 及 `.backup`；
 - 当前镜像 Tag 与 Digest；

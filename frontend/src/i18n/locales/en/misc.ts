@@ -576,7 +576,7 @@ export default {
       sortOrder: 'Sort Order',
       forSale: 'For Sale',
       allowBulkQuotaReset: 'Allow Bulk Quota Reset',
-      allowBulkQuotaResetHint: 'When enabled, administrators can bulk reset daily, weekly, and monthly quotas for active paid subscriptions whose current cycle belongs to this plan.',
+      allowBulkQuotaResetHint: 'When enabled, administrators can bulk reset daily, weekly, and monthly quotas for active paid subscriptions purchased from this plan whose current cycle still belongs to it. Manual assignments are controlled separately.',
       remainingQuantity: 'Remaining Quantity',
       remainingQuantityHint: 'Leave blank for unlimited sales. Only positive integers are allowed; sold-out plans are delisted automatically.',
       remainingQuantityDisablePurchaseHint: 'Leave blank for unlimited sales, or enter 0 to keep a sold-out plan visible with purchasing disabled.',

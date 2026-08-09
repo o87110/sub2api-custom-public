@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/custom/idempotencyexecution"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionquota"
 	"github.com/stretchr/testify/require"
@@ -17,6 +18,7 @@ type cycleAwareSubscriptionRepo struct {
 	appendedCycleEnds   time.Time
 	advanceCalls        int
 	resetCalls          int
+	bulkResetEligible   bool
 }
 
 func (r *cycleAwareSubscriptionRepo) GetByUserIDAndGroupID(context.Context, int64, int64) (*UserSubscription, error) {
@@ -130,7 +132,7 @@ func (r *cycleAwareSubscriptionRepo) UpdateNotes(_ context.Context, _ int64, not
 	return nil
 }
 
-func (r *cycleAwareSubscriptionRepo) RenewExistingTerm(_ context.Context, _ int64, validityDays int, _ string, _ string, _ *string, _ bool, _ time.Time, _ time.Time) error {
+func (r *cycleAwareSubscriptionRepo) RenewExistingTerm(_ context.Context, _ int64, validityDays int, _ string, _ string, _ *string, _ bool, _ bool, _ time.Time, _ time.Time) error {
 	return r.AppendRenewalCycle(context.Background(), r.sub.ID, r.sub.ExpiresAt, r.sub.ExpiresAt.AddDate(0, 0, validityDays), "", nil)
 }
 
@@ -165,6 +167,11 @@ func (r *cycleAwareSubscriptionRepo) ResetQuota(ctx context.Context, subscriptio
 	}
 	copy := r.sub
 	return &copy, nil
+}
+
+func (r *cycleAwareSubscriptionRepo) ResetQuotaIfBulkEligible(context.Context, int64, idempotencyexecution.Execution, time.Time) (*UserSubscription, bool, error) {
+	copy := r.sub
+	return &copy, r.bulkResetEligible, nil
 }
 
 func (r *cycleAwareSubscriptionRepo) EnsureWindowMaintenance(ctx context.Context, sub *UserSubscription, now time.Time) (*UserSubscription, error) {
@@ -268,4 +275,27 @@ func TestAdminResetQuotaAtCycleBoundaryCountsResetInNewCycle(t *testing.T) {
 	require.Equal(t, nextEndsAt, got.CurrentCycleEndsAt)
 	require.Zero(t, got.CycleUsageUSD)
 	require.Equal(t, int64(1), got.ManualQuotaResetCount)
+}
+
+func TestAdminBulkResetInvalidatesCacheWhenBoundaryAdvanceBecomesIneligible(t *testing.T) {
+	repo := &cycleAwareSubscriptionRepo{sub: UserSubscription{
+		ID: 31, UserID: 32, GroupID: 33,
+	}}
+	svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, &config.Config{
+		SubscriptionCache: config.SubscriptionCacheConfig{L1Size: 100, L1TTLSeconds: 60},
+	})
+	t.Cleanup(svc.Stop)
+
+	key := subCacheKey(repo.sub.UserID, repo.sub.GroupID)
+	require.True(t, svc.subCacheL1.Set(key, &UserSubscription{ID: repo.sub.ID}, 1))
+	svc.subCacheL1.Wait()
+	_, found := svc.subCacheL1.Get(key)
+	require.True(t, found)
+
+	result, eligible, err := svc.AdminResetQuotaIfBulkEligible(context.Background(), repo.sub.ID, idempotencyexecution.Execution{})
+	require.NoError(t, err)
+	require.False(t, eligible)
+	require.NotNil(t, result)
+	_, found = svc.subCacheL1.Get(key)
+	require.False(t, found)
 }

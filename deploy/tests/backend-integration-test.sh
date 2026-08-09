@@ -11,6 +11,7 @@ fail() {
 
 integration_packages=(
   ./internal/custom/subscriptioninventory
+  ./internal/custom/subscriptionrepository
   ./internal/middleware
   ./internal/pkg/tlsfingerprint
   ./internal/repository

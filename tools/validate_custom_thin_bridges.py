@@ -110,6 +110,7 @@ APPROVED_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
     "backend/internal/handler/admin/subscription_handler.go": frozenset({
         "BulkResetQuota",
         "ListBulkResetQuotaCandidates",
+        "UpdateCurrentCycleBulkResetEligibility",
     }),
     "backend/internal/handler/channel_monitor_user_handler.go": frozenset({"SetGroupRateResolver"}),
     "backend/internal/payment/load_balancer.go": frozenset({
@@ -168,8 +169,10 @@ APPROVED_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
     }),
     "backend/internal/service/subscription_service.go": frozenset({
         "AdjustSubscriptionForRefund",
+        "AdminResetQuotaIfBulkEligible",
         "AdminResetQuotaIdempotent",
         "FinalizeSubscriptionRefundDeduction",
+        "InvalidateSubscriptionCachesAfterCycleMutation",
         "RestoreSubscriptionTermAfterRefund",
         "invalidateAdjustedSubscriptionCache",
     }),
@@ -248,6 +251,19 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
             'service.NormalizeIdempotencyKey': 1,
             'time.Now': 1,
         }),
+        ('UpdateCurrentCycleBulkResetEligibility', {
+            'c.Param': 1,
+            'c.Request.Context': 2,
+            'c.ShouldBindJSON': 1,
+            'dto.UserSubscriptionFromServiceAdmin': 1,
+            'err.Error': 1,
+            'h.bulkResetService.UpdateCurrentCycleManualEligibility': 1,
+            'h.subscriptionService.GetByID': 1,
+            'response.BadRequest': 2,
+            'response.ErrorFrom': 2,
+            'response.Success': 1,
+            'strconv.ParseInt': 1,
+        }),
     ),
     'backend/internal/handler/admin/setting_handler.go': _approved_call_deltas(
         ('GetSettings', {'response.ErrorFrom': 1}),
@@ -286,6 +302,7 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('registerSubscriptionRoutes', {
             'subscriptions.GET': 1,
             'subscriptions.POST': 1,
+            'subscriptions.PUT': 1,
         }),
     ),
     'backend/internal/handler/payment_handler.go': _approved_call_deltas(
@@ -452,6 +469,15 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
             's.invalidateSubscriptionCaches': 1,
             's.now': 1,
         }),
+        ('AdminResetQuotaIfBulkEligible', {
+            'infraerrors.InternalServer': 1,
+            'repo.ResetQuotaIfBulkEligible': 1,
+            's.invalidateSubscriptionCaches': 1,
+            's.now': 1,
+        }),
+        ('InvalidateSubscriptionCachesAfterCycleMutation', {
+            's.invalidateSubscriptionCaches': 1,
+        }),
         ('EnsureWindowMaintenance', {'repo.EnsureWindowMaintenance': 1, 's.now': 1}),
         ('ExtendSubscription', {
             'repo.AdjustTerm': 1,
@@ -541,6 +567,7 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('<template:@click>', {'showBulkResetDialog = true': 1}),
         ('<template:@close>', {'showBulkResetDialog = false': 1}),
         ('<template:@completed>', {'loadSubscriptions': 1}),
+        ('<template:@updated>', {'loadSubscriptions': 1}),
         ('<top-level>', {'ref': 1, 't': 1}),
         ('handleResetQuota', {'Date.now': 1, 'Math.random': 1, 'randomUUID': 1}),
     ),
@@ -659,6 +686,10 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
         ("ResetQuota", "if execErr != nil {"),
         ("ResetQuota", "if resetter == nil {"),
         ("ListBulkResetQuotaCandidates", "if err != nil {"),
+        ("UpdateCurrentCycleBulkResetEligibility", "if err != nil || subscriptionID <= 0 {"),
+        ("UpdateCurrentCycleBulkResetEligibility", "if err := c.ShouldBindJSON(&req); err != nil {"),
+        ("UpdateCurrentCycleBulkResetEligibility", "if err := h.bulkResetService.UpdateCurrentCycleManualEligibility(c.Request.Context(), subscriptionID, *req.Enabled); err != nil {"),
+        ("UpdateCurrentCycleBulkResetEligibility", "if err != nil {"),
     ),
     "backend/internal/handler/admin/setting_handler.go": (
         ("GetSettings", "if err != nil {"),
@@ -833,6 +864,9 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
         ("AdminResetQuota", "if err != nil {"),
         ("AdminResetQuotaIdempotent", "if !ok {"),
         ("AdminResetQuotaIdempotent", "if err != nil {"),
+        ("AdminResetQuotaIfBulkEligible", "if !ok {"),
+        ("AdminResetQuotaIfBulkEligible", "if err != nil {"),
+        ("AdminResetQuotaIfBulkEligible", "if result != nil {"),
         ("EnsureWindowMaintenance", "if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {"),
         ("EnsureWindowMaintenance", "if err != nil {"),
         ("ExtendSubscription", "if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {"),
@@ -841,8 +875,9 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
         ("FinalizeSubscriptionRefundDeduction", "if errors.Is(err, ErrAdjustWouldExpire) {"),
         ("RestoreSubscriptionTermAfterRefund", "if !ok {"),
         ("RestoreSubscriptionTermAfterRefund", "if err != nil {"),
-        ("assignOrExtendSubscription", "if err := s.updateExistingSubscriptionTerm(ctx, existingSub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, false); err != nil {"),
-        ("assignSubscriptionWithReuse", "if err := s.updateExistingSubscriptionTerm(ctx, sub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, true); err != nil {"),
+        ("assignOrExtendSubscription", "if err := s.updateExistingSubscriptionTerm(ctx, existingSub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, input.AllowBulkQuotaReset, false); err != nil {"),
+        ("assignSubscriptionWithReuse", "if err := s.updateExistingSubscriptionTerm(ctx, sub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, input.AllowBulkQuotaReset, true); err != nil {"),
+        ("detectAssignSemanticConflict", "if existing.ManualBulkQuotaResetEnabled != input.AllowBulkQuotaReset {"),
         ("invalidateAdjustedSubscriptionCache", "if sub == nil {"),
         ("invalidateAdjustedSubscriptionCache", "if s.billingCacheService != nil {"),
         ("normalizeExpiredWindowsAt", "if subscriptionquota.NeedsAdvance(sub.CurrentCycleEndsAt, sub.ExpiresAt, now) {"),

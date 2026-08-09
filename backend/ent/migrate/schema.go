@@ -2088,6 +2088,7 @@ var (
 		{Name: "status", Type: field.TypeString, Size: 20, Default: "pending"},
 		{Name: "source_type", Type: field.TypeString, Size: 32, Default: "assignment"},
 		{Name: "source_ref", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "manual_bulk_quota_reset_enabled", Type: field.TypeBool, Default: false},
 		{Name: "final_usage_usd", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "final_manual_quota_reset_count", Type: field.TypeInt64, Default: 0},
 		{Name: "completed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
@@ -2101,7 +2102,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "user_subscription_cycles_user_subscriptions_cycles",
-				Columns:    []*schema.Column{UserSubscriptionCyclesColumns[11]},
+				Columns:    []*schema.Column{UserSubscriptionCyclesColumns[12]},
 				RefColumns: []*schema.Column{UserSubscriptionsColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
@@ -2110,12 +2111,12 @@ var (
 			{
 				Name:    "usersubscriptioncycle_subscription_id_starts_at",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionCyclesColumns[11], UserSubscriptionCyclesColumns[3]},
+				Columns: []*schema.Column{UserSubscriptionCyclesColumns[12], UserSubscriptionCyclesColumns[3]},
 			},
 			{
 				Name:    "usersubscriptioncycle_subscription_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionCyclesColumns[11], UserSubscriptionCyclesColumns[5]},
+				Columns: []*schema.Column{UserSubscriptionCyclesColumns[12], UserSubscriptionCyclesColumns[5]},
 			},
 			{
 				Name:    "usersubscriptioncycle_source_type_source_ref",
@@ -2128,7 +2129,7 @@ var (
 			{
 				Name:    "usersubscriptioncycle_subscription_id",
 				Unique:  true,
-				Columns: []*schema.Column{UserSubscriptionCyclesColumns[11]},
+				Columns: []*schema.Column{UserSubscriptionCyclesColumns[12]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "status = 'current'",
 				},

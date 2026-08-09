@@ -15,15 +15,16 @@ import (
 var ErrTermSnapshotStale = errors.New("subscription term snapshot is stale")
 
 type TermCycleSnapshot struct {
-	ID                         int64
-	StartsAt                   time.Time
-	EndsAt                     time.Time
-	Status                     string
-	SourceType                 string
-	SourceRef                  *string
-	FinalUsageUSD              float64
-	FinalManualQuotaResetCount int64
-	CompletedAt                *time.Time
+	ID                          int64
+	StartsAt                    time.Time
+	EndsAt                      time.Time
+	Status                      string
+	SourceType                  string
+	SourceRef                   *string
+	ManualBulkQuotaResetEnabled bool
+	FinalUsageUSD               float64
+	FinalManualQuotaResetCount  int64
+	CompletedAt                 *time.Time
 }
 
 // TermExpectedState is the exact post-deduction state that refund rollback is
@@ -84,15 +85,16 @@ func CaptureTermSnapshot(ctx context.Context, client *dbent.Client, subscription
 	}
 	for _, cycle := range cycles {
 		snapshot.Cycles = append(snapshot.Cycles, TermCycleSnapshot{
-			ID:                         cycle.ID,
-			StartsAt:                   cycle.StartsAt,
-			EndsAt:                     cycle.EndsAt,
-			Status:                     cycle.Status,
-			SourceType:                 cycle.SourceType,
-			SourceRef:                  cloneStringPointer(cycle.SourceRef),
-			FinalUsageUSD:              cycle.FinalUsageUsd,
-			FinalManualQuotaResetCount: cycle.FinalManualQuotaResetCount,
-			CompletedAt:                cloneTimePointer(cycle.CompletedAt),
+			ID:                          cycle.ID,
+			StartsAt:                    cycle.StartsAt,
+			EndsAt:                      cycle.EndsAt,
+			Status:                      cycle.Status,
+			SourceType:                  cycle.SourceType,
+			SourceRef:                   cloneStringPointer(cycle.SourceRef),
+			ManualBulkQuotaResetEnabled: cycle.ManualBulkQuotaResetEnabled,
+			FinalUsageUSD:               cycle.FinalUsageUsd,
+			FinalManualQuotaResetCount:  cycle.FinalManualQuotaResetCount,
+			CompletedAt:                 cloneTimePointer(cycle.CompletedAt),
 		})
 	}
 	return snapshot, nil
@@ -194,6 +196,7 @@ func RestoreTermSnapshot(ctx context.Context, client *dbent.Client, snapshot *Te
 			SetStatus(saved.Status).
 			SetSourceType(saved.SourceType).
 			SetNillableSourceRef(saved.SourceRef).
+			SetManualBulkQuotaResetEnabled(saved.ManualBulkQuotaResetEnabled).
 			SetFinalUsageUsd(saved.FinalUsageUSD).
 			SetFinalManualQuotaResetCount(saved.FinalManualQuotaResetCount).
 			SetNillableCompletedAt(saved.CompletedAt)
@@ -206,15 +209,16 @@ func RestoreTermSnapshot(ctx context.Context, client *dbent.Client, snapshot *Te
 
 func termCycleSnapshot(cycle *dbent.UserSubscriptionCycle) TermCycleSnapshot {
 	return TermCycleSnapshot{
-		ID:                         cycle.ID,
-		StartsAt:                   cycle.StartsAt,
-		EndsAt:                     cycle.EndsAt,
-		Status:                     cycle.Status,
-		SourceType:                 cycle.SourceType,
-		SourceRef:                  cloneStringPointer(cycle.SourceRef),
-		FinalUsageUSD:              cycle.FinalUsageUsd,
-		FinalManualQuotaResetCount: cycle.FinalManualQuotaResetCount,
-		CompletedAt:                cloneTimePointer(cycle.CompletedAt),
+		ID:                          cycle.ID,
+		StartsAt:                    cycle.StartsAt,
+		EndsAt:                      cycle.EndsAt,
+		Status:                      cycle.Status,
+		SourceType:                  cycle.SourceType,
+		SourceRef:                   cloneStringPointer(cycle.SourceRef),
+		ManualBulkQuotaResetEnabled: cycle.ManualBulkQuotaResetEnabled,
+		FinalUsageUSD:               cycle.FinalUsageUsd,
+		FinalManualQuotaResetCount:  cycle.FinalManualQuotaResetCount,
+		CompletedAt:                 cloneTimePointer(cycle.CompletedAt),
 	}
 }
 
@@ -225,6 +229,7 @@ func cycleMatchesSnapshot(cycle *dbent.UserSubscriptionCycle, expected TermCycle
 		cycle.Status == expected.Status &&
 		cycle.SourceType == expected.SourceType &&
 		equalStringPointers(cycle.SourceRef, expected.SourceRef) &&
+		cycle.ManualBulkQuotaResetEnabled == expected.ManualBulkQuotaResetEnabled &&
 		cycle.FinalUsageUsd == expected.FinalUsageUSD &&
 		cycle.FinalManualQuotaResetCount == expected.FinalManualQuotaResetCount &&
 		equalTimePointers(cycle.CompletedAt, expected.CompletedAt)

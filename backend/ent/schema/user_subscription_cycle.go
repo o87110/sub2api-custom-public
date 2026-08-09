@@ -34,6 +34,7 @@ func (UserSubscriptionCycle) Fields() []ent.Field {
 		field.String("status").MaxLen(20).Default("pending"),
 		field.String("source_type").MaxLen(32).Default("assignment"),
 		field.String("source_ref").Optional().Nillable().MaxLen(255),
+		field.Bool("manual_bulk_quota_reset_enabled").Default(false),
 		field.Float("final_usage_usd").SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).Default(0),
 		field.Int64("final_manual_quota_reset_count").Default(0),
 		field.Time("completed_at").Optional().Nillable().SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),

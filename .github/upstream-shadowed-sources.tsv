@@ -17,7 +17,7 @@ backend/internal/handler/admin/setting_handler.go	backend/internal/custom/paymen
 backend/internal/handler/admin/setting_handler_update.go	backend/internal/custom/paymentchannels/channel_settings.go
 backend/internal/handler/admin/payment_handler.go	backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/subscriptioninventory/inventory.go|backend/internal/custom/subscriptionbulkreset/service.go
 backend/internal/handler/admin/payment_handler_test.go	backend/internal/custom/subscriptioninventory/inventory_test.go
-backend/internal/handler/admin/subscription_handler.go	backend/internal/custom/idempotencyexecution/execution.go|backend/internal/custom/subscriptionrepository/application.go|backend/internal/custom/subscriptionbulkreset/service.go
+backend/internal/handler/admin/subscription_handler.go	backend/internal/custom/idempotencyexecution/execution.go|backend/internal/custom/subscriptionrepository/application.go|backend/internal/custom/subscriptionrepository/bulk_reset.go|backend/internal/custom/subscriptionbulkreset/service.go
 backend/internal/handler/dto/settings.go	backend/internal/custom/paymentchannels/channel_settings.go
 backend/internal/payment/load_balancer.go	backend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/revalidation.go|backend/internal/custom/paymentchannels/instance_coordinator.go
 backend/internal/payment/load_balancer_test.go	backend/internal/custom/paymentchannels/instance_coordinator_test.go
@@ -45,8 +45,8 @@ backend/internal/service/payment_refund_test.go	backend/internal/custom/subscrip
 backend/internal/service/redeem_service.go	backend/internal/custom/subscriptionquota/cycle.go
 backend/internal/service/idempotency.go	backend/internal/custom/idempotencyexecution/execution.go
 backend/internal/service/idempotency_test.go	backend/internal/custom/idempotencyexecution/execution_test.go
-backend/internal/service/subscription_service.go	backend/internal/custom/idempotencyexecution/execution.go|backend/internal/custom/subscriptionquota/cycle.go|backend/internal/custom/subscriptionrepository/application.go
-backend/internal/service/user_subscription_port.go	backend/internal/custom/idempotencyexecution/execution.go|backend/internal/custom/subscriptionquota/term_snapshot.go|backend/internal/custom/subscriptionrepository/application.go|backend/internal/custom/subscriptionrepository/repository.go
+backend/internal/service/subscription_service.go	backend/internal/custom/idempotencyexecution/execution.go|backend/internal/custom/subscriptionbulkreset/service.go|backend/internal/custom/subscriptionquota/cycle.go|backend/internal/custom/subscriptionrepository/application.go|backend/internal/custom/subscriptionrepository/bulk_reset.go|backend/internal/custom/subscriptionrepository/cycle_metadata.go
+backend/internal/service/user_subscription_port.go	backend/internal/custom/idempotencyexecution/execution.go|backend/internal/custom/subscriptionquota/term_snapshot.go|backend/internal/custom/subscriptionrepository/application.go|backend/internal/custom/subscriptionrepository/bulk_reset.go|backend/internal/custom/subscriptionrepository/cycle_metadata.go|backend/internal/custom/subscriptionrepository/repository.go
 backend/internal/repository/user_subscription_repo.go	backend/internal/custom/subscriptionrepository/repository.go
 backend/internal/service/payment_order_result_test.go	backend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/paymentchannels/order_policy_test.go|backend/internal/custom/paymentchannels/revalidation_test.go|backend/internal/custom/paymentchannels/order_coordinator_test.go
 backend/internal/service/payment_resume_service.go	backend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/paymentchannels/resume_policy.go
@@ -87,9 +87,9 @@ frontend/src/views/user/__tests__/PaymentView.spec.ts	frontend/src/custom/paymen
 frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	frontend/src/custom/payment-channels/usePaymentChannelRecovery.spec.ts
 frontend/src/views/user/paymentWechatResume.ts	frontend/src/custom/payment-channels/paymentRecoveryRoute.ts
 frontend/src/views/user/SubscriptionsView.vue	frontend/src/custom/subscription-quota/SubscriptionCycleStats.vue
-frontend/src/views/admin/SubscriptionsView.vue	frontend/src/custom/subscription-quota/SubscriptionCycleStats.vue|frontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue|frontend/src/custom/subscription-quota/BulkQuotaResetResultCount.vue
+frontend/src/views/admin/SubscriptionsView.vue	frontend/src/custom/subscription-quota/SubscriptionCycleStats.vue|frontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue|frontend/src/custom/subscription-quota/BulkQuotaResetResultCount.vue|frontend/src/custom/subscription-quota/ManualBulkResetAssignmentToggle.vue|frontend/src/custom/subscription-quota/ManualBulkResetEligibilityAction.vue
 frontend/src/types/payment.ts	frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/subscription-plan-inventory/inventory.ts|frontend/src/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue
-frontend/src/api/admin/subscriptions.ts	frontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue|frontend/src/custom/subscription-quota/bulkReset.ts
+frontend/src/api/admin/subscriptions.ts	frontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue|frontend/src/custom/subscription-quota/ManualBulkResetEligibilityAction.vue|frontend/src/custom/subscription-quota/bulkReset.ts
 frontend/src/api/admin/payment.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue
 frontend/src/api/admin/settings.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue
 frontend/src/stores/app.ts	frontend/src/custom/updater/store.ts

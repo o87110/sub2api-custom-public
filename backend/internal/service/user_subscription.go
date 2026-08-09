@@ -33,8 +33,10 @@ type UserSubscription struct {
 	// CycleSourceType/CycleSourceRef are internal persistence metadata used
 	// while creating or renewing a subscription cycle. They are not exposed by
 	// user-facing DTOs.
-	CycleSourceType string
-	CycleSourceRef  *string
+	CycleSourceType              string
+	CycleSourceRef               *string
+	ManualBulkQuotaResetEnabled  bool
+	ManualBulkQuotaResetEditable bool
 
 	AssignedBy *int64
 	AssignedAt time.Time

@@ -30,6 +30,8 @@ const (
 	FieldSourceType = "source_type"
 	// FieldSourceRef holds the string denoting the source_ref field in the database.
 	FieldSourceRef = "source_ref"
+	// FieldManualBulkQuotaResetEnabled holds the string denoting the manual_bulk_quota_reset_enabled field in the database.
+	FieldManualBulkQuotaResetEnabled = "manual_bulk_quota_reset_enabled"
 	// FieldFinalUsageUsd holds the string denoting the final_usage_usd field in the database.
 	FieldFinalUsageUsd = "final_usage_usd"
 	// FieldFinalManualQuotaResetCount holds the string denoting the final_manual_quota_reset_count field in the database.
@@ -60,6 +62,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldSourceType,
 	FieldSourceRef,
+	FieldManualBulkQuotaResetEnabled,
 	FieldFinalUsageUsd,
 	FieldFinalManualQuotaResetCount,
 	FieldCompletedAt,
@@ -92,6 +95,8 @@ var (
 	SourceTypeValidator func(string) error
 	// SourceRefValidator is a validator for the "source_ref" field. It is called by the builders before save.
 	SourceRefValidator func(string) error
+	// DefaultManualBulkQuotaResetEnabled holds the default value on creation for the "manual_bulk_quota_reset_enabled" field.
+	DefaultManualBulkQuotaResetEnabled bool
 	// DefaultFinalUsageUsd holds the default value on creation for the "final_usage_usd" field.
 	DefaultFinalUsageUsd float64
 	// DefaultFinalManualQuotaResetCount holds the default value on creation for the "final_manual_quota_reset_count" field.
@@ -144,6 +149,11 @@ func BySourceType(opts ...sql.OrderTermOption) OrderOption {
 // BySourceRef orders the results by the source_ref field.
 func BySourceRef(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSourceRef, opts...).ToFunc()
+}
+
+// ByManualBulkQuotaResetEnabled orders the results by the manual_bulk_quota_reset_enabled field.
+func ByManualBulkQuotaResetEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldManualBulkQuotaResetEnabled, opts...).ToFunc()
 }
 
 // ByFinalUsageUsd orders the results by the final_usage_usd field.
