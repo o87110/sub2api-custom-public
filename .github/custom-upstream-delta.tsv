@@ -15,7 +15,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.1.170.md	A	keep	A	custom-docs-ops	@absent	4faa9c0a2b791f70874bba851c58837cfb9f18ae	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.170 升级、数据库语义评审、冲突解决与验证证据
 .github/upgrades/0.1.171.md	A	keep	A	custom-docs-ops	@absent	21f0fd7eff6e604ca86842c11f2cc7b0532d898a	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.171 升级、数据库 SQL 语义评审、冲突解决与验证证据
 .github/upgrades/0.1.172.md	A	keep	A	custom-docs-ops	@absent	7db4a67cdc84d1da56a5a1e58137911b366f6221	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.172 升级、数据库 SQL 语义评审、二改影响与验证证据
-.github/upgrades/0.1.173.md	A	keep	A	custom-docs-ops	@absent	537e71fb5dc2d3abacda50ba01c77f8dbab13a18	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.173 升级、数据库语义评审、冲突解决与验证证据
+.github/upgrades/0.1.173.md	A	keep	A	custom-docs-ops	@absent	5296dff3cf9cbeeb3f48e71f6aade768307fd27a	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.173 升级、数据库语义评审、冲突解决与验证证据
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	ab6e74b1632f7f0f6e92c7fc7c402a21af175c54	-	-	candidate-tree+targeted-CI	登记订阅统计周期、退款快照、原子批量资格重置、提交后缓存失效、仓储服务及三处前端展示到 Custom 实现的精确影子关系
 .github/workflows/backend-ci.yml	M	keep	M	fixed-path	21a4fea79caf01d1f2bfce16976fa30883b495c2	b4f2d9052f4b84628bc93328c98b60b21201ddd9	-	-	yaml-parse+action-pin+actionlint+container-safety	并行边界门禁、收窄 Integration 包并为准确 main SHA 产出前端 Release Artifact
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	8ee37dd7a3c32c02dd401cf6109d37c1fab9a202	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
