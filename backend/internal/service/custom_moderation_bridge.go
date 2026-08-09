@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	custommoderation "github.com/Wei-Shaw/sub2api/internal/custom/moderation"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
 type contentModerationViolationCounter interface {
@@ -90,6 +93,73 @@ func validateContentModerationAPIAuditScope(cfg *ContentModerationConfig, requir
 		cfg.APIAuditScope,
 		requireNonEmpty,
 	)
+}
+
+type contentModerationGroupExistenceReader struct {
+	repo GroupRepository
+}
+
+func (r contentModerationGroupExistenceReader) Exists(ctx context.Context, groupID int64) (bool, error) {
+	if r.repo == nil {
+		return true, nil
+	}
+	if _, err := r.repo.GetByIDLite(ctx, groupID); err != nil {
+		if errors.Is(err, ErrGroupNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *ContentModerationService) reconcileDeletedContentModerationGroups(
+	ctx context.Context,
+	persisted *ContentModerationConfig,
+	candidate *ContentModerationConfig,
+) error {
+	if s == nil || candidate == nil || s.groupRepo == nil {
+		return nil
+	}
+	persistedScope := custommoderation.AuditGroupSelection{}
+	if persisted != nil {
+		persistedScope.OverallGroupIDs = persisted.GroupIDs
+		persistedScope.APIGroupIDs = normalizeContentModerationAPIAuditScope(persisted.APIAuditScope).GroupIDs
+	}
+	candidateScope := custommoderation.AuditGroupSelection{
+		OverallGroupIDs: candidate.GroupIDs,
+		APIGroupIDs:     normalizeContentModerationAPIAuditScope(candidate.APIAuditScope).GroupIDs,
+	}
+	if candidate.AllGroups {
+		candidateScope.OverallGroupIDs = nil
+	}
+
+	reconciled, err := custommoderation.ReconcileDeletedAuditGroups(
+		ctx,
+		persistedScope,
+		candidateScope,
+		contentModerationGroupExistenceReader{repo: s.groupRepo},
+	)
+	if err != nil {
+		var unknown *custommoderation.UnknownAuditGroupError
+		if errors.As(err, &unknown) {
+			if unknown.Scope == custommoderation.AuditGroupScopeAPI {
+				return infraerrors.BadRequest(
+					"INVALID_CONTENT_MODERATION_API_AUDIT_SCOPE",
+					fmt.Sprintf("API 审计分组不存在: %d", unknown.GroupID),
+				)
+			}
+			return infraerrors.BadRequest(
+				"INVALID_CONTENT_MODERATION_GROUP",
+				fmt.Sprintf("审计分组不存在: %d", unknown.GroupID),
+			)
+		}
+		return err
+	}
+
+	candidate.GroupIDs = reconciled.OverallGroupIDs
+	candidate.APIAuditScope = normalizeContentModerationAPIAuditScope(candidate.APIAuditScope)
+	candidate.APIAuditScope.GroupIDs = reconciled.APIGroupIDs
+	return nil
 }
 
 func buildContentModerationKeywordExcerptFromRedacted(redacted, keyword string, maxRunes int) string {

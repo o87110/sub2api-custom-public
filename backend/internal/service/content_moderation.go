@@ -623,6 +623,7 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 	if err != nil {
 		return nil, err
 	}
+	persistedCfg := cloneContentModerationConfig(cfg)
 	if input.Enabled != nil {
 		cfg.Enabled = *input.Enabled
 	}
@@ -736,6 +737,9 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 			cfg.APIKeys = normalizeModerationAPIKeys(append(cfg.APIKeys, *input.APIKey))
 			cfg.APIKey = ""
 		}
+	}
+	if err := s.reconcileDeletedContentModerationGroups(ctx, persistedCfg, cfg); err != nil {
+		return nil, err
 	}
 	if err := s.validateConfig(ctx, cfg); err != nil {
 		return nil, err

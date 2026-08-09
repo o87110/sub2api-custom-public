@@ -1854,7 +1854,7 @@ const runtimeBadgeClass = computed(() => {
   return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
 })
 
-function applyConfig(config: CustomContentModerationConfig) {
+function applyConfig(config: CustomContentModerationConfig, existingGroupIDs?: ReadonlySet<number>) {
   configForm.enabled = config.enabled
   configForm.mode = config.mode
   configForm.base_url = config.base_url || 'https://api.openai.com'
@@ -1875,11 +1875,17 @@ function applyConfig(config: CustomContentModerationConfig) {
   configForm.retry_count = config.retry_count ?? 2
   configForm.sample_rate = config.sample_rate ?? 100
   configForm.all_groups = config.all_groups
-  configForm.group_ids = Array.isArray(config.group_ids) ? [...config.group_ids] : []
+  const loadedGroupIDs = Array.isArray(config.group_ids) ? [...config.group_ids] : []
+  configForm.group_ids = existingGroupIDs
+    ? loadedGroupIDs.filter((groupID) => existingGroupIDs.has(groupID))
+    : loadedGroupIDs
   configForm.api_audit_all_in_scope = config.api_audit_scope?.all_in_scope ?? true
-  configForm.api_audit_group_ids = Array.isArray(config.api_audit_scope?.group_ids)
+  const loadedAPIAuditGroupIDs = Array.isArray(config.api_audit_scope?.group_ids)
     ? [...config.api_audit_scope.group_ids]
     : []
+  configForm.api_audit_group_ids = existingGroupIDs
+    ? loadedAPIAuditGroupIDs.filter((groupID) => existingGroupIDs.has(groupID))
+    : loadedAPIAuditGroupIDs
   pruneAPIAuditGroupIDs()
   configForm.record_non_hits = config.record_non_hits
   configForm.worker_count = config.worker_count || 4
@@ -1908,13 +1914,13 @@ async function loadAll() {
   try {
     const [config, groupItems, runtimeStatus, proxyItems] = await Promise.all([
       customRiskControlAPI.getConfig(),
-      adminAPI.groups.getAll(),
+      adminAPI.groups.getAllIncludingInactive(),
       adminAPI.riskControl.getStatus(),
       // 代理列表加载失败不阻塞风控页面（仅影响下拉可选项）
       adminAPI.proxies.getAll().catch(() => [] as Proxy[]),
     ])
-    applyConfig(config)
-    groups.value = groupItems
+    groups.value = groupItems.filter((group) => group.status === 'active')
+    applyConfig(config, new Set(groupItems.map((group) => group.id)))
     status.value = runtimeStatus
     proxies.value = proxyItems
     if (Array.isArray(runtimeStatus.api_key_statuses)) {

@@ -651,7 +651,9 @@ class ThinBridgeContractTests(unittest.TestCase):
         path = "backend/internal/service/content_moderation.go"
         approved_calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[path]
         for call in (
+            ("UpdateConfig", "cloneContentModerationConfig"),
             ("UpdateConfig", "cloneContentModerationUserBanThresholdOverrides"),
+            ("UpdateConfig", "s.reconcileDeletedContentModerationGroups"),
             ("persistContentModerationLog", "effectiveContentModerationConfigForUser"),
             ("sendCyberPolicyEmail", "contentModerationEmailVariables"),
             ("validateConfig", "validateContentModerationUserBanThresholdOverrides"),
@@ -665,6 +667,13 @@ class ThinBridgeContractTests(unittest.TestCase):
         )
         self.assertIn(
             ("UpdateConfig", "if input.UserBanThresholds != nil {"),
+            approved_control,
+        )
+        self.assertIn(
+            (
+                "UpdateConfig",
+                "if err := s.reconcileDeletedContentModerationGroups(ctx, persistedCfg, cfg); err != nil {",
+            ),
             approved_control,
         )
         self.assertIn(
