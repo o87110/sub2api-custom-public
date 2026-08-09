@@ -17,6 +17,7 @@ import (
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/usersubscriptioncycle"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/custom/idempotencyexecution"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionbulkreset"
@@ -123,7 +124,14 @@ func TestBulkResetEligibilityAndQuotaMutationAreAtomicOnPostgres(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, now, after.CurrentCycleStartsAt)
 		require.Zero(t, after.DailyUsageUSD)
-		require.True(t, after.ManualBulkQuotaResetEnabled)
+		currentCycle, err := client.UserSubscriptionCycle.Query().
+			Where(
+				usersubscriptioncycle.SubscriptionIDEQ(fixture.subscription.ID),
+				usersubscriptioncycle.StatusEQ(subscriptionquota.CycleStatusCurrent),
+			).
+			Only(context.Background())
+		require.NoError(t, err)
+		require.True(t, currentCycle.ManualBulkQuotaResetEnabled)
 	})
 
 	t.Run("boundary reset counts once in the new cycle and replay is idempotent", func(t *testing.T) {
