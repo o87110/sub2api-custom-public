@@ -11,16 +11,17 @@
 | 生成代码 | `go generate ./cmd/server` 后无差异 |
 | Lint | 仅检查相对显式官方基线的新问题 |
 | 差异边界 | Candidate Tree 与差异台账一致 |
-| 薄桥边界 | 110 个契约路径、精确行预算、影子目标和结构规则一致 |
+| 薄桥边界 | 112 个契约路径、精确行预算、影子目标和结构规则一致 |
 | 数据库 | Migration、Schema 和例外表语义门禁 |
 | Actions | Action Pin、权限和 Actionlint |
 | 安全 | `govulncheck` 与生产依赖审计 |
 
 `boundaries` 与后端、前端、Lint、Shell Job 在 `verify-target` 确认准确 SHA 后并行；
 它仍是分支保护、Workflow 结论和 Release Preflight 的独立必需结果。后端 Integration
-入口固定登记当前五个含标签测试的包：`internal/custom/subscriptioninventory`、
-`internal/middleware`、`internal/pkg/tlsfingerprint`、`internal/repository`、
-`internal/server/routes`。契约测试必须证明五包全部执行、新增标签包未登记时失败，且
+入口固定登记当前六个含标签测试的包：`internal/custom/subscriptioninventory`、
+`internal/custom/subscriptionrepository`、`internal/middleware`、
+`internal/pkg/tlsfingerprint`、`internal/repository`、`internal/server/routes`。契约测试
+必须证明六包全部执行、新增标签包未登记时失败，且
 无 Integration 标签的 `internal/service` 不进入日志；该入口不再通过 `./...` 重跑
 普通 Unit 测试。
 

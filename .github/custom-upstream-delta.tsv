@@ -1,5 +1,6 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
 .github/CODEOWNERS	A	keep	A	fixed-path	@absent	0f4e1e7a5124f944379c119ab84e23ae70eeea70	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、订阅周期与批量重置、内容审计、CI Integration 与前端 Artifact 回归测试路径
+.github/audit-exceptions.yml	M	keep	M	fixed-path	2a89dd07614f2b0c89b4f1fd53bb0be6cc1d2123	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	c37a91e1936a1b3c094e8f1f8519ce3cea49341d	-	-	database-boundary-unit+candidate-tree-test	精确绑定已审核的渠道监控、分组最低余额、套餐库存及订阅统计周期 Migration、Ent Schema 和生成文件结构指纹
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	64253cc71fbd4dc6d139f518e7a7086a3d1875e1	-	-	thin-bridge-contract-unit+candidate-tree-test	固定订阅周期统计、精确退款恢复、事务内批量资格重置与提交后缓存失效薄桥预算，并为后续 Vendor 基线保留最小 Wire 接入预算
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -322,13 +323,13 @@ deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	ee58f6d5d9177e93d037e0669acb9e715bbae897	-	-	shadow-map+runtime-boundary-test	验证 113 条官方薄接入点到 Custom 实现与测试的精确影子映射，包括事务内批量资格重置及提交后缓存失效实现
 deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	c937309dbca4381f8811b657f5aceec5d333ff62	-	-	upstream-sync+crlf-ledger-test	验证升级门禁使用收窄后的 Integration 入口并保持保护路径契约
 deploy/upstream/validate-upgrade-report-maintenance.sh	A	keep	A	fixed-path	@absent	f5a53260391239668e82cadba98d48d814a3d803	-	-	upstream-sync+candidate-tree	固定工具路径中的二改上游升级控制面最小差异
-docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	2fbb60c071f6a0379ef8bc6a366a2fa3f775c1c3	-	-	documentation-consistency-review	记录同 SHA 门禁证据复用、自动发布输入和构建缓存信任边界
-docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	175326e9427626e0dcbfef27986e24a652fbfc57	-	-	documentation-consistency-review	记录订阅周期累计、原子退款撤销、事务锁内资格复核、跳过后缓存失效及作用域化同 TTL 单项/批量事务幂等规则
-docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	51467fb252d664d70643acc675a33718aab12b8b	-	-	documentation-consistency-review	同步 81 个薄桥边界、发布门禁与运维约束
+docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	19b7d9cba2fc8f25590fded51c820f26c35b58be	-	-	documentation-consistency-review	记录同 SHA 门禁证据复用、自动发布输入和构建缓存信任边界
+docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	29ec32631158f7ca4af0bf9602663037a4a916b6	-	-	documentation-consistency-review	记录订阅周期累计、原子退款撤销、事务锁内资格复核、跳过后缓存失效及作用域化同 TTL 单项/批量事务幂等规则
+docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	a0f728877394b8584cc5a2f383e43f9b60d9bd21	-	-	documentation-consistency-review	同步 112 个薄桥边界、发布门禁与运维约束
 docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	2d587754297429e692b6b754220c20562a0eecc7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	434b820f47e8d07280831d13b1d1e0a9598461eb	-	-	documentation-consistency-review	记录自动发布分类、前端 Artifact、Manifest 兼容、OCI 缓存和耗时观测
 docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	49d7ef56e23ab52638716dae9cee14667de34383	-	-	documentation-consistency-review	明确 CI 证据复用、前端 Artifact 失败关闭、缓存信任边界及 nanoid 条件 Override 审计策略
-docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	96f8b2e1b1754167ae12022020e94f02740318ae	-	-	documentation-consistency-review	记录订阅周期恢复、事务锁内资格复核、提交后缓存失效、跨 Scope 幂等、准确 TTL、过期 reclaim 与 PostgreSQL Integration 范围
+docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	b80a721b308806a07d5b24d2a0e5072ac138d3d6	-	-	documentation-consistency-review	记录订阅周期恢复、事务锁内资格复核、提交后缓存失效、跨 Scope 幂等、准确 TTL、过期 reclaim 与 PostgreSQL Integration 范围
 docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	b6b85fae7d6e2184b7d62c4eae694822e4a95de4	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 frontend/package.json	M	keep	M	fixed-path	1d4aaf3aeffb7660beb42b12c25ccace0ae56cf6	1c5b6db9a31380c05fb1055361d44cf71320161e	-	-	frontend-security+pnpm-audit+build	在既有 PostCSS 安全升级上，以最小条件 Override 将受影响 nanoid 版本固定到 3.3.18
 frontend/pnpm-lock.yaml	M	keep	M	fixed-path	e17969c9cc318f1d2a82bb57777650f0e1e1e6a2	832c17416b6a786f329b182441a76b1110b42036	-	-	frontend-security+pnpm-audit+build	锁定 PostCSS 间接依赖 nanoid 3.3.18 及对应完整性摘要
