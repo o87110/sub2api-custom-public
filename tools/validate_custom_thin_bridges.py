@@ -365,8 +365,10 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         }),
         ('RecordCyberPolicyEvent', {'s.tryRecordCustomCyberPolicyEvent': 1}),
         ('UpdateConfig', {
+            'cloneContentModerationConfig': 1,
             'cloneContentModerationUserBanThresholdOverrides': 1,
             'normalizeContentModerationAPIAuditScope': 1,
+            's.reconcileDeletedContentModerationGroups': 1,
         }),
         ('applyFlaggedAccountSideEffects', {'s.countFlaggedByUserSince': 1}),
         ('cloneContentModerationConfig', {
@@ -833,6 +835,7 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
         ("RecordCyberPolicyEvent", "if err := s.sendCyberPolicyEmail(ctx, cfg, log); err != nil {"),
         ("UpdateConfig", "if input.APIAuditScope != nil {"),
         ("UpdateConfig", "if input.UserBanThresholds != nil {"),
+        ("UpdateConfig", "if err := s.reconcileDeletedContentModerationGroups(ctx, persistedCfg, cfg); err != nil {"),
         ("applyFlaggedAccountSideEffects", "if n, err := s.countFlaggedByUserSince(ctx, *log.UserID, since, cfg.CyberPolicyExcludeFromBanCount); err == nil {"),
         ("RecordCyberPolicyEvent", "if s.tryRecordCustomCyberPolicyEvent(ctx, in) {"),
         ("validateConfig", "for _, groupID := range cfg.APIAuditScope.GroupIDs {"),

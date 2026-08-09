@@ -48,7 +48,7 @@ vi.mock('@/api/admin', () => ({
       unbanUser: vi.fn(),
     },
     groups: {
-      getAll: getGroups,
+      getAllIncludingInactive: getGroups,
     },
     proxies: {
       getAll: getProxies,
@@ -128,6 +128,7 @@ const groupFixture = (id: number, name: string): AdminGroup => ({
   id,
   name,
   platform: 'openai',
+  status: 'active',
 } as AdminGroup)
 
 const runtimeStatus = () => ({
@@ -498,6 +499,35 @@ describe('admin RiskControlView', () => {
         group_ids: [1],
       },
     }))
+  })
+
+  it('removes deleted persisted groups before saving moderation settings', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      all_groups: false,
+      group_ids: [1, 71],
+      api_audit_scope: {
+        all_in_scope: false,
+        group_ids: [1, 71],
+      },
+    })
+    getGroups.mockResolvedValue([groupFixture(1, 'Group One')])
+    const wrapper = mountRiskControlView()
+
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      group_ids: [1],
+      api_audit_scope: {
+        all_in_scope: false,
+        group_ids: [1],
+      },
+    }))
+    expect(showError).not.toHaveBeenCalled()
   })
 
   it('blocks saving when an active explicit API audit scope is empty', async () => {
