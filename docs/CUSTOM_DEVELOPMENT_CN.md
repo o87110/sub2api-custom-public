@@ -11,8 +11,8 @@
 | 公开仓库 | `o87110/sub2api-custom-public` |
 | 二改主分支 | `main` |
 | 官方远程 | `https://github.com/Wei-Shaw/sub2api.git` |
-| 官方基线 | `vendor-0.1.172^{commit}` |
-| 基线提交 | `155c494964c3ea6ecc31f52679525c1034bf0f16` |
+| 官方基线 | `vendor-0.1.173^{commit}` |
+| 基线提交 | `29009f0b2ea14edf3b11ae2564fb617ff91a03b4` |
 | 已审核官方镜像 | `origin/upstream/main`（远程分支 `refs/heads/upstream/main`） |
 | 升级分支 | `upgrade/vX.Y.Z` |
 | 发布标签 | `vX.Y.Z-custom.N` |
