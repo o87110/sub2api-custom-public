@@ -600,7 +600,7 @@ export default {
       sortOrder: '排序',
       forSale: '上架状态',
       allowBulkQuotaReset: '允许批量重置配额',
-      allowBulkQuotaResetHint: '开启后，当前生效周期属于此套餐的有效支付订阅可由管理员批量重置日、周、月配额。',
+      allowBulkQuotaResetHint: '开启后，购买此套餐产生且当前周期仍归属于该套餐的有效支付订阅，可由管理员批量重置日、周、月配额；手动分配订阅不受此开关控制。',
       remainingQuantity: '剩余可买数量',
       remainingQuantityHint: '留空表示不限量，仅支持正整数，售罄后自动下架',
       remainingQuantityDisablePurchaseHint: '留空表示不限量，可填写 0；售罄后保留展示但禁止购买',

@@ -411,10 +411,11 @@ func TestAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 	before := time.Now()
 	sub, err := svc.AssignSubscription(context.Background(), &AssignSubscriptionInput{
-		UserID:       1002,
-		GroupID:      1,
-		ValidityDays: 30,
-		Notes:        "assignment",
+		UserID:              1002,
+		GroupID:             1,
+		ValidityDays:        30,
+		Notes:               "assignment",
+		AllowBulkQuotaReset: true,
 	})
 	after := time.Now()
 
@@ -432,6 +433,7 @@ func TestAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 	require.Zero(t, sub.WeeklyUsageUSD)
 	require.Zero(t, sub.MonthlyUsageUSD)
 	require.Equal(t, " assignment ", sub.Notes)
+	require.True(t, sub.ManualBulkQuotaResetEnabled)
 }
 
 func TestAssignSubscriptionRenewsExpiredAndAppendsDifferentNotes(t *testing.T) {
@@ -558,10 +560,11 @@ func TestBulkAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 	before := time.Now()
 	result, err := svc.BulkAssignSubscription(context.Background(), &BulkAssignSubscriptionInput{
-		UserIDs:      []int64{4},
-		GroupID:      1,
-		ValidityDays: 7,
-		Notes:        "bulk",
+		UserIDs:             []int64{4},
+		GroupID:             1,
+		ValidityDays:        7,
+		Notes:               "bulk",
+		AllowBulkQuotaReset: true,
 	})
 	after := time.Now()
 
@@ -580,6 +583,7 @@ func TestBulkAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 	require.Zero(t, renewed.WeeklyUsageUSD)
 	require.Zero(t, renewed.MonthlyUsageUSD)
 	require.Equal(t, "bulk", renewed.Notes)
+	require.True(t, renewed.ManualBulkQuotaResetEnabled)
 }
 
 func TestAssignSubscriptionKeepsWorkingWhenIdempotencyStoreUnavailable(t *testing.T) {
@@ -647,6 +651,47 @@ func TestDetectAssignSemanticConflictCases(t *testing.T) {
 	})
 	require.True(t, conflict)
 	require.Equal(t, "notes_mismatch", reason)
+
+	base.ManualBulkQuotaResetEnabled = true
+	reason, conflict = detectAssignSemanticConflict(base, &AssignSubscriptionInput{
+		UserID:              1,
+		GroupID:             1,
+		ValidityDays:        30,
+		Notes:               "same",
+		AllowBulkQuotaReset: false,
+	})
+	require.True(t, conflict)
+	require.Equal(t, "bulk_reset_eligibility_mismatch", reason)
+}
+
+func TestAssignAndBulkAssignCarryManualBulkResetEligibility(t *testing.T) {
+	groupRepo := &subscriptionGroupRepoStub{
+		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+	}
+	subRepo := newSubscriptionUserSubRepoStub()
+	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
+
+	single, err := svc.AssignSubscription(context.Background(), &AssignSubscriptionInput{
+		UserID:              2001,
+		GroupID:             1,
+		ValidityDays:        30,
+		AllowBulkQuotaReset: true,
+	})
+	require.NoError(t, err)
+	require.True(t, single.ManualBulkQuotaResetEnabled)
+
+	bulk, err := svc.BulkAssignSubscription(context.Background(), &BulkAssignSubscriptionInput{
+		UserIDs:             []int64{2002, 2003},
+		GroupID:             1,
+		ValidityDays:        30,
+		AllowBulkQuotaReset: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 2, bulk.SuccessCount)
+	require.Len(t, bulk.Subscriptions, 2)
+	for _, subscription := range bulk.Subscriptions {
+		require.True(t, subscription.ManualBulkQuotaResetEnabled)
+	}
 }
 
 func TestAssignSubscriptionGroupTypeValidation(t *testing.T) {

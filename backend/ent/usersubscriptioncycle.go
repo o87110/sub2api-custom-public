@@ -34,6 +34,8 @@ type UserSubscriptionCycle struct {
 	SourceType string `json:"source_type,omitempty"`
 	// SourceRef holds the value of the "source_ref" field.
 	SourceRef *string `json:"source_ref,omitempty"`
+	// ManualBulkQuotaResetEnabled holds the value of the "manual_bulk_quota_reset_enabled" field.
+	ManualBulkQuotaResetEnabled bool `json:"manual_bulk_quota_reset_enabled,omitempty"`
 	// FinalUsageUsd holds the value of the "final_usage_usd" field.
 	FinalUsageUsd float64 `json:"final_usage_usd,omitempty"`
 	// FinalManualQuotaResetCount holds the value of the "final_manual_quota_reset_count" field.
@@ -71,6 +73,8 @@ func (*UserSubscriptionCycle) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case usersubscriptioncycle.FieldManualBulkQuotaResetEnabled:
+			values[i] = new(sql.NullBool)
 		case usersubscriptioncycle.FieldFinalUsageUsd:
 			values[i] = new(sql.NullFloat64)
 		case usersubscriptioncycle.FieldID, usersubscriptioncycle.FieldSubscriptionID, usersubscriptioncycle.FieldFinalManualQuotaResetCount:
@@ -148,6 +152,12 @@ func (_m *UserSubscriptionCycle) assignValues(columns []string, values []any) er
 			} else if value.Valid {
 				_m.SourceRef = new(string)
 				*_m.SourceRef = value.String
+			}
+		case usersubscriptioncycle.FieldManualBulkQuotaResetEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field manual_bulk_quota_reset_enabled", values[i])
+			} else if value.Valid {
+				_m.ManualBulkQuotaResetEnabled = value.Bool
 			}
 		case usersubscriptioncycle.FieldFinalUsageUsd:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -234,6 +244,9 @@ func (_m *UserSubscriptionCycle) String() string {
 		builder.WriteString("source_ref=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("manual_bulk_quota_reset_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ManualBulkQuotaResetEnabled))
 	builder.WriteString(", ")
 	builder.WriteString("final_usage_usd=")
 	builder.WriteString(fmt.Sprintf("%v", _m.FinalUsageUsd))

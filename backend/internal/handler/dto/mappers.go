@@ -784,11 +784,14 @@ func UserSubscriptionFromServiceAdmin(sub *service.UserSubscription) *AdminUserS
 		return nil
 	}
 	return &AdminUserSubscription{
-		UserSubscription: userSubscriptionFromServiceBase(sub),
-		AssignedBy:       sub.AssignedBy,
-		AssignedAt:       sub.AssignedAt,
-		Notes:            sub.Notes,
-		AssignedByUser:   UserFromServiceShallow(sub.AssignedByUser),
+		UserSubscription:             userSubscriptionFromServiceBase(sub),
+		AssignedBy:                   sub.AssignedBy,
+		AssignedAt:                   sub.AssignedAt,
+		Notes:                        sub.Notes,
+		AssignedByUser:               UserFromServiceShallow(sub.AssignedByUser),
+		CurrentCycleSourceType:       sub.CycleSourceType,
+		ManualBulkQuotaResetEnabled:  sub.ManualBulkQuotaResetEnabled,
+		ManualBulkQuotaResetEditable: sub.ManualBulkQuotaResetEditable,
 	}
 }
 

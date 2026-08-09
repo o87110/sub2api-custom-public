@@ -43,6 +43,10 @@ const candidates = {
       user_id: 1,
       user_email: 'one@example.com',
       username: 'one',
+      source_type: 'payment',
+      source_name: 'Plan A',
+      group_id: 201,
+      group_name: 'Group A',
       plan_id: 101,
       plan_name: 'Plan A',
       cycle_usage_usd: 12.34,
@@ -53,8 +57,12 @@ const candidates = {
       user_id: 2,
       user_email: 'two@example.com',
       username: 'two',
-      plan_id: 102,
-      plan_name: 'Plan B',
+      source_type: 'assignment',
+      source_name: 'Group B',
+      group_id: 202,
+      group_name: 'Group B',
+      plan_id: null,
+      plan_name: null,
       cycle_usage_usd: 5,
       manual_quota_reset_count: 0
     }
@@ -87,6 +95,7 @@ describe('BulkQuotaResetDialog', () => {
     const selectAll = wrapper.get('#bulk-reset-select-all').element as HTMLInputElement
     expect(selectAll.checked).toBe(true)
     expect(wrapper.text()).toContain('$12.34')
+    expect(wrapper.text()).toContain('admin.subscriptions.bulkReset.manualSource')
 
     await wrapper.get('#bulk-reset-subscription-11').setValue(false)
     expect((wrapper.get('#bulk-reset-select-all').element as HTMLInputElement).indeterminate).toBe(true)

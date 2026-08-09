@@ -63,6 +63,7 @@ func (r *Repository) Create(ctx context.Context, sub *service.UserSubscription) 
 			sub.ManualQuotaResetCount,
 			sub.CycleSourceType,
 			sub.CycleSourceRef,
+			sub.ManualBulkQuotaResetEnabled,
 		)
 	})
 	if err == nil {
@@ -74,7 +75,7 @@ func (r *Repository) Create(ctx context.Context, sub *service.UserSubscription) 
 
 func (r *Repository) AppendRenewalCycle(ctx context.Context, subscriptionID int64, startsAt, endsAt time.Time, sourceType string, sourceRef *string) error {
 	err := r.withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
-		return subscriptionquota.AppendRenewalCycle(txCtx, client, subscriptionID, startsAt, endsAt, sourceType, sourceRef)
+		return subscriptionquota.AppendRenewalCycle(txCtx, client, subscriptionID, startsAt, endsAt, sourceType, sourceRef, false)
 	})
 	return translateCycleError(err, service.ErrSubscriptionNotFound, service.ErrSubscriptionAlreadyExists)
 }
@@ -93,15 +94,16 @@ func (r *Repository) RenewExpiredWithCycle(ctx context.Context, sub *service.Use
 			periodicStart = *sub.WeeklyWindowStart
 		}
 		return subscriptionquota.RenewExpired(txCtx, client, subscriptionquota.RenewExpiredInput{
-			SubscriptionID: sub.ID,
-			StartsAt:       sub.CurrentCycleStartsAt,
-			EndsAt:         sub.CurrentCycleEndsAt,
-			DailyStart:     dailyStart,
-			PeriodicStart:  periodicStart,
-			Status:         sub.Status,
-			Notes:          sub.Notes,
-			SourceType:     sub.CycleSourceType,
-			SourceRef:      sub.CycleSourceRef,
+			SubscriptionID:              sub.ID,
+			StartsAt:                    sub.CurrentCycleStartsAt,
+			EndsAt:                      sub.CurrentCycleEndsAt,
+			DailyStart:                  dailyStart,
+			PeriodicStart:               periodicStart,
+			Status:                      sub.Status,
+			Notes:                       sub.Notes,
+			SourceType:                  sub.CycleSourceType,
+			SourceRef:                   sub.CycleSourceRef,
+			ManualBulkQuotaResetEnabled: sub.ManualBulkQuotaResetEnabled,
 		})
 	})
 	return translateCycleError(err, service.ErrSubscriptionNotFound, service.ErrSubscriptionAlreadyExists)

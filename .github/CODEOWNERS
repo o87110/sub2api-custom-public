@@ -119,6 +119,7 @@
 /backend/internal/service/idempotency.go @o87110
 /backend/internal/service/idempotency_test.go @o87110
 /backend/internal/service/redeem_service.go @o87110
+/backend/internal/service/subscription_assign_idempotency_test.go @o87110
 /backend/internal/service/subscription_cycle_stats_test.go @o87110
 /backend/internal/service/subscription_reset_quota_test.go @o87110
 /backend/internal/service/subscription_service.go @o87110
@@ -136,11 +137,13 @@
 /backend/migrations/195_subscription_plan_sold_out_action.sql @o87110
 /backend/migrations/196_subscription_cycle_usage.sql @o87110
 /backend/migrations/197_subscription_plan_bulk_quota_reset.sql @o87110
+/backend/migrations/198_subscription_cycle_manual_bulk_quota_reset.sql @o87110
 /backend/migrations/channel_monitor_group_rate_display_migration_test.go @o87110
 /backend/migrations/subscription_plan_inventory_migration_test.go @o87110
 /backend/migrations/subscription_plan_sold_out_action_migration_test.go @o87110
 /backend/migrations/subscription_cycle_usage_migration_test.go @o87110
 /backend/migrations/subscription_plan_bulk_quota_reset_migration_test.go @o87110
+/backend/migrations/subscription_cycle_manual_bulk_quota_reset_migration_test.go @o87110
 /deploy/docker-compose.custom.yml @o87110
 /deploy/docker-entrypoint.sh @o87110
 /deploy/release/** @o87110
@@ -165,6 +168,7 @@
 /frontend/src/api/__tests__/admin.system.rollback.spec.ts @o87110
 /frontend/src/api/__tests__/admin.subscriptions.bulkResetQuota.spec.ts @o87110
 /frontend/src/api/__tests__/admin.subscriptions.resetQuota.spec.ts @o87110
+/frontend/src/api/__tests__/admin.subscriptions.manualBulkResetEligibility.spec.ts @o87110
 /frontend/src/api/channelMonitor.ts @o87110
 /frontend/src/api/admin/channelMonitor.ts @o87110
 /frontend/src/api/admin/payment.ts @o87110

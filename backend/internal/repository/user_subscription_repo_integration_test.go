@@ -11,6 +11,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
 	"github.com/Wei-Shaw/sub2api/internal/custom/idempotencyexecution"
+	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionbulkreset"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionquota"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionrepository"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -71,10 +72,11 @@ func (s *UserSubscriptionRepoSuite) mustCreateSubscription(userID, groupID int64
 }
 
 type subscriptionCycleFixture struct {
-	startsAt   time.Time
-	endsAt     time.Time
-	sourceType string
-	sourceRef  *string
+	startsAt                    time.Time
+	endsAt                      time.Time
+	sourceType                  string
+	sourceRef                   *string
+	manualBulkQuotaResetEnabled bool
 }
 
 func (s *UserSubscriptionRepoSuite) mustCreateSubscriptionWithCycle(
@@ -104,11 +106,13 @@ func (s *UserSubscriptionRepoSuite) mustCreateSubscriptionWithCycle(
 	cycleEndsAt := sub.ExpiresAt
 	cycleSourceType := subscriptionquota.CycleSourceAssignment
 	var cycleSourceRef *string
+	manualBulkQuotaResetEnabled := false
 	if cycle != nil {
 		cycleStartsAt = cycle.startsAt
 		cycleEndsAt = cycle.endsAt
 		cycleSourceType = cycle.sourceType
 		cycleSourceRef = cycle.sourceRef
+		manualBulkQuotaResetEnabled = cycle.manualBulkQuotaResetEnabled
 	}
 	err = subscriptionquota.InitializeCurrentCycle(
 		s.ctx,
@@ -120,6 +124,7 @@ func (s *UserSubscriptionRepoSuite) mustCreateSubscriptionWithCycle(
 		sub.ManualQuotaResetCount,
 		cycleSourceType,
 		cycleSourceRef,
+		manualBulkQuotaResetEnabled,
 	)
 	s.Require().NoError(err, "create current subscription cycle")
 	sub.CurrentCycleStartsAt = cycleStartsAt
@@ -1347,4 +1352,121 @@ func (s *UserSubscriptionRepoSuite) TestTxContext_RollbackIsolation() {
 
 	_, err = repo.GetByID(context.Background(), sub.ID)
 	s.Require().ErrorIs(err, service.ErrSubscriptionNotFound)
+}
+
+func (s *UserSubscriptionRepoSuite) TestManualBulkResetEligibilityUpdateAndMetadata() {
+	now := time.Now().UTC()
+	user := s.mustCreateUser("manual-bulk-reset@example.com", service.RoleUser)
+	group := s.mustCreateGroup("manual-bulk-reset-group")
+	subscription := s.mustCreateSubscriptionWithCycle(user.ID, group.ID, func(create *dbent.UserSubscriptionCreate) {
+		create.
+			SetDailyUsageUsd(1.25).
+			SetWeeklyUsageUsd(2.5).
+			SetMonthlyUsageUsd(3.75).
+			SetCycleUsageUsd(4.5).
+			SetManualQuotaResetCount(2)
+	}, &subscriptionCycleFixture{
+		startsAt:   now.Add(-time.Hour),
+		endsAt:     now.Add(24 * time.Hour),
+		sourceType: subscriptionquota.CycleSourceAssignment,
+	})
+	before, err := s.repo.GetByID(s.ctx, subscription.ID)
+	s.Require().NoError(err)
+
+	eligibilityService := subscriptionbulkreset.NewService(s.client, nil)
+	s.Require().NoError(eligibilityService.UpdateCurrentCycleManualEligibility(s.ctx, subscription.ID, true))
+	s.Require().NoError(eligibilityService.UpdateCurrentCycleManualEligibility(s.ctx, subscription.ID, true), "setting the same value must be idempotent")
+	after, err := s.repo.GetByID(s.ctx, subscription.ID)
+	s.Require().NoError(err)
+	s.Equal(before.StartsAt, after.StartsAt)
+	s.Equal(before.ExpiresAt, after.ExpiresAt)
+	s.Equal(before.DailyUsageUSD, after.DailyUsageUSD)
+	s.Equal(before.WeeklyUsageUSD, after.WeeklyUsageUSD)
+	s.Equal(before.MonthlyUsageUSD, after.MonthlyUsageUSD)
+	s.Equal(before.CycleUsageUSD, after.CycleUsageUSD)
+	s.Equal(before.ManualQuotaResetCount, after.ManualQuotaResetCount)
+
+	adminView, err := s.repo.GetByID(s.ctx, subscription.ID)
+	s.Require().NoError(err)
+	s.Equal(subscriptionquota.CycleSourceAssignment, adminView.CycleSourceType)
+	s.True(adminView.ManualBulkQuotaResetEnabled)
+	s.True(adminView.ManualBulkQuotaResetEditable)
+	candidates, err := eligibilityService.ListCandidates(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Len(candidates.Items, 1)
+	s.Equal(subscription.ID, candidates.Items[0].SubscriptionID)
+	s.Nil(candidates.Items[0].PlanID)
+	s.Equal(group.Name, candidates.Items[0].GroupName)
+
+	s.Require().NoError(eligibilityService.UpdateCurrentCycleManualEligibility(s.ctx, subscription.ID, false))
+	candidates, err = eligibilityService.ListCandidates(s.ctx)
+	s.Require().NoError(err)
+	s.Empty(candidates.Items)
+}
+
+func (s *UserSubscriptionRepoSuite) TestManualBulkResetEligibilityRejectsPaymentRedeemExpiredAndRevoked() {
+	now := time.Now().UTC()
+	user := s.mustCreateUser("manual-bulk-reset-reject@example.com", service.RoleUser)
+	eligibilityService := subscriptionbulkreset.NewService(s.client, nil)
+
+	for index, sourceType := range []string{subscriptionquota.CycleSourcePayment, subscriptionquota.CycleSourceRedeem} {
+		group := s.mustCreateGroup(fmt.Sprintf("manual-bulk-reset-reject-%d", index))
+		subscription := s.mustCreateSubscriptionWithCycle(user.ID, group.ID, nil, &subscriptionCycleFixture{
+			startsAt:   now.Add(-time.Hour),
+			endsAt:     now.Add(24 * time.Hour),
+			sourceType: sourceType,
+		})
+		s.Error(eligibilityService.UpdateCurrentCycleManualEligibility(s.ctx, subscription.ID, true))
+		adminView, err := s.repo.GetByID(s.ctx, subscription.ID)
+		s.Require().NoError(err)
+		s.False(adminView.ManualBulkQuotaResetEnabled, "payment and redeem eligibility must be ignored")
+		s.False(adminView.ManualBulkQuotaResetEditable)
+	}
+
+	expiredGroup := s.mustCreateGroup("manual-bulk-reset-expired")
+	expired := s.mustCreateSubscriptionWithCycle(user.ID, expiredGroup.ID, func(create *dbent.UserSubscriptionCreate) {
+		create.SetExpiresAt(now.Add(-time.Minute))
+	}, &subscriptionCycleFixture{
+		startsAt:   now.Add(-48 * time.Hour),
+		endsAt:     now.Add(24 * time.Hour),
+		sourceType: subscriptionquota.CycleSourceAssignment,
+	})
+	s.Error(eligibilityService.UpdateCurrentCycleManualEligibility(s.ctx, expired.ID, true))
+
+	revokedGroup := s.mustCreateGroup("manual-bulk-reset-revoked")
+	revoked := s.mustCreateSubscriptionWithCycle(user.ID, revokedGroup.ID, nil, &subscriptionCycleFixture{
+		startsAt:   now.Add(-time.Hour),
+		endsAt:     now.Add(24 * time.Hour),
+		sourceType: subscriptionquota.CycleSourceLegacy,
+	})
+	s.Require().NoError(s.repo.Delete(s.ctx, revoked.ID))
+	s.Error(eligibilityService.UpdateCurrentCycleManualEligibility(s.ctx, revoked.ID, true))
+}
+
+func (s *UserSubscriptionRepoSuite) TestManualBulkResetEligibilityAdvancesBeforeUpdatingBoundaryCycle() {
+	now := time.Now().UTC()
+	boundary := now.Add(-time.Second)
+	user := s.mustCreateUser("manual-bulk-reset-boundary@example.com", service.RoleUser)
+	group := s.mustCreateGroup("manual-bulk-reset-boundary")
+	subscription := s.mustCreateSubscriptionWithCycle(user.ID, group.ID, nil, &subscriptionCycleFixture{
+		startsAt:   boundary.Add(-24 * time.Hour),
+		endsAt:     boundary,
+		sourceType: subscriptionquota.CycleSourceAssignment,
+	})
+	s.Require().NoError(s.repo.AppendRenewalCycle(
+		s.ctx,
+		subscription.ID,
+		boundary,
+		boundary.Add(24*time.Hour),
+		subscriptionquota.CycleSourceLegacy,
+		nil,
+	))
+
+	eligibilityService := subscriptionbulkreset.NewService(s.client, nil)
+	s.Require().NoError(eligibilityService.UpdateCurrentCycleManualEligibility(s.ctx, subscription.ID, true))
+	adminView, err := s.repo.GetByID(s.ctx, subscription.ID)
+	s.Require().NoError(err)
+	s.Equal(subscriptionquota.CycleSourceLegacy, adminView.CycleSourceType)
+	s.True(adminView.ManualBulkQuotaResetEnabled)
+	s.True(adminView.ManualBulkQuotaResetEditable)
 }

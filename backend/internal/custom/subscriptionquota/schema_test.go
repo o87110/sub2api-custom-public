@@ -97,3 +97,40 @@ func TestCycleSchemaEnforcesTraceableSourceUniqueness(t *testing.T) {
 		require.Error(t, createErr, "the same payment source must not be attributed twice")
 	}
 }
+
+func TestCreateCurrentCyclePersistsManualEligibilityOnlyForAdministeredSources(t *testing.T) {
+	ctx := context.Background()
+	client := newCycleSchemaTestClient(t)
+	user, err := client.User.Create().
+		SetEmail("cycle-manual-eligibility@example.com").
+		SetPasswordHash("hash").
+		Save(ctx)
+	require.NoError(t, err)
+	now := time.Now().UTC()
+
+	for index, testCase := range []struct {
+		source string
+		want   bool
+	}{
+		{source: CycleSourceAssignment, want: true},
+		{source: CycleSourceLegacy, want: true},
+		{source: CycleSourcePayment, want: false},
+		{source: CycleSourceRedeem, want: false},
+	} {
+		group, createErr := client.Group.Create().SetName("cycle-eligibility-" + testCase.source).Save(ctx)
+		require.NoError(t, createErr)
+		subscription, createErr := client.UserSubscription.Create().
+			SetUserID(user.ID).
+			SetGroupID(group.ID).
+			SetStartsAt(now).
+			SetExpiresAt(now.Add(24 * time.Hour)).
+			SetCurrentCycleStartsAt(now).
+			SetCurrentCycleEndsAt(now.Add(24 * time.Hour)).
+			Save(ctx)
+		require.NoError(t, createErr, "case %d", index)
+		require.NoError(t, CreateCurrentCycle(ctx, client, subscription.ID, now, now.Add(24*time.Hour), testCase.source, nil, true))
+		cycle, queryErr := subscription.QueryCycles().Only(ctx)
+		require.NoError(t, queryErr)
+		require.Equal(t, testCase.want, cycle.ManualBulkQuotaResetEnabled)
+	}
+}

@@ -111,6 +111,20 @@ func (_c *UserSubscriptionCycleCreate) SetNillableSourceRef(v *string) *UserSubs
 	return _c
 }
 
+// SetManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field.
+func (_c *UserSubscriptionCycleCreate) SetManualBulkQuotaResetEnabled(v bool) *UserSubscriptionCycleCreate {
+	_c.mutation.SetManualBulkQuotaResetEnabled(v)
+	return _c
+}
+
+// SetNillableManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field if the given value is not nil.
+func (_c *UserSubscriptionCycleCreate) SetNillableManualBulkQuotaResetEnabled(v *bool) *UserSubscriptionCycleCreate {
+	if v != nil {
+		_c.SetManualBulkQuotaResetEnabled(*v)
+	}
+	return _c
+}
+
 // SetFinalUsageUsd sets the "final_usage_usd" field.
 func (_c *UserSubscriptionCycleCreate) SetFinalUsageUsd(v float64) *UserSubscriptionCycleCreate {
 	_c.mutation.SetFinalUsageUsd(v)
@@ -209,6 +223,10 @@ func (_c *UserSubscriptionCycleCreate) defaults() {
 		v := usersubscriptioncycle.DefaultSourceType
 		_c.mutation.SetSourceType(v)
 	}
+	if _, ok := _c.mutation.ManualBulkQuotaResetEnabled(); !ok {
+		v := usersubscriptioncycle.DefaultManualBulkQuotaResetEnabled
+		_c.mutation.SetManualBulkQuotaResetEnabled(v)
+	}
 	if _, ok := _c.mutation.FinalUsageUsd(); !ok {
 		v := usersubscriptioncycle.DefaultFinalUsageUsd
 		_c.mutation.SetFinalUsageUsd(v)
@@ -256,6 +274,9 @@ func (_c *UserSubscriptionCycleCreate) check() error {
 		if err := usersubscriptioncycle.SourceRefValidator(v); err != nil {
 			return &ValidationError{Name: "source_ref", err: fmt.Errorf(`ent: validator failed for field "UserSubscriptionCycle.source_ref": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ManualBulkQuotaResetEnabled(); !ok {
+		return &ValidationError{Name: "manual_bulk_quota_reset_enabled", err: errors.New(`ent: missing required field "UserSubscriptionCycle.manual_bulk_quota_reset_enabled"`)}
 	}
 	if _, ok := _c.mutation.FinalUsageUsd(); !ok {
 		return &ValidationError{Name: "final_usage_usd", err: errors.New(`ent: missing required field "UserSubscriptionCycle.final_usage_usd"`)}
@@ -320,6 +341,10 @@ func (_c *UserSubscriptionCycleCreate) createSpec() (*UserSubscriptionCycle, *sq
 	if value, ok := _c.mutation.SourceRef(); ok {
 		_spec.SetField(usersubscriptioncycle.FieldSourceRef, field.TypeString, value)
 		_node.SourceRef = &value
+	}
+	if value, ok := _c.mutation.ManualBulkQuotaResetEnabled(); ok {
+		_spec.SetField(usersubscriptioncycle.FieldManualBulkQuotaResetEnabled, field.TypeBool, value)
+		_node.ManualBulkQuotaResetEnabled = value
 	}
 	if value, ok := _c.mutation.FinalUsageUsd(); ok {
 		_spec.SetField(usersubscriptioncycle.FieldFinalUsageUsd, field.TypeFloat64, value)
@@ -489,6 +514,18 @@ func (u *UserSubscriptionCycleUpsert) UpdateSourceRef() *UserSubscriptionCycleUp
 // ClearSourceRef clears the value of the "source_ref" field.
 func (u *UserSubscriptionCycleUpsert) ClearSourceRef() *UserSubscriptionCycleUpsert {
 	u.SetNull(usersubscriptioncycle.FieldSourceRef)
+	return u
+}
+
+// SetManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field.
+func (u *UserSubscriptionCycleUpsert) SetManualBulkQuotaResetEnabled(v bool) *UserSubscriptionCycleUpsert {
+	u.Set(usersubscriptioncycle.FieldManualBulkQuotaResetEnabled, v)
+	return u
+}
+
+// UpdateManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field to the value that was provided on create.
+func (u *UserSubscriptionCycleUpsert) UpdateManualBulkQuotaResetEnabled() *UserSubscriptionCycleUpsert {
+	u.SetExcluded(usersubscriptioncycle.FieldManualBulkQuotaResetEnabled)
 	return u
 }
 
@@ -693,6 +730,20 @@ func (u *UserSubscriptionCycleUpsertOne) UpdateSourceRef() *UserSubscriptionCycl
 func (u *UserSubscriptionCycleUpsertOne) ClearSourceRef() *UserSubscriptionCycleUpsertOne {
 	return u.Update(func(s *UserSubscriptionCycleUpsert) {
 		s.ClearSourceRef()
+	})
+}
+
+// SetManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field.
+func (u *UserSubscriptionCycleUpsertOne) SetManualBulkQuotaResetEnabled(v bool) *UserSubscriptionCycleUpsertOne {
+	return u.Update(func(s *UserSubscriptionCycleUpsert) {
+		s.SetManualBulkQuotaResetEnabled(v)
+	})
+}
+
+// UpdateManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field to the value that was provided on create.
+func (u *UserSubscriptionCycleUpsertOne) UpdateManualBulkQuotaResetEnabled() *UserSubscriptionCycleUpsertOne {
+	return u.Update(func(s *UserSubscriptionCycleUpsert) {
+		s.UpdateManualBulkQuotaResetEnabled()
 	})
 }
 
@@ -1072,6 +1123,20 @@ func (u *UserSubscriptionCycleUpsertBulk) UpdateSourceRef() *UserSubscriptionCyc
 func (u *UserSubscriptionCycleUpsertBulk) ClearSourceRef() *UserSubscriptionCycleUpsertBulk {
 	return u.Update(func(s *UserSubscriptionCycleUpsert) {
 		s.ClearSourceRef()
+	})
+}
+
+// SetManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field.
+func (u *UserSubscriptionCycleUpsertBulk) SetManualBulkQuotaResetEnabled(v bool) *UserSubscriptionCycleUpsertBulk {
+	return u.Update(func(s *UserSubscriptionCycleUpsert) {
+		s.SetManualBulkQuotaResetEnabled(v)
+	})
+}
+
+// UpdateManualBulkQuotaResetEnabled sets the "manual_bulk_quota_reset_enabled" field to the value that was provided on create.
+func (u *UserSubscriptionCycleUpsertBulk) UpdateManualBulkQuotaResetEnabled() *UserSubscriptionCycleUpsertBulk {
+	return u.Update(func(s *UserSubscriptionCycleUpsert) {
+		s.UpdateManualBulkQuotaResetEnabled()
 	})
 }
 

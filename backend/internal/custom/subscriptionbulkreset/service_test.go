@@ -28,22 +28,31 @@ type resetterStub struct {
 	calls      []int64
 	operations []idempotencyexecution.Execution
 	failID     int64
+	skipID     int64
 }
 
-func (s *resetterStub) AdminResetQuota(_ context.Context, subscriptionID int64, daily, weekly, monthly bool) (*service.UserSubscription, error) {
-	if !daily || !weekly || !monthly {
-		return nil, errors.New("all quota windows must be reset")
-	}
+type cycleMutationCacheInvalidatorStub struct {
+	calls   int
+	userID  int64
+	groupID int64
+}
+
+func (s *cycleMutationCacheInvalidatorStub) InvalidateSubscriptionCachesAfterCycleMutation(userID, groupID int64) {
+	s.calls++
+	s.userID = userID
+	s.groupID = groupID
+}
+
+func (s *resetterStub) AdminResetQuotaIfBulkEligible(_ context.Context, subscriptionID int64, operation idempotencyexecution.Execution) (*service.UserSubscription, bool, error) {
 	s.calls = append(s.calls, subscriptionID)
-	if subscriptionID == s.failID {
-		return nil, errors.New("reset failed")
-	}
-	return &service.UserSubscription{ID: subscriptionID}, nil
-}
-
-func (s *resetterStub) AdminResetQuotaIdempotent(ctx context.Context, subscriptionID int64, daily, weekly, monthly bool, operation idempotencyexecution.Execution) (*service.UserSubscription, error) {
 	s.operations = append(s.operations, operation)
-	return s.AdminResetQuota(ctx, subscriptionID, daily, weekly, monthly)
+	if subscriptionID == s.failID {
+		return nil, false, errors.New("reset failed")
+	}
+	if subscriptionID == s.skipID {
+		return nil, false, nil
+	}
+	return &service.UserSubscription{ID: subscriptionID}, true, nil
 }
 
 func TestListCandidatesOnlyReturnsTraceableEnabledCurrentPaymentCycles(t *testing.T) {
@@ -97,6 +106,36 @@ func TestListCandidatesOnlyReturnsTraceableEnabledCurrentPaymentCycles(t *testin
 	require.ElementsMatch(t, []int64{first.ID, second.ID}, []int64{got.Items[0].SubscriptionID, got.Items[1].SubscriptionID})
 }
 
+func TestListCandidatesIncludesEnabledAssignmentAndLegacyCycles(t *testing.T) {
+	ctx := context.Background()
+	client := newBulkResetTestClient(t)
+	now := time.Date(2026, 8, 8, 12, 0, 0, 0, time.UTC)
+	user := createBulkResetUser(t, client, "manual@example.com")
+
+	assignment := createBulkResetSubscription(t, client, user.ID, 70, now, service.SubscriptionStatusActive)
+	createBulkResetManualCycle(t, client, assignment, subscriptionquota.CycleSourceAssignment, true, now.Add(-time.Hour), now.Add(24*time.Hour), subscriptionquota.CycleStatusCurrent)
+	legacy := createBulkResetSubscription(t, client, user.ID, 71, now, service.SubscriptionStatusActive)
+	createBulkResetManualCycle(t, client, legacy, subscriptionquota.CycleSourceLegacy, true, now.Add(-time.Hour), now.Add(24*time.Hour), subscriptionquota.CycleStatusCurrent)
+	disabled := createBulkResetSubscription(t, client, user.ID, 72, now, service.SubscriptionStatusActive)
+	createBulkResetManualCycle(t, client, disabled, subscriptionquota.CycleSourceAssignment, false, now.Add(-time.Hour), now.Add(24*time.Hour), subscriptionquota.CycleStatusCurrent)
+	redeem := createBulkResetSubscription(t, client, user.ID, 73, now, service.SubscriptionStatusActive)
+	createBulkResetManualCycle(t, client, redeem, subscriptionquota.CycleSourceRedeem, true, now.Add(-time.Hour), now.Add(24*time.Hour), subscriptionquota.CycleStatusCurrent)
+
+	svc := &Service{client: client, resetter: &resetterStub{}, now: func() time.Time { return now }}
+	got, err := svc.ListCandidates(ctx)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, got.UserCount)
+	require.Equal(t, 2, got.SubscriptionCount)
+	require.ElementsMatch(t, []int64{assignment.ID, legacy.ID}, []int64{got.Items[0].SubscriptionID, got.Items[1].SubscriptionID})
+	for _, item := range got.Items {
+		require.Nil(t, item.PlanID)
+		require.Nil(t, item.PlanName)
+		require.NotEmpty(t, item.GroupName)
+		require.Equal(t, item.GroupName, item.SourceName)
+	}
+}
+
 func TestListCandidatesUsesPendingPlanOnlyAfterCurrentCycleBoundary(t *testing.T) {
 	ctx := context.Background()
 	client := newBulkResetTestClient(t)
@@ -118,13 +157,15 @@ func TestListCandidatesUsesPendingPlanOnlyAfterCurrentCycleBoundary(t *testing.T
 	before, err := svc.ListCandidates(ctx)
 	require.NoError(t, err)
 	require.Len(t, before.Items, 1)
-	require.Equal(t, currentPlan.ID, before.Items[0].PlanID)
+	require.NotNil(t, before.Items[0].PlanID)
+	require.Equal(t, currentPlan.ID, *before.Items[0].PlanID)
 
 	svc.now = func() time.Time { return boundary }
 	after, err := svc.ListCandidates(ctx)
 	require.NoError(t, err)
 	require.Len(t, after.Items, 1)
-	require.Equal(t, nextPlan.ID, after.Items[0].PlanID)
+	require.NotNil(t, after.Items[0].PlanID)
+	require.Equal(t, nextPlan.ID, *after.Items[0].PlanID)
 	require.Zero(t, after.Items[0].CycleUsageUSD)
 	require.Zero(t, after.Items[0].ManualQuotaResetCount)
 }
@@ -163,7 +204,7 @@ func TestResetSelectedDeduplicatesAndContinuesAfterSkipAndFailure(t *testing.T) 
 	createBulkResetPaymentCycle(t, client, user, second, secondPlan, now.Add(-time.Hour), now.Add(time.Hour), subscriptionquota.CycleStatusCurrent, nil)
 	ineligible := createBulkResetSubscription(t, client, user.ID, 52, now, service.SubscriptionStatusActive)
 
-	resetter := &resetterStub{failID: second.ID}
+	resetter := &resetterStub{failID: second.ID, skipID: ineligible.ID}
 	svc := &Service{client: client, resetter: resetter, now: func() time.Time { return now }}
 	operation, err := idempotencyexecution.New("admin.subscriptions.bulk_reset_quota", "admin:7", service.HashIdempotencyKey("bulk-reset-operation"), now, now.Add(24*time.Hour))
 	require.NoError(t, err)
@@ -174,10 +215,11 @@ func TestResetSelectedDeduplicatesAndContinuesAfterSkipAndFailure(t *testing.T) 
 	require.Equal(t, 1, got.SuccessCount)
 	require.Equal(t, 1, got.SkippedCount)
 	require.Equal(t, 1, got.FailedCount)
-	require.Equal(t, []int64{first.ID, second.ID}, resetter.calls)
-	require.Len(t, resetter.operations, 2)
+	require.Equal(t, []int64{first.ID, ineligible.ID, second.ID}, resetter.calls)
+	require.Len(t, resetter.operations, 3)
 	require.NotEmpty(t, resetter.operations[0].OperationKeyHash)
 	require.Equal(t, resetter.operations[0], resetter.operations[1])
+	require.Equal(t, resetter.operations[1], resetter.operations[2])
 	require.Equal(t, operation.OperationKeyHash, resetter.operations[0].OperationKeyHash)
 	require.Equal(t, ItemStatusSuccess, got.Items[0].Status)
 	require.Equal(t, ItemStatusSkipped, got.Items[1].Status)
@@ -203,6 +245,28 @@ func TestMaximumBatchResultFitsDefaultIdempotencyResponseLimit(t *testing.T) {
 	raw, err := json.Marshal(result)
 	require.NoError(t, err)
 	require.Less(t, len(raw), service.DefaultIdempotencyConfig().MaxStoredResponseLen)
+}
+
+func TestCycleMutationCachesInvalidateOnlyAfterCommit(t *testing.T) {
+	client := newBulkResetTestClient(t)
+	tx, err := client.Tx(context.Background())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = tx.Rollback() })
+	txCtx := dbent.NewTxContext(context.Background(), tx)
+
+	invalidator := &cycleMutationCacheInvalidatorStub{}
+	svc := &Service{
+		resetter:         &resetterStub{},
+		cacheInvalidator: invalidator,
+		now:              time.Now,
+	}
+	svc.invalidateCycleMutationCachesAfterCommit(txCtx, true, 81, 82)
+
+	require.Zero(t, invalidator.calls)
+	require.NoError(t, tx.Commit())
+	require.Equal(t, 1, invalidator.calls)
+	require.Equal(t, int64(81), invalidator.userID)
+	require.Equal(t, int64(82), invalidator.groupID)
 }
 
 func newBulkResetTestClient(t *testing.T) *dbent.Client {
@@ -306,6 +370,20 @@ func createBulkResetPaymentCycle(t *testing.T, client *dbent.Client, orderUser *
 		SetSourceRef(strconv.FormatInt(order.ID, 10)).
 		Save(context.Background())
 	require.NoError(t, err)
+}
+
+func createBulkResetManualCycle(t *testing.T, client *dbent.Client, subscription *dbent.UserSubscription, sourceType string, enabled bool, startsAt, endsAt time.Time, status string) *dbent.UserSubscriptionCycle {
+	t.Helper()
+	cycle, err := client.UserSubscriptionCycle.Create().
+		SetSubscriptionID(subscription.ID).
+		SetStartsAt(startsAt).
+		SetEndsAt(endsAt).
+		SetStatus(status).
+		SetSourceType(sourceType).
+		SetManualBulkQuotaResetEnabled(enabled).
+		Save(context.Background())
+	require.NoError(t, err)
+	return cycle
 }
 
 func int64Ptr(value int64) *int64 { return &value }

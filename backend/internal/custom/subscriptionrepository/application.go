@@ -20,6 +20,7 @@ func (r *Repository) RenewExistingTerm(
 	validityDays int,
 	notes, sourceType string,
 	sourceRef *string,
+	manualBulkQuotaResetEnabled bool,
 	assignmentSemantics bool,
 	now, maxExpiresAt time.Time,
 ) error {
@@ -49,19 +50,20 @@ func (r *Repository) RenewExistingTerm(
 
 		if isExpired {
 			return subscriptionquota.RenewExpired(txCtx, client, subscriptionquota.RenewExpiredInput{
-				SubscriptionID: existing.ID,
-				StartsAt:       now,
-				EndsAt:         newExpiresAt,
-				DailyStart:     timezone.StartOfDay(now),
-				PeriodicStart:  now,
-				Status:         service.SubscriptionStatusActive,
-				Notes:          appendNotes(existing.Notes, notes),
-				SourceType:     sourceType,
-				SourceRef:      sourceRef,
+				SubscriptionID:              existing.ID,
+				StartsAt:                    now,
+				EndsAt:                      newExpiresAt,
+				DailyStart:                  timezone.StartOfDay(now),
+				PeriodicStart:               now,
+				Status:                      service.SubscriptionStatusActive,
+				Notes:                       appendNotes(existing.Notes, notes),
+				SourceType:                  sourceType,
+				SourceRef:                   sourceRef,
+				ManualBulkQuotaResetEnabled: manualBulkQuotaResetEnabled,
 			})
 		}
 
-		if err := subscriptionquota.AppendRenewalCycle(txCtx, client, existing.ID, existing.ExpiresAt, newExpiresAt, sourceType, sourceRef); err != nil {
+		if err := subscriptionquota.AppendRenewalCycle(txCtx, client, existing.ID, existing.ExpiresAt, newExpiresAt, sourceType, sourceRef, manualBulkQuotaResetEnabled); err != nil {
 			return fmt.Errorf("extend subscription: %w", err)
 		}
 		if existing.Status != service.SubscriptionStatusActive {

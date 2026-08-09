@@ -17,15 +17,16 @@ import (
 var ErrCycleStateNotFound = errors.New("subscription cycle state not found")
 
 type RenewExpiredInput struct {
-	SubscriptionID int64
-	StartsAt       time.Time
-	EndsAt         time.Time
-	DailyStart     time.Time
-	PeriodicStart  time.Time
-	Status         string
-	Notes          string
-	SourceType     string
-	SourceRef      *string
+	SubscriptionID              int64
+	StartsAt                    time.Time
+	EndsAt                      time.Time
+	DailyStart                  time.Time
+	PeriodicStart               time.Time
+	Status                      string
+	Notes                       string
+	SourceType                  string
+	SourceRef                   *string
+	ManualBulkQuotaResetEnabled bool
 }
 
 func InitializeCurrentCycle(
@@ -37,6 +38,7 @@ func InitializeCurrentCycle(
 	manualResetCount int64,
 	sourceType string,
 	sourceRef *string,
+	manualBulkQuotaResetEnabled bool,
 ) error {
 	if _, err := client.UserSubscription.UpdateOneID(subscriptionID).
 		SetCycleUsageUsd(cycleUsageUSD).
@@ -46,22 +48,24 @@ func InitializeCurrentCycle(
 		Save(ctx); err != nil {
 		return err
 	}
-	return CreateCurrentCycle(ctx, client, subscriptionID, startsAt, endsAt, sourceType, sourceRef)
+	return CreateCurrentCycle(ctx, client, subscriptionID, startsAt, endsAt, sourceType, sourceRef, manualBulkQuotaResetEnabled)
 }
 
-func CreateCurrentCycle(ctx context.Context, client *dbent.Client, subscriptionID int64, startsAt, endsAt time.Time, sourceType string, sourceRef *string) error {
+func CreateCurrentCycle(ctx context.Context, client *dbent.Client, subscriptionID int64, startsAt, endsAt time.Time, sourceType string, sourceRef *string, manualBulkQuotaResetEnabled bool) error {
+	normalizedSource := NormalizeSource(sourceType)
 	_, err := client.UserSubscriptionCycle.Create().
 		SetSubscriptionID(subscriptionID).
 		SetStartsAt(startsAt).
 		SetEndsAt(endsAt).
 		SetStatus(CycleStatusCurrent).
-		SetSourceType(NormalizeSource(sourceType)).
+		SetSourceType(normalizedSource).
 		SetNillableSourceRef(sourceRef).
+		SetManualBulkQuotaResetEnabled(NormalizeManualBulkQuotaResetEligibility(normalizedSource, manualBulkQuotaResetEnabled)).
 		Save(ctx)
 	return err
 }
 
-func AppendRenewalCycle(ctx context.Context, client *dbent.Client, subscriptionID int64, startsAt, endsAt time.Time, sourceType string, sourceRef *string) error {
+func AppendRenewalCycle(ctx context.Context, client *dbent.Client, subscriptionID int64, startsAt, endsAt time.Time, sourceType string, sourceRef *string, manualBulkQuotaResetEnabled bool) error {
 	if !endsAt.After(startsAt) {
 		return nil
 	}
@@ -71,13 +75,15 @@ func AppendRenewalCycle(ctx context.Context, client *dbent.Client, subscriptionI
 		Only(ctx); err != nil {
 		return err
 	}
+	normalizedSource := NormalizeSource(sourceType)
 	if _, err := client.UserSubscriptionCycle.Create().
 		SetSubscriptionID(subscriptionID).
 		SetStartsAt(startsAt).
 		SetEndsAt(endsAt).
 		SetStatus(CycleStatusPending).
-		SetSourceType(NormalizeSource(sourceType)).
+		SetSourceType(normalizedSource).
 		SetNillableSourceRef(sourceRef).
+		SetManualBulkQuotaResetEnabled(NormalizeManualBulkQuotaResetEligibility(normalizedSource, manualBulkQuotaResetEnabled)).
 		Save(ctx); err != nil {
 		return err
 	}
@@ -137,7 +143,7 @@ func RenewExpired(ctx context.Context, client *dbent.Client, input RenewExpiredI
 		Save(ctx); err != nil {
 		return err
 	}
-	return CreateCurrentCycle(ctx, client, input.SubscriptionID, input.StartsAt, input.EndsAt, input.SourceType, input.SourceRef)
+	return CreateCurrentCycle(ctx, client, input.SubscriptionID, input.StartsAt, input.EndsAt, input.SourceType, input.SourceRef, input.ManualBulkQuotaResetEnabled)
 }
 
 func AdvanceCycle(ctx context.Context, client *dbent.Client, subscriptionID int64, now, dailyStart time.Time) (bool, error) {

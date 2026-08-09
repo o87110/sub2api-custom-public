@@ -95,6 +95,11 @@ func SourceRef(v string) predicate.UserSubscriptionCycle {
 	return predicate.UserSubscriptionCycle(sql.FieldEQ(FieldSourceRef, v))
 }
 
+// ManualBulkQuotaResetEnabled applies equality check predicate on the "manual_bulk_quota_reset_enabled" field. It's identical to ManualBulkQuotaResetEnabledEQ.
+func ManualBulkQuotaResetEnabled(v bool) predicate.UserSubscriptionCycle {
+	return predicate.UserSubscriptionCycle(sql.FieldEQ(FieldManualBulkQuotaResetEnabled, v))
+}
+
 // FinalUsageUsd applies equality check predicate on the "final_usage_usd" field. It's identical to FinalUsageUsdEQ.
 func FinalUsageUsd(v float64) predicate.UserSubscriptionCycle {
 	return predicate.UserSubscriptionCycle(sql.FieldEQ(FieldFinalUsageUsd, v))
@@ -493,6 +498,16 @@ func SourceRefEqualFold(v string) predicate.UserSubscriptionCycle {
 // SourceRefContainsFold applies the ContainsFold predicate on the "source_ref" field.
 func SourceRefContainsFold(v string) predicate.UserSubscriptionCycle {
 	return predicate.UserSubscriptionCycle(sql.FieldContainsFold(FieldSourceRef, v))
+}
+
+// ManualBulkQuotaResetEnabledEQ applies the EQ predicate on the "manual_bulk_quota_reset_enabled" field.
+func ManualBulkQuotaResetEnabledEQ(v bool) predicate.UserSubscriptionCycle {
+	return predicate.UserSubscriptionCycle(sql.FieldEQ(FieldManualBulkQuotaResetEnabled, v))
+}
+
+// ManualBulkQuotaResetEnabledNEQ applies the NEQ predicate on the "manual_bulk_quota_reset_enabled" field.
+func ManualBulkQuotaResetEnabledNEQ(v bool) predicate.UserSubscriptionCycle {
+	return predicate.UserSubscriptionCycle(sql.FieldNEQ(FieldManualBulkQuotaResetEnabled, v))
 }
 
 // FinalUsageUsdEQ applies the EQ predicate on the "final_usage_usd" field.
