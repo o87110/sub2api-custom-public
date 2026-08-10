@@ -261,6 +261,18 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
   目标 SQL 语义摘要和完整变更摘要。未登记、摘要漂移、动态 SQL 或非结构型写入 SQL
   仍然失败关闭。
 
+### V2 色块矩阵滚轮隔离
+
+- 渠道名称、成功率、TTFT、缓存率和色块上的普通滚轮均不得调用
+  `preventDefault()` 或改变缩放状态；矩阵溢出时应滚动矩阵，到达边界后继续滚动页面；
+- `Alt/Option + 滚轮` 只有在色块轨道内才触发缩放，非 Element 目标和矩阵其他列均须
+  安全忽略；缩放后重置按钮可用，重置后恢复完整时间范围；
+- 中文和英文提示必须明确修饰键与生效区域；普通 `Shift` 和横向滚轮保持原生行为；
+- 运行 Custom 滚轮策略/桥接 Vitest、官方矩阵与缩放 Vitest、前端 lint、typecheck、
+  Custom/critical 测试和生产构建；浏览器验收需覆盖矩阵内部滚动、页面滚动链和暗亮主题；
+- Candidate Tree 必须确认无后端、Migration、Schema 或 SQL 变化，折线图与健康分保持
+  Vendor 行为。
+
 ## 11. 分组最低余额门槛
 
 - `balance` 低于或等于 `minimum_balance` 时拒绝，高于时允许；默认 `0` 完全关闭；

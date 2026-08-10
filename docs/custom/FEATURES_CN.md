@@ -272,6 +272,24 @@ backend/internal/custom/channelmonitor/
 frontend/src/custom/channel-monitor/
 ```
 
+### V2 色块矩阵滚轮隔离
+
+用户端 V2 渠道状态的色块矩阵只在鼠标位于色块轨道、且按住 `Alt`（macOS 为
+`Option`）时处理滚轮缩放。普通滚轮不会阻止浏览器默认行为，也不会修改矩阵缩放
+状态，因此可用于滚动矩阵和页面，并避免滚动时反复重算全部色块。
+
+- 缩放仍复用官方以鼠标位置为中心的区间切片、横向平移和重置逻辑；
+- 普通 `Shift` 或横向滚轮交还浏览器处理，不触发矩阵缩放；
+- 不新增全局或矩阵内开关，不持久化用户选择，也不强制修改系统滚动条样式；
+- 本次仅隔离色块矩阵手势，折线图继续保持官方滚轮行为；
+- 本功能不修改健康分、监控阈值、后端 API、Setting、Migration、Schema 或 SQL。
+
+主要实现：
+
+```text
+frontend/src/custom/channel-monitor-v2/
+```
+
 ## 11. 分组最低余额门槛
 
 管理员可以为个别分组设置 `minimum_balance`。默认 `0` 表示关闭；开启后，用户的

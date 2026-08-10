@@ -85,6 +85,7 @@ frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts	compat-te
 frontend/src/components/payment/__tests__/paymentFlow.spec.ts	compat-test	true	18	0	-
 frontend/src/components/payment/paymentFlow.ts	delegate	true	14	0	-
 frontend/src/components/user/monitor/MonitorCard.vue	view	true	18	7	-
+frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue	view	true	9	15	-
 frontend/src/i18n/locales/en/admin/channels.ts	dto	true	59	2	-
 frontend/src/i18n/locales/en/admin/overview.ts	dto	false	3	0	-
 frontend/src/i18n/locales/en/admin/settings.ts	dto	true	4	3	-

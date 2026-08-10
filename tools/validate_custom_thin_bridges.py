@@ -539,6 +539,10 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
     'frontend/src/components/user/monitor/MonitorCard.vue': _approved_call_deltas(
         ('<top-level>', {'statusLabel': 1}),
     ),
+    'frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue': _approved_call_deltas(
+        ('<top-level>', {'computed': 1, 'matrixWheelZoomHint': 1}),
+        ('onMatrixWheel', {'resolveMatrixWheelZoomTrack': 1}),
+    ),
     'frontend/src/views/admin/GroupsView.vue': _approved_call_deltas(
         ('<top-level>', {'minimumBalanceFormValue': 2, 'ref': 2}),
         ('closeCreateModal', {'minimumBalanceFormValue': 1}),
@@ -950,6 +954,9 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "frontend/src/components/user/monitor/MonitorCard.vue": (
         ("<top-level>", "v-if=\"typeof item.group_rate_multiplier === 'number'\""),
+    ),
+    "frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue": (
+        ("onMatrixWheel", "if (!pulse) return"),
     ),
     "frontend/src/views/admin/GroupsView.vue": (
         ("handleCreateGroup", "if (minimumBalance === null) {"),

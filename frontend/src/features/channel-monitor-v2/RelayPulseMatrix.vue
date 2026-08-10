@@ -16,7 +16,7 @@
       </div>
       <div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 text-xs text-gray-500 dark:text-gray-400 sm:w-auto">
         <span class="badge badge-gray shrink-0">{{ bucketLabel }}</span>
-        <span class="hidden text-[11px] text-gray-400 dark:text-dark-400 sm:inline">{{ t('channelMonitorV2.matrix.wheelZoomX') }}</span>
+        <span class="hidden text-[11px] text-gray-400 dark:text-dark-400 sm:inline">{{ wheelZoomHint }}</span>
         <button
           type="button"
           class="inline-flex shrink-0 items-center rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:bg-dark-800"
@@ -31,7 +31,6 @@
     <div class="card-body min-h-0 flex-1 !p-0">
       <div
         v-if="rows.length"
-        ref="scrollRef"
         class="matrix-scroll max-h-[min(42vh,420px)] max-w-full overflow-auto rounded-2xl bg-gray-50/60 p-2 dark:bg-dark-900/30"
         @wheel="onMatrixWheel"
       >
@@ -178,6 +177,10 @@ import type {
 import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
 import {
+  matrixWheelZoomHint,
+  resolveMatrixWheelZoomTrack,
+} from '@/custom/channel-monitor-v2/matrixWheelPolicy'
+import {
   formatLatencyPrivacy,
   formatMonitorMs,
   formatMonitorPercent,
@@ -220,9 +223,9 @@ const floatingTooltip = reactive({
   lines: [] as string[],
 })
 
-const scrollRef = ref<HTMLElement | null>(null)
 const zoom = ref<ZoomState>(resetZoom())
 const zoomed = computed(() => isZoomed(zoom.value))
+const wheelZoomHint = computed(() => matrixWheelZoomHint(locale.value))
 
 const allBucketStarts = computed(() => {
   // X-axis always spans the UI-selected range [requested_start, requested_end).
@@ -310,19 +313,10 @@ const alignedRows = computed(() => {
 })
 
 function onMatrixWheel(event: WheelEvent) {
-  const track = scrollRef.value
-  const target = event.target as HTMLElement | null
-  const pulse = target?.closest('.pulse-track') as HTMLElement | null
-  const overMatrix = Boolean(target?.closest('.matrix-scroll'))
-  // Plain vertical wheel over the matrix zooms X (narrower range → wider cells).
-  // Shift+wheel or horizontal delta pans; leave non-matrix page scroll alone.
-  const isPan = event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)
-  if (!overMatrix && !pulse) return
-  // When not zoomed and user scrolls vertically outside pulse, still zoom if over matrix body.
-  if (!overMatrix && !isPan) return
+  const pulse = resolveMatrixWheelZoomTrack(event)
+  if (!pulse) return
   event.preventDefault()
-  const ratioEl = pulse || track
-  const ratio = clientXRatio(event.clientX, ratioEl)
+  const ratio = clientXRatio(event.clientX, pulse)
   zoom.value = applyWheelZoom(zoom.value, event, ratio)
 }
 

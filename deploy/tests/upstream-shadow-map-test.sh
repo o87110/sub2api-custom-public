@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-113}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-114}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 113 ]]; then
+if [[ "$expected_count" -eq 114 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -119,6 +119,7 @@ if [[ "$expected_count" -eq 113 ]]; then
   assert_mapping $'backend/internal/service/channel_monitor_service.go\tbackend/internal/custom/channelmonitor/ratedisplay/config.go'
   assert_mapping $'frontend/src/components/user/monitor/MonitorCard.vue\tfrontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts'
   assert_mapping $'frontend/src/components/admin/monitor/MonitorFormDialog.vue\tfrontend/src/custom/channel-monitor/groupRate.ts|frontend/src/custom/channel-monitor/MonitorGroupRateFields.vue'
+  assert_mapping $'frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue\tfrontend/src/custom/channel-monitor-v2/matrixWheelPolicy.ts'
   assert_mapping $'frontend/src/i18n/locales/en/admin/channels.ts\tfrontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts|frontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue'
   assert_mapping $'frontend/src/i18n/locales/zh/admin/channels.ts\tfrontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts|frontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue'
   assert_mapping $'backend/cmd/server/wire.go\tbackend/internal/custom/channelmonitor/wire.go|backend/internal/custom/moderation/wire.go|backend/internal/custom/subscriptionrepository/repository.go|backend/internal/custom/updater/wire.go'
@@ -468,6 +469,7 @@ frontend/src/views/user/__tests__/PaymentView.spec.ts
 frontend/src/views/user/__tests__/paymentWechatResume.spec.ts
 frontend/src/views/user/paymentWechatResume.ts
 frontend/src/router/index.ts
+frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue
 backend/internal/service/not_content_moderation_companion.go
 unmapped/fixture-must-not-match.txt
 EOF
