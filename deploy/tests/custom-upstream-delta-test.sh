@@ -264,6 +264,7 @@ thin_bridge_allowed() {
       frontend/src/components/payment/__tests__/paymentFlow.spec.ts | \
       frontend/src/components/user/monitor/MonitorCard.vue | \
       frontend/src/components/layout/AppSidebar.vue | \
+      frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue | \
       frontend/src/i18n/locales/en/admin/channels.ts | \
       frontend/src/i18n/locales/en/admin/overview.ts | \
       frontend/src/i18n/locales/en/admin/settings.ts | \
