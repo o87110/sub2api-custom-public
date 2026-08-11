@@ -593,6 +593,8 @@ jobs:
           [[ "$database_changed" == "true" || "$database_changed" == "false" ]]
           [[ "$database_fingerprint" =~ ^[0-9a-f]{64}$ ]]
 
+          group_model_access_protected_pattern='^(backend/internal/handler/(group_model_access_test|image_task_handler_test|no_account_error_test)\.go|backend/internal/server/routes/composite_platform_test\.go|backend/internal/service/(admin_service_composite_group_test|api_key_auth_cache_(profit|version)_test|gateway_model_availability_test|group_model_access_test|openai_live_test)\.go|frontend/src/views/admin/__tests__/groupsModelsList\.spec\.ts)$'
+          protected_pattern="${protected_pattern}|${group_model_access_protected_pattern}"
           grep -E "$protected_pattern" /tmp/overlap-files.txt > /tmp/protected-overlap.txt || true
           grep -E "$protected_pattern" /tmp/upgrade-head-files.txt > /tmp/upgrade-protected-files.txt || true
           cat \

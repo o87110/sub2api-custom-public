@@ -222,7 +222,13 @@ done
 
 extract_protected_pattern() {
   local workflow="$1"
-  sed -n "s/^[[:space:]]*protected_pattern='\(.*\)'$/\1/p" "$workflow"
+  local protected_pattern group_model_access_protected_pattern
+  protected_pattern="$(sed -n "s/^[[:space:]]*protected_pattern='\(.*\)'$/\1/p" "$workflow")"
+  group_model_access_protected_pattern="$(sed -n "s/^[[:space:]]*group_model_access_protected_pattern='\(.*\)'$/\1/p" "$workflow")"
+  if [[ -n "$group_model_access_protected_pattern" ]]; then
+    protected_pattern="${protected_pattern}|${group_model_access_protected_pattern}"
+  fi
+  printf '%s\n' "$protected_pattern"
 }
 
 sync_protected_pattern="$(extract_protected_pattern "$sync_workflow")"

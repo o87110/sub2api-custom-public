@@ -58,6 +58,9 @@
 /backend/internal/handler/openai_gateway_custom_test.go @o87110
 /backend/internal/handler/gateway_handler.go @o87110
 /backend/internal/handler/gateway_handler_billing_error_test.go @o87110
+/backend/internal/handler/group_model_access_test.go @o87110
+/backend/internal/handler/image_task_handler_test.go @o87110
+/backend/internal/handler/no_account_error_test.go @o87110
 /backend/internal/repository/api_key_minimum_balance_repo.go @o87110
 /backend/internal/repository/api_key_repo.go @o87110
 /backend/internal/repository/content_moderation_repo.go @o87110
@@ -72,6 +75,7 @@
 /backend/internal/repository/user_subscription_repo_integration_test.go @o87110
 /backend/internal/server/api_contract_test.go @o87110
 /backend/internal/server/routes/admin.go @o87110
+/backend/internal/server/routes/composite_platform_test.go @o87110
 /backend/internal/payment/load_balancer.go @o87110
 /backend/internal/payment/types.go @o87110
 /backend/internal/handler/admin/content_moderation_handler.go @o87110
@@ -90,8 +94,11 @@
 /backend/internal/service/admin_group_minimum_balance_custom_test.go @o87110
 /backend/internal/service/admin_service.go @o87110
 /backend/internal/service/admin_service_group_test.go @o87110
+/backend/internal/service/admin_service_composite_group_test.go @o87110
 /backend/internal/service/api_key_auth_cache.go @o87110
 /backend/internal/service/api_key_auth_cache_impl.go @o87110
+/backend/internal/service/api_key_auth_cache_profit_test.go @o87110
+/backend/internal/service/api_key_auth_cache_version_test.go @o87110
 /backend/internal/service/api_key_service.go @o87110
 /backend/internal/service/api_key_service_cache_test.go @o87110
 /backend/internal/service/api_key_service_delete_test.go @o87110
@@ -100,6 +107,9 @@
 /backend/internal/service/billing_cache_service.go @o87110
 /backend/internal/service/billing_cache_service_balance_test.go @o87110
 /backend/internal/service/group.go @o87110
+/backend/internal/service/gateway_model_availability_test.go @o87110
+/backend/internal/service/group_model_access_test.go @o87110
+/backend/internal/service/openai_live_test.go @o87110
 /backend/internal/service/payment_config_limits.go @o87110
 /backend/internal/service/payment_config_limits_test.go @o87110
 /backend/internal/service/payment_config_plans.go @o87110
@@ -206,6 +216,7 @@
 /frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts @o87110
 /frontend/src/views/admin/__tests__/GroupsView.columnSettings.spec.ts @o87110
 /frontend/src/views/admin/__tests__/GroupsView.duplicate.spec.ts @o87110
+/frontend/src/views/admin/__tests__/groupsModelsList.spec.ts @o87110
 /frontend/src/views/admin/__tests__/SettingsView.spec.ts @o87110
 /frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts @o87110
 /frontend/src/views/user/KeysView.vue @o87110
