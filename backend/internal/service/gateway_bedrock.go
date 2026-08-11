@@ -72,6 +72,9 @@ func (s *GatewayService) forwardBedrock(
 	if mappedModel != reqModel {
 		logger.LegacyPrintf("service.gateway", "[Bedrock] Model mapping: %s -> %s (account: %s)", reqModel, mappedModel, account.Name)
 	}
+	if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {
+		return nil, err
+	}
 
 	betaHeader := ""
 	if c != nil && c.Request != nil {

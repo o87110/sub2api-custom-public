@@ -176,6 +176,64 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		require.Empty(t, gemini.submits)
 	})
 
+	t.Run("all account mappings blocked returns policy error without submit", func(t *testing.T) {
+		svc, _, _, gemini, _ := newTestBatchImagePublicService(true)
+		groupID := int64(7)
+		svc.GroupRepo = &publicBatchImageGroupRepo{groups: map[int64]*Group{
+			groupID: enabledBatchImageTestGroup(groupID, "gemini-3.1-flash-lite-image"),
+		}}
+		accountRepo := svc.AccountRepo.(*publicBatchImageAccountRepo)
+		accountRepo.accounts = []Account{testBatchImageMappedAccount(101, AccountTypeAPIKey, map[string]any{
+			"gemini-2.5-flash-image": "gemini-3.1-flash-lite-image",
+		})}
+
+		_, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), "")
+
+		require.True(t, IsGroupModelBlockedError(err))
+		require.Empty(t, gemini.submits)
+	})
+
+	t.Run("blocked account mapping is skipped when another path is allowed", func(t *testing.T) {
+		svc, _, _, gemini, _ := newTestBatchImagePublicService(true)
+		groupID := int64(7)
+		svc.GroupRepo = &publicBatchImageGroupRepo{groups: map[int64]*Group{
+			groupID: enabledBatchImageTestGroup(groupID, "gemini-3.1-flash-lite-image"),
+		}}
+		accountRepo := svc.AccountRepo.(*publicBatchImageAccountRepo)
+		accountRepo.accounts = []Account{
+			testBatchImageMappedAccount(101, AccountTypeAPIKey, map[string]any{
+				"gemini-2.5-flash-image": "gemini-3.1-flash-lite-image",
+			}),
+			testBatchImageMappedAccount(202, AccountTypeAPIKey, map[string]any{
+				"gemini-2.5-flash-image": "gemini-2.5-flash-image",
+			}),
+		}
+
+		_, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), "")
+
+		require.NoError(t, err)
+		require.Len(t, gemini.submits, 1)
+		require.Equal(t, "gemini-2.5-flash-image", gemini.submits[0].Model)
+	})
+
+	t.Run("policy is reloaded immediately before provider submit", func(t *testing.T) {
+		svc, _, _, gemini, _ := newTestBatchImagePublicService(true)
+		groupID := int64(7)
+		initial := enabledBatchImageTestGroup(groupID)
+		updated := enabledBatchImageTestGroup(groupID, "gemini-2.5-flash-image")
+		// Submit 会分别读取入口策略、计价快照和上游提交前的最新策略。
+		svc.GroupRepo = &publicBatchImageGroupRepo{sequence: []*Group{initial, initial, updated}}
+		accountRepo := svc.AccountRepo.(*publicBatchImageAccountRepo)
+		accountRepo.accounts = []Account{testBatchImageMappedAccount(101, AccountTypeAPIKey, map[string]any{
+			"gemini-2.5-flash-image": "gemini-2.5-flash-image",
+		})}
+
+		_, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), "")
+
+		require.True(t, IsGroupModelBlockedError(err))
+		require.Empty(t, gemini.submits)
+	})
+
 	t.Run("generates custom ids deterministically", func(t *testing.T) {
 		svc, _, _, gemini, _ := newTestBatchImagePublicService(true)
 		req := validBatchImageSubmitRequest()
@@ -554,6 +612,23 @@ func TestBatchImagePublicService_ListModels(t *testing.T) {
 			Object:   "image.batch.model",
 			Provider: BatchImageProviderVertex,
 		}}, got.Data)
+	})
+
+	t.Run("hides a public model when every account maps it to a blocked target", func(t *testing.T) {
+		svc, _, _, _, _ := newTestBatchImagePublicService(true)
+		groupID := int64(7)
+		svc.GroupRepo = &publicBatchImageGroupRepo{groups: map[int64]*Group{
+			groupID: enabledBatchImageTestGroup(groupID, "gemini-3.1-flash-lite-image"),
+		}}
+		accountRepo := svc.AccountRepo.(*publicBatchImageAccountRepo)
+		accountRepo.accounts = []Account{testBatchImageMappedAccount(303, AccountTypeAPIKey, map[string]any{
+			"gemini-2.5-flash-image": "gemini-3.1-flash-lite-image",
+		})}
+
+		got, err := svc.ListModels(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID})
+
+		require.NoError(t, err)
+		require.Empty(t, got.Data)
 	})
 
 	t.Run("expands wildcard mappings against batch image candidates", func(t *testing.T) {
@@ -987,16 +1062,32 @@ var _ BatchImageQueue = (*publicBatchImageQueue)(nil)
 var _ BatchImageProvider = (*publicBatchImageProvider)(nil)
 
 type publicBatchImageGroupRepo struct {
-	groups map[int64]*Group
+	groups   map[int64]*Group
+	sequence []*Group
+	calls    int
 }
 
 func (r *publicBatchImageGroupRepo) GetByIDLite(_ context.Context, id int64) (*Group, error) {
+	if r != nil && r.calls < len(r.sequence) {
+		group := r.sequence[r.calls]
+		r.calls++
+		return group, nil
+	}
 	if r != nil && r.groups != nil {
 		if group, ok := r.groups[id]; ok {
 			return group, nil
 		}
 	}
 	return nil, ErrGroupNotFound
+}
+
+func enabledBatchImageTestGroup(id int64, blockedModels ...string) *Group {
+	return &Group{
+		ID: id, Platform: PlatformGemini, RateMultiplier: 1,
+		AllowImageGeneration: true, AllowBatchImageGeneration: true,
+		BatchImageDiscountMultiplier: 0.5, BatchImageHoldMultiplier: 0.6,
+		ModelsListConfig: GroupModelsListConfig{BlockedModels: blockedModels},
+	}
 }
 
 type publicBatchImageUserGroupRateRepo struct {

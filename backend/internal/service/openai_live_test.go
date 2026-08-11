@@ -94,6 +94,28 @@ func TestValidateLiveCallRequestDoesNotRequireDelegation(t *testing.T) {
 	require.NotContains(t, string(request.Session), "delegation")
 }
 
+func TestCreateUpstreamLiveCallRejectsBlockedMappedModelBeforeNetwork(t *testing.T) {
+	upstream := &liveHTTPUpstreamStub{}
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+	account := &Account{
+		ID: 7, Platform: PlatformOpenAI, Type: AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token":  "test-access-token",
+			"model_mapping": map[string]any{"live-alias": "gpt-5.4-mini"},
+		},
+	}
+	ctx := WithCurrentGroupModelAccess(context.Background(), &Group{ModelsListConfig: GroupModelsListConfig{
+		BlockedModels: []string{"gpt-5.4-mini"},
+	}})
+
+	_, err := svc.createUpstreamLiveCall(ctx, account, &LiveCallRequest{
+		SDP: "v=offer\r\n", Session: json.RawMessage(`{"model":"live-alias"}`),
+	}, "")
+
+	require.True(t, IsGroupModelBlockedError(err))
+	require.Nil(t, upstream.request)
+}
+
 func TestCreateUpstreamLiveCallPreservesSession(t *testing.T) {
 	upstream := &liveHTTPUpstreamStub{}
 	service := &OpenAIGatewayService{

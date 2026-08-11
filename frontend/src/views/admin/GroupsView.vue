@@ -862,6 +862,14 @@
           </div>
         </div>
 
+        <GroupModelBlocklistField
+          :items="createModelsListState.items"
+          :loading="createModelsListLoading"
+          @toggle="toggleModelsBlocklistItem(createModelsListState, $event)"
+          @block-all="blockAllModelsListItems(createModelsListState)"
+          @invert="invertModelsBlocklistSelection(createModelsListState)"
+        />
+
         <!-- 图片生成计费配置 -->
         <div
           v-if="supportsImagePricingPlatform(createForm.platform)"
@@ -2569,6 +2577,14 @@
             </div>
           </div>
         </div>
+
+        <GroupModelBlocklistField
+          :items="editModelsListState.items"
+          :loading="editModelsListLoading"
+          @toggle="toggleModelsBlocklistItem(editModelsListState, $event)"
+          @block-all="blockAllModelsListItems(editModelsListState)"
+          @invert="invertModelsBlocklistSelection(editModelsListState)"
+        />
 
         <!-- 图片生成计费配置 -->
         <div
@@ -4380,6 +4396,7 @@ import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesMo
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
 import GroupMinimumBalanceField from "@/custom/group-access/GroupMinimumBalanceField.vue";
+import GroupModelBlocklistField from "@/custom/group-model-access/GroupModelBlocklistField.vue";
 import {
   minimumBalanceFormValue,
   normalizeMinimumBalanceFormValue,
@@ -4398,11 +4415,14 @@ import {
 } from "./groupsMessagesDispatch";
 import {
   buildModelsListConfig,
+  blockAllModelsListItems,
   createModelsListState as createInitialModelsListState,
+  invertModelsBlocklistSelection,
   invertModelsListSelection,
   moveModelsListItem,
   selectAllModelsListItems,
   setModelsListCandidates,
+  toggleModelsBlocklistItem,
 } from "./groupsModelsList";
 import { createModelsListCandidatesTracker } from "./groupsModelsListCandidates";
 import { normalizeSupportedModelScopesForPlatform } from "./groupsSupportedModelScopes";
@@ -5184,6 +5204,7 @@ const resetModelsListState = (
   const fresh = createInitialModelsListState(config);
   state.enabled = fresh.enabled;
   state.savedModels = fresh.savedModels;
+  state.savedBlockedModels = fresh.savedBlockedModels;
   state.items = fresh.items;
 };
 

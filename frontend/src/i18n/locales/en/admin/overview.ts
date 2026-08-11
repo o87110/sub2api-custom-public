@@ -1040,6 +1040,10 @@ export default {
       modelsList: {
         title: 'Custom /v1/models Model List',
         hint: 'Only changes the /v1/models response. Whitelist model calls and account routing are unchanged.',
+        blocklistTitle: 'Model Call Blocklist',
+        blocklistHint: 'No models are blocked by default. Selected models are denied for direct and final mapped calls and hidden from model lists.',
+        blockedSummary: '{blocked} / {total} models blocked',
+        blockAll: 'Block all',
         loading: 'Loading model list...',
         empty: 'No displayable models',
         selectedSummary: 'Selected {selected} / {total}',

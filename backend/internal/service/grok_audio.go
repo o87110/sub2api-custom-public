@@ -47,6 +47,15 @@ func (s *OpenAIGatewayService) ForwardGrokVoice(ctx context.Context, c *gin.Cont
 			return nil, fmt.Errorf("unsupported grok voice endpoint: %s", endpoint)
 		}
 	}
+	if requestedModel := strings.TrimSpace(gjson.GetBytes(body, "model").String()); requestedModel != "" {
+		upstreamModel := strings.TrimSpace(account.GetMappedModel(requestedModel))
+		if upstreamModel == "" {
+			upstreamModel = requestedModel
+		}
+		if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {
+			return nil, err
+		}
+	}
 	for _, part := range parts[1:] {
 		if part == "" || part == "." || part == ".." || strings.ContainsAny(part, "?#\\") {
 			return nil, fmt.Errorf("invalid grok voice endpoint path")
@@ -124,6 +133,10 @@ func (s *OpenAIGatewayService) ProxyGrokRealtime(ctx context.Context, c *gin.Con
 	if account.Platform != PlatformGrok {
 		return fmt.Errorf("account platform %s is not supported for grok realtime", account.Platform)
 	}
+	model = firstNonEmpty(strings.TrimSpace(account.GetMappedModel(model)), model, "grok-voice-latest")
+	if err := enforceResolvedModelAccess(ctx, c, model); err != nil {
+		return err
+	}
 	base, err := buildGrokVoiceURL(account, s.cfg, "realtime")
 	if err != nil {
 		return err
@@ -133,7 +146,7 @@ func (s *OpenAIGatewayService) ProxyGrokRealtime(ctx context.Context, c *gin.Con
 		return err
 	}
 	u.Scheme = "wss"
-	u.RawQuery = "model=" + url.QueryEscape(firstNonEmpty(model, "grok-voice-latest"))
+	u.RawQuery = "model=" + url.QueryEscape(model)
 	headers := http.Header{"Authorization": []string{"Bearer " + token}}
 	// Match media/voice HTTP: CLI headers only on CLI proxy hosts.
 	if account.IsGrokOAuth() && isGrokCLIProxyTarget(u.String()) {

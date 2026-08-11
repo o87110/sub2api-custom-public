@@ -20,6 +20,7 @@ import (
 	"unsafe"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupmodelaccess"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
@@ -561,6 +562,9 @@ type AccountSelectionResult struct {
 	Acquired    bool
 	ReleaseFunc func()
 	WaitPlan    *AccountWaitPlan // nil means no wait allowed
+	// modelAccessPolicy carries the authenticated and effective fallback group
+	// policy out of the scheduler's local context for the final upstream guard.
+	modelAccessPolicy groupmodelaccess.Policy
 	// profitGate 携带本次选号真实生效的利润门（无门为 nil）。门安装在调度栈的
 	// 局部 ctx 上，handler 必须经 ContextWithSelectionProfitGate 重放后才能在
 	// 调度栈之外做抢槽后终检与准入后粘性绑定。

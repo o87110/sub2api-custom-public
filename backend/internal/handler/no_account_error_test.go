@@ -115,6 +115,23 @@ func TestClassifyNoAccountError_ModelNotSupported_Returns404(t *testing.T) {
 	require.Equal(t, int64(42), *fd.calls[0].GroupID)
 }
 
+func TestClassifyNoAccountError_AllPathsPolicyBlockedReturnsLocalPolicy404(t *testing.T) {
+	c := newTestGinContextWithRequest()
+	fd := &fakeDiagnoser{resp: service.ModelAvailabilityDiagnosis{
+		HasAccountsInPool: true,
+		HasModelSupport:   false,
+		PolicyBlocked:     true,
+	}}
+	apiKey := &service.APIKey{GroupID: ptrInt64(42)}
+
+	cls := classifyNoAccountErrorFromGin(c, fd, apiKey, "public-model", "public-model", service.PlatformOpenAI)
+
+	require.Equal(t, http.StatusNotFound, cls.Status)
+	require.Equal(t, "model_not_found", cls.ErrType)
+	require.True(t, cls.ModelNotFound)
+	require.True(t, cls.LocalPolicyDenied)
+}
+
 func TestClassifyOpenAICompatibleNoAccountError_GrokUsesGrokPlatform(t *testing.T) {
 	c := newTestGinContextWithRequest()
 	fd := &fakeDiagnoser{resp: service.ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: false}}

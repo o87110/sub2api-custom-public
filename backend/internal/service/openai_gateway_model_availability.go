@@ -61,7 +61,12 @@ func (s *OpenAIGatewayService) DiagnoseModelAvailabilityForPlatform(
 		// model_mapping accepts everything; otherwise the explicit / wildcard
 		// mapping must match.
 		if accounts[i].IsModelSupported(requestedModel) {
+			if modelAccessBlocksOpenAIAccount(ctx, &accounts[i], requestedModel, false) {
+				diag.PolicyBlocked = true
+				continue
+			}
 			diag.HasModelSupport = true
+			diag.PolicyBlocked = false
 			return diag
 		}
 	}

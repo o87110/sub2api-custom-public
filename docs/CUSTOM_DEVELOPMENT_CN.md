@@ -46,6 +46,7 @@ Issue 和生产资料不迁移。
 backend/internal/custom/
 ├── databaseboundary/       数据库与迁移边界检查
 ├── groupaccess/            分组最低余额资格协调、fallback、熔断与错误
+├── groupmodelaccess/       分组模型调用黑名单、原始/最终模型检查与协议错误
 ├── moderation/             内容审计范围隔离与摘要
 ├── paymentchannels/        支付渠道目录、订单/恢复策略、实例复核与个性化配置
 ├── subscriptioninventory/  订阅套餐库存预占、释放、消费与售罄策略
@@ -54,6 +55,7 @@ backend/internal/custom/
 frontend/src/custom/
 ├── api-keys/               API 密钥当前页批量分组、启用、禁用与删除
 ├── group-access/           分组最低余额表单、禁用状态、问号说明浮层与错误提示
+├── group-model-access/     分组模型调用黑名单表单
 ├── moderation/             风控二改页面与文案
 ├── payment-channels/       支付定价、渠道重选、恢复/备用提示、后台配置与选择器
 ├── subscription-plan-inventory/ 套餐库存/售罄策略输入、校验、状态展示与购买保护

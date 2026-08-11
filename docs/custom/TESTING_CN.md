@@ -373,7 +373,26 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
   Ent 二次生成无漂移、数据库语义指纹和 Candidate Tree 边界检查。PostgreSQL 集成用例
   不具备本地数据库时只做带标签编译，并交由 Linux CI 执行。
 
-## 14. 同机演练
+## 14. 分组模型调用双重黑名单
+
+- 新建分组、旧分组和缺少 `blocked_models` 的鉴权快照默认不禁用任何模型；配置归一化
+  去空、去重并保持精确匹配；
+- 禁用 Luna 时 Sol/Terra 继续可用，`gpt-5.6` 仍按既有规则规范化到 Sol；直接请求
+  GPT-5.4 Mini 及 Haiku 映射到 Mini 均返回 404；
+- 一个账号映射到禁用模型时跳过并选择另一条允许路径，全部账号路径被排除时返回
+  `model_not_found` 而非 503；透传、渠道映射、复合路由和 fallback 分组均不能绕过；
+- JSON、`session.model`、multipart、query 和 Gemini 路径模型解析后请求体保持原样，
+  OpenAI、Anthropic、Google 三种 404 结构分别断言；
+- Messages/count_tokens、Responses、Chat Completions、Embeddings、搜索、图片同步/异步/
+  批量、视频、Live/Realtime、语音、WebSocket、Gemini、Antigravity 与 Bedrock 的最终
+  出网模型守卫有定向覆盖；异步和批量任务执行前重载最新策略；
+- 普通、Codex、Gemini 和批量图片模型列表验证直接禁用及“所有映射路径均禁用”隐藏，
+  同时保留仍有允许最终路径的公开模型；
+- 管理端覆盖新建默认值、编辑回读、独立提交载荷、候选消失后的保留、全选/反选以及
+  分组复制；候选聚合覆盖默认、账号、Messages、复合路由和渠道来源；
+- 鉴权缓存 JSON 往返保留黑名单，v19 快照被淘汰；数据库边界检查必须确认无结构变化。
+
+## 15. 同机演练
 
 - 使用独立 PostgreSQL、Redis、数据目录、runtime 和端口；
 - 默认只绑定 `127.0.0.1`；
@@ -383,7 +402,7 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
 - 匿名 Release 更新、升级和回退正常；
 - `docker compose down -v` 不作为普通清理步骤。
 
-## 15. 验收记录
+## 16. 验收记录
 
 ```markdown
 # vX.Y.Z-custom.N 验收

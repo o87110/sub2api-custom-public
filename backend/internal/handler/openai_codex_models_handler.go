@@ -39,6 +39,12 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 	failedAccountIDs := make(map[int64]struct{})
 	switchCount := 0
 	var lastUpstreamErr error
+	filterManifest := apiKey.Group.CustomModelsListEnabled() || len(apiKey.Group.ModelsListConfig.BlockedModels) > 0
+	ifNoneMatch := c.GetHeader("If-None-Match")
+	if filterManifest {
+		// The upstream ETag does not include local group policy changes.
+		ifNoneMatch = ""
+	}
 
 	for {
 		account, err := h.gatewayService.SelectAccountForModelWithExclusions(c.Request.Context(), apiKey.GroupID, "", "", failedAccountIDs)
@@ -56,7 +62,7 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 		// 让 ops 错误日志携带实际选中的上游账号，便于定位失效账号（#4544）。
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		manifest, err := h.gatewayService.FetchCodexModelsManifest(c.Request.Context(), account, c.Query("client_version"), c.GetHeader("If-None-Match"))
+		manifest, err := h.gatewayService.FetchCodexModelsManifest(c.Request.Context(), account, c.Query("client_version"), ifNoneMatch)
 		if err != nil {
 			if c.Request.Context().Err() != nil {
 				return
@@ -74,12 +80,30 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 			return
 		}
 
-		if manifest.ETag != "" {
-			c.Header("ETag", manifest.ETag)
-		}
 		if manifest.NotModified {
+			if manifest.ETag != "" {
+				c.Header("ETag", manifest.ETag)
+			}
 			c.Status(http.StatusNotModified)
 			return
+		}
+		filteredBody, changed, filterErr := service.FilterCodexModelsManifest(
+			c.Request.Context(),
+			account,
+			manifest.Body,
+			apiKey.Group.ModelsListConfig.Models,
+			apiKey.Group.CustomModelsListEnabled(),
+		)
+		if filterErr != nil {
+			h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Invalid models manifest")
+			return
+		}
+		if changed {
+			manifest.Body = filteredBody
+			manifest.ETag = ""
+		}
+		if manifest.ETag != "" {
+			c.Header("ETag", manifest.ETag)
 		}
 		c.Data(http.StatusOK, "application/json", manifest.Body)
 		return

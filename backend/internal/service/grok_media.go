@@ -647,6 +647,11 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 			}
 		}
 	}
+	if endpoint.RequiresRequestBody() {
+		if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {
+			return nil, err
+		}
+	}
 	body, contentType, err = sanitizeGrokMediaForwardBody(endpoint, body, contentType)
 	if err != nil {
 		return nil, err

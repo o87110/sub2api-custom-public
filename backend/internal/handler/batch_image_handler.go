@@ -288,6 +288,15 @@ func batchImageOwnerFromContext(c *gin.Context) (service.BatchImageOwner, bool) 
 }
 
 func batchImageError(c *gin.Context, err error) {
+	if service.IsGroupModelBlockedError(err) {
+		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+		model := service.GroupModelBlockedModel(err)
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{
+			"type": "invalid_request_error", "code": "model_not_found", "param": "model",
+			"message": "The model \"" + model + "\" does not exist or is not available for this group",
+		}})
+		return
+	}
 	status := infraerrors.Code(err)
 	code := infraerrors.Reason(err)
 	message := infraerrors.Message(err)

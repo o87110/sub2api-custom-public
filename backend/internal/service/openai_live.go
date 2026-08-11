@@ -119,6 +119,17 @@ func ValidateLiveCallRequest(request *LiveCallRequest) error {
 	return nil
 }
 
+func liveRequestModel(request *LiveCallRequest) string {
+	if request == nil {
+		return ""
+	}
+	model := strings.TrimSpace(gjson.GetBytes(request.Session, "model").String())
+	if model == "" {
+		return "gpt-live"
+	}
+	return model
+}
+
 // CreateLiveCall 创建 Frameless 会话。调用方须在调用期间持有普通用户槽位；
 // 调度器持有的普通账号槽位会被同一个 Live 租约原子接替。
 func (s *OpenAIGatewayService) CreateLiveCall(
@@ -128,6 +139,10 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 	userMaxConcurrency int,
 ) (*LiveCallCreated, error) {
 	if err := ValidateLiveCallRequest(request); err != nil {
+		return nil, err
+	}
+	requestedModel := liveRequestModel(request)
+	if err := CheckGroupModelAccess(ctx, requestedModel); err != nil {
 		return nil, err
 	}
 	store, err := s.liveStore()
@@ -152,7 +167,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		selection, _, selectErr := s.SelectAccountWithSchedulerForCapability(
 			ctx,
 			identity.GroupID,
-			"",
+			requestedModel,
 			uuid.NewString(),
 			"",
 			excluded,
@@ -176,6 +191,14 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		}
 
 		account := selection.Account
+		if accessErr := CheckOpenAIAccountModelAccess(ctx, account, requestedModel, false); accessErr != nil {
+			if selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			excluded[account.ID] = struct{}{}
+			lastErr = accessErr
+			continue
+		}
 		leaseID := generateRequestID()
 		acquired, acquireErr := liveCache.AcquireLiveLease(
 			ctx,
@@ -208,10 +231,6 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		}
 
 		now := time.Now()
-		model := strings.TrimSpace(gjson.GetBytes(request.Session, "model").String())
-		if model == "" {
-			model = "gpt-live"
-		}
 		record := &LiveCallRecord{
 			CallID:                created.CallID,
 			CallHash:              hashLiveCallID(created.CallID),
@@ -221,7 +240,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 			GroupID:               liveGroupID(identity.GroupID),
 			SubscriptionID:        liveGroupID(identity.SubscriptionID),
 			LeaseID:               leaseID,
-			Model:                 model,
+			Model:                 requestedModel,
 			CreatedAt:             now,
 			ExpiresAt:             now.Add(s.liveMaxSessionDuration()),
 			Controller:            LiveControllerPending,
@@ -264,17 +283,26 @@ func (s *OpenAIGatewayService) createUpstreamLiveCall(
 	request *LiveCallRequest,
 	attestation string,
 ) (*LiveCallCreated, error) {
+	requestedModel := liveRequestModel(request)
+	upstreamModel := resolveOpenAIAccountModelForAccess(ctx, account, requestedModel, false)
+	if err := enforceResolvedModelAccess(ctx, nil, upstreamModel); err != nil {
+		return nil, err
+	}
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		logLiveCreateStageFailure(ctx, account.ID, "access_token", err)
 		return nil, err
+	}
+	session := request.Session
+	if strings.TrimSpace(gjson.GetBytes(request.Session, "model").String()) != "" && upstreamModel != requestedModel {
+		session = s.ReplaceModelInBody(request.Session, upstreamModel)
 	}
 	body, err := json.Marshal(struct {
 		SDP     string          `json:"sdp"`
 		Session json.RawMessage `json:"session"`
 	}{
 		SDP:     request.SDP,
-		Session: request.Session,
+		Session: session,
 	})
 	if err != nil {
 		return nil, err

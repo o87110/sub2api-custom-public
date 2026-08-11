@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-114}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-163}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 114 ]]; then
+if [[ "$expected_count" -eq 163 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -62,10 +62,10 @@ if [[ "$expected_count" -eq 114 ]]; then
   assert_mapping $'frontend/src/views/user/KeysView.vue\tfrontend/src/custom/api-keys/ApiKeyBulkActions.vue|frontend/src/custom/api-keys/bulkActions.ts|frontend/src/custom/group-access/GroupBalanceWarning.vue|frontend/src/custom/group-access/minimumBalance.ts'
   assert_mapping $'frontend/src/views/user/__tests__/KeysView.spec.ts\tfrontend/src/custom/api-keys/__tests__/ApiKeyBulkActions.spec.ts|frontend/src/custom/api-keys/__tests__/bulkActions.spec.ts|frontend/src/custom/group-access/__tests__/GroupBalanceWarning.spec.ts|frontend/src/custom/group-access/__tests__/minimumBalance.spec.ts'
   assert_mapping $'backend/internal/handler/api_key_handler.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
-  assert_mapping $'backend/internal/handler/gateway_handler.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
-  assert_mapping $'backend/internal/service/admin_group.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
+  assert_mapping $'backend/internal/handler/gateway_handler.go\tbackend/internal/custom/groupaccess/minimum_balance.go|backend/internal/custom/groupmodelaccess/policy.go'
+  assert_mapping $'backend/internal/service/admin_group.go\tbackend/internal/custom/groupaccess/minimum_balance.go|backend/internal/custom/groupmodelaccess/policy.go'
   assert_mapping $'backend/internal/service/api_key_service.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
-  assert_mapping $'backend/internal/service/batch_image_public.go\tbackend/internal/custom/groupaccess/minimum_balance.go'
+  assert_mapping $'backend/internal/service/batch_image_public.go\tbackend/internal/custom/groupaccess/minimum_balance.go|backend/internal/custom/groupmodelaccess/policy.go'
   assert_mapping $'backend/internal/service/billing_cache_service.go\tbackend/internal/custom/groupaccess/minimum_balance.go|backend/internal/custom/groupaccess/eligibility.go'
   assert_mapping $'frontend/src/i18n/locales/en/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
   assert_mapping $'frontend/src/i18n/locales/zh/dashboard.ts\tfrontend/src/custom/api-keys/i18n.ts'
@@ -125,14 +125,22 @@ if [[ "$expected_count" -eq 114 ]]; then
   assert_mapping $'backend/cmd/server/wire.go\tbackend/internal/custom/channelmonitor/wire.go|backend/internal/custom/moderation/wire.go|backend/internal/custom/subscriptionrepository/repository.go|backend/internal/custom/updater/wire.go'
   assert_mapping $'backend/internal/handler/admin/system_handler.go\tbackend/internal/custom/updater/service.go'
   assert_mapping $'backend/internal/handler/admin/system_handler_test.go\tbackend/internal/custom/updater/service_test.go'
-  assert_mapping $'backend/internal/handler/openai_gateway_handler.go\tbackend/internal/custom/moderation/cyber_policy.go'
+  assert_mapping $'backend/internal/handler/openai_gateway_handler.go\tbackend/internal/custom/moderation/cyber_policy.go|backend/internal/custom/groupmodelaccess/policy.go'
   assert_mapping $'backend/internal/handler/wire.go\tbackend/internal/custom/updater/wire.go|backend/internal/custom/subscriptionbulkreset/service.go'
   assert_mapping $'backend/internal/server/routes/admin.go\tbackend/internal/custom/subscriptionbulkreset/service.go'
   assert_mapping $'frontend/src/api/admin/subscriptions.ts\tfrontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue|frontend/src/custom/subscription-quota/ManualBulkResetEligibilityAction.vue|frontend/src/custom/subscription-quota/bulkReset.ts'
   assert_mapping $'frontend/src/types/payment.ts\tfrontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/subscription-plan-inventory/inventory.ts|frontend/src/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue'
   assert_mapping $'frontend/src/components/layout/AppSidebar.vue\tfrontend/src/custom/updater/components/VersionBadge.vue'
   assert_mapping $'frontend/src/router/index.ts\tfrontend/src/custom/moderation/views/RiskControlView.vue'
-  assert_mapping $'frontend/src/views/admin/GroupsView.vue\tfrontend/src/custom/group-access/GroupMinimumBalanceField.vue|frontend/src/custom/group-access/minimumBalance.ts'
+  assert_mapping $'frontend/src/views/admin/GroupsView.vue\tfrontend/src/custom/group-access/GroupMinimumBalanceField.vue|frontend/src/custom/group-access/minimumBalance.ts|frontend/src/custom/group-model-access/GroupModelBlocklistField.vue|frontend/src/custom/group-model-access/blocklist.ts'
+  assert_mapping $'backend/internal/handler/gateway_helper.go\tbackend/internal/custom/groupmodelaccess/policy.go'
+  assert_mapping $'backend/internal/server/middleware/api_key_auth.go\tbackend/internal/custom/groupmodelaccess/policy.go'
+  assert_mapping $'backend/internal/server/routes/gateway.go\tbackend/internal/custom/groupmodelaccess/policy.go'
+  assert_mapping $'backend/internal/service/gateway_model_availability.go\tbackend/internal/custom/groupmodelaccess/policy.go'
+  assert_mapping $'backend/internal/service/gateway_scheduling.go\tbackend/internal/custom/groupmodelaccess/policy.go'
+  assert_mapping $'backend/internal/service/openai_gateway_scheduling.go\tbackend/internal/custom/groupmodelaccess/policy.go'
+  assert_mapping $'backend/internal/service/openai_gateway_forward.go\tbackend/internal/custom/groupmodelaccess/policy.go'
+  assert_mapping $'frontend/src/views/admin/groupsModelsList.ts\tfrontend/src/custom/group-model-access/blocklist.ts'
 fi
 
 validate_relative_path() {
@@ -144,6 +152,12 @@ validate_relative_path() {
       fail "$kind path must be a normalized repository-relative path: $path"
       ;;
   esac
+}
+
+source_path_exists_at_ref() {
+  local ref="$1"
+  local path="$2"
+  [[ "$(git -C "$repo_root" ls-tree --name-only "$ref" -- "$path")" == "$path" ]]
 }
 
 while IFS=$'\t' read -r source_field target_field; do
@@ -182,11 +196,11 @@ while IFS=$'\t' read -r source_field target_field; do
     validate_relative_path source "$source"
     real_source_count=$((real_source_count + 1))
     printf '%s\n' "$source" >> "$sources"
-    if git -C "$repo_root" cat-file -e "${base_ref}:${source}" 2>/dev/null; then
+    if source_path_exists_at_ref "$base_ref" "$source"; then
       source_in_base=true
     fi
     if [[ -n "$next_ref" ]]; then
-      if git -C "$repo_root" cat-file -e "${next_ref}:${source}" 2>/dev/null; then
+      if source_path_exists_at_ref "$next_ref" "$source"; then
         source_in_next=true
       fi
     fi
@@ -470,6 +484,55 @@ frontend/src/views/user/__tests__/paymentWechatResume.spec.ts
 frontend/src/views/user/paymentWechatResume.ts
 frontend/src/router/index.ts
 frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue
+backend/internal/handler/batch_image_handler.go
+backend/internal/handler/gateway_handler_chat_completions.go
+backend/internal/handler/gateway_handler_responses.go
+backend/internal/handler/gateway_helper.go
+backend/internal/handler/gemini_v1beta_handler.go
+backend/internal/handler/image_task_handler.go
+backend/internal/handler/no_account_error.go
+backend/internal/handler/openai_alpha_search.go
+backend/internal/handler/openai_chat_completions.go
+backend/internal/handler/openai_codex_models_handler.go
+backend/internal/handler/openai_embeddings.go
+backend/internal/handler/openai_gateway_count_tokens.go
+backend/internal/handler/openai_images.go
+backend/internal/handler/openai_live.go
+backend/internal/server/middleware/api_key_auth_google.go
+backend/internal/server/middleware/api_key_auth.go
+backend/internal/server/routes/gateway.go
+backend/internal/service/antigravity_gateway_claude.go
+backend/internal/service/antigravity_gateway_compat.go
+backend/internal/service/antigravity_gateway_gemini.go
+backend/internal/service/antigravity_gateway_upstream.go
+backend/internal/service/gateway_bedrock.go
+backend/internal/service/gateway_count_tokens.go
+backend/internal/service/gateway_forward_as_chat_completions.go
+backend/internal/service/gateway_forward_as_responses.go
+backend/internal/service/gateway_forward.go
+backend/internal/service/gateway_model_availability.go
+backend/internal/service/gateway_scheduling.go
+backend/internal/service/gateway_service.go
+backend/internal/service/gemini_chat_completions_compat_service.go
+backend/internal/service/gemini_messages_compat_service.go
+backend/internal/service/grok_audio.go
+backend/internal/service/grok_media.go
+backend/internal/service/group_models_list.go
+backend/internal/service/openai_alpha_search.go
+backend/internal/service/openai_embeddings.go
+backend/internal/service/openai_gateway_chat_completions_raw.go
+backend/internal/service/openai_gateway_chat_completions.go
+backend/internal/service/openai_gateway_count_tokens.go
+backend/internal/service/openai_gateway_forward.go
+backend/internal/service/openai_gateway_grok.go
+backend/internal/service/openai_gateway_messages_chat_fallback.go
+backend/internal/service/openai_gateway_messages.go
+backend/internal/service/openai_gateway_model_availability.go
+backend/internal/service/openai_gateway_scheduling.go
+backend/internal/service/openai_images_responses.go
+backend/internal/service/openai_images.go
+backend/internal/service/openai_live.go
+frontend/src/views/admin/groupsModelsList.ts
 backend/internal/service/not_content_moderation_companion.go
 unmapped/fixture-must-not-match.txt
 EOF

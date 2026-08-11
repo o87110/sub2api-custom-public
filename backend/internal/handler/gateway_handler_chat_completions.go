@@ -98,6 +98,9 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+	if !bindGroupModelAccessChannelMapping(c, channelMapping) {
+		return
+	}
 
 	// Claude Code only restriction
 	if apiKey.Group != nil && apiKey.Group.ClaudeCodeOnly {
@@ -199,6 +202,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 				return
 			}
 		}
+		c.Request = c.Request.WithContext(service.ContextWithSelectionGroupModelAccess(c.Request.Context(), selection))
 		account := selection.Account
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
@@ -363,12 +367,12 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 
 // chatCompletionsErrorResponse writes an error in OpenAI Chat Completions format.
 func (h *GatewayHandler) chatCompletionsErrorResponse(c *gin.Context, status int, errType, message string) {
-	c.JSON(status, gin.H{
-		"error": gin.H{
-			"type":    errType,
-			"message": message,
-		},
-	})
+	errorBody := gin.H{"type": errType, "message": message}
+	if status == http.StatusNotFound && errType == "model_not_found" {
+		errorBody["code"] = "model_not_found"
+		errorBody["param"] = "model"
+	}
+	c.JSON(status, gin.H{"error": errorBody})
 }
 
 // handleCCFailoverExhausted writes a failover-exhausted error in CC format.

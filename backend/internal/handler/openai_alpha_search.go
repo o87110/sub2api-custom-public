@@ -84,6 +84,9 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 	}
 
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, requestedModel)
+	if !bindGroupModelAccessChannelMapping(c, channelMapping) {
+		return
+	}
 	forwardBody := openAIModelMappedBody(body, channelMapping.Mapped, channelMapping.MappedModel, h.gatewayService.ReplaceModelInBody)
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())

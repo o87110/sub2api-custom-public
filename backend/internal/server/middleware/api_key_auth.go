@@ -184,6 +184,9 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			if !billingInfoRequest {
 				_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 			}
+			if !bindAndEnforceGroupModelAccess(c, apiKey) {
+				return
+			}
 			c.Next()
 			return
 		}
@@ -281,6 +284,9 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		setGroupContext(c, apiKey.Group)
 		if !billingInfoRequest {
 			_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
+		}
+		if !bindAndEnforceGroupModelAccess(c, apiKey) {
+			return
 		}
 
 		c.Next()

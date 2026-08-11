@@ -102,6 +102,10 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(requestCtx, apiKey.GroupID, reqModel)
+	if !bindGroupModelAccessChannelMapping(c, channelMapping) {
+		return
+	}
+	requestCtx = c.Request.Context()
 
 	// Claude Code only restriction:
 	// /v1/responses is never a Claude Code endpoint.
@@ -201,6 +205,8 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				return
 			}
 		}
+		requestCtx = service.ContextWithSelectionGroupModelAccess(requestCtx, selection)
+		c.Request = c.Request.WithContext(requestCtx)
 		account := selection.Account
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 

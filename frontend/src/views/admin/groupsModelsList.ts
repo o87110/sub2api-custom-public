@@ -1,14 +1,32 @@
+import {
+  blockedModelsForCandidates,
+  blockAllModelsListItems,
+  buildBlockedModelsPayload,
+  type GroupModelBlocklistItem,
+  type GroupModelBlocklistState,
+  includeSavedBlockedModels,
+  invertModelsBlocklistSelection,
+  normalizeBlockedModels,
+  toggleModelsBlocklistItem,
+} from "@/custom/group-model-access/blocklist"
+
+export {
+  blockAllModelsListItems,
+  invertModelsBlocklistSelection,
+  toggleModelsBlocklistItem,
+}
+
 export interface ModelsListConfig {
   enabled: boolean
   models: string[]
+  blocked_models: string[]
 }
 
-export interface ModelsListItem {
-  id: string
+export interface ModelsListItem extends GroupModelBlocklistItem {
   selected: boolean
 }
 
-export interface ModelsListState {
+export interface ModelsListState extends GroupModelBlocklistState {
   enabled: boolean
   savedModels: string[]
   items: ModelsListItem[]
@@ -19,6 +37,7 @@ export const createModelsListState = (
 ): ModelsListState => ({
   enabled: config?.enabled ?? false,
   savedModels: normalizeModels(config?.models ?? []),
+  savedBlockedModels: normalizeBlockedModels(config?.blocked_models ?? []),
   items: [],
 })
 
@@ -42,11 +61,12 @@ export const setModelsListCandidates = (
   const currentKnown = new Set(state.items.map(item => item.id))
   const savedSelected = new Set(state.savedModels)
   const hasExistingItems = state.items.length > 0
-  const selectionOrder = normalizeModels([
+  const blockedModels = blockedModelsForCandidates(state, hasExistingItems)
+  const selectionOrder = includeSavedBlockedModels(normalizeModels([
     ...state.items.map(item => item.id),
     ...state.savedModels,
     ...normalizedCandidates,
-  ])
+  ]), state.savedBlockedModels)
 
   state.items = selectionOrder.map(id => {
     const selected = hasExistingItems
@@ -58,6 +78,7 @@ export const setModelsListCandidates = (
     return {
       id,
       selected: selected && (currentKnown.has(id) || savedSelected.has(id) || state.savedModels.length === 0),
+      blocked: blockedModels.has(id),
     }
   })
 }
@@ -104,6 +125,7 @@ export const buildModelsListConfig = (state: ModelsListState): ModelsListConfig 
   models: state.items.length > 0
     ? state.items.filter(item => item.selected).map(item => item.id)
     : [...state.savedModels],
+  blocked_models: buildBlockedModelsPayload(state),
 })
 
 const normalizeModels = (models: string[]): string[] => {

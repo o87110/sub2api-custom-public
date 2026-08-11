@@ -22,6 +22,11 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		s.countTokensError(c, http.StatusBadRequest, "invalid_request_error", "Request body is empty")
 		return fmt.Errorf("parse request: empty request")
 	}
+	if model := resolveGatewayAccountModelForAccess(ctx, account, parsed.Model); model != "" {
+		if err := enforceResolvedModelAccess(ctx, c, model); err != nil {
+			return err
+		}
+	}
 
 	if account != nil && account.IsAnthropicAPIKeyPassthroughEnabled() {
 		passthroughBody := parsed.Body.Bytes()

@@ -177,44 +177,65 @@ blob_at() {
 
 thin_bridge_allowed() {
   case "$1" in
-    backend/cmd/server/wire.go | \
+      backend/cmd/server/wire.go | \
+      backend/internal/domain/models_list_config.go | \
+      backend/internal/handler/admin/channel_monitor_handler.go | \
       backend/internal/handler/admin/content_moderation_handler.go | \
       backend/internal/handler/admin/group_handler.go | \
-      backend/internal/handler/admin/payment_handler.go | \
       backend/internal/handler/admin/payment_handler_test.go | \
-      backend/internal/handler/admin/channel_monitor_handler.go | \
-      backend/internal/handler/admin/setting_handler.go | \
+      backend/internal/handler/admin/payment_handler.go | \
       backend/internal/handler/admin/setting_handler_update.go | \
+      backend/internal/handler/admin/setting_handler.go | \
       backend/internal/handler/admin/subscription_handler.go | \
-      backend/internal/handler/auth_wechat_oauth.go | \
-      backend/internal/handler/auth_wechat_oauth_test.go | \
-      backend/internal/handler/api_key_handler.go | \
-      backend/internal/handler/channel_monitor_user_handler.go | \
-      backend/internal/handler/admin/system_handler.go | \
       backend/internal/handler/admin/system_handler_test.go | \
+      backend/internal/handler/admin/system_handler.go | \
+      backend/internal/handler/api_key_handler.go | \
+      backend/internal/handler/auth_wechat_oauth_test.go | \
+      backend/internal/handler/auth_wechat_oauth.go | \
+      backend/internal/handler/batch_image_handler.go | \
+      backend/internal/handler/channel_monitor_user_handler.go | \
       backend/internal/handler/dto/mappers.go | \
       backend/internal/handler/dto/settings.go | \
       backend/internal/handler/dto/types.go | \
+      backend/internal/handler/gateway_handler_chat_completions.go | \
+      backend/internal/handler/gateway_handler_responses.go | \
       backend/internal/handler/gateway_handler.go | \
+      backend/internal/handler/gateway_helper.go | \
+      backend/internal/handler/gemini_v1beta_handler.go | \
+      backend/internal/handler/image_task_handler.go | \
+      backend/internal/handler/no_account_error.go | \
+      backend/internal/handler/openai_alpha_search.go | \
+      backend/internal/handler/openai_chat_completions.go | \
+      backend/internal/handler/openai_codex_models_handler.go | \
+      backend/internal/handler/openai_embeddings.go | \
+      backend/internal/handler/openai_gateway_count_tokens.go | \
       backend/internal/handler/openai_gateway_handler.go | \
-      backend/internal/handler/payment_handler.go | \
+      backend/internal/handler/openai_images.go | \
+      backend/internal/handler/openai_live.go | \
       backend/internal/handler/payment_handler_resume_test.go | \
+      backend/internal/handler/payment_handler.go | \
       backend/internal/handler/wire.go | \
       backend/internal/payment/load_balancer.go | \
       backend/internal/payment/types.go | \
       backend/internal/repository/api_key_minimum_balance_repo.go | \
       backend/internal/repository/api_key_repo.go | \
       backend/internal/repository/channel_monitor_repo.go | \
-	  backend/internal/repository/group_repo.go | \
-	  backend/internal/repository/usage_billing_repo.go | \
+      backend/internal/repository/group_repo.go | \
+      backend/internal/repository/usage_billing_repo.go | \
       backend/internal/repository/user_subscription_repo.go | \
-      backend/internal/repository/wire.go | \
+      backend/internal/server/middleware/api_key_auth_google.go | \
+      backend/internal/server/middleware/api_key_auth.go | \
       backend/internal/server/routes/admin.go | \
-      backend/internal/service/admin_group.go | \
+      backend/internal/server/routes/gateway.go | \
       backend/internal/service/admin_group_duplicate.go | \
+      backend/internal/service/admin_group.go | \
       backend/internal/service/admin_service.go | \
-      backend/internal/service/api_key_auth_cache.go | \
+      backend/internal/service/antigravity_gateway_claude.go | \
+      backend/internal/service/antigravity_gateway_compat.go | \
+      backend/internal/service/antigravity_gateway_gemini.go | \
+      backend/internal/service/antigravity_gateway_upstream.go | \
       backend/internal/service/api_key_auth_cache_impl.go | \
+      backend/internal/service/api_key_auth_cache.go | \
       backend/internal/service/api_key_service.go | \
       backend/internal/service/batch_image_public.go | \
       backend/internal/service/billing_cache_service.go | \
@@ -222,74 +243,102 @@ thin_bridge_allowed() {
       backend/internal/service/channel_monitor_const.go | \
       backend/internal/service/channel_monitor_service.go | \
       backend/internal/service/channel_monitor_types.go | \
-      backend/internal/service/content_moderation.go | \
       backend/internal/service/content_moderation_email.go | \
+      backend/internal/service/content_moderation.go | \
+      backend/internal/service/gateway_bedrock.go | \
+      backend/internal/service/gateway_count_tokens.go | \
+      backend/internal/service/gateway_forward_as_chat_completions.go | \
+      backend/internal/service/gateway_forward_as_responses.go | \
+      backend/internal/service/gateway_forward.go | \
+      backend/internal/service/gateway_model_availability.go | \
+      backend/internal/service/gateway_scheduling.go | \
+      backend/internal/service/gateway_service.go | \
+      backend/internal/service/gemini_chat_completions_compat_service.go | \
+      backend/internal/service/gemini_messages_compat_service.go | \
+      backend/internal/service/grok_audio.go | \
+      backend/internal/service/grok_media.go | \
+      backend/internal/service/group_models_list.go | \
       backend/internal/service/group.go | \
-      backend/internal/service/idempotency.go | \
       backend/internal/service/idempotency_test.go | \
-      backend/internal/service/notification_email_service.go | \
+      backend/internal/service/idempotency.go | \
       backend/internal/service/notification_email_service_test.go | \
-      backend/internal/service/payment_config_limits.go | \
+      backend/internal/service/notification_email_service.go | \
+      backend/internal/service/openai_alpha_search.go | \
+      backend/internal/service/openai_embeddings.go | \
+      backend/internal/service/openai_gateway_chat_completions_raw.go | \
+      backend/internal/service/openai_gateway_chat_completions.go | \
+      backend/internal/service/openai_gateway_count_tokens.go | \
+      backend/internal/service/openai_gateway_forward.go | \
+      backend/internal/service/openai_gateway_grok.go | \
+      backend/internal/service/openai_gateway_messages_chat_fallback.go | \
+      backend/internal/service/openai_gateway_messages.go | \
+      backend/internal/service/openai_gateway_model_availability.go | \
+      backend/internal/service/openai_gateway_scheduling.go | \
+      backend/internal/service/openai_images_responses.go | \
+      backend/internal/service/openai_images.go | \
+      backend/internal/service/openai_live.go | \
       backend/internal/service/payment_config_limits_test.go | \
+      backend/internal/service/payment_config_limits.go | \
       backend/internal/service/payment_config_plans.go | \
-      backend/internal/service/payment_config_service.go | \
       backend/internal/service/payment_config_service_test.go | \
-      backend/internal/service/payment_fulfillment.go | \
+      backend/internal/service/payment_config_service.go | \
       backend/internal/service/payment_fulfillment_test.go | \
-      backend/internal/service/payment_order.go | \
-      backend/internal/service/payment_order_lifecycle.go | \
+      backend/internal/service/payment_fulfillment.go | \
       backend/internal/service/payment_order_lifecycle_test.go | \
+      backend/internal/service/payment_order_lifecycle.go | \
       backend/internal/service/payment_order_result_test.go | \
-      backend/internal/service/payment_refund.go | \
+      backend/internal/service/payment_order.go | \
       backend/internal/service/payment_refund_test.go | \
-      backend/internal/service/payment_resume_service.go | \
+      backend/internal/service/payment_refund.go | \
       backend/internal/service/payment_resume_service_test.go | \
+      backend/internal/service/payment_resume_service.go | \
       backend/internal/service/payment_service.go | \
       backend/internal/service/redeem_service.go | \
       backend/internal/service/subscription_service.go | \
-      backend/internal/service/user_subscription.go | \
       backend/internal/service/user_subscription_port.go | \
-      frontend/src/api/admin/subscriptions.ts | \
-      frontend/src/api/admin/payment.ts | \
+      backend/internal/service/user_subscription.go | \
       frontend/src/api/admin/channelMonitor.ts | \
+      frontend/src/api/admin/payment.ts | \
       frontend/src/api/admin/settings.ts | \
+      frontend/src/api/admin/subscriptions.ts | \
       frontend/src/api/channelMonitor.ts | \
       frontend/src/components/admin/monitor/MonitorFormDialog.vue | \
       frontend/src/components/common/SubscriptionProgressMini.vue | \
+      frontend/src/components/layout/AppSidebar.vue | \
+      frontend/src/components/payment/__tests__/paymentFlow.spec.ts | \
+      frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts | \
       frontend/src/components/payment/AmountInput.vue | \
+      frontend/src/components/payment/paymentFlow.ts | \
       frontend/src/components/payment/PaymentProviderDialog.vue | \
       frontend/src/components/payment/SubscriptionPlanCard.vue | \
-      frontend/src/components/payment/paymentFlow.ts | \
-      frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts | \
-      frontend/src/components/payment/__tests__/paymentFlow.spec.ts | \
       frontend/src/components/user/monitor/MonitorCard.vue | \
-      frontend/src/components/layout/AppSidebar.vue | \
       frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue | \
       frontend/src/i18n/locales/en/admin/channels.ts | \
       frontend/src/i18n/locales/en/admin/overview.ts | \
       frontend/src/i18n/locales/en/admin/settings.ts | \
       frontend/src/i18n/locales/en/misc.ts | \
-      frontend/src/i18n/locales/zh/admin/settings.ts | \
       frontend/src/i18n/locales/zh/admin/channels.ts | \
       frontend/src/i18n/locales/zh/admin/overview.ts | \
+      frontend/src/i18n/locales/zh/admin/settings.ts | \
       frontend/src/i18n/locales/zh/misc.ts | \
       frontend/src/router/index.ts | \
       frontend/src/types/index.ts | \
       frontend/src/types/payment.ts | \
-      frontend/src/views/admin/GroupsView.vue | \
-      frontend/src/views/admin/SettingsView.vue | \
-      frontend/src/views/admin/SubscriptionsView.vue | \
       frontend/src/views/admin/__tests__/SettingsView.spec.ts | \
-      frontend/src/views/admin/orders/AdminPaymentPlansView.vue | \
-      frontend/src/views/admin/orders/PlanEditDialog.vue | \
+      frontend/src/views/admin/groupsModelsList.ts | \
+      frontend/src/views/admin/GroupsView.vue | \
       frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts | \
       frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts | \
+      frontend/src/views/admin/orders/AdminPaymentPlansView.vue | \
+      frontend/src/views/admin/orders/PlanEditDialog.vue | \
+      frontend/src/views/admin/SettingsView.vue | \
+      frontend/src/views/admin/SubscriptionsView.vue | \
       frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts | \
-      frontend/src/views/user/PaymentView.vue | \
       frontend/src/views/user/__tests__/PaymentView.spec.ts | \
       frontend/src/views/user/__tests__/paymentWechatResume.spec.ts | \
-      frontend/src/views/user/paymentWechatResume.ts | \
       frontend/src/views/user/KeysView.vue | \
+      frontend/src/views/user/PaymentView.vue | \
+      frontend/src/views/user/paymentWechatResume.ts | \
       frontend/src/views/user/SubscriptionsView.vue)
       return 0
       ;;

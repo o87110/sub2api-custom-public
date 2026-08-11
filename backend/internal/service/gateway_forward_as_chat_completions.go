@@ -75,6 +75,9 @@ func (s *GatewayService) ForwardAsChatCompletions(
 			mappedModel = normalized
 		}
 	}
+	if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {
+		return nil, err
+	}
 	anthropicReq.Model = mappedModel
 
 	logger.L().Debug("gateway forward_as_chat_completions: model mapping applied",

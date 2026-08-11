@@ -85,6 +85,9 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 	}
 
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+	if !bindGroupModelAccessChannelMapping(c, channelMapping) {
+		return
+	}
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())

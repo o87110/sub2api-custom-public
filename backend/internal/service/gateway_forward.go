@@ -92,6 +92,11 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	if parsed == nil {
 		return nil, fmt.Errorf("parse request: empty request")
 	}
+	if model := resolveGatewayAccountModelForAccess(ctx, account, parsed.Model); model != "" {
+		if err := enforceResolvedModelAccess(ctx, c, model); err != nil {
+			return nil, err
+		}
+	}
 	beginUpstreamResponseModelObservation(c)
 
 	// Web Search 模拟：纯 web_search 请求时，直接调用搜索 API 构造响应

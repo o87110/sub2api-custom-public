@@ -34,6 +34,9 @@ func (s *OpenAIGatewayService) ForwardEmbeddings(
 
 	billingModel := resolveOpenAIForwardModel(account, originalModel, defaultMappedModel)
 	upstreamModel := normalizeOpenAIModelForUpstream(account, billingModel)
+	if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {
+		return nil, err
+	}
 	upstreamBody := body
 	if upstreamModel != originalModel {
 		upstreamBody = ReplaceModelInBody(body, upstreamModel)

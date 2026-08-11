@@ -228,6 +228,9 @@ func (h *AsyncImageHandler) run(taskID, platform string, taskCtx *gin.Context, r
 			h.failTask(taskID, http.StatusInternalServerError, imageTaskErrorPayload("api_error", "image generation task panicked"))
 		}
 	}()
+	if !h.refreshGroupModelAccessBeforeRun(taskID, taskCtx) {
+		return
+	}
 
 	h.execute(platform, taskCtx)
 	body := bytes.TrimSpace(recorder.Body.Bytes())
@@ -250,6 +253,37 @@ func (h *AsyncImageHandler) run(taskID, platform string, taskCtx *gin.Context, r
 		return
 	}
 	h.failTask(taskID, statusCode, extractImageTaskError(body))
+}
+
+func (h *AsyncImageHandler) refreshGroupModelAccessBeforeRun(taskID string, taskCtx *gin.Context) bool {
+	if h == nil || h.openAI == nil || h.openAI.apiKeyService == nil || taskCtx == nil || taskCtx.Request == nil {
+		return true
+	}
+	apiKey, ok := middleware2.GetAPIKeyFromContext(taskCtx)
+	if !ok || apiKey == nil || apiKey.ID <= 0 {
+		h.failTask(taskID, http.StatusForbidden, imageTaskErrorPayload("permission_error", "image task authentication is no longer valid"))
+		return false
+	}
+	latest, err := h.openAI.apiKeyService.GetByID(taskCtx.Request.Context(), apiKey.ID)
+	if err != nil || latest == nil || latest.Group == nil {
+		h.failTask(taskID, http.StatusServiceUnavailable, imageTaskErrorPayload("api_error", "failed to refresh image task model policy"))
+		return false
+	}
+	taskCtx.Set(string(middleware2.ContextKeyAPIKey), latest)
+	model, accessErr := service.BindGroupModelAccessRequest(taskCtx.Request, latest.Group)
+	if accessErr == nil {
+		return true
+	}
+	if service.IsGroupModelBlockedError(accessErr) {
+		message := "The model \"" + strings.TrimSpace(model) + "\" does not exist or is not available for this group"
+		payload, _ := json.Marshal(gin.H{
+			"type": "invalid_request_error", "code": "model_not_found", "param": "model", "message": message,
+		})
+		h.failTask(taskID, http.StatusNotFound, payload)
+		return false
+	}
+	h.failTask(taskID, http.StatusBadRequest, imageTaskErrorPayload("invalid_request_error", "failed to read image task request body"))
+	return false
 }
 
 func (h *AsyncImageHandler) failTask(taskID string, statusCode int, taskErr json.RawMessage) {

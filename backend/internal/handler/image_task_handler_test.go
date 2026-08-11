@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
 
 type asyncImageMemoryStore struct {
@@ -104,6 +105,46 @@ func TestAsyncImageHandlerSubmitAndPoll(t *testing.T) {
 	require.Equal(t, "no-store", pollWriter.Header().Get("Cache-Control"))
 	require.Empty(t, pollWriter.Header().Get("Retry-After"))
 	require.Contains(t, pollWriter.Body.String(), "https://example.test/image.png")
+}
+
+func TestAsyncImageHandlerReloadsBlockedModelsBeforeRun(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
+	tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+	owner := service.ImageTaskOwner{UserID: 7, APIKeyID: 9}
+	task, err := tasks.Create(context.Background(), owner)
+	require.NoError(t, err)
+	groupID := int64(3)
+	latest := &service.APIKey{
+		ID: 9, UserID: 7, GroupID: &groupID,
+		Group: &service.Group{
+			ID: groupID, Platform: service.PlatformOpenAI, AllowImageGeneration: true,
+			ModelsListConfig: service.GroupModelsListConfig{BlockedModels: []string{"gpt-image-1"}},
+		},
+	}
+	apiKeyRepo := &dailyUsageAPIKeyRepoStub{keys: map[int64]*service.APIKey{9: latest}}
+	apiKeyService := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, nil)
+	h := &AsyncImageHandler{
+		tasks:  tasks,
+		openAI: &OpenAIGatewayHandler{apiKeyService: apiKeyService},
+	}
+	recorder := httptest.NewRecorder()
+	taskCtx, _ := gin.CreateTestContext(recorder)
+	taskCtx.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", strings.NewReader(`{"model":"gpt-image-1","prompt":"cat"}`))
+	taskCtx.Request.Header.Set("Content-Type", "application/json")
+	taskCtx.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+		ID: 9, UserID: 7, GroupID: &groupID,
+		Group: &service.Group{ID: groupID, Platform: service.PlatformOpenAI, AllowImageGeneration: true},
+	})
+
+	allowed := h.refreshGroupModelAccessBeforeRun(task.ID, taskCtx)
+
+	require.False(t, allowed)
+	stored, getErr := tasks.Get(context.Background(), owner, task.ID)
+	require.NoError(t, getErr)
+	require.Equal(t, service.ImageTaskStatusFailed, stored.Status)
+	require.Equal(t, http.StatusNotFound, stored.HTTPStatus)
+	require.Equal(t, "model_not_found", gjson.GetBytes(stored.Error, "code").String())
 }
 
 // When object storage is not configured the feature is fully disabled: the

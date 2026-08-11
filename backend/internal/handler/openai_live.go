@@ -102,6 +102,22 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 	identity := liveCallIdentity(c, apiKey, subject.UserID, subscription)
 	created, err := h.gatewayService.CreateLiveCall(c.Request.Context(), request, identity, subject.Concurrency)
 	if err != nil {
+		if service.IsGroupModelBlockedError(err) {
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+			model := service.GroupModelBlockedModel(err)
+			if model == "" {
+				model = strings.TrimSpace(gjson.GetBytes(request.Session, "model").String())
+			}
+			h.errorResponse(c, http.StatusNotFound, "model_not_found", "The model \""+model+"\" does not exist or is not available for this group")
+			return
+		}
+		if errors.Is(err, service.ErrNoAvailableAccounts) {
+			cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, model, model, service.PlatformOpenAI)
+			if cls.ModelNotFound {
+				h.errorResponse(c, cls.Status, cls.ErrType, cls.Message)
+				return
+			}
+		}
 		h.writeLiveCreateError(c, err)
 		return
 	}
