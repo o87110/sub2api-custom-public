@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupmodelaccess"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -810,6 +811,7 @@ func (s *GatewayService) withGroupContext(ctx context.Context, group *Group) con
 	if !IsGroupContextValid(group) {
 		return ctx
 	}
+	ctx = groupmodelaccess.WithAdditionalModels(ctx, group.ModelsListConfig.BlockedModels)
 	if existing, ok := ctx.Value(ctxkey.Group).(*Group); ok && existing != nil && existing.ID == group.ID && IsGroupContextValid(existing) {
 		return ctx
 	}
@@ -1501,12 +1503,12 @@ func (s *GatewayService) newSelectionResult(ctx context.Context, account *Accoun
 	if err != nil {
 		return nil, err
 	}
-	return attachSelectionProfitGate(ctx, &AccountSelectionResult{
+	return attachSelectionGroupModelAccess(ctx, attachSelectionProfitGate(ctx, &AccountSelectionResult{
 		Account:     hydrated,
 		Acquired:    acquired,
 		ReleaseFunc: release,
 		WaitPlan:    waitPlan,
-	}), nil
+	})), nil
 }
 
 // filterByMinPriority 过滤出优先级最小的账号集合
@@ -2532,6 +2534,9 @@ func summarizeSelectionFailureStats(stats selectionFailureStats) string {
 // isModelSupportedByAccountWithContext 根据账户平台检查模型支持（带 context）
 // 对于 Antigravity 平台，会先获取映射后的最终模型名（包括 thinking 后缀）再检查支持
 func (s *GatewayService) isModelSupportedByAccountWithContext(ctx context.Context, account *Account, requestedModel string) bool {
+	if modelAccessBlocksGatewayAccount(ctx, account, requestedModel) {
+		return false
+	}
 	if account.Platform == PlatformAntigravity {
 		if strings.TrimSpace(requestedModel) == "" {
 			return true
@@ -2552,6 +2557,44 @@ func (s *GatewayService) isModelSupportedByAccountWithContext(ctx context.Contex
 		return true
 	}
 	return s.isModelSupportedByAccount(account, requestedModel)
+}
+
+func modelAccessBlocksGatewayAccount(ctx context.Context, account *Account, requestedModel string) bool {
+	if account == nil || groupmodelaccess.FromContext(ctx).Empty() {
+		return false
+	}
+	return groupmodelaccess.BlocksContext(ctx, resolveGatewayAccountModelForAccess(ctx, account, requestedModel))
+}
+
+func resolveGatewayAccountModelForAccess(ctx context.Context, account *Account, requestedModel string) string {
+	if account == nil {
+		return ""
+	}
+	model := groupmodelaccess.RequestModel(ctx, requestedModel)
+	switch {
+	case account.Platform == PlatformAntigravity:
+		model = mapAntigravityModel(account, model)
+		if enabled, ok := ThinkingEnabledFromContext(ctx); ok {
+			model = applyThinkingModelSuffix(model, enabled)
+		}
+	case account.IsBedrock():
+		if mapped, ok := ResolveBedrockModelID(account, model); ok {
+			model = mapped
+		}
+	case account.Platform == PlatformAnthropic && account.Type == AccountTypeServiceAccount:
+		if mapped, matched := account.ResolveMappedModel(model); matched {
+			model = mapped
+		} else {
+			model = normalizeVertexAnthropicModelID(claude.NormalizeModelID(model))
+		}
+	case account.Platform == PlatformAnthropic && account.Type != AccountTypeAPIKey:
+		model = claude.NormalizeModelID(model)
+	case account.IsOpenAICompatible():
+		model = resolveOpenAIAccountModelForAccess(ctx, account, model, false)
+	default:
+		model = account.GetMappedModel(model)
+	}
+	return strings.TrimSpace(model)
 }
 
 // isModelSupportedByAccount 根据账户平台检查模型支持（无 context，用于非 Antigravity 平台）

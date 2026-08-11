@@ -266,6 +266,36 @@ class ThinBridgeContractTests(unittest.TestCase):
         with self.assertRaisesRegex(validator.ContractError, "delegate bridge introduces orchestration"):
             validator.validate(fixture.args())
 
+    def test_accepts_an_exactly_approved_orchestration_reference(self) -> None:
+        fixture = self.fixture(
+            bridge_path="backend/internal/service/payment_order.go",
+            base_content=(
+                "package service\n"
+                "func Forward() {}\n"
+            ),
+            candidate_content=(
+                "package service\n"
+                "func Forward() {\n"
+                "  fallbackModel()\n"
+                "}\n"
+            ),
+            kind="delegate",
+            shadow_required=True,
+        )
+        approved = (("Forward", "fallbackModel"),)
+        approved_orchestration = (("Forward", "fallbackModel()"),)
+        with (
+            patch.dict(
+                validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS,
+                {fixture.bridge_path: approved},
+            ),
+            patch.dict(
+                validator.APPROVED_DELEGATE_VIEW_ORCHESTRATION,
+                {fixture.bridge_path: approved_orchestration},
+            ),
+        ):
+            validator.validate(fixture.args())
+
     def test_rejects_a_renamed_view_conditional_orchestrator(self) -> None:
         fixture = self.fixture(
             bridge_path="frontend/src/views/user/PaymentView.vue",

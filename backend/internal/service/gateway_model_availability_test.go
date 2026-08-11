@@ -249,3 +249,88 @@ func TestDiagnoseModelAvailabilityForPlatform_WrongPlatformFiltersOut(t *testing
 	require.False(t, diag.HasAccountsInPool, "OpenAI route must not see Anthropic accounts in pool")
 	require.False(t, diag.HasModelSupport)
 }
+
+func TestOpenAIDiagnoseModelAvailability_AllMappedPathsBlocked(t *testing.T) {
+	groupID := int64(51)
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true,
+				AccountGroups: []AccountGroup{{GroupID: groupID}},
+				Credentials: map[string]any{"model_mapping": map[string]any{
+					"public-model": "gpt-5.4-mini",
+				}},
+			},
+		},
+		accountsByID: map[int64]*Account{},
+	}
+	ctx := WithCurrentGroupModelAccess(context.Background(), &Group{ModelsListConfig: GroupModelsListConfig{
+		BlockedModels: []string{"gpt-5.4-mini"},
+	}})
+	svc := &OpenAIGatewayService{accountRepo: repo, cfg: testConfig()}
+
+	diag := svc.DiagnoseModelAvailabilityForPlatform(ctx, &groupID, "public-model", PlatformOpenAI)
+
+	require.True(t, diag.HasAccountsInPool)
+	require.False(t, diag.HasModelSupport)
+	require.True(t, diag.PolicyBlocked, "all configured paths were removed by the local blocklist")
+}
+
+func TestOpenAIDiagnoseModelAvailability_ContinuesAfterBlockedMappedPath(t *testing.T) {
+	groupID := int64(52)
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true,
+				AccountGroups: []AccountGroup{{GroupID: groupID}},
+				Credentials: map[string]any{"model_mapping": map[string]any{
+					"public-model": "gpt-5.4-mini",
+				}},
+			},
+			{
+				ID: 2, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true,
+				AccountGroups: []AccountGroup{{GroupID: groupID}},
+				Credentials: map[string]any{"model_mapping": map[string]any{
+					"public-model": "gpt-5.6-sol",
+				}},
+			},
+		},
+		accountsByID: map[int64]*Account{},
+	}
+	ctx := WithCurrentGroupModelAccess(context.Background(), &Group{ModelsListConfig: GroupModelsListConfig{
+		BlockedModels: []string{"gpt-5.4-mini"},
+	}})
+	svc := &OpenAIGatewayService{accountRepo: repo, cfg: testConfig()}
+
+	diag := svc.DiagnoseModelAvailabilityForPlatform(ctx, &groupID, "public-model", PlatformOpenAI)
+
+	require.True(t, diag.HasAccountsInPool)
+	require.True(t, diag.HasModelSupport, "the allowed second path must remain schedulable")
+	require.False(t, diag.PolicyBlocked)
+}
+
+func TestFilterModelsByGroupAccessHidesHaikuWhenMessagesTargetIsBlocked(t *testing.T) {
+	groupID := int64(53)
+	group := &Group{
+		ID: groupID, Platform: PlatformOpenAI, AllowMessagesDispatch: true,
+		ModelsListConfig:            GroupModelsListConfig{BlockedModels: []string{"gpt-5.4-mini"}},
+		MessagesDispatchModelConfig: OpenAIMessagesDispatchModelConfig{HaikuMappedModel: "gpt-5.4-mini"},
+	}
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{{
+			ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true,
+			AccountGroups: []AccountGroup{{GroupID: groupID}},
+		}},
+		accountsByID: map[int64]*Account{},
+	}
+	svc := &GatewayService{
+		accountRepo: repo,
+		groupRepo:   &groupRepoStubForAdmin{getByIDByID: map[int64]*Group{groupID: group}},
+		cfg:         testConfig(),
+	}
+	ctx := WithCurrentGroupModelAccess(context.Background(), group)
+
+	models := svc.FilterModelsByGroupAccess(ctx, &groupID, PlatformOpenAI, []string{"claude-haiku-4-5", "gpt-5.6-sol"})
+
+	require.Equal(t, []string{"gpt-5.6-sol"}, models)
+}

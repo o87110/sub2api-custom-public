@@ -214,6 +214,10 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 	if err != nil {
 		return nil, err
 	}
+	ctx = WithCurrentGroupModelAccess(ctx, group)
+	if err := CheckGroupModelAccess(ctx, normalized.Model); err != nil {
+		return nil, err
+	}
 	requestHash := HashBatchImageSubmitRequest(normalized)
 	idempotencyKey = strings.TrimSpace(idempotencyKey)
 	if idempotencyKey != "" {
@@ -366,6 +370,25 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 	hbCtx, hbCancel := context.WithCancel(ctx)
 	hbDone := make(chan struct{})
 	go s.runSubmitHeartbeat(hbCtx, job.BatchID, hbDone)
+	latestGroup, policyErr := s.ensureGroupAllowsBatchImage(ctx, owner.GroupID)
+	if policyErr == nil {
+		ctx = WithCurrentGroupModelAccess(ctx, latestGroup)
+		policyErr = CheckGroupModelAccess(ctx, normalized.Model)
+	}
+	if policyErr == nil {
+		input.Model = resolveGatewayAccountModelForAccess(ctx, account, normalized.Model)
+		policyErr = enforceResolvedModelAccess(ctx, nil, input.Model)
+	}
+	if policyErr != nil {
+		hbCancel()
+		<-hbDone
+		if releaseErr := s.releaseFailedSubmitHold(ctx, job, requestHash); releaseErr != nil {
+			return nil, releaseErr
+		}
+		_ = s.Repo.RecordBatchImageJobSubmitFailure(ctx, job.BatchID, "MODEL_NOT_FOUND", sanitizeBatchImagePublicMessage(policyErr.Error()), true)
+		s.hidePreUpstreamSubmitFailure(ctx, owner, job)
+		return nil, policyErr
+	}
 	providerJob, err := provider.Submit(ctx, job, account, input)
 	hbCancel()
 	<-hbDone
@@ -637,9 +660,11 @@ func (s *BatchImagePublicService) ListModels(ctx context.Context, owner BatchIma
 	if s.Pricing == nil {
 		return nil, ErrBatchImageSettlementPricingMissing
 	}
-	if _, err := s.ensureGroupAllowsBatchImage(ctx, owner.GroupID); err != nil {
+	group, err := s.ensureGroupAllowsBatchImage(ctx, owner.GroupID)
+	if err != nil {
 		return nil, err
 	}
+	ctx = WithCurrentGroupModelAccess(ctx, group)
 
 	modelsByProvider := make(map[string]map[string]struct{})
 	for _, providerName := range batchImageProviderSelectionOrder("") {
@@ -657,6 +682,9 @@ func (s *BatchImagePublicService) ListModels(ctx context.Context, owner BatchIma
 				continue
 			}
 			for _, model := range batchImageModelsFromAccountMapping(&account) {
+				if modelAccessBlocksGatewayAccount(ctx, &account, model) {
+					continue
+				}
 				if _, err := s.Pricing.BatchImageUnitPrice(ctx, &BatchImageJob{Provider: providerName, Model: model}); err != nil {
 					continue
 				}
@@ -951,6 +979,7 @@ func maxBatchImageReferenceImagesForModel(model string) int {
 
 func (s *BatchImagePublicService) selectProviderAndAccount(ctx context.Context, owner BatchImageOwner, requestedProvider, model string) (BatchImageProvider, *Account, error) {
 	providers := batchImageProviderSelectionOrder(requestedProvider)
+	var blockedErr error
 	for _, providerName := range providers {
 		provider, ok := s.ProviderRegistry.Get(providerName)
 		if !ok || provider == nil {
@@ -972,9 +1001,16 @@ func (s *BatchImagePublicService) selectProviderAndAccount(ctx context.Context, 
 				continue
 			}
 			if provider.SupportsAccount(&account) {
+				if accessErr := CheckGatewayAccountModelAccess(ctx, &account, model); accessErr != nil {
+					blockedErr = accessErr
+					continue
+				}
 				return provider, &account, nil
 			}
 		}
+	}
+	if blockedErr != nil {
+		return nil, nil, blockedErr
 	}
 	if requestedProvider != "" {
 		return nil, nil, ErrBatchImageNoAccountAvailable

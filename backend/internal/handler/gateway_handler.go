@@ -175,6 +175,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+	if !bindGroupModelAccessChannelMapping(c, channelMapping) {
+		return
+	}
 
 	// 设置 max_tokens=1 + haiku 探测请求标识到 context 中
 	// 必须在 SetClaudeCodeClientContext 之前设置，因为 ClaudeCodeValidator 需要读取此标识进行绕过判断
@@ -354,6 +357,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					return
 				}
 			}
+			c.Request = c.Request.WithContext(service.ContextWithSelectionGroupModelAccess(c.Request.Context(), selection))
 			account := selection.Account
 			setOpsSelectedAccount(c, account.ID, account.Platform)
 
@@ -667,6 +671,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					return
 				}
 			}
+			c.Request = c.Request.WithContext(service.ContextWithSelectionGroupModelAccess(c.Request.Context(), selection))
 			account := selection.Account
 			setOpsSelectedAccount(c, account.ID, account.Platform)
 
@@ -1084,19 +1089,24 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && strings.TrimSpace(forcedPlatform) != "" {
 		platform = forcedPlatform
 	}
+	filterBlocked := func(models []string) []string {
+		return h.gatewayService.FilterModelsByGroupAccess(c.Request.Context(), groupID, platform, models)
+	}
 
 	if platform == service.PlatformComposite {
 		availableModels := h.compositeAvailableModels(c.Request.Context(), groupID)
 		if apiKey != nil && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
 			availableModels = filterModelsByCustomList(availableModels, defaultModelIDsForPlatform(service.PlatformComposite), apiKey.Group.ModelsListConfig.Models)
+			availableModels = filterBlocked(availableModels)
 			writeCustomModelsList(c, service.PlatformComposite, availableModels)
 			return
 		}
 		if len(availableModels) > 0 {
+			availableModels = filterBlocked(availableModels)
 			writeModelsList(c, service.PlatformComposite, availableModels)
 			return
 		}
-		writeModelsList(c, service.PlatformComposite, defaultModelIDsForPlatform(service.PlatformComposite))
+		writeModelsList(c, service.PlatformComposite, filterBlocked(defaultModelIDsForPlatform(service.PlatformComposite)))
 		return
 	}
 
@@ -1105,40 +1115,33 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
 		fallbackModels := defaultModelIDsForPlatform(platform)
 		availableModels = filterModelsByCustomList(customModelsListSource(platform, availableModels, fallbackModels), fallbackModels, apiKey.Group.ModelsListConfig.Models)
+		availableModels = filterBlocked(availableModels)
 		writeCustomModelsList(c, platform, availableModels)
 		return
 	}
 
 	if len(availableModels) > 0 {
+		availableModels = filterBlocked(availableModels)
 		writeModelsList(c, platform, availableModels)
 		return
 	}
 
 	// Fallback to default models
 	if platform == service.PlatformOpenAI {
-		c.JSON(http.StatusOK, gin.H{
-			"object": "list",
-			"data":   openai.DefaultModels,
-		})
+		writeOpenAIModelsList(c, filterBlocked(openai.DefaultModelIDs()))
 		return
 	}
 
 	if platform == service.PlatformGemini {
-		c.JSON(http.StatusOK, gin.H{
-			"object": "list",
-			"data":   geminicli.DefaultModels,
-		})
+		writeModelsList(c, platform, filterBlocked(defaultModelIDsForPlatform(platform)))
 		return
 	}
 	if platform == service.PlatformGrok {
-		writeGrokModelsList(c, xai.DefaultModelIDs())
+		writeGrokModelsList(c, filterBlocked(xai.DefaultModelIDs()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"object": "list",
-		"data":   claude.DefaultModels,
-	})
+	writeModelsList(c, platform, filterBlocked(defaultModelIDsForPlatform(platform)))
 }
 
 func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *int64) []string {
@@ -1414,9 +1417,33 @@ func mergeModelIDs(primary, secondary []string) []string {
 // AntigravityModels 返回 Antigravity 支持的全部模型
 // GET /antigravity/models
 func (h *GatewayHandler) AntigravityModels(c *gin.Context) {
+	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
+	models := antigravity.DefaultModels()
+	ids := make([]string, 0, len(models))
+	for _, model := range models {
+		ids = append(ids, model.ID)
+	}
+	var groupID *int64
+	if apiKey != nil && apiKey.Group != nil {
+		groupID = &apiKey.Group.ID
+		if apiKey.Group.CustomModelsListEnabled() {
+			ids = filterModelsByCustomList(ids, ids, apiKey.Group.ModelsListConfig.Models)
+		}
+	}
+	ids = h.gatewayService.FilterModelsByGroupAccess(c.Request.Context(), groupID, service.PlatformAntigravity, ids)
+	allowed := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		allowed[id] = struct{}{}
+	}
+	filtered := models[:0]
+	for _, model := range models {
+		if _, ok := allowed[model.ID]; ok {
+			filtered = append(filtered, model)
+		}
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
-		"data":   antigravity.DefaultModels(),
+		"data":   filtered,
 	})
 }
 
@@ -1954,6 +1981,9 @@ func (h *GatewayHandler) checkClaudeCodeVersion(c *gin.Context) bool {
 
 // errorResponse 返回Claude API格式的错误响应
 func (h *GatewayHandler) errorResponse(c *gin.Context, status int, errType, message string) {
+	if status == http.StatusNotFound && errType == "model_not_found" {
+		errType = "not_found_error"
+	}
 	c.JSON(status, gin.H{
 		"type": "error",
 		"error": gin.H{

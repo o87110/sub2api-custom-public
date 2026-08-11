@@ -121,38 +121,38 @@ func groupDuplicateTestPointer[T any](value T) *T { return &value }
 func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing.T) {
 	createdAt := time.Date(2026, time.July, 1, 2, 3, 4, 0, time.UTC)
 	source := &Group{
-		ID:                              41,
-		Name:                            "高级订阅",
-		Description:                     "configuration",
-		Platform:                        PlatformOpenAI,
-		RateMultiplier:                  1.75,
-		MinimumBalance:                  100,
-		PeakRateEnabled:                 true,
-		PeakStart:                       "09:00",
-		PeakEnd:                         "18:00",
-		PeakRateMultiplier:              1.2,
-		IsExclusive:                     true,
-		Status:                          StatusActive,
-		Hydrated:                        true,
-		SubscriptionType:                SubscriptionTypeSubscription,
-		DailyLimitUSD:                   groupDuplicateTestPointer(11.0),
-		WeeklyLimitUSD:                  groupDuplicateTestPointer(22.0),
-		MonthlyLimitUSD:                 groupDuplicateTestPointer(33.0),
-		DefaultValidityDays:             91,
-		AllowImageGeneration:            true,
-		AllowBatchImageGeneration:       true,
-		ImageRateIndependent:            true,
-		ImageRateMultiplier:             1.4,
-		ImagePrice1K:                    groupDuplicateTestPointer(0.01),
-		ImagePrice2K:                    groupDuplicateTestPointer(0.02),
-		ImagePrice4K:                    groupDuplicateTestPointer(0.04),
-		BatchImageDiscountMultiplier:    0.4,
-		BatchImageHoldMultiplier:        0.7,
-		VideoRateIndependent:            true,
-		VideoRateMultiplier:             2.1,
-		VideoPrice480P:                  groupDuplicateTestPointer(0.1),
-		VideoPrice720P:                  groupDuplicateTestPointer(0.2),
-		VideoPrice1080P:                 groupDuplicateTestPointer(0.3),
+		ID:                           41,
+		Name:                         "高级订阅",
+		Description:                  "configuration",
+		Platform:                     PlatformOpenAI,
+		RateMultiplier:               1.75,
+		MinimumBalance:               100,
+		PeakRateEnabled:              true,
+		PeakStart:                    "09:00",
+		PeakEnd:                      "18:00",
+		PeakRateMultiplier:           1.2,
+		IsExclusive:                  true,
+		Status:                       StatusActive,
+		Hydrated:                     true,
+		SubscriptionType:             SubscriptionTypeSubscription,
+		DailyLimitUSD:                groupDuplicateTestPointer(11.0),
+		WeeklyLimitUSD:               groupDuplicateTestPointer(22.0),
+		MonthlyLimitUSD:              groupDuplicateTestPointer(33.0),
+		DefaultValidityDays:          91,
+		AllowImageGeneration:         true,
+		AllowBatchImageGeneration:    true,
+		ImageRateIndependent:         true,
+		ImageRateMultiplier:          1.4,
+		ImagePrice1K:                 groupDuplicateTestPointer(0.01),
+		ImagePrice2K:                 groupDuplicateTestPointer(0.02),
+		ImagePrice4K:                 groupDuplicateTestPointer(0.04),
+		BatchImageDiscountMultiplier: 0.4,
+		BatchImageHoldMultiplier:     0.7,
+		VideoRateIndependent:         true,
+		VideoRateMultiplier:          2.1,
+		VideoPrice480P:               groupDuplicateTestPointer(0.1),
+		VideoPrice720P:               groupDuplicateTestPointer(0.2),
+		VideoPrice1080P:              groupDuplicateTestPointer(0.3),
 		VideoModelPrices: map[string]map[string]float64{
 			VideoPriceFamilyGrokImagineVideo15: {VideoBillingResolution720P: 0.14},
 		},
@@ -176,7 +176,7 @@ func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing
 			HaikuMappedModel:   "gpt-5-mini",
 			ExactModelMappings: map[string]string{"claude-special": "gpt-special"},
 		},
-		ModelsListConfig:        GroupModelsListConfig{Enabled: true, Models: []string{"gpt-5.4", "gpt-5-mini"}},
+		ModelsListConfig:        GroupModelsListConfig{Enabled: true, Models: []string{"gpt-5.4", "gpt-5-mini"}, BlockedModels: []string{"gpt-5.4-mini"}},
 		RPMLimit:                99,
 		MaxReasoningEffort:      "medium",
 		ReasoningEffortMappings: []ReasoningEffortMapping{{From: "max", To: "xhigh"}},
@@ -232,6 +232,7 @@ func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing
 	duplicate.SupportedModelScopes[0] = "changed"
 	duplicate.MessagesDispatchModelConfig.ExactModelMappings["claude-special"] = "changed"
 	duplicate.ModelsListConfig.Models[0] = "changed"
+	duplicate.ModelsListConfig.BlockedModels[0] = "changed-blocked"
 	duplicate.ReasoningEffortMappings[0].To = "changed"
 	*duplicate.DailyLimitUSD = 999
 	require.Equal(t, int64(13), source.ModelRouting["gpt-*"][0])
@@ -239,6 +240,7 @@ func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing
 	require.Equal(t, "claude", source.SupportedModelScopes[0])
 	require.Equal(t, "gpt-special", source.MessagesDispatchModelConfig.ExactModelMappings["claude-special"])
 	require.Equal(t, "gpt-5.4", source.ModelsListConfig.Models[0])
+	require.Equal(t, "gpt-5.4-mini", source.ModelsListConfig.BlockedModels[0])
 	require.Equal(t, "xhigh", source.ReasoningEffortMappings[0].To)
 	require.Equal(t, 11.0, *source.DailyLimitUSD)
 }

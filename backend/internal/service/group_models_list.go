@@ -1,9 +1,16 @@
 package service
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupmodelaccess"
+)
 
 func normalizeGroupModelsListConfig(cfg GroupModelsListConfig) GroupModelsListConfig {
-	out := GroupModelsListConfig{Enabled: cfg.Enabled}
+	out := GroupModelsListConfig{
+		Enabled:       cfg.Enabled,
+		BlockedModels: groupmodelaccess.Normalize(cfg.BlockedModels),
+	}
 	if len(cfg.Models) == 0 {
 		return out
 	}
@@ -29,4 +36,8 @@ func normalizeGroupModelsListConfig(cfg GroupModelsListConfig) GroupModelsListCo
 
 func (g *Group) CustomModelsListEnabled() bool {
 	return g != nil && g.ModelsListConfig.Enabled && len(g.ModelsListConfig.Models) > 0
+}
+
+func (g *Group) BlocksModel(model string) bool {
+	return g != nil && groupmodelaccess.Blocks(g.ModelsListConfig.BlockedModels, model)
 }

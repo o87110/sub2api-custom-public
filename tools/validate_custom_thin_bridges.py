@@ -1013,6 +1013,989 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
     ),
 }
 
+# Group model blocklist bridges: exact reviewed deltas from vendor-0.1.173.
+APPROVED_NEW_BRIDGE_FUNCTIONS.update({
+    "backend/internal/handler/batch_image_handler.go": frozenset({}),
+    "backend/internal/handler/gateway_handler.go": frozenset({}),
+    "backend/internal/handler/gateway_handler_chat_completions.go": frozenset({}),
+    "backend/internal/handler/gateway_handler_responses.go": frozenset({}),
+    "backend/internal/handler/gateway_helper.go": frozenset({
+        "bindGroupModelAccessChannelMapping",
+        "bindGroupModelAccessFallbackModel",
+        "withGroupModelAccessChannelMapping",
+    }),
+    "backend/internal/handler/gemini_v1beta_handler.go": frozenset({}),
+    "backend/internal/handler/image_task_handler.go": frozenset({
+        "refreshGroupModelAccessBeforeRun",
+    }),
+    "backend/internal/handler/no_account_error.go": frozenset({}),
+    "backend/internal/handler/openai_alpha_search.go": frozenset({}),
+    "backend/internal/handler/openai_chat_completions.go": frozenset({}),
+    "backend/internal/handler/openai_codex_models_handler.go": frozenset({}),
+    "backend/internal/handler/openai_embeddings.go": frozenset({}),
+    "backend/internal/handler/openai_gateway_count_tokens.go": frozenset({}),
+    "backend/internal/handler/openai_gateway_handler.go": frozenset({
+        "writeGroupModelBlockedWSError",
+    }),
+    "backend/internal/handler/openai_images.go": frozenset({}),
+    "backend/internal/handler/openai_live.go": frozenset({}),
+    "backend/internal/server/middleware/api_key_auth.go": frozenset({}),
+    "backend/internal/server/middleware/api_key_auth_google.go": frozenset({}),
+    "backend/internal/server/routes/gateway.go": frozenset({
+        "compositeMappedModelBlocked",
+    }),
+    "backend/internal/service/admin_group.go": frozenset({
+        "checkGroupMinimumBalanceForUser",
+    }),
+    "backend/internal/service/antigravity_gateway_claude.go": frozenset({}),
+    "backend/internal/service/antigravity_gateway_compat.go": frozenset({}),
+    "backend/internal/service/antigravity_gateway_gemini.go": frozenset({}),
+    "backend/internal/service/antigravity_gateway_upstream.go": frozenset({}),
+    "backend/internal/service/batch_image_public.go": frozenset({}),
+    "backend/internal/service/gateway_bedrock.go": frozenset({}),
+    "backend/internal/service/gateway_count_tokens.go": frozenset({}),
+    "backend/internal/service/gateway_forward.go": frozenset({}),
+    "backend/internal/service/gateway_forward_as_chat_completions.go": frozenset({}),
+    "backend/internal/service/gateway_forward_as_responses.go": frozenset({}),
+    "backend/internal/service/gateway_model_availability.go": frozenset({
+        "FilterGeminiModelsResponse",
+        "FilterModelsByGroupAccess",
+    }),
+    "backend/internal/service/gateway_scheduling.go": frozenset({
+        "modelAccessBlocksGatewayAccount",
+        "resolveGatewayAccountModelForAccess",
+    }),
+    "backend/internal/service/gemini_chat_completions_compat_service.go": frozenset({}),
+    "backend/internal/service/gemini_messages_compat_service.go": frozenset({}),
+    "backend/internal/service/grok_audio.go": frozenset({}),
+    "backend/internal/service/grok_media.go": frozenset({}),
+    "backend/internal/service/group_models_list.go": frozenset({
+        "BlocksModel",
+    }),
+    "backend/internal/service/openai_alpha_search.go": frozenset({}),
+    "backend/internal/service/openai_embeddings.go": frozenset({}),
+    "backend/internal/service/openai_gateway_chat_completions.go": frozenset({}),
+    "backend/internal/service/openai_gateway_chat_completions_raw.go": frozenset({}),
+    "backend/internal/service/openai_gateway_count_tokens.go": frozenset({}),
+    "backend/internal/service/openai_gateway_forward.go": frozenset({}),
+    "backend/internal/service/openai_gateway_grok.go": frozenset({}),
+    "backend/internal/service/openai_gateway_messages.go": frozenset({}),
+    "backend/internal/service/openai_gateway_messages_chat_fallback.go": frozenset({}),
+    "backend/internal/service/openai_gateway_model_availability.go": frozenset({}),
+    "backend/internal/service/openai_gateway_scheduling.go": frozenset({
+        "modelAccessBlocksOpenAIAccount",
+        "resolveOpenAIAccountModelForAccess",
+    }),
+    "backend/internal/service/openai_images.go": frozenset({}),
+    "backend/internal/service/openai_images_responses.go": frozenset({}),
+    "backend/internal/service/openai_live.go": frozenset({
+        "liveRequestModel",
+    }),
+    "frontend/src/views/admin/GroupsView.vue": frozenset({}),
+    "frontend/src/views/admin/groupsModelsList.ts": frozenset({}),
+})
+
+APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
+    "backend/internal/handler/batch_image_handler.go": _approved_call_deltas(
+        ("batchImageError", {
+            "c.JSON": 1,
+            "service.GroupModelBlockedModel": 1,
+            "service.IsGroupModelBlockedError": 1,
+            "service.MarkOpsClientBusinessLimited": 1,
+        }),
+    ),
+    "backend/internal/handler/gateway_handler.go": _approved_call_deltas(
+        ("AntigravityModels", {
+            "apiKey.Group.CustomModelsListEnabled": 1,
+            "append": 2,
+            "c.Request.Context": 1,
+            "filterModelsByCustomList": 1,
+            "h.gatewayService.FilterModelsByGroupAccess": 1,
+            "middleware2.GetAPIKeyFromContext": 1,
+        }),
+        ("Messages", {
+            "bindGroupModelAccessChannelMapping": 1,
+            "c.Request.Context": 2,
+            "c.Request.WithContext": 2,
+            "service.ContextWithSelectionGroupModelAccess": 2,
+        }),
+        ("Models", {
+            "c.Request.Context": 1,
+            "defaultModelIDsForPlatform": 2,
+            "filterBlocked": 9,
+            "h.gatewayService.FilterModelsByGroupAccess": 1,
+            "openai.DefaultModelIDs": 1,
+            "writeModelsList": 2,
+            "writeOpenAIModelsList": 1,
+        }),
+        ("billingErrorDetails", {
+            "pkgerrors.Message": 1,
+            "pkgerrors.Reason": 1,
+        }),
+    ),
+    "backend/internal/handler/gateway_handler_chat_completions.go": _approved_call_deltas(
+        ("ChatCompletions", {
+            "bindGroupModelAccessChannelMapping": 1,
+            "c.Request.Context": 1,
+            "c.Request.WithContext": 1,
+            "service.ContextWithSelectionGroupModelAccess": 1,
+        }),
+    ),
+    "backend/internal/handler/gateway_handler_responses.go": _approved_call_deltas(
+        ("Responses", {
+            "bindGroupModelAccessChannelMapping": 1,
+            "c.Request.Context": 1,
+            "c.Request.WithContext": 1,
+            "service.ContextWithSelectionGroupModelAccess": 1,
+        }),
+    ),
+    "backend/internal/handler/gateway_helper.go": _approved_call_deltas(
+        ("bindGroupModelAccessChannelMapping", {
+            "c.Request.Context": 2,
+            "c.Request.WithContext": 1,
+            "groupmodelaccess.WriteBlockedResponse": 1,
+            "service.CheckGroupModelAccess": 1,
+            "service.MarkOpsClientBusinessLimited": 1,
+            "withGroupModelAccessChannelMapping": 1,
+        }),
+        ("bindGroupModelAccessFallbackModel", {
+            "c.Request.Context": 1,
+            "c.Request.WithContext": 1,
+            "groupmodelaccess.WithFallbackModel": 1,
+            "strings.TrimSpace": 1,
+        }),
+        ("withGroupModelAccessChannelMapping", {
+            "groupmodelaccess.WithRequestModel": 1,
+            "strings.TrimSpace": 1,
+        }),
+    ),
+    "backend/internal/handler/gemini_v1beta_handler.go": _approved_call_deltas(
+        ("GeminiV1BetaListModels", {
+            "apiKey.Group.CustomModelsListEnabled": 2,
+            "c.Data": 1,
+            "c.Request.Context": 2,
+            "filterAndWriteModels": 3,
+            "googleError": 3,
+            "h.gatewayService.FilterGeminiModelsResponse": 2,
+            "json.Marshal": 1,
+        }),
+        ("GeminiV1BetaModels", {
+            "bindGroupModelAccessChannelMapping": 1,
+            "c.Request.Context": 1,
+            "c.Request.WithContext": 1,
+            "service.ContextWithSelectionGroupModelAccess": 1,
+        }),
+    ),
+    "backend/internal/handler/image_task_handler.go": _approved_call_deltas(
+        ("refreshGroupModelAccessBeforeRun", {
+            "h.failTask": 4,
+            "h.openAI.apiKeyService.GetByID": 1,
+            "imageTaskErrorPayload": 3,
+            "json.Marshal": 1,
+            "middleware2.GetAPIKeyFromContext": 1,
+            "service.BindGroupModelAccessRequest": 1,
+            "service.IsGroupModelBlockedError": 1,
+            "string": 1,
+            "strings.TrimSpace": 1,
+            "taskCtx.Request.Context": 1,
+            "taskCtx.Set": 1,
+        }),
+        ("run", {
+            "h.refreshGroupModelAccessBeforeRun": 1,
+        }),
+    ),
+    "backend/internal/handler/no_account_error.go": _approved_call_deltas(
+        ("classifyNoAccountErrorFromGin", {
+            "service.MarkOpsClientBusinessLimited": 1,
+        }),
+    ),
+    "backend/internal/handler/openai_alpha_search.go": _approved_call_deltas(
+        ("AlphaSearch", {
+            "bindGroupModelAccessChannelMapping": 1,
+        }),
+    ),
+    "backend/internal/handler/openai_chat_completions.go": _approved_call_deltas(
+        ("ChatCompletions", {
+            "bindGroupModelAccessChannelMapping": 1,
+        }),
+    ),
+    "backend/internal/handler/openai_codex_models_handler.go": _approved_call_deltas(
+        ("CodexModels", {
+            "apiKey.Group.CustomModelsListEnabled": 2,
+            "c.Header": 1,
+            "c.Request.Context": 1,
+            "h.errorResponse": 1,
+            "service.FilterCodexModelsManifest": 1,
+        }),
+    ),
+    "backend/internal/handler/openai_embeddings.go": _approved_call_deltas(
+        ("Embeddings", {
+            "bindGroupModelAccessChannelMapping": 1,
+        }),
+    ),
+    "backend/internal/handler/openai_gateway_count_tokens.go": _approved_call_deltas(
+        ("CountTokens", {
+            "bindGroupModelAccessChannelMapping": 1,
+            "bindGroupModelAccessFallbackModel": 1,
+        }),
+    ),
+    "backend/internal/handler/openai_gateway_handler.go": _approved_call_deltas(
+        ("Messages", {
+            "bindGroupModelAccessChannelMapping": 1,
+            "bindGroupModelAccessFallbackModel": 1,
+        }),
+        ("Responses", {
+            "bindGroupModelAccessChannelMapping": 1,
+        }),
+        ("ResponsesWebSocket", {
+            "c.Request.WithContext": 1,
+            "classifyOpenAICompatibleNoAccountErrorFromGin": 2,
+            "closeOpenAIClientWS": 4,
+            "service.CheckGroupModelAccess": 4,
+            "service.CheckOpenAIAccountModelAccess": 1,
+            "service.GroupModelBlockedModel": 1,
+            "service.MarkOpsClientBusinessLimited": 5,
+            "service.NewOpenAIWSClientCloseError": 3,
+            "withGroupModelAccessChannelMapping": 2,
+            "writeGroupModelBlockedWSError": 7,
+        }),
+        ("recordCyberPolicyIfMarked", {
+            "c.Request.Context": 1,
+            "cmSvc.CyberPolicyGroupInScope": 1,
+        }),
+        ("rejectIfCyberSessionBlocked", {
+            "c.Request.Context": 1,
+            "h.contentModerationService.CyberPolicyGroupInScope": 1,
+        }),
+        ("writeGroupModelBlockedWSError", {
+            "cancel": 1,
+            "conn.Write": 1,
+            "context.Background": 1,
+            "context.WithTimeout": 1,
+            "fmt.Sprintf": 1,
+            "json.Marshal": 1,
+            "strings.TrimSpace": 1,
+        }),
+    ),
+    "backend/internal/handler/openai_images.go": _approved_call_deltas(
+        ("Images", {
+            "bindGroupModelAccessChannelMapping": 1,
+        }),
+    ),
+    "backend/internal/handler/openai_live.go": _approved_call_deltas(
+        ("Live", {
+            "String": 1,
+            "classifyNoAccountErrorFromGin": 1,
+            "errors.Is": 1,
+            "gjson.GetBytes": 1,
+            "h.errorResponse": 2,
+            "service.GroupModelBlockedModel": 1,
+            "service.IsGroupModelBlockedError": 1,
+            "service.MarkOpsClientBusinessLimited": 1,
+            "strings.TrimSpace": 1,
+        }),
+    ),
+    "backend/internal/server/middleware/api_key_auth.go": _approved_call_deltas(
+        ("apiKeyAuthWithSubscription", {
+            "bindAndEnforceGroupModelAccess": 2,
+        }),
+    ),
+    "backend/internal/server/middleware/api_key_auth_google.go": _approved_call_deltas(
+        ("APIKeyAuthWithSubscriptionGoogle", {
+            "bindAndEnforceGroupModelAccess": 2,
+        }),
+    ),
+    "backend/internal/server/routes/gateway.go": _approved_call_deltas(
+        ("compositeGeminiTargetPlatformMiddleware", {
+            "compositeMappedModelBlocked": 1,
+        }),
+        ("compositeMappedModelBlocked", {
+            "c.Request.Context": 1,
+            "groupmodelaccess.WriteBlockedResponse": 1,
+            "service.CheckGroupModelAccess": 1,
+            "service.MarkOpsClientBusinessLimited": 1,
+        }),
+        ("compositeTargetPlatformMiddleware", {
+            "compositeMappedModelBlocked": 1,
+        }),
+    ),
+    "backend/internal/service/admin_group.go": _approved_call_deltas(
+        ("AdminUpdateAPIKeyGroupID", {
+            "fmt.Errorf": 1,
+            "s.apiKeyRepo.Update": 1,
+            "s.authCacheInvalidator.InvalidateAuthCacheByKey": 1,
+            "s.checkGroupMinimumBalanceForUser": 1,
+        }),
+        ("CreateGroup", {
+            "infraerrors.BadRequest": 1,
+            "math.IsInf": 1,
+            "math.IsNaN": 1,
+        }),
+        ("GetGroupModelsListCandidates", {
+            "addCandidate": 11,
+            "containsInt64": 1,
+            "normalizeOpenAIMessagesDispatchModelConfig": 1,
+            "s.channelRepo.ListAll": 1,
+            "s.compositeRouteRepo.ListByGroup": 1,
+        }),
+        ("ReplaceUserGroup", {
+            "s.checkGroupMinimumBalanceForUser": 1,
+        }),
+        ("UpdateGroup", {
+            "infraerrors.BadRequest": 1,
+            "math.IsInf": 1,
+            "math.IsNaN": 1,
+        }),
+        ("checkGroupMinimumBalanceForUser", {
+            "groupaccess.CheckMinimumBalance": 1,
+            "infraerrors.InternalServer": 1,
+            "s.userRepo.GetByID": 1,
+        }),
+    ),
+    "backend/internal/service/antigravity_gateway_claude.go": _approved_call_deltas(
+        ("Forward", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/antigravity_gateway_compat.go": _approved_call_deltas(
+        ("prepareAntigravityCompatCall", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/antigravity_gateway_gemini.go": _approved_call_deltas(
+        ("ForwardGemini", {
+            "enforceResolvedModelAccess": 2,
+        }),
+    ),
+    "backend/internal/service/antigravity_gateway_upstream.go": _approved_call_deltas(
+        ("ForwardUpstream", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/batch_image_public.go": _approved_call_deltas(
+        ("ListModels", {
+            "WithCurrentGroupModelAccess": 1,
+            "modelAccessBlocksGatewayAccount": 1,
+        }),
+        ("Submit", {
+            "CheckGroupModelAccess": 2,
+            "ErrBillingServiceUnavailable.WithCause": 1,
+            "WithCurrentGroupModelAccess": 2,
+            "enforceResolvedModelAccess": 1,
+            "groupaccess.CheckMinimumBalance": 1,
+            "hbCancel": 1,
+            "policyErr.Error": 1,
+            "resolveGatewayAccountModelForAccess": 1,
+            "s.Repo.RecordBatchImageJobSubmitFailure": 1,
+            "s.UserRepo.GetByID": 1,
+            "s.ensureGroupAllowsBatchImage": 1,
+            "s.hidePreUpstreamSubmitFailure": 1,
+            "s.releaseFailedSubmitHold": 1,
+            "sanitizeBatchImagePublicMessage": 1,
+        }),
+        ("selectProviderAndAccount", {
+            "CheckGatewayAccountModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/gateway_bedrock.go": _approved_call_deltas(
+        ("forwardBedrock", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/gateway_count_tokens.go": _approved_call_deltas(
+        ("ForwardCountTokens", {
+            "enforceResolvedModelAccess": 1,
+            "resolveGatewayAccountModelForAccess": 1,
+        }),
+    ),
+    "backend/internal/service/gateway_forward.go": _approved_call_deltas(
+        ("Forward", {
+            "enforceResolvedModelAccess": 1,
+            "resolveGatewayAccountModelForAccess": 1,
+        }),
+    ),
+    "backend/internal/service/gateway_forward_as_chat_completions.go": _approved_call_deltas(
+        ("ForwardAsChatCompletions", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/gateway_forward_as_responses.go": _approved_call_deltas(
+        ("ForwardAsResponses", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/gateway_model_availability.go": _approved_call_deltas(
+        ("DiagnoseModelAvailabilityForPlatform", {
+            "groupmodelaccess.WithPolicy": 1,
+            "modelAccessBlocksGatewayAccount": 1,
+            "s.isModelSupportedByAccountWithContext": 1,
+        }),
+        ("FilterGeminiModelsResponse", {
+            "append": 3,
+            "json.Marshal": 2,
+            "json.Unmarshal": 4,
+            "s.FilterModelsByGroupAccess": 1,
+            "strings.TrimPrefix": 4,
+            "strings.TrimSpace": 5,
+        }),
+        ("FilterModelsByGroupAccess", {
+            "append": 1,
+            "group.ResolveMessagesDispatchModel": 1,
+            "groupmodelaccess.FromContext": 1,
+            "groupmodelaccess.WithFallbackModel": 1,
+            "groupmodelaccess.WithRequestModel": 2,
+            "policy.Blocks": 1,
+            "policy.Empty": 1,
+            "s.DiagnoseModelAvailabilityForPlatform": 1,
+            "s.ResolveChannelMappingAndRestrict": 1,
+            "s.resolveCompositeRouteDecision": 1,
+            "s.resolveGroupByID": 1,
+            "strings.TrimSpace": 1,
+        }),
+    ),
+    "backend/internal/service/gateway_scheduling.go": _approved_call_deltas(
+        ("isModelSupportedByAccountWithContext", {
+            "modelAccessBlocksGatewayAccount": 1,
+        }),
+        ("modelAccessBlocksGatewayAccount", {
+            "Empty": 1,
+            "groupmodelaccess.BlocksContext": 1,
+            "groupmodelaccess.FromContext": 1,
+            "resolveGatewayAccountModelForAccess": 1,
+        }),
+        ("newSelectionResult", {
+            "attachSelectionGroupModelAccess": 1,
+        }),
+        ("resolveGatewayAccountModelForAccess", {
+            "ResolveBedrockModelID": 1,
+            "ThinkingEnabledFromContext": 1,
+            "account.GetMappedModel": 1,
+            "account.IsBedrock": 1,
+            "account.IsOpenAICompatible": 1,
+            "account.ResolveMappedModel": 1,
+            "applyThinkingModelSuffix": 1,
+            "claude.NormalizeModelID": 2,
+            "groupmodelaccess.RequestModel": 1,
+            "mapAntigravityModel": 1,
+            "normalizeVertexAnthropicModelID": 1,
+            "resolveOpenAIAccountModelForAccess": 1,
+            "strings.TrimSpace": 1,
+        }),
+        ("withGroupContext", {
+            "groupmodelaccess.WithAdditionalModels": 1,
+        }),
+    ),
+    "backend/internal/service/gemini_chat_completions_compat_service.go": _approved_call_deltas(
+        ("forwardClaudeBodyAsChatCompletions", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/gemini_messages_compat_service.go": _approved_call_deltas(
+        ("Forward", {
+            "enforceResolvedModelAccess": 1,
+        }),
+        ("ForwardNative", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/grok_audio.go": _approved_call_deltas(
+        ("ForwardGrokVoice", {
+            "String": 1,
+            "account.GetMappedModel": 1,
+            "enforceResolvedModelAccess": 1,
+            "gjson.GetBytes": 1,
+            "strings.TrimSpace": 2,
+        }),
+        ("ProxyGrokRealtime", {
+            "account.GetMappedModel": 1,
+            "enforceResolvedModelAccess": 1,
+            "strings.TrimSpace": 1,
+        }),
+    ),
+    "backend/internal/service/grok_media.go": _approved_call_deltas(
+        ("ForwardGrokMedia", {
+            "endpoint.RequiresRequestBody": 1,
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/group_models_list.go": _approved_call_deltas(
+        ("<top-level>", {
+            "import": 1,
+        }),
+        ("BlocksModel", {
+            "groupmodelaccess.Blocks": 1,
+        }),
+        ("normalizeGroupModelsListConfig", {
+            "groupmodelaccess.Normalize": 1,
+        }),
+    ),
+    "backend/internal/service/openai_alpha_search.go": _approved_call_deltas(
+        ("ForwardAlphaSearch", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/openai_embeddings.go": _approved_call_deltas(
+        ("ForwardEmbeddings", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/openai_gateway_chat_completions.go": _approved_call_deltas(
+        ("ForwardAsChatCompletions", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/openai_gateway_chat_completions_raw.go": _approved_call_deltas(
+        ("forwardAsRawChatCompletions", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/openai_gateway_count_tokens.go": _approved_call_deltas(
+        ("ForwardCountTokensAsAnthropic", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/openai_gateway_forward.go": _approved_call_deltas(
+        ("Forward", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/openai_gateway_grok.go": _approved_call_deltas(
+        ("forwardGrokResponses", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/openai_gateway_messages.go": _approved_call_deltas(
+        ("ForwardAsAnthropic", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/openai_gateway_messages_chat_fallback.go": _approved_call_deltas(
+        ("forwardAnthropicViaRawChatCompletions", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/openai_gateway_model_availability.go": _approved_call_deltas(
+        ("DiagnoseModelAvailabilityForPlatform", {
+            "modelAccessBlocksOpenAIAccount": 1,
+        }),
+    ),
+    "backend/internal/service/openai_gateway_scheduling.go": _approved_call_deltas(
+        ("isOpenAICompatibleAccountEligibleForRequest", {
+            "modelAccessBlocksOpenAIAccount": 1,
+        }),
+        ("modelAccessBlocksOpenAIAccount", {
+            "CheckOpenAIAccountModelAccess": 1,
+            "Empty": 1,
+            "groupmodelaccess.FromContext": 1,
+        }),
+        ("resolveOpenAIAccountModelForAccess", {
+            "groupmodelaccess.FallbackModel": 1,
+            "groupmodelaccess.RequestModel": 1,
+            "normalizeOpenAIModelForUpstream": 1,
+            "resolveOpenAICompactForwardModel": 1,
+            "resolveOpenAIForwardModel": 1,
+            "strings.TrimSpace": 1,
+        }),
+        ("resolveOpenAIAccountUpstreamModelForRequest", {
+            "normalizeOpenAIModelForUpstream": 1,
+        }),
+    ),
+    "backend/internal/service/openai_images.go": _approved_call_deltas(
+        ("forwardOpenAIImagesAPIKey", {
+            "enforceResolvedModelAccess": 1,
+        }),
+    ),
+    "backend/internal/service/openai_images_responses.go": _approved_call_deltas(
+        ("forwardOpenAIImagesOAuth", {
+            "enforceResolvedModelAccess": 2,
+        }),
+    ),
+    "backend/internal/service/openai_live.go": _approved_call_deltas(
+        ("CreateLiveCall", {
+            "CheckGroupModelAccess": 1,
+            "CheckOpenAIAccountModelAccess": 1,
+            "liveRequestModel": 1,
+            "selection.ReleaseFunc": 1,
+        }),
+        ("createUpstreamLiveCall", {
+            "String": 1,
+            "enforceResolvedModelAccess": 1,
+            "gjson.GetBytes": 1,
+            "liveRequestModel": 1,
+            "resolveOpenAIAccountModelForAccess": 1,
+            "s.ReplaceModelInBody": 1,
+            "strings.TrimSpace": 1,
+        }),
+        ("liveRequestModel", {
+            "String": 1,
+            "gjson.GetBytes": 1,
+            "strings.TrimSpace": 1,
+        }),
+    ),
+    "frontend/src/views/admin/GroupsView.vue": _approved_call_deltas(
+        ("<top-level>", {
+            "blockAllModelsListItems": 2,
+            "invertModelsBlocklistSelection": 2,
+            "minimumBalanceFormValue": 2,
+            "ref": 2,
+            "toggleModelsBlocklistItem": 2,
+        }),
+        ("closeCreateModal", {
+            "minimumBalanceFormValue": 1,
+        }),
+        ("closeEditModal", {
+            "minimumBalanceFormValue": 1,
+        }),
+        ("handleCreateGroup", {
+            "appStore.showError": 1,
+            "normalizeMinimumBalanceFormValue": 1,
+            "t": 1,
+        }),
+        ("handleEdit", {
+            "minimumBalanceFormValue": 1,
+        }),
+        ("handleUpdateGroup", {
+            "appStore.showError": 1,
+            "normalizeMinimumBalanceFormValue": 1,
+            "t": 1,
+        }),
+    ),
+    "frontend/src/views/admin/groupsModelsList.ts": _approved_call_deltas(
+        ("<top-level>", {
+            "blockedModels.has": 1,
+            "blockedModelsForCandidates": 1,
+            "buildBlockedModelsPayload": 1,
+            "includeSavedBlockedModels": 1,
+            "normalizeBlockedModels": 1,
+        }),
+    ),
+})
+
+APPROVED_DELEGATE_VIEW_CONTROL.update({
+    "backend/internal/handler/batch_image_handler.go": (
+        ("batchImageError", "if service.IsGroupModelBlockedError(err) {"),
+    ),
+    "backend/internal/handler/gateway_handler.go": (
+        ("Messages", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
+        ("AntigravityModels", "for _, model := range models {"),
+        ("AntigravityModels", "if apiKey != nil && apiKey.Group != nil {"),
+        ("AntigravityModels", "if apiKey.Group.CustomModelsListEnabled() {"),
+        ("AntigravityModels", "for _, id := range ids {"),
+        ("AntigravityModels", "for _, model := range models {"),
+        ("AntigravityModels", "if _, ok := allowed[model.ID]; ok {"),
+        ("errorResponse", "if status == http.StatusNotFound && errType == \"model_not_found\" {"),
+        ("billingErrorDetails", "if pkgerrors.Reason(err) == groupaccess.MinimumBalanceNotMetReason {"),
+    ),
+    "backend/internal/handler/gateway_handler_chat_completions.go": (
+        ("ChatCompletions", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
+        ("chatCompletionsErrorResponse", "if status == http.StatusNotFound && errType == \"model_not_found\" {"),
+    ),
+    "backend/internal/handler/gateway_handler_responses.go": (
+        ("Responses", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
+    ),
+    "backend/internal/handler/gateway_helper.go": (
+        ("withGroupModelAccessChannelMapping", "if strings.TrimSpace(mapping.MappedModel) == \"\" {"),
+        ("bindGroupModelAccessChannelMapping", "if c == nil || c.Request == nil {"),
+        ("bindGroupModelAccessChannelMapping", "if mapping.Mapped {"),
+        ("bindGroupModelAccessChannelMapping", "if err := service.CheckGroupModelAccess(c.Request.Context(), mapping.MappedModel); err != nil {"),
+        ("bindGroupModelAccessFallbackModel", "if c == nil || c.Request == nil || strings.TrimSpace(model) == \"\" {"),
+    ),
+    "backend/internal/handler/gemini_v1beta_handler.go": (
+        ("GeminiV1BetaListModels", "if err != nil {"),
+        ("GeminiV1BetaListModels", "if apiKey.Group != nil {"),
+        ("GeminiV1BetaListModels", "if err != nil {"),
+        ("GeminiV1BetaListModels", "if apiKey.Group != nil {"),
+        ("GeminiV1BetaListModels", "if filterErr != nil {"),
+        ("GeminiV1BetaListModels", "if changed {"),
+        ("GeminiV1BetaModels", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
+    ),
+    "backend/internal/handler/image_task_handler.go": (
+        ("run", "if !h.refreshGroupModelAccessBeforeRun(taskID, taskCtx) {"),
+        ("refreshGroupModelAccessBeforeRun", "if h == nil || h.openAI == nil || h.openAI.apiKeyService == nil || taskCtx == nil || taskCtx.Request == nil {"),
+        ("refreshGroupModelAccessBeforeRun", "if !ok || apiKey == nil || apiKey.ID <= 0 {"),
+        ("refreshGroupModelAccessBeforeRun", "if err != nil || latest == nil || latest.Group == nil {"),
+        ("refreshGroupModelAccessBeforeRun", "if accessErr == nil {"),
+        ("refreshGroupModelAccessBeforeRun", "if service.IsGroupModelBlockedError(accessErr) {"),
+    ),
+    "backend/internal/handler/no_account_error.go": (
+        ("classifyNoAccountErrorFromGin", "if classification.LocalPolicyDenied && c != nil {"),
+    ),
+    "backend/internal/handler/openai_alpha_search.go": (
+        ("AlphaSearch", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
+    ),
+    "backend/internal/handler/openai_chat_completions.go": (
+        ("ChatCompletions", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
+    ),
+    "backend/internal/handler/openai_codex_models_handler.go": (
+        ("CodexModels", "if filterManifest {"),
+        ("CodexModels", "if manifest.ETag != \"\" {"),
+        ("CodexModels", "if filterErr != nil {"),
+        ("CodexModels", "if changed {"),
+        ("CodexModels", "if manifest.ETag != \"\" {"),
+    ),
+    "backend/internal/handler/openai_embeddings.go": (
+        ("Embeddings", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
+    ),
+    "backend/internal/handler/openai_gateway_count_tokens.go": (
+        ("CountTokens", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
+    ),
+    "backend/internal/handler/openai_gateway_handler.go": (
+        ("Responses", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
+        ("Messages", "if !bindGroupModelAccessChannelMapping(c, channelMappingMsg) {"),
+        ("ResponsesWebSocket", "if accessErr := service.CheckGroupModelAccess(ctx, reqModel); accessErr != nil {"),
+        ("ResponsesWebSocket", "if channelMappingWS.Mapped {"),
+        ("ResponsesWebSocket", "if accessErr := service.CheckGroupModelAccess(ctx, channelMappingWS.MappedModel); accessErr != nil {"),
+        ("ResponsesWebSocket", "if cls.ModelNotFound {"),
+        ("ResponsesWebSocket", "} else if lastFailoverErr != nil {"),
+        ("ResponsesWebSocket", "if cls.ModelNotFound {"),
+        ("ResponsesWebSocket", "} else if lastFailoverErr != nil {"),
+        ("ResponsesWebSocket", "if accessErr := service.CheckGroupModelAccess(ctx, model); accessErr != nil {"),
+        ("ResponsesWebSocket", "if mapping.Mapped {"),
+        ("ResponsesWebSocket", "if accessErr := service.CheckGroupModelAccess(turnAccessCtx, mapping.MappedModel); accessErr != nil {"),
+        ("ResponsesWebSocket", "if accessErr := service.CheckOpenAIAccountModelAccess(turnAccessCtx, account, mapping.MappedModel, false); accessErr != nil {"),
+        ("errorResponse", "if status == http.StatusNotFound && errType == \"model_not_found\" {"),
+        ("writeGroupModelBlockedWSError", "if conn == nil {"),
+        ("writeGroupModelBlockedWSError", "if ctx == nil {"),
+        ("writeGroupModelBlockedWSError", "if err != nil {"),
+        ("rejectIfCyberSessionBlocked", "if h.contentModerationService == nil ||"),
+        ("recordCyberPolicyIfMarked", "if cyberPolicyInScope && gwSvc != nil && cyberBlockKey != \"\" {"),
+    ),
+    "backend/internal/handler/openai_images.go": (
+        ("Images", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
+    ),
+    "backend/internal/handler/openai_live.go": (
+        ("Live", "if service.IsGroupModelBlockedError(err) {"),
+        ("Live", "if model == \"\" {"),
+        ("Live", "if errors.Is(err, service.ErrNoAvailableAccounts) {"),
+        ("Live", "if cls.ModelNotFound {"),
+    ),
+    "backend/internal/server/middleware/api_key_auth.go": (
+        ("apiKeyAuthWithSubscription", "if !bindAndEnforceGroupModelAccess(c, apiKey) {"),
+        ("apiKeyAuthWithSubscription", "if !bindAndEnforceGroupModelAccess(c, apiKey) {"),
+    ),
+    "backend/internal/server/middleware/api_key_auth_google.go": (
+        ("APIKeyAuthWithSubscriptionGoogle", "if !bindAndEnforceGroupModelAccess(c, apiKey) {"),
+        ("APIKeyAuthWithSubscriptionGoogle", "if !bindAndEnforceGroupModelAccess(c, apiKey) {"),
+    ),
+    "backend/internal/server/routes/gateway.go": (
+        ("compositeTargetPlatformMiddleware", "if compositeMappedModelBlocked(c, decision.UpstreamModel) {"),
+        ("compositeGeminiTargetPlatformMiddleware", "if compositeMappedModelBlocked(c, decision.UpstreamModel) {"),
+        ("compositeMappedModelBlocked", "if c == nil || c.Request == nil {"),
+        ("compositeMappedModelBlocked", "if err := service.CheckGroupModelAccess(c.Request.Context(), model); err == nil {"),
+    ),
+    "backend/internal/service/admin_group.go": (
+        ("GetGroupModelsListCandidates", "if model == \"\" {"),
+        ("GetGroupModelsListCandidates", "if _, ok := seen[model]; ok {"),
+        ("GetGroupModelsListCandidates", "for requestedModel, upstreamModel := range acc.GetModelMapping() {"),
+        ("GetGroupModelsListCandidates", "if selectedGroup != nil {"),
+        ("GetGroupModelsListCandidates", "for requestedModel, upstreamModel := range cfg.ExactModelMappings {"),
+        ("GetGroupModelsListCandidates", "if id > 0 && platform == PlatformComposite && s.compositeRouteRepo != nil {"),
+        ("GetGroupModelsListCandidates", "if err != nil {"),
+        ("GetGroupModelsListCandidates", "for _, route := range routes {"),
+        ("GetGroupModelsListCandidates", "if id > 0 && s.channelRepo != nil {"),
+        ("GetGroupModelsListCandidates", "if err != nil {"),
+        ("GetGroupModelsListCandidates", "for _, channel := range channels {"),
+        ("GetGroupModelsListCandidates", "if !containsInt64(channel.GroupIDs, id) {"),
+        ("GetGroupModelsListCandidates", "for mappingPlatform, mapping := range channel.ModelMapping {"),
+        ("GetGroupModelsListCandidates", "if platform != PlatformComposite && mappingPlatform != platform {"),
+        ("GetGroupModelsListCandidates", "for requestedModel, upstreamModel := range mapping {"),
+        ("CreateGroup", "if math.IsNaN(input.MinimumBalance) || math.IsInf(input.MinimumBalance, 0) || input.MinimumBalance < 0 {"),
+        ("UpdateGroup", "if input.MinimumBalance != nil {"),
+        ("UpdateGroup", "if math.IsNaN(*input.MinimumBalance) || math.IsInf(*input.MinimumBalance, 0) || *input.MinimumBalance < 0 {"),
+        ("AdminUpdateAPIKeyGroupID", "if (*groupID == 0 && apiKey.GroupID == nil) ||"),
+        ("AdminUpdateAPIKeyGroupID", "if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {"),
+        ("AdminUpdateAPIKeyGroupID", "if s.authCacheInvalidator != nil {"),
+        ("AdminUpdateAPIKeyGroupID", "if err := s.checkGroupMinimumBalanceForUser(ctx, apiKey.UserID, group); err != nil {"),
+        ("ReplaceUserGroup", "if migrated > 0 {"),
+        ("ReplaceUserGroup", "if err := s.checkGroupMinimumBalanceForUser(opCtx, userID, newGroup); err != nil {"),
+        ("ReplaceUserGroup", "if err := s.userRepo.AddGroupToAllowedGroups(opCtx, userID, newGroupID); err != nil {"),
+        ("checkGroupMinimumBalanceForUser", "if group == nil || group.MinimumBalance <= 0 {"),
+        ("checkGroupMinimumBalanceForUser", "if s.userRepo == nil {"),
+        ("checkGroupMinimumBalanceForUser", "if err != nil {"),
+    ),
+    "backend/internal/service/antigravity_gateway_claude.go": (
+        ("Forward", "if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {"),
+    ),
+    "backend/internal/service/antigravity_gateway_compat.go": (
+        ("prepareAntigravityCompatCall", "if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {"),
+    ),
+    "backend/internal/service/antigravity_gateway_gemini.go": (
+        ("ForwardGemini", "if mappedModel != \"\" {"),
+        ("ForwardGemini", "if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {"),
+        ("ForwardGemini", "if accessErr := enforceResolvedModelAccess(ctx, c, fallbackModel); accessErr != nil {"),
+    ),
+    "backend/internal/service/antigravity_gateway_upstream.go": (
+        ("ForwardUpstream", "if err := enforceResolvedModelAccess(ctx, c, originalModel); err != nil {"),
+    ),
+    "backend/internal/service/batch_image_public.go": (
+        ("Submit", "if err != nil {"),
+        ("Submit", "if err := CheckGroupModelAccess(ctx, normalized.Model); err != nil {"),
+        ("Submit", "if group != nil && group.MinimumBalance > 0 {"),
+        ("Submit", "if s.UserRepo == nil {"),
+        ("Submit", "if err != nil {"),
+        ("Submit", "if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {"),
+        ("Submit", "if policyErr == nil {"),
+        ("Submit", "if policyErr == nil {"),
+        ("Submit", "if policyErr != nil {"),
+        ("Submit", "if releaseErr := s.releaseFailedSubmitHold(ctx, job, requestHash); releaseErr != nil {"),
+        ("ListModels", "if err != nil {"),
+        ("ListModels", "if modelAccessBlocksGatewayAccount(ctx, &account, model) {"),
+        ("selectProviderAndAccount", "if accessErr := CheckGatewayAccountModelAccess(ctx, &account, model); accessErr != nil {"),
+        ("selectProviderAndAccount", "if blockedErr != nil {"),
+    ),
+    "backend/internal/service/gateway_bedrock.go": (
+        ("forwardBedrock", "if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {"),
+    ),
+    "backend/internal/service/gateway_count_tokens.go": (
+        ("ForwardCountTokens", "if model := resolveGatewayAccountModelForAccess(ctx, account, parsed.Model); model != \"\" {"),
+        ("ForwardCountTokens", "if err := enforceResolvedModelAccess(ctx, c, model); err != nil {"),
+    ),
+    "backend/internal/service/gateway_forward.go": (
+        ("Forward", "if model := resolveGatewayAccountModelForAccess(ctx, account, parsed.Model); model != \"\" {"),
+        ("Forward", "if err := enforceResolvedModelAccess(ctx, c, model); err != nil {"),
+    ),
+    "backend/internal/service/gateway_forward_as_chat_completions.go": (
+        ("ForwardAsChatCompletions", "if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {"),
+    ),
+    "backend/internal/service/gateway_forward_as_responses.go": (
+        ("ForwardAsResponses", "if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {"),
+    ),
+    "backend/internal/service/gateway_model_availability.go": (
+        ("FilterModelsByGroupAccess", "if policy.Empty() || len(models) == 0 {"),
+        ("FilterModelsByGroupAccess", "if groupID != nil {"),
+        ("FilterModelsByGroupAccess", "for _, rawModel := range models {"),
+        ("FilterModelsByGroupAccess", "if model == \"\" || policy.Blocks(model) {"),
+        ("FilterModelsByGroupAccess", "if groupID != nil {"),
+        ("FilterModelsByGroupAccess", "if group != nil && group.Platform == PlatformComposite {"),
+        ("FilterModelsByGroupAccess", "if decision, ok, resolveErr := s.resolveCompositeRouteDecision(ctx, group, model, CompositeRouteEndpointAny); resolveErr == nil && ok {"),
+        ("FilterModelsByGroupAccess", "if mapping, _ := s.ResolveChannelMappingAndRestrict(modelCtx, groupID, routingModel); mapping.Mapped {"),
+        ("FilterModelsByGroupAccess", "if group != nil && group.AllowMessagesDispatch {"),
+        ("FilterModelsByGroupAccess", "if fallbackModel := group.ResolveMessagesDispatchModel(model); fallbackModel != \"\" {"),
+        ("FilterModelsByGroupAccess", "if diagnosis.HasAccountsInPool && !diagnosis.HasModelSupport {"),
+        ("FilterGeminiModelsResponse", "if err := json.Unmarshal(body, &envelope); err != nil {"),
+        ("FilterGeminiModelsResponse", "if err := json.Unmarshal(envelope[\"models\"], &models); err != nil {"),
+        ("FilterGeminiModelsResponse", "for _, raw := range models {"),
+        ("FilterGeminiModelsResponse", "if json.Unmarshal(raw, &item) == nil {"),
+        ("FilterGeminiModelsResponse", "for _, model := range allowedByPolicy {"),
+        ("FilterGeminiModelsResponse", "for _, model := range displayModels {"),
+        ("FilterGeminiModelsResponse", "for _, raw := range models {"),
+        ("FilterGeminiModelsResponse", "if err := json.Unmarshal(raw, &item); err != nil || strings.TrimSpace(item.Name) == \"\" {"),
+        ("FilterGeminiModelsResponse", "if !policyOK || (displayEnabled && !displayOK) {"),
+        ("FilterGeminiModelsResponse", "if !changed {"),
+        ("FilterGeminiModelsResponse", "if err != nil {"),
+        ("DiagnoseModelAvailabilityForPlatform", "if modelAccessBlocksGatewayAccount(ctx, &accounts[i], requestedModel) &&"),
+    ),
+    "backend/internal/service/gateway_scheduling.go": (
+        ("isModelSupportedByAccountWithContext", "if modelAccessBlocksGatewayAccount(ctx, account, requestedModel) {"),
+        ("modelAccessBlocksGatewayAccount", "if account == nil || groupmodelaccess.FromContext(ctx).Empty() {"),
+        ("resolveGatewayAccountModelForAccess", "if account == nil {"),
+        ("resolveGatewayAccountModelForAccess", "switch {"),
+        ("resolveGatewayAccountModelForAccess", "if enabled, ok := ThinkingEnabledFromContext(ctx); ok {"),
+        ("resolveGatewayAccountModelForAccess", "if mapped, ok := ResolveBedrockModelID(account, model); ok {"),
+        ("resolveGatewayAccountModelForAccess", "if mapped, matched := account.ResolveMappedModel(model); matched {"),
+    ),
+    "backend/internal/service/gemini_chat_completions_compat_service.go": (
+        ("forwardClaudeBodyAsChatCompletions", "if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {"),
+    ),
+    "backend/internal/service/gemini_messages_compat_service.go": (
+        ("Forward", "if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {"),
+        ("ForwardNative", "if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {"),
+    ),
+    "backend/internal/service/grok_audio.go": (
+        ("ForwardGrokVoice", "if requestedModel := strings.TrimSpace(gjson.GetBytes(body, \"model\").String()); requestedModel != \"\" {"),
+        ("ForwardGrokVoice", "if upstreamModel == \"\" {"),
+        ("ForwardGrokVoice", "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {"),
+        ("ProxyGrokRealtime", "if err := enforceResolvedModelAccess(ctx, c, model); err != nil {"),
+    ),
+    "backend/internal/service/grok_media.go": (
+        ("ForwardGrokMedia", "if endpoint.RequiresRequestBody() {"),
+        ("ForwardGrokMedia", "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {"),
+    ),
+    "backend/internal/service/group_models_list.go": (
+    ),
+    "backend/internal/service/openai_alpha_search.go": (
+        ("ForwardAlphaSearch", "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {"),
+    ),
+    "backend/internal/service/openai_embeddings.go": (
+        ("ForwardEmbeddings", "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {"),
+    ),
+    "backend/internal/service/openai_gateway_chat_completions.go": (
+        ("ForwardAsChatCompletions", "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {"),
+    ),
+    "backend/internal/service/openai_gateway_chat_completions_raw.go": (
+        ("forwardAsRawChatCompletions", "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {"),
+    ),
+    "backend/internal/service/openai_gateway_count_tokens.go": (
+        ("ForwardCountTokensAsAnthropic", "if err := enforceResolvedModelAccess(ctx, c, prepared.UpstreamModel); err != nil {"),
+    ),
+    "backend/internal/service/openai_gateway_forward.go": (
+        ("Forward", "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {"),
+    ),
+    "backend/internal/service/openai_gateway_grok.go": (
+        ("forwardGrokResponses", "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {"),
+    ),
+    "backend/internal/service/openai_gateway_messages.go": (
+        ("ForwardAsAnthropic", "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {"),
+    ),
+    "backend/internal/service/openai_gateway_messages_chat_fallback.go": (
+        ("forwardAnthropicViaRawChatCompletions", "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {"),
+    ),
+    "backend/internal/service/openai_gateway_model_availability.go": (
+        ("DiagnoseModelAvailabilityForPlatform", "if modelAccessBlocksOpenAIAccount(ctx, &accounts[i], requestedModel, false) {"),
+    ),
+    "backend/internal/service/openai_gateway_scheduling.go": (
+        ("isOpenAICompatibleAccountEligibleForRequest", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
+        ("modelAccessBlocksOpenAIAccount", "if account == nil || groupmodelaccess.FromContext(ctx).Empty() {"),
+        ("resolveOpenAIAccountModelForAccess", "if account == nil {"),
+        ("resolveOpenAIAccountModelForAccess", "if requireCompact {"),
+    ),
+    "backend/internal/service/openai_images.go": (
+        ("forwardOpenAIImagesAPIKey", "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {"),
+    ),
+    "backend/internal/service/openai_images_responses.go": (
+        ("forwardOpenAIImagesOAuth", "if err := enforceResolvedModelAccess(ctx, c, requestModel); err != nil {"),
+        ("forwardOpenAIImagesOAuth", "if err := enforceResolvedModelAccess(ctx, c, openAIImagesResponsesMainModel); err != nil {"),
+    ),
+    "backend/internal/service/openai_live.go": (
+        ("liveRequestModel", "if request == nil {"),
+        ("liveRequestModel", "if model == \"\" {"),
+        ("CreateLiveCall", "if err := CheckGroupModelAccess(ctx, requestedModel); err != nil {"),
+        ("CreateLiveCall", "if accessErr := CheckOpenAIAccountModelAccess(ctx, account, requestedModel, false); accessErr != nil {"),
+        ("CreateLiveCall", "if selection.ReleaseFunc != nil {"),
+        ("createUpstreamLiveCall", "if err := enforceResolvedModelAccess(ctx, nil, upstreamModel); err != nil {"),
+        ("createUpstreamLiveCall", "if strings.TrimSpace(gjson.GetBytes(request.Session, \"model\").String()) != \"\" && upstreamModel != requestedModel {"),
+    ),
+    "frontend/src/views/admin/GroupsView.vue": (
+        ("handleCreateGroup", "if (minimumBalance === null) {"),
+        ("handleUpdateGroup", "if (minimumBalance === null) {"),
+    ),
+    "frontend/src/views/admin/groupsModelsList.ts": (
+    ),
+})
+
+APPROVED_DELEGATE_VIEW_ORCHESTRATION: dict[str, tuple[tuple[str, str], ...]] = {
+    "backend/internal/handler/gemini_v1beta_handler.go": (
+        (
+            "GeminiV1BetaListModels",
+            "filterAndWriteModels(antigravity.FallbackGeminiModelsList(), service.PlatformAntigravity)",
+        ),
+        (
+            "GeminiV1BetaListModels",
+            "filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)",
+        ),
+        (
+            "GeminiV1BetaListModels",
+            "filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)",
+        ),
+    ),
+    "backend/internal/service/openai_gateway_scheduling.go": (
+        (
+            "resolveOpenAIAccountModelForAccess",
+            "upstreamModel := resolveOpenAIForwardModel(account, baseModel, groupmodelaccess.FallbackModel(ctx))",
+        ),
+    ),
+}
+
 FUNCTION_START_PATTERNS = (
     re.compile(
         r"^\s*func\s+(?:\([^)]*\)\s*)?(?P<name>[A-Za-z_]\w*)\s*\(",
@@ -1453,7 +2436,11 @@ def validate_delegate_view_structure(
         )
 
     approved_control = Counter(APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()))
+    approved_orchestration = Counter(
+        APPROVED_DELEGATE_VIEW_ORCHESTRATION.get(row.path, ())
+    )
     actual_control: Counter[tuple[str, str]] = Counter()
+    actual_orchestration: Counter[tuple[str, str]] = Counter()
     for line_number in sorted(changed_lines):
         if line_number < 1 or line_number > len(lines):
             continue
@@ -1462,18 +2449,26 @@ def validate_delegate_view_structure(
         function_name = block.name if block else "<top-level>"
         if DELEGATE_VIEW_CONTROL_FLOW_RE.search(line):
             actual_control[(function_name, line.strip())] += 1
-        if not ORCHESTRATION_RE.search(line):
-            continue
-        raise ContractError(
-            f"{row.kind} bridge introduces orchestration in "
-            f"{function_name}: {row.path}:{line_number}"
-        )
+        if ORCHESTRATION_RE.search(line):
+            actual_orchestration[(function_name, line.strip())] += 1
 
     unexpected_control = actual_control - approved_control
     if unexpected_control:
         raise ContractError(
             f"{row.kind} bridge introduces unapproved control flow in {row.path}: "
             f"{sorted(unexpected_control.elements())}"
+        )
+    unexpected_orchestration = actual_orchestration - approved_orchestration
+    if unexpected_orchestration:
+        raise ContractError(
+            f"{row.kind} bridge introduces unapproved orchestration in {row.path}: "
+            f"{sorted(unexpected_orchestration.elements())}"
+        )
+    missing_orchestration = approved_orchestration - actual_orchestration
+    if missing_orchestration:
+        raise ContractError(
+            f"{row.kind} bridge is missing approved orchestration in {row.path}: "
+            f"{sorted(missing_orchestration.elements())}"
         )
 
 

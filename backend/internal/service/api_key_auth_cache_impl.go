@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 19 // v19: include custom profit controls and group search/audio/video-model billing fields
+const apiKeyAuthSnapshotVersion = 20 // v20: include the group model call blocklist in models_list_config
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int

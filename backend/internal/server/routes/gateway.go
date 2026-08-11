@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupmodelaccess"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -532,6 +533,9 @@ func compositeTargetPlatformMiddleware(resolver *service.CompositeRouteResolver)
 			}
 			if decision.Matched {
 				c.Request = c.Request.WithContext(service.WithCompositeRouteDecision(c.Request.Context(), decision))
+				if compositeMappedModelBlocked(c, decision.UpstreamModel) {
+					return
+				}
 				if upstreamModel := strings.TrimSpace(decision.UpstreamModel); upstreamModel != "" && upstreamModel != model && gjson.ValidBytes(body) {
 					if rewritten, rewriteErr := sjson.SetBytes(body, "model", upstreamModel); rewriteErr == nil {
 						body = rewritten
@@ -597,6 +601,9 @@ func compositeGeminiTargetPlatformMiddleware(resolver *service.CompositeRouteRes
 				}
 				if decision.Matched {
 					c.Request = c.Request.WithContext(service.WithCompositeRouteDecision(c.Request.Context(), decision))
+					if compositeMappedModelBlocked(c, decision.UpstreamModel) {
+						return
+					}
 				}
 			}
 			if _, resolved := service.ResolvedTargetPlatformFromContext(c.Request.Context()); !resolved {
@@ -605,6 +612,18 @@ func compositeGeminiTargetPlatformMiddleware(resolver *service.CompositeRouteRes
 		}
 		c.Next()
 	}
+}
+
+func compositeMappedModelBlocked(c *gin.Context, model string) bool {
+	if c == nil || c.Request == nil {
+		return false
+	}
+	if err := service.CheckGroupModelAccess(c.Request.Context(), model); err == nil {
+		return false
+	}
+	service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+	groupmodelaccess.WriteBlockedResponse(c, model)
+	return true
 }
 
 // grokCustomVoiceEndpoint derives the upstream Voice endpoint for the

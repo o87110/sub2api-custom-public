@@ -442,7 +442,40 @@ backend/migrations/198_subscription_cycle_manual_bulk_quota_reset.sql
 `user_subscription_cycles`（若已存在）与 `subscription_plans`，开发和测试过程不得连接
 或修改生产数据库。
 
-## 14. 明确没有改变的行为
+## 14. 分组模型调用双重黑名单
+
+管理员可在新建、编辑分组时独立配置模型调用黑名单。新旧分组的
+`models_list_config.blocked_models` 默认均为空，即默认不禁用任何模型；只有管理员
+主动勾选并保存后才生效。黑名单仅对去空、去重后的模型 ID 做精确匹配，不支持通配符。
+
+- 在分组、渠道、复合路由或账号映射前检查客户端原始模型，并在映射、规范化后的最终
+  模型出网前再次检查；例如禁用 `gpt-5.4-mini` 会同时拒绝直接请求和 Haiku 映射到
+  Mini 的调用，禁用 `gpt-5.6-luna` 不影响 `gpt-5.6-sol`、`gpt-5.6-terra`；
+- 账号级映射命中黑名单时跳过该账号并继续调度其他允许路径，全部持久可用路径都被策略
+  排除时返回协议兼容的 `404 model_not_found`，不伪装成容量不足或 503；确定性的分组、
+  渠道和复合路由映射命中时直接拒绝；
+- fallback 调度使用原始分组与实际承载分组黑名单的并集，异步图片和批量图片在真正提交
+  上游前重新加载策略；已发送的进行中请求不强制中断，状态查询和内容下载不受影响；
+- OpenAI、Anthropic、Gemini 分别返回自身协议的 404 结构，本地策略拒绝记为
+  `local_policy_denied`；JSON、multipart、Gemini 路径模型、Live/Realtime 与 WebSocket
+  均在模型确定时检查，读取请求体后完整恢复；
+- `/models`、Codex Manifest、Gemini 模型列表和批量图片模型列表在既有可用集合与可选
+  展示列表之后减去黑名单。公开模型只有在所有最终路径都映射到禁用模型时才隐藏；
+- 候选列表聚合平台默认模型、账号映射键值、Messages 分发映射、复合路由公开名/上游名
+  及关联渠道映射输入/输出。已保存但候选源消失的黑名单项继续回显并可移除；
+- 分组复制深复制黑名单；分组更新立即失效 API Key 鉴权缓存，缓存快照版本为 v20；
+- 配置复用现有 `models_list_config` JSON，不新增列、Migration、Schema 字段或 SQL。
+
+主要实现：
+
+```text
+backend/internal/custom/groupmodelaccess/
+backend/internal/service/group_model_access.go
+backend/internal/server/middleware/group_model_access.go
+frontend/src/custom/group-model-access/
+```
+
+## 15. 明确没有改变的行为
 
 除本文档列出的边界外，认证、计费、调度、协议兼容和官方功能应保持当前
 源码既有行为。新增需求必须先更新本清单和对应测试，不能用“二改”名义扩大隐式

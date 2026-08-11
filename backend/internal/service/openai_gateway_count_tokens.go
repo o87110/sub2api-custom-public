@@ -91,6 +91,9 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 		writeAnthropicCountTokensError(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body")
 		return err
 	}
+	if err := enforceResolvedModelAccess(ctx, c, prepared.UpstreamModel); err != nil {
+		return err
+	}
 
 	upstreamBody, err := marshalOpenAIUpstreamJSON(prepared.Request)
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupmodelaccess"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 	"github.com/gin-gonic/gin"
@@ -314,6 +315,9 @@ func openAICompactSupportTier(account *Account) int {
 func isOpenAICompatibleAccountEligibleForRequest(ctx context.Context, account *Account, platform string, requestedModel string, requireCompact bool, requiredCapability OpenAIEndpointCapability) bool {
 	platform = normalizeOpenAICompatiblePlatform(platform)
 	if account == nil || account.Platform != platform || !account.IsOpenAICompatible() || !account.IsSchedulableForModelWithContext(ctx, requestedModel) {
+		return false
+	}
+	if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {
 		return false
 	}
 	if account.IsOpenAI() {
@@ -685,7 +689,28 @@ func resolveOpenAIAccountUpstreamModelForRequest(account *Account, requestedMode
 	if requireCompact {
 		return resolveOpenAICompactForwardModel(account, upstreamModel)
 	}
-	return upstreamModel
+	return normalizeOpenAIModelForUpstream(account, upstreamModel)
+}
+
+func modelAccessBlocksOpenAIAccount(ctx context.Context, account *Account, requestedModel string, requireCompact bool) bool {
+	if account == nil || groupmodelaccess.FromContext(ctx).Empty() {
+		return false
+	}
+	return CheckOpenAIAccountModelAccess(ctx, account, requestedModel, requireCompact) != nil
+}
+
+func resolveOpenAIAccountModelForAccess(ctx context.Context, account *Account, requestedModel string, requireCompact bool) string {
+	if account == nil {
+		return ""
+	}
+	baseModel := groupmodelaccess.RequestModel(ctx, requestedModel)
+	upstreamModel := resolveOpenAIForwardModel(account, baseModel, groupmodelaccess.FallbackModel(ctx))
+	if requireCompact {
+		upstreamModel = resolveOpenAICompactForwardModel(account, upstreamModel)
+	} else {
+		upstreamModel = normalizeOpenAIModelForUpstream(account, upstreamModel)
+	}
+	return strings.TrimSpace(upstreamModel)
 }
 
 func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.Context, groupID *int64, platform string, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool, stickyAccountID int64, requiredCapability OpenAIEndpointCapability, preferLowUpstreamRate bool) (*Account, error) {

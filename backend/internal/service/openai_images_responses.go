@@ -1679,6 +1679,12 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
 		return nil, err
 	}
+	if err := enforceResolvedModelAccess(ctx, c, requestModel); err != nil {
+		return nil, err
+	}
+	if err := enforceResolvedModelAccess(ctx, c, openAIImagesResponsesMainModel); err != nil {
+		return nil, err
+	}
 	logger.LegacyPrintf(
 		"service.openai_gateway",
 		"[OpenAI] Images request routing request_model=%s endpoint=%s account_type=%s uploads=%d",

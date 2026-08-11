@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupmodelaccess"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -18,6 +19,35 @@ import (
 
 // claudeCodeValidator is a singleton validator for Claude Code client detection
 var claudeCodeValidator = service.NewClaudeCodeValidator()
+
+func withGroupModelAccessChannelMapping(ctx context.Context, mapping service.ChannelMappingResult) context.Context {
+	if strings.TrimSpace(mapping.MappedModel) == "" {
+		return ctx
+	}
+	return groupmodelaccess.WithRequestModel(ctx, mapping.MappedModel)
+}
+
+func bindGroupModelAccessChannelMapping(c *gin.Context, mapping service.ChannelMappingResult) bool {
+	if c == nil || c.Request == nil {
+		return true
+	}
+	if mapping.Mapped {
+		if err := service.CheckGroupModelAccess(c.Request.Context(), mapping.MappedModel); err != nil {
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+			groupmodelaccess.WriteBlockedResponse(c, mapping.MappedModel)
+			return false
+		}
+	}
+	c.Request = c.Request.WithContext(withGroupModelAccessChannelMapping(c.Request.Context(), mapping))
+	return true
+}
+
+func bindGroupModelAccessFallbackModel(c *gin.Context, model string) {
+	if c == nil || c.Request == nil || strings.TrimSpace(model) == "" {
+		return
+	}
+	c.Request = c.Request.WithContext(groupmodelaccess.WithFallbackModel(c.Request.Context(), model))
+}
 
 // SetClaudeCodeClientContext 检查请求是否来自 Claude Code 客户端，并设置到 context 中
 // 返回更新后的 context

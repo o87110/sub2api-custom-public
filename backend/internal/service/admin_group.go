@@ -52,6 +52,7 @@ func (s *adminServiceImpl) GetGroup(ctx context.Context, id int64) (*Group, erro
 
 func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id int64, platform string) ([]string, error) {
 	platform = strings.TrimSpace(platform)
+	var selectedGroup *Group
 	if id > 0 {
 		group, err := s.groupRepo.GetByIDLite(ctx, id)
 		if err != nil {
@@ -60,6 +61,7 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 		if platform == "" {
 			platform = group.Platform
 		}
+		selectedGroup = group
 	}
 	if platform == "" {
 		platform = PlatformAnthropic
@@ -76,6 +78,17 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 	}
 
 	seen := make(map[string]struct{}, len(candidates))
+	addCandidate := func(model string) {
+		model = strings.TrimSpace(model)
+		if model == "" {
+			return
+		}
+		if _, ok := seen[model]; ok {
+			return
+		}
+		seen[model] = struct{}{}
+		candidates = append(candidates, model)
+	}
 	for _, model := range candidates {
 		seen[model] = struct{}{}
 	}
@@ -87,16 +100,52 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 		} else if acc.Platform != platform {
 			continue
 		}
-		for model := range acc.GetModelMapping() {
-			model = strings.TrimSpace(model)
-			if model == "" {
+		for requestedModel, upstreamModel := range acc.GetModelMapping() {
+			addCandidate(requestedModel)
+			addCandidate(upstreamModel)
+		}
+	}
+
+	if selectedGroup != nil {
+		cfg := normalizeOpenAIMessagesDispatchModelConfig(selectedGroup.MessagesDispatchModelConfig)
+		addCandidate(cfg.OpusMappedModel)
+		addCandidate(cfg.SonnetMappedModel)
+		addCandidate(cfg.HaikuMappedModel)
+		for requestedModel, upstreamModel := range cfg.ExactModelMappings {
+			addCandidate(requestedModel)
+			addCandidate(upstreamModel)
+		}
+	}
+
+	if id > 0 && platform == PlatformComposite && s.compositeRouteRepo != nil {
+		routes, err := s.compositeRouteRepo.ListByGroup(ctx, id, true)
+		if err != nil {
+			return nil, err
+		}
+		for _, route := range routes {
+			addCandidate(route.PublicModel)
+			addCandidate(route.UpstreamModel)
+		}
+	}
+
+	if id > 0 && s.channelRepo != nil {
+		channels, err := s.channelRepo.ListAll(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, channel := range channels {
+			if !containsInt64(channel.GroupIDs, id) {
 				continue
 			}
-			if _, ok := seen[model]; ok {
-				continue
+			for mappingPlatform, mapping := range channel.ModelMapping {
+				if platform != PlatformComposite && mappingPlatform != platform {
+					continue
+				}
+				for requestedModel, upstreamModel := range mapping {
+					addCandidate(requestedModel)
+					addCandidate(upstreamModel)
+				}
 			}
-			seen[model] = struct{}{}
-			candidates = append(candidates, model)
 		}
 	}
 	return candidates, nil

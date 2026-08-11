@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
 
 type compositeRouteRepoStub struct {
@@ -239,4 +240,67 @@ func TestCompositeGeminiTargetPlatformMiddlewareUsesPathRoute(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusNoContent, w.Code)
+}
+
+func TestCompositeTargetPlatformMiddlewareRejectsBlockedRouteTarget(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	resolver := service.NewCompositeRouteResolver(compositeRouteRepoStub{routes: []service.CompositeModelRoute{{
+		ID: 1, GroupID: 1, PublicModel: "public-model", MatchType: service.CompositeRouteMatchExact,
+		TargetPlatform: service.PlatformOpenAI, UpstreamModel: "gpt-5.4-mini",
+		Endpoint: service.CompositeRouteEndpointAny, Priority: 100, Enabled: true,
+	}}})
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		groupID := int64(1)
+		group := &service.Group{
+			ID: groupID, Platform: service.PlatformComposite,
+			ModelsListConfig: service.GroupModelsListConfig{BlockedModels: []string{"gpt-5.4-mini"}},
+		}
+		c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{GroupID: &groupID, Group: group})
+		c.Request = c.Request.WithContext(service.WithCurrentGroupModelAccess(c.Request.Context(), group))
+		c.Next()
+	})
+	router.Use(compositeTargetPlatformMiddleware(resolver))
+	router.POST("/v1/responses", func(c *gin.Context) {
+		t.Fatal("blocked composite route reached handler")
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"public-model"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Equal(t, "model_not_found", gjson.Get(w.Body.String(), "error.code").String())
+}
+
+func TestCompositeGeminiMiddlewareRejectsBlockedRouteTarget(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	resolver := service.NewCompositeRouteResolver(compositeRouteRepoStub{routes: []service.CompositeModelRoute{{
+		ID: 1, GroupID: 1, PublicModel: "public-gemini", MatchType: service.CompositeRouteMatchExact,
+		TargetPlatform: service.PlatformGemini, UpstreamModel: "gemini-2.5-pro",
+		Endpoint: service.CompositeRouteEndpointGemini, Priority: 100, Enabled: true,
+	}}})
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		groupID := int64(1)
+		group := &service.Group{
+			ID: groupID, Platform: service.PlatformComposite,
+			ModelsListConfig: service.GroupModelsListConfig{BlockedModels: []string{"gemini-2.5-pro"}},
+		}
+		c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{GroupID: &groupID, Group: group})
+		c.Request = c.Request.WithContext(service.WithCurrentGroupModelAccess(c.Request.Context(), group))
+		c.Next()
+	})
+	router.Use(compositeGeminiTargetPlatformMiddleware(resolver))
+	router.POST("/v1beta/models/*modelAction", func(c *gin.Context) {
+		t.Fatal("blocked composite Gemini route reached handler")
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1beta/models/public-gemini:generateContent", strings.NewReader(`{"contents":[]}`))
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Equal(t, "NOT_FOUND", gjson.Get(w.Body.String(), "error.status").String())
 }

@@ -275,6 +275,9 @@ func TestAPIKeyService_SnapshotRoundTrip_PreservesMessagesDispatchModelConfig(t 
 					"claude-sonnet-4.5": "gpt-5.4-nano",
 				},
 			},
+			ModelsListConfig: GroupModelsListConfig{
+				BlockedModels: []string{"gpt-5.6-luna", "gpt-5.4-mini"},
+			},
 		},
 	}
 
@@ -285,6 +288,7 @@ func TestAPIKeyService_SnapshotRoundTrip_PreservesMessagesDispatchModelConfig(t 
 	require.Equal(t, apiKey.Name, roundTrip.Name)
 	require.NotNil(t, roundTrip.Group)
 	require.Equal(t, apiKey.Group.MessagesDispatchModelConfig, roundTrip.Group.MessagesDispatchModelConfig)
+	require.Equal(t, apiKey.Group.ModelsListConfig, roundTrip.Group.ModelsListConfig)
 }
 
 func TestAPIKeyService_SnapshotRoundTrip_PreservesReasoningEffortPolicy(t *testing.T) {

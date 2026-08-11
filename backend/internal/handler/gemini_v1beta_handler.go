@@ -45,10 +45,29 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
 		return
 	}
+	filterAndWriteModels := func(value any, platform string) bool {
+		body, err := json.Marshal(value)
+		if err != nil {
+			googleError(c, http.StatusInternalServerError, "Failed to build models response")
+			return false
+		}
+		displayEnabled := apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled()
+		var displayModels []string
+		if apiKey.Group != nil {
+			displayModels = apiKey.Group.ModelsListConfig.Models
+		}
+		filtered, _, err := h.gatewayService.FilterGeminiModelsResponse(c.Request.Context(), apiKey.GroupID, platform, body, displayModels, displayEnabled)
+		if err != nil {
+			googleError(c, http.StatusInternalServerError, "Failed to filter models response")
+			return false
+		}
+		c.Data(http.StatusOK, "application/json", filtered)
+		return true
+	}
 
 	// 强制 antigravity 模式：返回 antigravity 支持的模型列表
 	if forcePlatform == service.PlatformAntigravity {
-		c.JSON(http.StatusOK, antigravity.FallbackGeminiModelsList())
+		filterAndWriteModels(antigravity.FallbackGeminiModelsList(), service.PlatformAntigravity)
 		return
 	}
 
@@ -58,7 +77,7 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		hasAntigravity, _ := h.geminiCompatService.HasAntigravityAccounts(c.Request.Context(), apiKey.GroupID)
 		if hasAntigravity {
 			// antigravity 账户使用静态模型列表
-			c.JSON(http.StatusOK, gemini.FallbackModelsList())
+			filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)
 			return
 		}
 		markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
@@ -72,8 +91,21 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		return
 	}
 	if shouldFallbackGeminiModels(res) {
-		c.JSON(http.StatusOK, gemini.FallbackModelsList())
+		filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)
 		return
+	}
+	displayEnabled := apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled()
+	var displayModels []string
+	if apiKey.Group != nil {
+		displayModels = apiKey.Group.ModelsListConfig.Models
+	}
+	filtered, changed, filterErr := h.gatewayService.FilterGeminiModelsResponse(c.Request.Context(), apiKey.GroupID, service.PlatformGemini, res.Body, displayModels, displayEnabled)
+	if filterErr != nil {
+		googleError(c, http.StatusBadGateway, "Invalid upstream models response")
+		return
+	}
+	if changed {
+		res.Body = filtered
 	}
 	writeUpstreamResponse(c, res)
 }
@@ -214,6 +246,9 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, modelName)
+	if !bindGroupModelAccessChannelMapping(c, channelMapping) {
+		return
+	}
 	reqModel := modelName // 保存映射前的原始模型名
 	if channelMapping.Mapped {
 		modelName = channelMapping.MappedModel
@@ -395,6 +430,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 				return
 			}
 		}
+		c.Request = c.Request.WithContext(service.ContextWithSelectionGroupModelAccess(c.Request.Context(), selection))
 		account := selection.Account
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 

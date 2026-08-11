@@ -642,6 +642,7 @@ export interface AdminGroup extends Group {
 export interface ModelsListConfig {
   enabled: boolean
   models: string[]
+  blocked_models?: string[]
 }
 
 export type CompositeRouteMatchType = 'exact' | 'prefix'

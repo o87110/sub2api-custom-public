@@ -129,6 +129,10 @@ func (h *OpenAIGatewayHandler) CountTokens(c *gin.Context) {
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(false, false)))
 
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+	if !bindGroupModelAccessChannelMapping(c, channelMapping) {
+		return
+	}
+	bindGroupModelAccessFallbackModel(c, preferredMappedModel)
 	mappedBodyForMessages := newOpenAIModelMappedBodyCache(body, h.gatewayService.ReplaceModelInBody)
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)

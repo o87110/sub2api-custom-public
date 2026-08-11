@@ -191,3 +191,56 @@ func TestAdminService_CompositeModelsListCandidatesIncludeConcreteAccountMapping
 	require.Contains(t, candidates, "gpt-5.5")
 	require.Contains(t, candidates, "gemini-2.5-flash")
 }
+
+func TestAdminService_ModelsListCandidatesAggregateEveryMappingSource(t *testing.T) {
+	accountRepo := &accountRepoStubForCompositeModelsList{
+		accounts: []Account{{
+			ID: 1, Platform: PlatformOpenAI,
+			Credentials: map[string]any{"model_mapping": map[string]any{
+				"account-public": "account-upstream",
+			}},
+		}},
+	}
+	groupRepo := &groupRepoStubForAdmin{getByIDByID: map[int64]*Group{
+		99: {
+			ID: 99, Platform: PlatformComposite,
+			MessagesDispatchModelConfig: OpenAIMessagesDispatchModelConfig{
+				OpusMappedModel:   "messages-opus-target",
+				SonnetMappedModel: "messages-sonnet-target",
+				HaikuMappedModel:  "messages-haiku-target",
+				ExactModelMappings: map[string]string{
+					"messages-exact-public": "messages-exact-target",
+				},
+			},
+		},
+	}}
+	routeRepo := &compositeRouteRepoStubForAdmin{routes: []CompositeModelRoute{{
+		ID: 1, GroupID: 99, PublicModel: "route-public", UpstreamModel: "route-upstream", Enabled: true,
+	}}}
+	channelRepo := &mockChannelRepository{listAllFn: func(context.Context) ([]Channel, error) {
+		return []Channel{{
+			ID: 2, GroupIDs: []int64{99},
+			ModelMapping: map[string]map[string]string{
+				PlatformOpenAI: {"channel-public": "channel-upstream"},
+			},
+		}}, nil
+	}}
+	svc := &adminServiceImpl{
+		accountRepo: accountRepo, groupRepo: groupRepo,
+		compositeRouteRepo: routeRepo, channelRepo: channelRepo,
+	}
+
+	candidates, err := svc.GetGroupModelsListCandidates(context.Background(), 99, PlatformComposite)
+
+	require.NoError(t, err)
+	for _, model := range []string{
+		"gpt-5.6-luna",
+		"account-public", "account-upstream",
+		"messages-opus-target", "messages-sonnet-target", "messages-haiku-target",
+		"messages-exact-public", "messages-exact-target",
+		"route-public", "route-upstream",
+		"channel-public", "channel-upstream",
+	} {
+		require.Contains(t, candidates, model)
+	}
+}

@@ -26,10 +26,11 @@ import (
 //     after a backoff can plausibly succeed (or, in the empty-pool case, the
 //     operator may be in the middle of adding accounts).
 type noAccountErrorClassification struct {
-	Status        int
-	ErrType       string
-	Message       string
-	ModelNotFound bool // true when this is a 404 model_not_found classification
+	Status            int
+	ErrType           string
+	Message           string
+	ModelNotFound     bool // true when this is a 404 model_not_found classification
+	LocalPolicyDenied bool
 }
 
 // classifyNoAccountError decides between 404 model_not_found and 503
@@ -82,10 +83,11 @@ func classifyNoAccountError(
 	result := diag.DiagnoseModelAvailabilityForPlatform(ctx, apiKey.GroupID, routingModel, platform)
 	if result.HasAccountsInPool && !result.HasModelSupport {
 		return noAccountErrorClassification{
-			Status:        http.StatusNotFound,
-			ErrType:       "model_not_found",
-			Message:       fmt.Sprintf("Model %q is not supported by any configured account in this group", displayModel),
-			ModelNotFound: true,
+			Status:            http.StatusNotFound,
+			ErrType:           "model_not_found",
+			Message:           fmt.Sprintf("Model %q is not supported by any configured account in this group", displayModel),
+			ModelNotFound:     true,
+			LocalPolicyDenied: result.PolicyBlocked,
 		}
 	}
 	return fallback
@@ -106,7 +108,11 @@ func classifyNoAccountErrorFromGin(
 	if c != nil && c.Request != nil {
 		ctx = c.Request.Context()
 	}
-	return classifyNoAccountError(ctx, diag, apiKey, routingModel, displayModel, platform)
+	classification := classifyNoAccountError(ctx, diag, apiKey, routingModel, displayModel, platform)
+	if classification.LocalPolicyDenied && c != nil {
+		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+	}
+	return classification
 }
 
 func classifyOpenAICompatibleNoAccountErrorFromGin(

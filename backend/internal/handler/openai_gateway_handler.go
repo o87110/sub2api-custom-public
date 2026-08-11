@@ -375,6 +375,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+	if !bindGroupModelAccessChannelMapping(c, channelMapping) {
+		return
+	}
 	forwardBody := openAIModelMappedBody(body, channelMapping.Mapped, channelMapping.MappedModel, h.gatewayService.ReplaceModelInBody)
 	seedOpenAIForwardImageIntentHint(c, channelMapping.Mapped, imageIntent)
 
@@ -966,6 +969,10 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMappingMsg, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+	if !bindGroupModelAccessChannelMapping(c, channelMappingMsg) {
+		return
+	}
+	bindGroupModelAccessFallbackModel(c, preferredMappedModel)
 	mappedBodyForMessages := newOpenAIModelMappedBodyCache(body, h.gatewayService.ReplaceModelInBody)
 
 	// 绑定错误透传服务，允许 service 层在非 failover 错误场景复用规则。
@@ -1694,6 +1701,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model is required in first response.create payload")
 		return
 	}
+	if accessErr := service.CheckGroupModelAccess(ctx, reqModel); accessErr != nil {
+		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+		writeGroupModelBlockedWSError(ctx, wsConn, reqModel)
+		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model_not_found")
+		return
+	}
 	ensureCompositeTargetPlatform(c, apiKey, reqModel)
 	ctx = c.Request.Context()
 	if apiKey.Group != nil && apiKey.Group.Platform == service.PlatformComposite {
@@ -1745,6 +1758,16 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMappingWS, _ := h.gatewayService.ResolveChannelMappingAndRestrict(ctx, apiKey.GroupID, reqModel)
+	if channelMappingWS.Mapped {
+		if accessErr := service.CheckGroupModelAccess(ctx, channelMappingWS.MappedModel); accessErr != nil {
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+			writeGroupModelBlockedWSError(ctx, wsConn, channelMappingWS.MappedModel)
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model_not_found")
+			return
+		}
+	}
+	ctx = withGroupModelAccessChannelMapping(ctx, channelMappingWS)
+	c.Request = c.Request.WithContext(ctx)
 
 	var currentUserRelease func()
 	var currentAccountRelease func()
@@ -1895,7 +1918,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				zap.Error(openAICompatibleSelectionErrorForLog(err, requestPlatform)),
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
-			if lastFailoverErr != nil {
+			cls := classifyOpenAICompatibleNoAccountErrorFromGin(c, h.gatewayService, apiKey, reqModel, reqModel)
+			if cls.ModelNotFound {
+				writeGroupModelBlockedWSError(ctx, wsConn, reqModel)
+				closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model_not_found")
+			} else if lastFailoverErr != nil {
 				closeOpenAIWSFailoverExhausted(wsConn, lastFailoverErr)
 			} else {
 				closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "no available account")
@@ -1903,7 +1930,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			return
 		}
 		if selection == nil || selection.Account == nil {
-			if lastFailoverErr != nil {
+			cls := classifyOpenAICompatibleNoAccountErrorFromGin(c, h.gatewayService, apiKey, reqModel, reqModel)
+			if cls.ModelNotFound {
+				writeGroupModelBlockedWSError(ctx, wsConn, reqModel)
+				closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model_not_found")
+			} else if lastFailoverErr != nil {
 				closeOpenAIWSFailoverExhausted(wsConn, lastFailoverErr)
 			} else {
 				closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "no available account")
@@ -2047,7 +2078,25 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				if model == "" {
 					model = reqModel
 				}
+				if accessErr := service.CheckGroupModelAccess(ctx, model); accessErr != nil {
+					service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+					writeGroupModelBlockedWSError(ctx, wsConn, model)
+					return "", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "model_not_found", accessErr)
+				}
 				mapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(ctx, apiKey.GroupID, model)
+				turnAccessCtx := withGroupModelAccessChannelMapping(ctx, mapping)
+				if mapping.Mapped {
+					if accessErr := service.CheckGroupModelAccess(turnAccessCtx, mapping.MappedModel); accessErr != nil {
+						service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+						writeGroupModelBlockedWSError(ctx, wsConn, mapping.MappedModel)
+						return "", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "model_not_found", accessErr)
+					}
+				}
+				if accessErr := service.CheckOpenAIAccountModelAccess(turnAccessCtx, account, mapping.MappedModel, false); accessErr != nil {
+					service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+					writeGroupModelBlockedWSError(ctx, wsConn, service.GroupModelBlockedModel(accessErr))
+					return "", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "model_not_found", accessErr)
+				}
 				mappedModelUnchanged := false
 				if previous := turnChannelMapping.Load(); previous != nil && previous.turn < turn {
 					mappedModelUnchanged = strings.TrimSpace(previous.mapping.MappedModel) == strings.TrimSpace(mapping.MappedModel)
@@ -2798,12 +2847,12 @@ func (h *OpenAIGatewayHandler) errorResponse(c *gin.Context, status int, errType
 			return
 		}
 	}
-	c.JSON(status, gin.H{
-		"error": gin.H{
-			"type":    errType,
-			"message": message,
-		},
-	})
+	errorBody := gin.H{"type": errType, "message": message}
+	if status == http.StatusNotFound && errType == "model_not_found" {
+		errorBody["code"] = "model_not_found"
+		errorBody["param"] = "model"
+	}
+	c.JSON(status, gin.H{"error": errorBody})
 }
 
 // openAICompactKeepaliveInterval 复用流式 keepalive 配置作为 compact 下游
@@ -2904,6 +2953,30 @@ func writeContentModerationWSError(ctx context.Context, conn *coderws.Conn, deci
 	})
 	if err != nil {
 		payload = []byte(`{"event_id":"evt_content_moderation_blocked","type":"error","error":{"type":"invalid_request_error","code":"content_policy_violation","message":"content moderation blocked this request"}}`)
+	}
+	writeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	_ = conn.Write(writeCtx, coderws.MessageText, payload)
+}
+
+func writeGroupModelBlockedWSError(ctx context.Context, conn *coderws.Conn, model string) {
+	if conn == nil {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	model = strings.TrimSpace(model)
+	message := fmt.Sprintf("The model %q does not exist or is not available for this group", model)
+	payload, err := json.Marshal(gin.H{
+		"event_id": "evt_group_model_blocked",
+		"type":     "error",
+		"error": gin.H{
+			"type": "invalid_request_error", "code": "model_not_found", "param": "model", "message": message,
+		},
+	})
+	if err != nil {
+		return
 	}
 	writeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
