@@ -154,6 +154,12 @@ validate_relative_path() {
   esac
 }
 
+source_path_exists_at_ref() {
+  local ref="$1"
+  local path="$2"
+  [[ "$(git -C "$repo_root" ls-tree --name-only "$ref" -- "$path")" == "$path" ]]
+}
+
 while IFS=$'\t' read -r source_field target_field; do
   case "$source_field" in
     \|* | *\| | *\|\|*)
@@ -190,11 +196,11 @@ while IFS=$'\t' read -r source_field target_field; do
     validate_relative_path source "$source"
     real_source_count=$((real_source_count + 1))
     printf '%s\n' "$source" >> "$sources"
-    if git -C "$repo_root" cat-file -e "${base_ref}:${source}" 2>/dev/null; then
+    if source_path_exists_at_ref "$base_ref" "$source"; then
       source_in_base=true
     fi
     if [[ -n "$next_ref" ]]; then
-      if git -C "$repo_root" cat-file -e "${next_ref}:${source}" 2>/dev/null; then
+      if source_path_exists_at_ref "$next_ref" "$source"; then
         source_in_next=true
       fi
     fi

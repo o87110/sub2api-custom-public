@@ -386,7 +386,7 @@ deploy/tests/docker-runtime-resources-test.sh	M	keep	M	custom-test	4e7480d4d59c6
 deploy/tests/frontend-dist-safety-test.sh	A	keep	A	custom-test	@absent	a79c40721355a3b9c0dad1ce1ab43fd46caaa1f3	-	-	frontend-artifact-fixtures+release-safety	验证前端 Artifact 复用、失败关闭及 v1 内容哈希不依赖 GNU tar
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
-deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	92974acd4b97d6a766668ff4f88675b2f0478d5a	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证官方模型调用路径到 Custom 黑名单实现的精确影子关系
+deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	2958351ab20840d974f7a53c3fb6ee9df5024a8f	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证官方模型调用路径到 Custom 黑名单实现的精确影子关系，并兼容 blob:none 部分克隆的 Vendor 路径检查
 deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	153801fe63d004c65c599eab2d2331ec5c8e0749	-	-	upstream-sync+crlf-ledger-test	验证升级门禁使用收窄后的 Integration 入口并保持内容审计、分组模型黑名单与既有保护路径契约
 deploy/upstream/validate-upgrade-report-maintenance.sh	A	keep	A	fixed-path	@absent	f5a53260391239668e82cadba98d48d814a3d803	-	-	upstream-sync+candidate-tree	固定工具路径中的二改上游升级控制面最小差异
 docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	0dab40b50dba064383aa35ba513e533b51fc06fe	-	-	docs-review+group-model-blocklist-tests	记录分组模型双重黑名单语义、覆盖入口、验证命令与数据库边界
