@@ -98,9 +98,9 @@ UPSTREAM_SYNC_ENABLED=true
   新增执行目标/次数的允许结构；
 - 影子来源映射检查；
 - 数据库语义门禁；
-- 后端 Unit、Integration 和生产构建；
+- 后端 Unit、Integration 和生产构建（由可信升级门禁执行一次）；
 - Wire 生成一致性；
-- 前端 Typecheck、Custom Vitest 和生产构建；
+- 前端 Typecheck、Custom Vitest 和生产构建（由可信升级门禁执行一次）；
 - GoReleaser 校验和 Release 预构建；
 - Action Pin、权限和 Actionlint。
 
@@ -108,8 +108,8 @@ UPSTREAM_SYNC_ENABLED=true
 
 - 只有名称精确匹配 `upgrade/vX.Y.Z` 的分支才把最终态差异台账和数据库边界检查
   交给受信任升级门禁；普通分支仍按当前 `vendor-*` 基线执行这两项检查。
-- 升级分支的普通 CI 仍必须继续执行供应链、Shell、后端、前端、Lint 和构建检查，
-  不能因为处于升级流程而跳过。
+- 升级分支的普通 CI 只执行快速结构检查；完整后端、前端和适用 Release 预构建由
+  可信升级门禁执行一次，避免双轨重复测试。
 - 普通 CI 与升级专用门禁的后端 Lint 都加载
   `.github/custom-upstream-baseline.env`，验证可信基线是当前 Head 的祖先，并使用
   `--new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"` 只阻断基线后的新增问题；基线中
@@ -129,6 +129,11 @@ UPSTREAM_SYNC_ENABLED=true
   SHA 发布，升级所需的差异台账、影子来源、保护路径和数据库批准均成功后才为
   `success`。
 - Security Scan 保持独立报告，不配置为 Required Check。
+
+普通升级 PR 不再因标签变化触发验证，也不重复执行普通 CI 的完整后端、前端和 Lint。
+Release preflight 仅在 Dockerfile、GoReleaser、Release 脚本、Go 依赖、前端依赖或服务
+版本文件变化时启动；其他升级仍由同一次可信升级门禁完成边界、后端和前端验证。
+上游定时检查默认每 6 小时一次，手工调度仍可用于即时检查和失败重试。
 
 ## 9. 合并与收尾
 

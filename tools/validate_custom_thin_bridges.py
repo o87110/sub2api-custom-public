@@ -1022,9 +1022,11 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/handler/gateway_helper.go": frozenset({
         "bindGroupModelAccessChannelMapping",
         "bindGroupModelAccessFallbackModel",
+        "enforceGroupModelAccess",
         "withGroupModelAccessChannelMapping",
     }),
     "backend/internal/handler/gemini_v1beta_handler.go": frozenset({}),
+    "backend/internal/handler/gateway_web_search.go": frozenset({}),
     "backend/internal/handler/image_task_handler.go": frozenset({
         "refreshGroupModelAccessBeforeRun",
     }),
@@ -1151,12 +1153,16 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
     ),
     "backend/internal/handler/gateway_helper.go": _approved_call_deltas(
         ("bindGroupModelAccessChannelMapping", {
-            "c.Request.Context": 2,
+            "c.Request.Context": 1,
             "c.Request.WithContext": 1,
+            "enforceGroupModelAccess": 1,
+            "withGroupModelAccessChannelMapping": 1,
+        }),
+        ("enforceGroupModelAccess", {
+            "c.Request.Context": 1,
             "groupmodelaccess.WriteBlockedResponse": 1,
             "service.CheckGroupModelAccess": 1,
             "service.MarkOpsClientBusinessLimited": 1,
-            "withGroupModelAccessChannelMapping": 1,
         }),
         ("bindGroupModelAccessFallbackModel", {
             "c.Request.Context": 1,
@@ -1184,6 +1190,17 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
             "c.Request.Context": 1,
             "c.Request.WithContext": 1,
             "service.ContextWithSelectionGroupModelAccess": 1,
+        }),
+        ("GeminiV1BetaGetModel", {
+            "enforceGroupModelAccess": 1,
+        }),
+    ),
+    "backend/internal/handler/gateway_web_search.go": _approved_call_deltas(
+        ("WebSearch", {"service.IsGroupModelBlockedError": 1}),
+        ("doGrokNativeWebSearch", {
+            "account.GetMappedModel": 1,
+            "enforceGroupModelAccess": 1,
+            "strings.TrimSpace": 1,
         }),
     ),
     "backend/internal/handler/image_task_handler.go": _approved_call_deltas(
@@ -1697,7 +1714,9 @@ APPROVED_DELEGATE_VIEW_CONTROL.update({
         ("withGroupModelAccessChannelMapping", "if strings.TrimSpace(mapping.MappedModel) == \"\" {"),
         ("bindGroupModelAccessChannelMapping", "if c == nil || c.Request == nil {"),
         ("bindGroupModelAccessChannelMapping", "if mapping.Mapped {"),
-        ("bindGroupModelAccessChannelMapping", "if err := service.CheckGroupModelAccess(c.Request.Context(), mapping.MappedModel); err != nil {"),
+        ("bindGroupModelAccessChannelMapping", "if !enforceGroupModelAccess(c, mapping.MappedModel) {"),
+        ("enforceGroupModelAccess", "if c == nil || c.Request == nil {"),
+        ("enforceGroupModelAccess", "if err := service.CheckGroupModelAccess(c.Request.Context(), model); err != nil {"),
         ("bindGroupModelAccessFallbackModel", "if c == nil || c.Request == nil || strings.TrimSpace(model) == \"\" {"),
     ),
     "backend/internal/handler/gemini_v1beta_handler.go": (
@@ -1708,6 +1727,12 @@ APPROVED_DELEGATE_VIEW_CONTROL.update({
         ("GeminiV1BetaListModels", "if filterErr != nil {"),
         ("GeminiV1BetaListModels", "if changed {"),
         ("GeminiV1BetaModels", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
+        ("GeminiV1BetaGetModel", "if !enforceGroupModelAccess(c, modelName) {"),
+    ),
+    "backend/internal/handler/gateway_web_search.go": (
+        ("WebSearch", "if service.IsGroupModelBlockedError(err) {"),
+        ("doGrokNativeWebSearch", "if upstreamModel == \"\" {"),
+        ("doGrokNativeWebSearch", "if !enforceGroupModelAccess(c, upstreamModel) {"),
     ),
     "backend/internal/handler/image_task_handler.go": (
         ("run", "if !h.refreshGroupModelAccessBeforeRun(taskID, taskCtx) {"),

@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-163}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-164}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 163 ]]; then
+if [[ "$expected_count" -eq 164 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -392,6 +392,7 @@ backend/internal/handler/api_key_handler.go
 backend/internal/handler/channel_monitor_user_handler.go
 backend/internal/handler/dto/settings.go
 backend/internal/handler/gateway_handler.go
+backend/internal/handler/gateway_web_search.go
 backend/internal/handler/payment_handler.go
 backend/internal/handler/payment_handler_resume_test.go
 backend/internal/handler/openai_gateway_handler.go
@@ -399,7 +400,6 @@ backend/internal/handler/openai_gateway_cyber_test.go
 backend/internal/payment/load_balancer.go
 backend/internal/payment/load_balancer_test.go
 backend/internal/service/content_moderation.go
-backend/internal/service/content_moderation_companion.go
 backend/internal/service/content_moderation_cyber_test.go
 backend/internal/service/content_moderation_email.go
 backend/internal/service/content_moderation_test.go
@@ -568,10 +568,8 @@ EOF
   if [[ -z "$official_files" ]]; then
     source_count="$(wc -l < "$tmp_dir/shadowed-source-paths.txt" | tr -d ' ')"
     detected_count="$(wc -l < "$detector_output" | tr -d ' ')"
-    [[ "$detected_count" -eq $((source_count + 1)) ]] ||
-      fail "expected every exact source and one companion match; detected $detected_count paths for $source_count sources"
-    grep -Fqx 'backend/internal/service/content_moderation_companion.go' "$detector_output" ||
-      fail "the detector missed a same-family companion file"
+    [[ "$detected_count" -eq "$source_count" ]] ||
+      fail "expected every exact source match; detected $detected_count paths for $source_count sources"
     if grep -Fqx 'backend/internal/service/not_content_moderation_companion.go' "$detector_output"; then
       fail "the detector matched a path whose basename only contains the mapped stem"
     fi

@@ -201,32 +201,37 @@ func BindAndInspectRequest(req *http.Request, blockedModels []string) (string, b
 		return "", false, nil
 	}
 
-	if model := modelFromURL(req); model != "" {
+	// A path model is authoritative for model-detail and native model actions.
+	// It must not be shadowed by an unrelated query parameter.
+	if model := modelFromPath(req); model != "" {
 		return model, policy.Blocks(model), nil
 	}
-	if req.Body == nil || req.Method == http.MethodGet || req.Method == http.MethodHead {
-		return "", false, nil
-	}
+	if req.Body != nil && req.Method != http.MethodGet && req.Method != http.MethodHead {
+		body, err := io.ReadAll(req.Body)
+		if closeErr := req.Body.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+		restoreRequestBody(req, body)
+		if err != nil {
+			return "", false, err
+		}
 
-	body, err := io.ReadAll(req.Body)
-	if closeErr := req.Body.Close(); err == nil && closeErr != nil {
-		err = closeErr
+		if model := modelFromBody(req.Header.Get("Content-Type"), body); model != "" {
+			return model, policy.Blocks(model), nil
+		}
 	}
-	restoreRequestBody(req, body)
-	if err != nil {
-		return "", false, err
+	// Only the realtime model-call endpoints consume ?model= as their request
+	// model. Other GET endpoints may use the same query key for filtering and
+	// must not be affected by a group's model blocklist.
+	if model := modelFromQuery(req); model != "" {
+		return model, policy.Blocks(model), nil
 	}
-
-	model := modelFromBody(req.Header.Get("Content-Type"), body)
-	return model, policy.Blocks(model), nil
+	return "", false, nil
 }
 
-func modelFromURL(req *http.Request) string {
+func modelFromPath(req *http.Request) string {
 	if req == nil || req.URL == nil {
 		return ""
-	}
-	if model := strings.TrimSpace(req.URL.Query().Get("model")); model != "" {
-		return model
 	}
 	path := req.URL.Path
 	marker := "/models/"
@@ -245,6 +250,17 @@ func modelFromURL(req *http.Request) string {
 		modelAction = modelAction[:colon]
 	}
 	return strings.TrimSpace(modelAction)
+}
+
+func modelFromQuery(req *http.Request) string {
+	if req == nil || req.URL == nil || req.Method != http.MethodGet {
+		return ""
+	}
+	path := req.URL.Path
+	if path != "/v1/realtime" && path != "/realtime" {
+		return ""
+	}
+	return strings.TrimSpace(req.URL.Query().Get("model"))
 }
 
 func modelFromBody(contentType string, body []byte) string {

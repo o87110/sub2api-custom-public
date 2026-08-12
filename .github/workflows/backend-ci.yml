@@ -1,6 +1,10 @@
 name: CI
 
-run-name: ${{ github.event_name == 'workflow_dispatch' && format('CI target @ {0}', inputs.expected_sha) || github.ref_name }}
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch' && format('CI target @ {0}', inputs.expected_sha) ||
+    github.ref_name
+  }}
 
 on:
   push:
@@ -27,36 +31,85 @@ jobs:
     outputs:
       checkout_sha: ${{ steps.resolve.outputs.checkout_sha }}
       is_official_upgrade: ${{ steps.resolve.outputs.is_official_upgrade }}
+      is_pull_request: ${{ steps.resolve.outputs.is_pull_request }}
+      is_full_validation: ${{ steps.resolve.outputs.is_full_validation }}
+      base_sha: ${{ steps.resolve.outputs.base_sha }}
+      head_sha: ${{ steps.resolve.outputs.head_sha }}
     steps:
-      - name: Verify dispatched revision
+      - name: Verify exact target and validation mode
         id: resolve
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
-          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
         run: |
           set -euo pipefail
           checkout_sha="$GITHUB_SHA"
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+          base_sha="$GITHUB_SHA"
+          head_sha="$GITHUB_SHA"
+          is_pull_request=false
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            is_pull_request=true
+            base_sha="$(jq -er '.pull_request.base.sha | select(test("^[0-9a-f]{40}$"))' "$GITHUB_EVENT_PATH")"
+            head_sha="$(jq -er '.pull_request.head.sha | select(test("^[0-9a-f]{40}$"))' "$GITHUB_EVENT_PATH")"
+            checkout_sha="$head_sha"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$GITHUB_REF" == "refs/heads/main" ]] || {
               echo "Manual CI dispatch must use refs/heads/main." >&2
               exit 1
-            fi
-            if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            }
+            [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || {
               echo "expected_sha must be a full 40-character commit SHA." >&2
               exit 1
-            fi
-            if [[ "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
+            }
+            [[ "$GITHUB_SHA" == "$EXPECTED_SHA" ]] || {
               echo "main resolved to ${GITHUB_SHA}, expected ${EXPECTED_SHA}." >&2
               exit 1
-            fi
+            }
             checkout_sha="$EXPECTED_SHA"
           fi
+          candidate_ref="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
           is_official_upgrade=false
-          if [[ "$CANDIDATE_REF" =~ ^upgrade/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if [[ "$candidate_ref" =~ ^upgrade/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             is_official_upgrade=true
           fi
-          echo "checkout_sha=$checkout_sha" >> "$GITHUB_OUTPUT"
-          echo "is_official_upgrade=$is_official_upgrade" >> "$GITHUB_OUTPUT"
+          is_full_validation=false
+          if [[ "$GITHUB_EVENT_NAME" == "push" || "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            is_full_validation=true
+          fi
+          {
+            echo "checkout_sha=$checkout_sha"
+            echo "is_official_upgrade=$is_official_upgrade"
+            echo "is_pull_request=$is_pull_request"
+            echo "is_full_validation=$is_full_validation"
+            echo "base_sha=$base_sha"
+            echo "head_sha=$head_sha"
+          } >> "$GITHUB_OUTPUT"
+
+  impact:
+    needs: verify-target
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.classify.outputs.mode }}
+      frontend_changed: ${{ steps.classify.outputs.frontend_changed }}
+      backend_changed: ${{ steps.classify.outputs.backend_changed }}
+      shell_changed: ${{ steps.classify.outputs.shell_changed }}
+      release_inputs_changed: ${{ steps.classify.outputs.release_inputs_changed }}
+      backend_packages: ${{ steps.classify.outputs.backend_packages }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
+          fetch-depth: 0
+          filter: blob:none
+      - name: Classify changed paths
+        id: classify
+        env:
+          BASE_SHA: ${{ needs.verify-target.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.verify-target.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          /bin/bash deploy/tests/ci-impact.sh classify \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" >> "$GITHUB_OUTPUT"
 
   boundaries:
     needs: verify-target
@@ -75,35 +128,27 @@ jobs:
           check-latest: false
           cache: true
           cache-dependency-path: backend/go.sum
-      - name: Resolve the exact candidate tree
+      - name: Resolve exact candidate tree
         id: candidate
         env:
           CHECKOUT_SHA: ${{ needs.verify-target.outputs.checkout_sha }}
         run: |
           set -euo pipefail
-          candidate_tree="$(
-            /bin/bash deploy/tests/custom-candidate-tree.sh --commit "$CHECKOUT_SHA"
-          )"
+          candidate_tree="$(/bin/bash deploy/tests/custom-candidate-tree.sh --commit "$CHECKOUT_SHA")"
           echo "tree=$candidate_tree" >> "$GITHUB_OUTPUT"
       - name: Enforce upstream delta ledger
         if: needs.verify-target.outputs.is_official_upgrade != 'true'
         env:
           CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
-        run: |
-          /bin/bash deploy/tests/custom-upstream-delta-test.sh \
-            --candidate-tree "$CANDIDATE_TREE"
+        run: /bin/bash deploy/tests/custom-upstream-delta-test.sh --candidate-tree "$CANDIDATE_TREE"
       - name: Enforce database semantic boundary
         if: needs.verify-target.outputs.is_official_upgrade != 'true'
         env:
           CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
-        run: |
-          /bin/bash deploy/tests/custom-database-boundary-test.sh \
-            --mode final \
-            --candidate-tree "$CANDIDATE_TREE"
-      - name: Defer upgrade boundary approval to trusted gate
+        run: /bin/bash deploy/tests/custom-database-boundary-test.sh --mode final --candidate-tree "$CANDIDATE_TREE"
+      - name: Defer official upgrade boundary approval
         if: needs.verify-target.outputs.is_official_upgrade == 'true'
-        run: |
-          echo "The trusted official-upgrade gate owns delta, shadow, protected-path, and database approval for this exact upgrade revision."
+        run: echo "Trusted official-upgrade gate owns upgrade boundary approval for this exact revision."
       - name: Install checksum-pinned actionlint
         env:
           CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-tools
@@ -118,19 +163,29 @@ jobs:
           python -m unittest discover -s tools -p 'test_validate_custom_thin_bridges.py' -v
 
   shell:
-    needs: verify-target
-    runs-on: macos-15
+    needs: [verify-target, impact]
+    runs-on: ${{ (needs.verify-target.outputs.is_full_validation == 'true' || (needs.verify-target.outputs.is_official_upgrade != 'true' && needs.impact.outputs.mode == 'full')) && 'macos-15' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ needs.verify-target.outputs.checkout_sha }}
           fetch-depth: 0
           filter: blob:none
-      - name: Check deployment scripts
+      - name: Check shell syntax
         run: |
-          /bin/bash -n deploy/apple-container.sh
+          set -euo pipefail
+          /bin/bash -n deploy/apple-container.sh deploy/rehearsal/preflight.sh
           /bin/sh -n deploy/docker-entrypoint.sh
-          /bin/bash -n deploy/rehearsal/preflight.sh
+      - name: Check deployment safety
+        if: >-
+          ${{
+            needs.verify-target.outputs.is_full_validation == 'true' ||
+            (
+              needs.verify-target.outputs.is_official_upgrade != 'true' &&
+              needs.impact.outputs.mode == 'full'
+            )
+          }}
+        run: |
           /bin/bash deploy/tests/apple-container-test.sh
           /bin/bash deploy/tests/custom-release-safety-test.sh
           /bin/bash deploy/tests/rehearsal-compose-safety-test.sh
@@ -139,8 +194,14 @@ jobs:
           /bin/sh deploy/tests/docker-runtime-resources-test.sh
           /bin/sh deploy/test-caddyfile-cache.sh
 
-  backend_unit:
-    needs: verify-target
+  pr-backend:
+    needs: [verify-target, impact]
+    if: >-
+      ${{
+        needs.verify-target.outputs.is_pull_request == 'true' &&
+        needs.verify-target.outputs.is_official_upgrade != 'true' &&
+        needs.impact.outputs.backend_changed == 'true'
+      }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -152,99 +213,213 @@ jobs:
           check-latest: false
           cache: true
           cache-dependency-path: backend/go.sum
-      - name: Verify Go version
-        run: |
-          go version | grep -q 'go1.26.5'
-      - name: Test persistent runtime version selection
-        run: /bin/bash deploy/tests/docker-entrypoint-runtime-test.sh
-      - name: Unit tests
+      - name: Targeted backend test and compile
         working-directory: backend
-        run: make test-unit
-
-  backend_integration:
-    needs: verify-target
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: ${{ needs.verify-target.outputs.checkout_sha }}
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
-        with:
-          go-version-file: backend/go.mod
-          check-latest: false
-          cache: true
-          cache-dependency-path: backend/go.sum
-      - name: Verify Go version
-        run: |
-          go version | grep -q 'go1.26.5'
-      - name: Integration tests
-        run: /bin/bash deploy/tests/backend-integration-test.sh
-
-  backend_build:
-    needs: verify-target
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: ${{ needs.verify-target.outputs.checkout_sha }}
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
-        with:
-          go-version-file: backend/go.mod
-          check-latest: false
-          cache: true
-          cache-dependency-path: backend/go.sum
-      - name: Verify Go version
-        run: |
-          go version | grep -q 'go1.26.5'
-      - name: Verify generated Wire graph
-        working-directory: backend
-        run: |
-          go generate ./cmd/server
-          git diff --exit-code -- cmd/server/wire_gen.go
-      - name: Build production backend target
-        run: make build-backend
-
-  test:
-    if: ${{ always() }}
-    needs: [backend_unit, backend_integration, backend_build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require all backend validation jobs
         env:
-          BACKEND_UNIT_RESULT: ${{ needs.backend_unit.result }}
-          BACKEND_INTEGRATION_RESULT: ${{ needs.backend_integration.result }}
-          BACKEND_BUILD_RESULT: ${{ needs.backend_build.result }}
+          MODE: ${{ needs.impact.outputs.mode }}
+          PACKAGES: ${{ needs.impact.outputs.backend_packages }}
         run: |
           set -euo pipefail
-          [[ "$BACKEND_UNIT_RESULT" == "success" ]]
-          [[ "$BACKEND_INTEGRATION_RESULT" == "success" ]]
-          [[ "$BACKEND_BUILD_RESULT" == "success" ]]
+          if [[ "$MODE" == "full" || -z "$PACKAGES" ]]; then
+            make test-unit
+            /bin/bash ../deploy/tests/backend-integration-test.sh
+            make build
+          else
+            read -r -a packages <<< "$PACKAGES"
+            go test "${packages[@]}"
+            go test ./cmd/server
+          fi
 
-  frontend:
-    needs: verify-target
+  pr-frontend:
+    needs: [verify-target, impact]
+    if: >-
+      ${{
+        needs.verify-target.outputs.is_pull_request == 'true' &&
+        needs.verify-target.outputs.is_official_upgrade != 'true' &&
+        needs.impact.outputs.frontend_changed == 'true'
+      }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ needs.verify-target.outputs.checkout_sha }}
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
         with:
           version: 9.15.9
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '20.20.2'
-          cache: 'pnpm'
+          cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - name: Install frontend dependencies
         working-directory: frontend
         run: pnpm install --frozen-lockfile
-      - name: Frontend typecheck and critical/custom vitest
-        run: make test-frontend test-frontend-custom
-      - name: Build production frontend target
-        run: make build-frontend
-      - name: Preserve frontend build for an exact-SHA Release
+      - name: Targeted frontend checks
+        working-directory: frontend
+        env:
+          MODE: ${{ needs.impact.outputs.mode }}
+        run: |
+          set -euo pipefail
+          if [[ "$MODE" == "full" ]]; then
+            pnpm run lint:check
+            pnpm run typecheck
+            pnpm exec vitest run
+            pnpm run build
+          else
+            pnpm run typecheck
+            pnpm exec vitest run src/custom
+          fi
+
+  pr-validation:
+    name: PR validation
+    if: ${{ always() && needs.verify-target.outputs.is_pull_request == 'true' }}
+    needs: [verify-target, impact, boundaries, shell, pr-backend, pr-frontend, full-backend-unit, full-backend-integration, full-backend-build, full-frontend, full-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require applicable fast validation paths
+        env:
+          IMPACT_RESULT: ${{ needs.impact.result }}
+          BOUNDARIES_RESULT: ${{ needs.boundaries.result }}
+          SHELL_RESULT: ${{ needs.shell.result }}
+          BACKEND_RESULT: ${{ needs.pr-backend.result }}
+          FRONTEND_RESULT: ${{ needs.pr-frontend.result }}
+          FULL_UNIT_RESULT: ${{ needs.full-backend-unit.result }}
+          FULL_INTEGRATION_RESULT: ${{ needs.full-backend-integration.result }}
+          FULL_BUILD_RESULT: ${{ needs.full-backend-build.result }}
+          FULL_FRONTEND_RESULT: ${{ needs.full-frontend.result }}
+          FULL_LINT_RESULT: ${{ needs.full-lint.result }}
+          IMPACT_MODE: ${{ needs.impact.outputs.mode }}
+          UPGRADE: ${{ needs.verify-target.outputs.is_official_upgrade }}
+        run: |
+          set -euo pipefail
+          [[ "$BOUNDARIES_RESULT" == "success" ]]
+          [[ "$SHELL_RESULT" == "success" ]]
+          if [[ "$UPGRADE" == "true" ]]; then
+            [[ "$IMPACT_RESULT" == "success" ]]
+            echo "Official upgrade delegated to Required upgrade validation."
+            exit 0
+          fi
+          [[ "$IMPACT_RESULT" == "success" ]]
+          if [[ "$IMPACT_MODE" == "full" ]]; then
+            for result in "$FULL_UNIT_RESULT" "$FULL_INTEGRATION_RESULT" "$FULL_BUILD_RESULT" "$FULL_FRONTEND_RESULT" "$FULL_LINT_RESULT"; do
+              [[ "$result" == "success" ]]
+            done
+          fi
+          for result in "$BACKEND_RESULT" "$FRONTEND_RESULT"; do
+            [[ "$result" == "success" || "$result" == "skipped" ]]
+          done
+
+  full-backend-unit:
+    needs: [verify-target, impact]
+    if: >-
+      ${{
+        needs.verify-target.outputs.is_full_validation == 'true' ||
+        (
+          needs.verify-target.outputs.is_pull_request == 'true' &&
+          needs.verify-target.outputs.is_official_upgrade != 'true' &&
+          needs.impact.outputs.mode == 'full'
+        )
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Unit tests
+        working-directory: backend
+        run: make test-unit
+
+  full-backend-integration:
+    needs: [verify-target, impact]
+    if: >-
+      ${{
+        needs.verify-target.outputs.is_full_validation == 'true' ||
+        (
+          needs.verify-target.outputs.is_pull_request == 'true' &&
+          needs.verify-target.outputs.is_official_upgrade != 'true' &&
+          needs.impact.outputs.mode == 'full'
+        )
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Integration tests
+        run: /bin/bash deploy/tests/backend-integration-test.sh
+
+  full-backend-build:
+    needs: [verify-target, impact]
+    if: >-
+      ${{
+        needs.verify-target.outputs.is_full_validation == 'true' ||
+        (
+          needs.verify-target.outputs.is_pull_request == 'true' &&
+          needs.verify-target.outputs.is_official_upgrade != 'true' &&
+          needs.impact.outputs.mode == 'full'
+        )
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Verify generated Wire graph and build
+        run: |
+          cd backend
+          go generate ./cmd/server
+          git diff --exit-code -- cmd/server/wire_gen.go
+          cd ..
+          make build-backend
+
+  full-frontend:
+    needs: [verify-target, impact]
+    if: >-
+      ${{
+        needs.verify-target.outputs.is_full_validation == 'true' ||
+        (
+          needs.verify-target.outputs.is_pull_request == 'true' &&
+          needs.verify-target.outputs.is_official_upgrade != 'true' &&
+          needs.impact.outputs.mode == 'full'
+        )
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.verify-target.outputs.checkout_sha }}
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '20.20.2'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Full frontend validation
+        run: |
+          pnpm --dir frontend install --frozen-lockfile
+          make test-frontend test-frontend-custom
+          make build-frontend
+      - name: Preserve frontend build for exact-SHA Release
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -253,8 +428,17 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  golangci-lint:
-    needs: verify-target
+  full-lint:
+    needs: [verify-target, impact]
+    if: >-
+      ${{
+        needs.verify-target.outputs.is_full_validation == 'true' ||
+        (
+          needs.verify-target.outputs.is_pull_request == 'true' &&
+          needs.verify-target.outputs.is_official_upgrade != 'true' &&
+          needs.impact.outputs.mode == 'full'
+        )
+      }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -268,18 +452,34 @@ jobs:
           check-latest: false
           cache: true
           cache-dependency-path: backend/go.sum
-      - name: Verify Go version
-        run: |
-          go version | grep -q 'go1.26.5'
       - name: Install checksum-pinned golangci-lint
         env:
           CUSTOM_TOOL_INSTALL_ROOT: ${{ runner.temp }}/custom-tools
         run: /bin/bash deploy/tests/install-custom-tools.sh golangci-lint
-      - name: golangci-lint
+      - name: Lint new custom changes
         working-directory: backend
         run: |
           source ../.github/custom-upstream-baseline.env
           git merge-base --is-ancestor "$CUSTOM_UPSTREAM_BASE_COMMIT" HEAD
-          golangci-lint run \
-            --timeout=30m \
-            --new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"
+          golangci-lint run --timeout=30m --new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"
+
+  full-validation:
+    name: Full validation
+    if: ${{ always() && needs.verify-target.outputs.is_full_validation == 'true' }}
+    needs: [verify-target, impact, boundaries, shell, full-backend-unit, full-backend-integration, full-backend-build, full-frontend, full-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every full validation path
+        env:
+          BOUNDARIES: ${{ needs.boundaries.result }}
+          SHELL: ${{ needs.shell.result }}
+          UNIT: ${{ needs.full-backend-unit.result }}
+          INTEGRATION: ${{ needs.full-backend-integration.result }}
+          BUILD: ${{ needs.full-backend-build.result }}
+          FRONTEND: ${{ needs.full-frontend.result }}
+          LINT: ${{ needs.full-lint.result }}
+        run: |
+          set -euo pipefail
+          for result in "$BOUNDARIES" "$SHELL" "$UNIT" "$INTEGRATION" "$BUILD" "$FRONTEND" "$LINT"; do
+            [[ "$result" == "success" ]]
+          done

@@ -78,22 +78,57 @@ func TestBindAndInspectRequestRestoresMultipartBody(t *testing.T) {
 	require.Equal(t, original, restored)
 }
 
-func TestBindAndInspectRequestReadsPathAndQueryModels(t *testing.T) {
+func TestBindAndInspectRequestReadsPathAndExplicitQueryModels(t *testing.T) {
 	tests := []struct {
-		name string
-		url  string
+		name   string
+		url    string
+		method string
 	}{
-		{name: "gemini path", url: "/v1beta/models/gpt-5.4-mini:streamGenerateContent?alt=sse"},
-		{name: "query", url: "/v1/realtime?model=gpt-5.4-mini"},
+		{name: "gemini path", method: http.MethodPost, url: "/v1beta/models/gpt-5.4-mini:streamGenerateContent?alt=sse"},
+		{name: "query", method: http.MethodGet, url: "/v1/realtime?model=gpt-5.4-mini"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, tt.url, nil)
+			req := httptest.NewRequest(tt.method, tt.url, nil)
 			model, blocked, err := BindAndInspectRequest(req, []string{"gpt-5.4-mini"})
 			require.NoError(t, err)
 			require.Equal(t, "gpt-5.4-mini", model)
 			require.True(t, blocked)
 		})
+	}
+}
+
+func TestBindAndInspectRequestPathAndQueryConflictUsesPath(t *testing.T) {
+	for _, path := range []string{"/v1beta/models/blocked", "/antigravity/v1beta/models/blocked"} {
+		req := httptest.NewRequest(http.MethodGet, path+"?model=allowed", nil)
+		model, blocked, err := BindAndInspectRequest(req, []string{"blocked"})
+		require.NoError(t, err)
+		require.Equal(t, "blocked", model)
+		require.True(t, blocked)
+	}
+}
+
+func TestBindAndInspectRequestBodyWinsOverQuery(t *testing.T) {
+	body := []byte(`{"model":"blocked","messages":[]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions?model=allowed", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	model, blocked, err := BindAndInspectRequest(req, []string{"blocked"})
+	require.NoError(t, err)
+	require.Equal(t, "blocked", model)
+	require.True(t, blocked)
+	restored, readErr := io.ReadAll(req.Body)
+	require.NoError(t, readErr)
+	require.Equal(t, body, restored)
+}
+
+func TestBindAndInspectRequestIgnoresModelQueryOnNonModelGET(t *testing.T) {
+	for _, path := range []string{"/v1/usage", "/v1/models", "/v1/images/tasks/task-1", "/v1/videos/task-1"} {
+		req := httptest.NewRequest(http.MethodGet, path+"?model=blocked", nil)
+		model, blocked, err := BindAndInspectRequest(req, []string{"blocked"})
+		require.NoError(t, err)
+		require.Empty(t, model)
+		require.False(t, blocked)
 	}
 }
 

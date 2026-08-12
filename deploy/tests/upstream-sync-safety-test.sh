@@ -707,6 +707,7 @@ if ! env \
   BACKEND_RESULT=skipped \
   FRONTEND_RESULT=skipped \
   RELEASE_PREFLIGHT_RESULT=skipped \
+  RELEASE_INPUTS_CHANGED=false \
   /bin/bash "$tmp_dir/required-validation.sh" >/dev/null; then
   echo "ERROR: required validation rejected an ordinary pull request" >&2
   exit 1
@@ -717,6 +718,7 @@ successful_upgrade_results=(
   BACKEND_RESULT=success
   FRONTEND_RESULT=success
   RELEASE_PREFLIGHT_RESULT=success
+  RELEASE_INPUTS_CHANGED=true
 )
 if ! env \
   CONTEXT_RESULT=success \

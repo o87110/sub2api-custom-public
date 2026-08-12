@@ -38,14 +38,15 @@ upstream  = https://github.com/Wei-Shaw/sub2api.git
 | `upstream-sync.yml` | 检测官方 Tag、准备升级分支和 PR |
 | `upstream-upgrade-gate.yml` | 升级门禁与基线收尾 |
 
-功能分支只通过 `pull_request` 运行 CI 与 Security Scan，避免同一提交再由 `push`
-重复执行；`push` 仅验证合并后的 `main` 精确提交，自动 Publish 也只接收该分支的
-CI 完成事件。同一 PR 推送新提交时取消旧提交仍在运行的 CI 与 Security Scan；
-`main` Push、定时任务和可信手工调度使用独立并发键，不得互相取消。
+功能分支只通过 `pull_request` 运行分层 CI：`pr-validation` 先做边界、脚本和受影响
+路径的快速检查；未知路径、数据库、Ent、订单、支付、库存、鉴权和核心服务变更自动
+回退完整检查。Security Scan 不再逐个 PR 运行，只在 `main` Push、每周定时和可信手工
+调度运行。`main` Push 运行完整回归并产生稳定的 `full-validation` 状态；自动 Publish
+只接收该状态成功的准确 `main` SHA。同一 PR 推送新提交时取消旧 CI。
 
-后端 Unit、Integration、Wire/生产构建分为三条并行路径，现有必需检查 `test`
-作为失败关闭的聚合门禁；任一路径失败、取消或跳过时，`test` 都不得成功。
-差异/数据库 `boundaries`、后端、前端、Lint 和 Shell 在准确 SHA 解析后并行；
+后端 Unit、Integration、Wire/生产构建分为并行路径，`full-validation` 作为失败关闭的
+完整回归门禁；任一路径失败、取消或跳过时不得成功。差异/数据库 `boundaries`、快速
+后端/前端、Lint 和 Shell 在准确 SHA 解析后并行；
 `boundaries` 仍是独立必需检查。Integration 通过登记表覆盖全部带
 `//go:build integration` 的包，新增标签包未登记即失败，不通过 `./...` 重跑普通测试。
 
@@ -57,10 +58,13 @@ AUTO_PUBLISH_ENABLED=true
 ```
 
 `custom-release-publish` Environment 只保留 `main`/`v*-custom.*` 部署策略，
-不设置 `Required reviewer`；变量启用后，CI 通过即自动完成 Tag、构建和发布。
-普通 `main` Push 由 CI 完成事件触发发布。官方升级最终器使用仓库
-`GITHUB_TOKEN` 显式调度绑定合并 SHA 的 Publish；Publish 必须等待同一 SHA 的
-CI 和 `boundaries` Job 成功后才能创建 Tag。两条路径共享同一并发组；若重复调度，
+不设置 `Required reviewer`；变量启用后，只有 `full-validation` 成功的 CI 才能自动
+完成 Tag、构建和发布。
+普通 `main` Push 由 CI 完成事件触发发布。发布前必须确认 CI 事件为 `main` Push 或可信
+`workflow_dispatch`、Head SHA 与目标提交一致、Workflow 整体成功，且 `Full validation`
+Job 成功。官方升级最终器使用仓库 `GITHUB_TOKEN` 显式调度绑定合并 SHA 的 Publish；
+Publish 必须等待同一 SHA 的 CI、`boundaries` 和 `Full validation` Job 成功后才能创建
+Tag。两条路径共享同一并发组；若重复调度，
 已存在的同提交正式 Release 必须安全退出，不得递增出重复版本。
 
 自动 `workflow_run` 以同一 Vendor 版本的最新正式 Custom Tag 为基准，只在以下
