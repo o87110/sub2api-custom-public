@@ -1,0 +1,39 @@
+# Path classification consumed by deploy/tests/ci-impact.sh.
+# Unknown paths intentionally require full validation.
+default: full
+
+# Paths with no executable impact may use the PR fast lane. Any path not in
+# this allow-list or the frontend/backend sections fails closed to full.
+fast:
+  - ^docs/
+  - ^README(\.|$)
+  - ^openspec/
+
+frontend:
+  - ^frontend/
+
+backend:
+  - ^backend/
+
+high_risk:
+  - ^backend/migrations/
+  - ^backend/ent/
+  - ^backend/internal/(handler|service|repository|server|payment|config)/
+  - ^backend/internal/custom/(payment|subscription|.*inventory|.*auth)/
+  - ^backend/internal/(handler|service|repository)/.*(order|payment|inventory|auth|subscription).*\.
+  - ^backend/(go\.mod|go\.sum|Makefile)$
+  - ^frontend/(package\.json|pnpm-lock\.yaml|vite\.config\.|tsconfig\.)
+  - ^\.github/
+  - ^deploy/
+  - ^Dockerfile
+  - ^Makefile$
+  - ^\.goreleaser
+
+release_inputs:
+  - ^backend/
+  - ^frontend/
+  - ^deploy/release/
+  - ^Dockerfile
+  - ^\.goreleaser
+  - ^Makefile$
+  - ^LICENSE$

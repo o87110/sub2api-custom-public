@@ -18,6 +18,7 @@ backend/internal/handler/gateway_handler_chat_completions.go	backend/internal/cu
 backend/internal/handler/gateway_handler_responses.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/handler/gateway_helper.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/handler/gemini_v1beta_handler.go	backend/internal/custom/groupmodelaccess/policy.go
+backend/internal/handler/gateway_web_search.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/handler/image_task_handler.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/handler/no_account_error.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/handler/openai_alpha_search.go	backend/internal/custom/groupmodelaccess/policy.go

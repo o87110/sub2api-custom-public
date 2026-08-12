@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupmodelaccess"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/websearch"
@@ -175,6 +176,9 @@ func (h *GatewayHandler) WebSearch(c *gin.Context) {
 		account = nil
 	}
 	if err != nil || nativeResp == nil {
+		if service.IsGroupModelBlockedError(err) {
+			return
+		}
 		msg := "web search failed"
 		if err != nil {
 			msg = err.Error()
@@ -301,11 +305,18 @@ func (h *GatewayHandler) acquireWebSearchAccountSlot(
 // by calling the responses endpoint with web_search tool, then normalizes sources to unified format.
 func (h *GatewayHandler) doGrokNativeWebSearch(ctx context.Context, c *gin.Context, account *service.Account, query string, maxResults int) (*websearch.SearchResponse, string, error) {
 	maxResults = normalizeGrokWebSearchMaxResults(maxResults)
+	upstreamModel := strings.TrimSpace(account.GetMappedModel(xai.DefaultTextModel))
+	if upstreamModel == "" {
+		upstreamModel = xai.DefaultTextModel
+	}
+	if !enforceGroupModelAccess(c, upstreamModel) {
+		return nil, "", &groupmodelaccess.BlockedModelError{Model: upstreamModel}
+	}
 
 	// Build a minimal responses request that triggers Grok web search tool.
 	// Ask for structured metadata because xAI action.sources commonly contains URLs only.
 	searchBody := map[string]any{
-		"model":   xai.DefaultTextModel,
+		"model":   upstreamModel,
 		"input":   buildGrokWebSearchPrompt(query, maxResults),
 		"tools":   []map[string]any{{"type": "web_search"}},
 		"include": []string{"web_search_call.action.sources"},

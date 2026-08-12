@@ -126,6 +126,13 @@ func AnalyzeGo(filename string, source []byte) (Semantics, error) {
 				if isDatabaseAccessPath(filename) {
 					_, builderTerminal := queryBuilderTerminals[selector.Sel.Name]
 					_, directTerminal := directDatabaseTerminals[selector.Sel.Name]
+					// database/sql query calls commonly end with Scan. The
+					// inner query method already contributes its static SQL;
+					// treating the outer Scan as an unresolved builder terminal
+					// would incorrectly reject otherwise verifiable statements.
+					if builderTerminal && selector.Sel.Name == "Scan" && isQueryMethodCall(selector.X) {
+						return true
+					}
 					if builderTerminal ||
 						(directTerminal && (databaseSource || isDatabaseReceiver(selector.X))) {
 						dynamic["Builder:"+formatExpression(fileset, value)] = struct{}{}
@@ -159,6 +166,19 @@ func AnalyzeGo(filename string, source []byte) (Semantics, error) {
 		Dynamic:    sortedKeys(dynamic),
 	}
 	return result, nil
+}
+
+func isQueryMethodCall(expression ast.Expr) bool {
+	call, ok := expression.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	_, ok = queryMethods[selector.Sel.Name]
+	return ok
 }
 
 func importsDatabasePackage(file *ast.File) bool {

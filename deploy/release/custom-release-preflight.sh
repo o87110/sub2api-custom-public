@@ -102,6 +102,16 @@ require_successful_ci() {
      ( "$event_type" == "push" || "$event_type" == "workflow_dispatch" ) ]] ||
     fail "latest accepted CI run ${run_id:-missing} is ${status:-missing}/${conclusion:-missing} for ${head_branch:-missing}@${head_sha:-missing}; expected success for $label"
   verify_ci_boundaries "$run_id"
+  full_validation_state="$(
+    gh run view "$run_id" \
+      --repo "$GITHUB_REPOSITORY" \
+      --json jobs \
+      --jq '.jobs | map(select(.name == "Full validation")) | if length == 1 then [.[0].status, (.[0].conclusion // "pending")] | @tsv else "" end'
+  )"
+  [[ -n "$full_validation_state" ]] || fail "CI run $run_id lacks the Full validation job"
+  IFS=$'\t' read -r full_validation_status full_validation_conclusion <<<"$full_validation_state"
+  [[ "$full_validation_status" == "completed" && "$full_validation_conclusion" == "success" ]] ||
+    fail "CI run $run_id Full validation is ${full_validation_status}/${full_validation_conclusion}"
   printf '%s\n' "$run_id"
 }
 
