@@ -93,6 +93,23 @@ func query(ctx context.Context, db interface {
 	require.Equal(t, []string{`QueryRowContext:"SELECT * FROM " + table`}, semantics.Dynamic)
 }
 
+func TestAnalyzeGoDoesNotTreatDatabaseScanAsBuilderTerminal(t *testing.T) {
+	source := []byte(`package fixture
+import "context"
+func query(ctx context.Context, db interface {
+	QueryRowContext(context.Context, string, ...any) row
+}) {
+	var value int
+	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&value)
+}
+`)
+
+	semantics, err := AnalyzeGo("backend/internal/repository/fixture.go", source)
+	require.NoError(t, err)
+	require.Equal(t, []string{"SELECT COUNT(*) FROM users"}, semantics.Statements)
+	require.Empty(t, semantics.Dynamic)
+}
+
 func TestAnalyzeGoDoesNotResolveMutableQueryFromAnotherBinding(t *testing.T) {
 	source := []byte(`package fixture
 import "database/sql"

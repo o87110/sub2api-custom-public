@@ -260,6 +260,8 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
   `.github/custom-database-exceptions.tsv`，并绑定 Vendor 基线提交、基线/候选 Blob、
   目标 SQL 语义摘要和完整变更摘要。未登记、摘要漂移、动态 SQL 或非结构型写入 SQL
   仍然失败关闭。
+- 非结构型 `*_test.go` 中仅用于测试夹具的 SQL 不进入生产数据库边界审批；
+  `backend/migrations/`、Ent Schema 和其他结构路径下的测试仍按结构变化审核。
 
 ### V2 色块矩阵滚轮隔离
 
