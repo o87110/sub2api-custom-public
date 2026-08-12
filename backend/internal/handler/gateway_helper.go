@@ -32,13 +32,25 @@ func bindGroupModelAccessChannelMapping(c *gin.Context, mapping service.ChannelM
 		return true
 	}
 	if mapping.Mapped {
-		if err := service.CheckGroupModelAccess(c.Request.Context(), mapping.MappedModel); err != nil {
-			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
-			groupmodelaccess.WriteBlockedResponse(c, mapping.MappedModel)
+		if !enforceGroupModelAccess(c, mapping.MappedModel) {
 			return false
 		}
 	}
 	c.Request = c.Request.WithContext(withGroupModelAccessChannelMapping(c.Request.Context(), mapping))
+	return true
+}
+
+// enforceGroupModelAccess is the final handler-side guard for a model that is
+// about to be returned or sent upstream after all route and account rewrites.
+func enforceGroupModelAccess(c *gin.Context, model string) bool {
+	if c == nil || c.Request == nil {
+		return true
+	}
+	if err := service.CheckGroupModelAccess(c.Request.Context(), model); err != nil {
+		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+		groupmodelaccess.WriteBlockedResponse(c, model)
+		return false
+	}
 	return true
 }
 

@@ -457,14 +457,18 @@ backend/migrations/198_subscription_cycle_manual_bulk_quota_reset.sql
 - fallback 调度使用原始分组与实际承载分组黑名单的并集，异步图片和批量图片在真正提交
   上游前重新加载策略；已发送的进行中请求不强制中断，状态查询和内容下载不受影响；
 - OpenAI、Anthropic、Gemini 分别返回自身协议的 404 结构，本地策略拒绝记为
-  `local_policy_denied`；JSON、multipart、Gemini 路径模型、Live/Realtime 与 WebSocket
-  均在模型确定时检查，读取请求体后完整恢复；
+  `local_policy_denied`；模型详情路径始终优先于同名 query 参数，普通 POST/PUT 等请求以
+  body 模型为准，只有明确消费模型的 Realtime GET 路由读取 `?model=`。JSON、multipart、
+  Gemini 路径模型、Live/Realtime 与 WebSocket 均在模型确定时检查，读取请求体后完整恢复；
 - `/models`、Codex Manifest、Gemini 模型列表和批量图片模型列表在既有可用集合与可选
   展示列表之后减去黑名单。公开模型只有在所有最终路径都映射到禁用模型时才隐藏；
 - 候选列表聚合平台默认模型、账号映射键值、Messages 分发映射、复合路由公开名/上游名
   及关联渠道映射输入/输出。已保存但候选源消失的黑名单项继续回显并可移除；
-- 分组复制深复制黑名单；分组更新立即失效 API Key 鉴权缓存，缓存快照版本为 v20；
-- 配置复用现有 `models_list_config` JSON，不新增列、Migration、Schema 字段或 SQL。
+- 分组复制深复制黑名单；分组更新立即失效 API Key 鉴权缓存，缓存快照版本为 v20；数据库
+  Trigger 通过前向 Migration 覆盖函数定义，直接修改 `models_list_config` 也会 durable
+  失效，且不新增表、列或数据回写；
+- 配置复用现有 `models_list_config` JSON，不新增列或 Schema 字段；Gemini 模型详情静态
+  返回/上游转发及 Web Search 实际发送模型均执行最终策略守卫。
 
 主要实现：
 

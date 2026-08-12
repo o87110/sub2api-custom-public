@@ -134,6 +134,7 @@ scripts
 .code-review-state
 #openspec/
 code-reviews/
+CHANGELOG.md
 backend/cmd/server/server
 deploy/docker-compose.override.yml
 .gocache/

@@ -200,6 +200,7 @@ thin_bridge_allowed() {
       backend/internal/handler/gateway_handler_chat_completions.go | \
       backend/internal/handler/gateway_handler_responses.go | \
       backend/internal/handler/gateway_handler.go | \
+      backend/internal/handler/gateway_web_search.go | \
       backend/internal/handler/gateway_helper.go | \
       backend/internal/handler/gemini_v1beta_handler.go | \
       backend/internal/handler/image_task_handler.go | \
