@@ -1,6 +1,7 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	55f63bdf067898483721f1a757703f86fcc74d03	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、订阅周期与批量重置、内容审计、分组模型黑名单、CI Integration 与前端 Artifact 回归测试路径
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	cebde9836da3df3906461ef276d7d726c69c3a6f	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、订阅周期与批量重置、内容审计、分组模型黑名单、CI Integration 与前端 Artifact 回归测试路径
 .github/audit-exceptions.yml	M	keep	M	fixed-path	2a89dd07614f2b0c89b4f1fd53bb0be6cc1d2123	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
+.github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	classification-test+targeted-CI	定义 PR 影响分类、发布输入路径和未知路径失败关闭策略
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	bafa49bfbf504a86f28a8fec3a1b50686a7f18ec	-	-	database-boundary-unit+candidate-tree-test	精确绑定已审核的渠道监控、分组最低余额、套餐库存及订阅统计周期 Migration、Ent Schema 和生成文件结构指纹
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	2d5894728525a11ed4e9b4181be8dd00ba58eac0	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证分组模型黑名单新增官方薄桥预算和允许路径
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -17,12 +18,12 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.1.172.md	A	keep	A	custom-docs-ops	@absent	7db4a67cdc84d1da56a5a1e58137911b366f6221	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.172 升级、数据库 SQL 语义评审、二改影响与验证证据
 .github/upgrades/0.1.173.md	A	keep	A	custom-docs-ops	@absent	269facaeea466d3a728463e7ff597faee9c58cee	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.173 升级、数据库语义评审、冲突解决与验证证据
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	14fcd9da68820e8421b62c2cb36599f75628e26c	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证官方模型调用路径到 Custom 黑名单实现的精确影子关系
-.github/workflows/backend-ci.yml	M	keep	M	fixed-path	21a4fea79caf01d1f2bfce16976fa30883b495c2	b4f2d9052f4b84628bc93328c98b60b21201ddd9	-	-	yaml-parse+action-pin+actionlint+container-safety	并行边界门禁、收窄 Integration 包并为准确 main SHA 产出前端 Release Artifact
-.github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	8ee37dd7a3c32c02dd401cf6109d37c1fab9a202	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
+.github/workflows/backend-ci.yml	M	keep	M	fixed-path	21a4fea79caf01d1f2bfce16976fa30883b495c2	7fa0fa06a06c9d7f67f1a0580d133990fb685d31	-	-	yaml-parse+action-pin+actionlint+container-safety+classification-test	分层 PR 快速门禁、main 完整回归、官方升级去重及准确 SHA 前端 Artifact
+.github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	发布必须复核 main Push 或可信手工调度、完整 Full validation 和准确 SHA
 .github/workflows/release.yml	M	keep	M	fixed-path	2ba01833c112a2653155953314fc7b8a3fbf3def	fc9d57a34c6bc752e72b2898c40124097508e8bd	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
-.github/workflows/security-scan.yml	M	keep	M	fixed-path	96a7ae4edd5873207a013aa827a6ea09f6f18821	30044abe5606dad7dc66edb3fb88fcf2193c717a	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	f23c56aa254fba5db05034e78c6995a60b6a59e5	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义、保护内容审计、订阅周期、批量重置与分组模型黑名单二改路径，并使用 Blob 过滤减少上游同步 Checkout 与 Fetch 传输
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	12d6a57b43196dcb4ec76712e5b5d599358c6123	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护内容审计、订阅周期、批量重置与分组模型黑名单二改路径，复用收窄 Integration 入口并对完整历史 Checkout 与 Fetch 使用 Blob 过滤
+.github/workflows/security-scan.yml	M	keep	M	fixed-path	96a7ae4edd5873207a013aa827a6ea09f6f18821	0ac90b7c2968eb0b1e638a46340c87daafe9a993	-	-	yaml-parse+action-pin+actionlint	Security Scan 移除 pull_request 触发并保留 main、定时和可信手工扫描
+.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	0732fac7ad9031762905c761da8e1e4c4171518b	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	上游同步定时频率调整为每 6 小时并保留去重、复用和失败重试保护
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	f957ffad6d8554bd0a797d55753e26555f482439	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	官方升级 PR 去除标签触发、复用完整验证并按发布输入条件运行 Release preflight
 .gitignore	M	keep	M	fixed-path	4ea6ff311b07e0df55c431f7ddcac8594458ff71	5ea3bf5b99bcc91e654fb85717016bb42fec4b39	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .goreleaser.simple.yaml	M	restore	RESTORED	whole-file-restore	b25df6e3bd20eba93cd94c96e047d18222534899	b25df6e3bd20eba93cd94c96e047d18222534899	-	-	baseline-blob-equality	非二改需求，整文件恢复官方基线
 .goreleaser.yaml	M	keep	M	fixed-path	19adfdf6dc489acd4af4ed82bdf63f64e16b8e33	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
@@ -371,15 +372,17 @@ deploy/rehearsal/preflight.sh	A	keep	A	fixed-path	@absent	11705ceb46c13712dfe139
 deploy/release/Dockerfile	A	keep	A	fixed-path	@absent	c9c48cc8b7bf03765da51cafe88707241b4ed6ce	-	-	goreleaser-check+release-safety+runtime-resource-test	Custom 正式发布镜像保留 runtime 双二进制布局并包含官方定价 fallback resources
 deploy/release/build-release-payload.sh	A	keep	A	fixed-path	@absent	c1f8900ae0f64b5e52cd3788c17e0c54c1f5fd8e	-	-	goreleaser-check+release-safety+runtime-resource-test	绑定前端来源、使用固定 Buildx GHA Cache scope 并记录 GoReleaser 与 OCI 耗时
 deploy/release/create-release-manifest.sh	A	keep	A	fixed-path	@absent	96ae611ed4f14ae47b848198d95e92eb7107cfdf	-	-	goreleaser-check+release-safety	新 v1 Manifest 强制写入并验证前端构建来源
-deploy/release/custom-release-preflight.sh	A	keep	A	fixed-path	@absent	bac8ec42d956f9dc52cf03af7320754813a9cd0e	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
+deploy/release/custom-release-preflight.sh	A	keep	A	fixed-path	@absent	f2f7c47ee3d35860c186f28dc96b201678e5d03a	-	-	goreleaser-check+release-safety	发布前复核完整 main CI、boundaries、Full validation 及精确提交证据
 deploy/release/frontend-dist.sh	A	keep	A	fixed-path	@absent	d814ad91296c220fd280dba146c81974bfa26135	-	-	release-safety+frontend-artifact-fixtures	严格复用准确 CI 前端 Artifact，并使用跨平台确定性内容哈希绑定来源
 deploy/release/publish-release.sh	A	keep	A	fixed-path	@absent	28f07d0ab4dae01cf978327230612942698f2f27	-	-	goreleaser-check+release-safety	兼容历史 v1 Manifest 并强制新前端来源与 Payload Metadata 一致
 deploy/release/release-inputs-changed.sh	A	keep	A	fixed-path	@absent	0376e3f7c689114a8e3d792e93c72ed56cf106a1	-	-	release-safety+classification-fixtures	按同 Vendor 最新正式 Custom Tag 精确分类自动发布输入并验证祖先关系
 deploy/release/release-notes.sh	A	keep	A	fixed-path	@absent	a2e8b6be71ac5328deea3b1b3cec3ef4f717e5f0	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 deploy/release/release-state-policy.sh	A	keep	A	fixed-path	@absent	9924057c455d26a3a8f7408343d8a5336b1497e8	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
-deploy/release/wait-for-required-ci.sh	A	keep	A	fixed-path	@absent	b258588e89194b39c11f30ba4524dc170c968aae	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
+deploy/release/wait-for-required-ci.sh	A	keep	A	fixed-path	@absent	b3bc57953cdd21be8160aa79442b8eb6b6bdb293	-	-	goreleaser-check+release-safety	发布等待脚本强制 main Push 或可信 workflow_dispatch、boundaries 和 Full validation 成功
 deploy/tests/backend-integration-test.sh	A	keep	A	custom-test	@absent	97e53a6e20636b5e744d59e3532fe05788e20c74	-	-	backend-integration-contract+test-executed-in-CI	只运行并校验全部已登记 Integration 标签包，包括订阅仓储真实 PostgreSQL 原子资格重置用例
-deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	ade4c38765eaef958eb882e885a3b50ce444a0eb	-	-	test-executed-in-CI+actionlint	验证并行 CI、订阅仓储 Integration 登记、准确 SHA Artifact 与 Blob 过滤契约
+deploy/tests/ci-impact-test.sh	A	keep	A	custom-test	@absent	6baf1abab452a60976914719b335c51aa9856a99	-	-	classification-test	覆盖文档、前后端、混合、高风险和未知路径分类行为
+deploy/tests/ci-impact.sh	A	keep	A	custom-test	@absent	37f63a94d608fa3a2f01a2a37fc7e84edc5ed898	-	-	classification-test+targeted-CI	根据变更路径输出验证模式、受影响端和发布输入，并对未知路径失败关闭
+deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	7e529c92770aebff34ffb7298c9149cd0b8eb90b	-	-	test-executed-in-CI+actionlint	验证分层 CI、分类器存在性、准确 SHA Artifact 与 Blob 过滤契约
 deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad7233c21340ce3dd1969db55ed51	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
 deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	361e16b491ff71d305c566795628c7c796694739	-	-	goreleaser-check+release-safety+runtime-resource-test	验证发布输入分类、同 SHA 门禁复用、前端来源、Manifest 兼容、缓存与耗时契约
@@ -397,10 +400,10 @@ docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	0dab40b50dba06438
 docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	853a014fa0e42cd35d4d4d28a08b643a9dd8ea85	-	-	docs-review+group-model-blocklist-tests	记录分组模型双重黑名单语义、覆盖入口、验证命令与数据库边界
 docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	a0f728877394b8584cc5a2f383e43f9b60d9bd21	-	-	documentation-consistency-review	同步 112 个薄桥边界、发布门禁与运维约束
 docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	2d587754297429e692b6b754220c20562a0eecc7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	434b820f47e8d07280831d13b1d1e0a9598461eb	-	-	documentation-consistency-review	记录自动发布分类、前端 Artifact、Manifest 兼容、OCI 缓存和耗时观测
+docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	b371724e43172fa3c59b065190761fecfa01d4f6	-	-	documentation-consistency-review	记录自动发布只能使用准确 main SHA 的 Full validation 证据
 docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	49d7ef56e23ab52638716dae9cee14667de34383	-	-	documentation-consistency-review	明确 CI 证据复用、前端 Artifact 失败关闭、缓存信任边界及 nanoid 条件 Override 审计策略
-docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	3ece1db537c0d7316743b6988cb131c466e0d748	-	-	docs-review+group-model-blocklist-tests	记录分组模型双重黑名单语义、覆盖入口、验证命令与数据库边界
-docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	b6b85fae7d6e2184b7d62c4eae694822e4a95de4	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	c5af60591536218e4e90a4129ca8c8effba69b96	-	-	docs-review+classification-test	记录 PR 快速检查、main 完整检查、高风险路径和官方升级验证分工
+docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	fc4e09299737533c457025561bd6eec6c9d63891	-	-	documentation-consistency-review	记录官方升级不重复普通 CI、可信调度完整验证及 Release preflight 条件
 frontend/package.json	M	keep	M	fixed-path	1d4aaf3aeffb7660beb42b12c25ccace0ae56cf6	1c5b6db9a31380c05fb1055361d44cf71320161e	-	-	frontend-security+pnpm-audit+build	在既有 PostCSS 安全升级上，以最小条件 Override 将受影响 nanoid 版本固定到 3.3.18
 frontend/pnpm-lock.yaml	M	keep	M	fixed-path	e17969c9cc318f1d2a82bb57777650f0e1e1e6a2	832c17416b6a786f329b182441a76b1110b42036	-	-	frontend-security+pnpm-audit+build	锁定 PostCSS 间接依赖 nanoid 3.3.18 及对应完整性摘要
 frontend/src/api/__tests__/admin.subscriptions.bulkResetQuota.spec.ts	A	keep	A	custom-test	@absent	5d3fde6657978dd850834a164a7f9597dd7f0e87	-	-	subscription-bulk-reset-vitest+typecheck+build	验证候选静态路由、强制幂等键及超过 300 条时不发送请求

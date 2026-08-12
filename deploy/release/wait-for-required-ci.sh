@@ -116,6 +116,22 @@ for ((attempt = 1; attempt <= max_attempts; attempt++)); do
       [[ "$boundary_status" == "completed" &&
          "$boundary_conclusion" == "success" ]] ||
         fail "required boundaries job is ${boundary_status}/${boundary_conclusion} in CI run ${run_id}"
+      full_validation_state="$(
+        gh run view "$run_id" \
+          --repo "$repository" \
+          --json jobs \
+          --jq '
+            .jobs |
+            map(select(.name == "Full validation")) |
+            if length == 1 then [.[0].status, (.[0].conclusion // "pending")] | @tsv else "" end
+          '
+      )"
+      [[ -n "$full_validation_state" ]] ||
+        fail "required full-validation job is missing in CI run ${run_id}"
+      IFS=$'\t' read -r full_validation_status full_validation_conclusion <<<"$full_validation_state"
+      [[ "$full_validation_status" == "completed" &&
+         "$full_validation_conclusion" == "success" ]] ||
+        fail "required full-validation job is ${full_validation_status}/${full_validation_conclusion} in CI run ${run_id}"
       printf '%s\n' "$run_id"
       exit 0
     fi

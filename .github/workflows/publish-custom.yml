@@ -134,6 +134,26 @@ jobs:
             fail_required_check "Required CI validation returned an invalid run ID"
           echo "CI passed for ${target_sha}; continuing publication."
 
+          full_validation_state="$(
+            gh run view "$run_id" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json jobs \
+              --jq '
+                .jobs |
+                map(select(.name == "Full validation")) |
+                if length == 1 then
+                  [.[0].status, (.[0].conclusion // "pending")] | @tsv
+                else "" end
+              '
+          )"
+          [[ -n "$full_validation_state" ]] ||
+            fail_required_check "Required full-validation job is missing from CI run ${run_id}"
+          IFS=$'\t' read -r full_validation_status full_validation_conclusion <<<"$full_validation_state"
+          [[ "$full_validation_status" == "completed" &&
+             "$full_validation_conclusion" == "success" ]] ||
+            fail_required_check "Required full-validation job is ${full_validation_status}/${full_validation_conclusion}"
+          echo "Full validation passed for ${target_sha}; continuing publication."
+
           current_vendor_ref=""
           while IFS= read -r candidate_ref; do
             if git merge-base --is-ancestor "${candidate_ref}^{commit}" origin/main; then

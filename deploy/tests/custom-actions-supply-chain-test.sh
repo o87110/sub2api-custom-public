@@ -5,6 +5,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 versions_file="$repo_root/.github/custom-tool-versions.env"
 installer="$repo_root/deploy/tests/install-custom-tools.sh"
 integration_runner="$repo_root/deploy/tests/backend-integration-test.sh"
+impact_runner="$repo_root/deploy/tests/ci-impact.sh"
+impact_test="$repo_root/deploy/tests/ci-impact-test.sh"
 workflows=(
   "$repo_root/.github/workflows/backend-ci.yml"
   "$repo_root/.github/workflows/publish-custom.yml"
@@ -18,6 +20,9 @@ fail() {
   echo "ERROR: $*" >&2
   exit 1
 }
+
+[[ -f "$impact_runner" ]] || fail "CI impact classifier is missing"
+[[ -f "$impact_test" ]] || fail "CI impact classification tests are missing"
 
 trigger_branches() {
   local workflow="$1"
@@ -48,7 +53,9 @@ job_block() {
 [[ -s "$versions_file" ]] || fail "custom tool version manifest is missing"
 [[ -s "$installer" ]] || fail "verified custom tool installer is missing"
 [[ -s "$integration_runner" ]] || fail "scoped backend Integration runner is missing"
+[[ -s "$impact_runner" ]] || fail "CI impact classifier is missing"
 /bin/bash -n "$integration_runner"
+/bin/bash -n "$impact_runner"
 # shellcheck disable=SC1090
 source "$versions_file"
 
@@ -85,74 +92,64 @@ grep -Fq 'source ../.github/custom-upstream-baseline.env' \
   "$repo_root/.github/workflows/backend-ci.yml" ||
   fail "golangci-lint does not load the explicit custom baseline"
 awk '
-  /^  golangci-lint:$/ { in_job = 1; next }
+  /^  full-lint:$/ { in_job = 1; next }
   /^  [[:alnum:]_-]+:$/ && in_job { in_job = 0 }
   in_job && /fetch-depth: 0/ { found = 1 }
   END { exit(found ? 0 : 1) }
 ' "$repo_root/.github/workflows/backend-ci.yml" ||
-  fail "golangci-lint checkout does not fetch the explicit baseline history"
+  fail "full-lint checkout does not fetch the explicit baseline history"
 grep -Fq 'git merge-base --is-ancestor "$CUSTOM_UPSTREAM_BASE_COMMIT" HEAD' \
   "$repo_root/.github/workflows/backend-ci.yml" ||
-  fail "golangci-lint does not verify that the explicit baseline is an ancestor"
+  fail "full-lint does not verify that the explicit baseline is an ancestor"
 grep -Fq -- '--new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"' \
   "$repo_root/.github/workflows/backend-ci.yml" ||
-  fail "golangci-lint is not scoped to changes from the explicit custom baseline"
+  fail "full-lint is not scoped to changes from the explicit custom baseline"
 
 backend_ci="$repo_root/.github/workflows/backend-ci.yml"
 security_scan="$repo_root/.github/workflows/security-scan.yml"
 publish_workflow="$repo_root/.github/workflows/publish-custom.yml"
 upgrade_gate="$repo_root/.github/workflows/upstream-upgrade-gate.yml"
 
-for workflow in "$backend_ci" "$security_scan"; do
-  [[ "$(trigger_branches "$workflow" push)" == "main" ]] ||
-    fail "feature branches must not duplicate PR checks through push: $workflow"
-  grep -Fqx '  pull_request:' "$workflow" ||
-    fail "pull request validation trigger is missing: $workflow"
-done
+[[ "$(trigger_branches "$backend_ci" push)" == "main" ]] ||
+  fail "feature branches must not duplicate PR checks through push: $backend_ci"
+grep -Fqx '  pull_request:' "$backend_ci" ||
+  fail "pull request validation trigger is missing: $backend_ci"
+[[ "$(trigger_branches "$security_scan" push)" == "main" ]] ||
+  fail "Security Scan push trigger must be limited to main"
+if grep -Fqx '  pull_request:' "$security_scan"; then
+  fail "Security Scan must not run on every pull request"
+fi
 [[ "$(trigger_branches "$publish_workflow" workflow_run)" == "main" ]] ||
   fail "automatic publication must only react to completed main CI runs"
 
 grep -Fq \
   'group: ci-${{ github.event_name == '\''pull_request'\'' && github.event.pull_request.number || github.run_id }}' \
   "$backend_ci" || fail "CI does not isolate concurrency to each pull request"
-grep -Fq \
-  'group: security-scan-${{ github.event_name == '\''pull_request'\'' && github.event.pull_request.number || github.run_id }}' \
-  "$security_scan" || fail "Security Scan does not isolate concurrency to each pull request"
-for workflow in "$backend_ci" "$security_scan"; do
-  grep -Fq 'cancel-in-progress: ${{ github.event_name == '\''pull_request'\'' }}' "$workflow" ||
-    fail "stale pull request runs are not cancelled: $workflow"
-done
+grep -Fq 'group: security-scan-${{ github.event_name == '\''pull_request'\'' && github.event.pull_request.number || github.run_id }}' \
+  "$security_scan" || fail "Security Scan concurrency group is missing"
+grep -Fq 'cancel-in-progress: ${{ github.event_name == '\''pull_request'\'' }}' "$backend_ci" ||
+  fail "stale pull request runs are not cancelled for CI"
 
-for job in backend_unit backend_integration backend_build test; do
+for job in full-backend-unit full-backend-integration full-backend-build full-frontend full-lint full-validation pr-validation impact; do
   grep -Fq "  ${job}:" "$backend_ci" ||
-    fail "parallel backend validation job is missing: $job"
+    fail "layered validation job is missing: $job"
 done
-[[ "$(grep -Fc 'run: make test-unit' "$backend_ci")" -eq 1 ]] ||
-  fail "backend unit tests must run exactly once"
-[[ "$(grep -Fc 'run: /bin/bash deploy/tests/backend-integration-test.sh' "$backend_ci")" -eq 1 ]] ||
-  fail "backend integration tests must run exactly once"
-[[ "$(grep -Fc 'run: make build-backend' "$backend_ci")" -eq 1 ]] ||
-  fail "backend production build must run exactly once"
-grep -Fq 'needs: [backend_unit, backend_integration, backend_build]' "$backend_ci" ||
-  fail "required test check does not aggregate all backend validation paths"
-grep -Fq '    if: ${{ always() }}' "$backend_ci" ||
-  fail "required test check does not run after a failed or skipped backend path"
-grep -Fq 'BACKEND_UNIT_RESULT: ${{ needs.backend_unit.result }}' "$backend_ci" ||
-  fail "required test check does not inspect the unit result"
-grep -Fq 'BACKEND_INTEGRATION_RESULT: ${{ needs.backend_integration.result }}' "$backend_ci" ||
-  fail "required test check does not inspect the integration result"
-grep -Fq 'BACKEND_BUILD_RESULT: ${{ needs.backend_build.result }}' "$backend_ci" ||
-  fail "required test check does not inspect the build result"
-grep -Fq '[[ "$BACKEND_UNIT_RESULT" == "success" ]]' "$backend_ci" ||
-  fail "required test check does not fail closed on unit failure"
-grep -Fq '[[ "$BACKEND_INTEGRATION_RESULT" == "success" ]]' "$backend_ci" ||
-  fail "required test check does not fail closed on integration failure"
-grep -Fq '[[ "$BACKEND_BUILD_RESULT" == "success" ]]' "$backend_ci" ||
-  fail "required test check does not fail closed on build failure"
+grep -Fq 'full-backend-unit, full-backend-integration, full-backend-build, full-frontend, full-lint' "$backend_ci" ||
+  fail "full validation does not aggregate all backend validation paths"
+grep -Fq 'if: ${{ always() && needs.verify-target.outputs.is_full_validation == '\''true'\'' }}' "$backend_ci" ||
+  fail "full validation does not run after a failed or skipped backend path"
 
-for job in boundaries shell backend_unit backend_integration backend_build frontend golangci-lint; do
-  grep -Fq '    needs: verify-target' <<<"$(job_block "$backend_ci" "$job")" ||
-    fail "CI job must start after exact-target resolution without waiting for boundaries: $job"
+for job in boundaries shell; do
+  block="$(job_block "$backend_ci" "$job")"
+  grep -Fq 'verify-target' <<<"$block" ||
+    fail "CI job must start after exact-target resolution: $job"
+done
+for job in full-backend-unit full-backend-integration full-backend-build full-frontend full-lint; do
+  block="$(job_block "$backend_ci" "$job")"
+  grep -Fq 'verify-target' <<<"$block" ||
+    fail "CI job must start after exact-target resolution: $job"
+  grep -Fq 'boundaries' <<<"$block" &&
+    fail "CI validation job must not wait on boundaries: $job"
 done
 grep -Fq "if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'" \
   "$backend_ci" || fail "frontend Release Artifact is not limited to trusted main CI events"
@@ -226,17 +223,34 @@ grep -Fq -- '--new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"' <<<"$upgrade_backend
 grep -Fq 'is_official_upgrade: ${{ steps.resolve.outputs.is_official_upgrade }}' \
   "$backend_ci" ||
   fail "CI does not expose exact official-upgrade classification"
-grep -Fq 'CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}' \
-  "$backend_ci" ||
+grep -Fq 'candidate_ref="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"' "$backend_ci" ||
   fail "CI does not classify the exact pull request or pushed branch"
-grep -Fq 'if [[ "$CANDIDATE_REF" =~ ^upgrade/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then' \
-  "$backend_ci" ||
+grep -Fq 'if [[ "$candidate_ref" =~ ^upgrade/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then' "$backend_ci" ||
   fail "CI official-upgrade branch classification is not exact"
 [[ "$(grep -Fc "if: needs.verify-target.outputs.is_official_upgrade != 'true'" "$backend_ci")" -eq 2 ]] ||
   fail "CI must defer exactly the final delta and database checks for official upgrades"
 grep -Fq "if: needs.verify-target.outputs.is_official_upgrade == 'true'" \
   "$backend_ci" ||
   fail "CI does not record delegation to the trusted official-upgrade gate"
+grep -Fq 'name: Full validation' "$backend_ci" ||
+  fail "CI does not expose the stable Full validation job"
+grep -Fq 'name: PR validation' "$backend_ci" ||
+  fail "CI does not expose the stable PR validation job"
+grep -Fq 'pull_request:' "$security_scan" &&
+  fail "Security Scan must not have a pull_request trigger"
+grep -Fq "cron: '0 */6 * * *'" "$repo_root/.github/workflows/upstream-sync.yml" ||
+  fail "upstream sync is not scheduled every six hours"
+grep -Fq 'Full validation' "$repo_root/deploy/release/custom-release-preflight.sh" ||
+  fail "Release preflight does not require Full validation"
+
+impact_fixture="$(mktemp -d)"
+impact_cleanup() { rm -rf "$impact_fixture"; }
+trap impact_cleanup EXIT
+cp "$repo_root/.github/ci-impact.yml" "$impact_fixture/ci-impact.yml"
+cp "$repo_root/deploy/tests/ci-impact.sh" "$impact_fixture/ci-impact.sh"
+if ! grep -Fq "default: full" "$impact_fixture/ci-impact.yml"; then
+  fail "CI impact configuration does not fail closed"
+fi
 grep -Fq "context='Required upgrade validation'" "$upgrade_gate" ||
   fail "trusted official-upgrade validation does not publish the required exact-head status"
 

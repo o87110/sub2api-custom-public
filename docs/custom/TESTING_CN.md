@@ -2,28 +2,34 @@
 
 ## 1. PR 基础门禁
 
-每个 PR 至少验证：
+验证按三层分工：普通 PR 只验证受影响范围，合并到 `main` 后执行完整回归，官方升级由可信升级门禁执行一次完整验证。每个普通 PR 至少验证：
 
 | 领域 | 验证 |
 | --- | --- |
-| 后端 | Unit、全部 Integration 标签包、生产构建 |
-| 前端 | Typecheck、Custom Vitest、生产构建 |
-| 生成代码 | `go generate ./cmd/server` 后无差异 |
-| Lint | 仅检查相对显式官方基线的新问题 |
+| 后端 | 受影响包定向测试；高风险或未知路径回退 Unit、Integration、生产构建 |
+| 前端 | 受影响范围 Typecheck/相关 Custom Vitest；高风险或未知路径回退完整检查 |
+| 生成代码 | 完整回归或官方升级时执行 `go generate ./cmd/server` 后无差异 |
+| Lint | 完整回归或官方升级时仅检查相对显式官方基线的新问题 |
 | 差异边界 | Candidate Tree 与差异台账一致 |
 | 薄桥边界 | 112 个契约路径、精确行预算、影子目标和结构规则一致 |
 | 数据库 | Migration、Schema 和例外表语义门禁 |
 | Actions | Action Pin、权限和 Actionlint |
-| 安全 | `govulncheck` 与生产依赖审计 |
+| 安全 | `govulncheck` 与生产依赖审计在 `main`/定时安全扫描中独立运行 |
 
-`boundaries` 与后端、前端、Lint、Shell Job 在 `verify-target` 确认准确 SHA 后并行；
-它仍是分支保护、Workflow 结论和 Release Preflight 的独立必需结果。后端 Integration
+PR 的 `pr-validation` 与 `boundaries` 在 `verify-target` 确认准确 SHA 后并行；文档等
+低风险路径仅走快速门禁，前后端普通路径增加定向检查；未知
+路径和高风险路径自动回退完整检查。合并后的 `main` CI 运行完整后端、前端、Wire、
+Lint 和构建，并以 `full-validation` 作为自动发布硬条件。后端 Integration
 入口固定登记当前六个含标签测试的包：`internal/custom/subscriptioninventory`、
 `internal/custom/subscriptionrepository`、`internal/middleware`、
 `internal/pkg/tlsfingerprint`、`internal/repository`、`internal/server/routes`。契约测试
 必须证明六包全部执行、新增标签包未登记时失败，且
 无 Integration 标签的 `internal/service` 不进入日志；该入口不再通过 `./...` 重跑
 普通 Unit 测试。
+
+Security Scan 不在每个 PR 触发，继续由 `main` Push、每周定时和可信手工扫描独立报告；
+它不是自动发布硬门禁。`upgrade/vX.Y.Z` PR 的普通 CI 只执行快速结构检查，后端、前端、
+Lint 和适用 Release 预构建由 `Required upgrade validation` 可信调度各执行一次。
 
 ## 2. 内容审计范围
 
