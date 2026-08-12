@@ -80,8 +80,8 @@ func TestBindAndInspectRequestRestoresMultipartBody(t *testing.T) {
 
 func TestBindAndInspectRequestReadsPathAndExplicitQueryModels(t *testing.T) {
 	tests := []struct {
-		name string
-		url  string
+		name   string
+		url    string
 		method string
 	}{
 		{name: "gemini path", method: http.MethodPost, url: "/v1beta/models/gpt-5.4-mini:streamGenerateContent?alt=sse"},
