@@ -627,30 +627,6 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
     tuple[str, str], tuple[tuple[str, str], ...]
 ] = {
     (
-        "29009f0b2ea14edf3b11ae2564fb617ff91a03b4",
-        "backend/internal/service/openai_gateway_scheduling.go",
-    ): _approved_call_deltas(
-        ("isOpenAICompatibleAccountEligibleForRequest", {
-            "modelAccessBlocksOpenAIAccount": 1,
-        }),
-        ("modelAccessBlocksOpenAIAccount", {
-            "CheckOpenAIAccountModelAccess": 1,
-            "Empty": 1,
-            "groupmodelaccess.FromContext": 1,
-        }),
-        ("resolveOpenAIAccountModelForAccess", {
-            "groupmodelaccess.FallbackModel": 1,
-            "groupmodelaccess.RequestModel": 1,
-            "normalizeOpenAIModelForUpstream": 1,
-            "resolveOpenAICompactForwardModel": 1,
-            "resolveOpenAIForwardModel": 1,
-            "strings.TrimSpace": 1,
-        }),
-        ("resolveOpenAIAccountUpstreamModelForRequest", {
-            "normalizeOpenAIModelForUpstream": 1,
-        }),
-    ),
-    (
         "93c32fa1a2450351561abc46156d2e28cb5f74ca",
         "backend/internal/service/openai_gateway_scheduling.go",
     ): _approved_call_deltas(
