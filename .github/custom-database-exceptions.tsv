@@ -1,5 +1,4 @@
 # path	baseline commit	baseline blob	target blob	target SQL semantic SHA-256	per-file change SHA-256
-# path	baseline commit	baseline blob	target blob	target SQL semantic SHA-256	per-file change SHA-256
 # 2026-07-28 人工审核：渠道监控仅展示倍率字段；备份 channel_monitors 后执行 191，指纹 dc315c05db569dfe000db743884ce9f60da829bb3acd93d94c180ec7f49db78a。
 # 2026-07-29 人工审核：groups 仅新增 minimum_balance DECIMAL(20,8) NOT NULL DEFAULT 0 与非负约束；不读取或修改 users.frozen_balance，执行 192_add_group_minimum_balance 前备份 groups。
 # 2026-08-02 官方 v0.1.170 新增 groups 利润控制字段及认证缓存失效函数；官方 192/193 按完整文件名执行，与二改 192 不冲突。以下 Custom 结构差异已按新官方提交重绑。
