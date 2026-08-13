@@ -529,5 +529,5 @@ frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	M	keep	M	official-
 frontend/src/views/user/paymentWechatResume.ts	M	keep	M	official-thin-bridge	8121bc56fc4bd590385ad4780422dc95584aa0b1	9e753cd42ca8b0672e7b793fbadadf9d4c208091	frontend/src/views/user/paymentWechatResume.ts	frontend/src/custom/payment-channels/paymentRecoveryRoute.ts	payment-channel-vitest+typecheck+build	微信支付恢复查询的服务商薄适配
 tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	15e53cd0ffbefb6d9e9ed1780d172062518cf719	-	-	thin-bridge-contract-unit+candidate-tree-test	精确审批分组模型黑名单官方薄桥的新函数、调用面、控制流与已审核映射语义引用，并登记官方 v0.1.175 基线断言
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
-tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	543bb7df292fde905b7e8ac26cbb9215d6ab6167	-	-	thin-bridge-contract-unit+candidate-tree-test	精确审批分组模型黑名单官方薄桥的新函数、调用面、控制流与已审核映射语义引用，并登记官方 v0.1.175 基线断言
+tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	130511a64879896362b79a69a0f82192d9fe1161	-	-	thin-bridge-contract-unit+candidate-tree-test	精确审批分组模型黑名单官方薄桥的新函数、调用面、控制流与已审核映射语义引用，并登记官方 v0.1.175 基线断言
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
