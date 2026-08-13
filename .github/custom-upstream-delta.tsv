@@ -31,7 +31,7 @@ AGENTS.md	A	keep	A	custom-docs-ops	@absent	96e736e67995af280d711e30f828e9314da88
 Dockerfile	M	keep	M	fixed-path	b2dfd7034f769abd7e8640090282e6b05a2af4a1	8c825c3ea188b048f6187fd688974bebba966c05	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 Dockerfile.goreleaser	M	keep	M	fixed-path	804fb05e057e3b8b2d48ae740bc6e8acb32cfdc2	7687a1ee72fe8f39b9d429091f0339c44aca38be	-	-	goreleaser-check+release-safety+runtime-resource-test	保留 Custom runtime 双二进制布局并移植官方定价 fallback resources
 Makefile	M	keep	M	fixed-path	b0bc1b99f687a9156cfb543c41ddc0d401d3c63d	81072b096fd386aae8d2fb0f60e8ced8cd2cb4e1	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
-README.md	M	keep	M	custom-docs-ops	f4ad2fa6b028bdc70ac0b502104a345dd8d940c1	eeb846466cbbeda6a5f7d0ab966718e685a337f4	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
+README.md	M	keep	M	custom-docs-ops	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	eeb846466cbbeda6a5f7d0ab966718e685a337f4	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
 README_CN.md	M	keep	M	custom-docs-ops	2d2a57a9ff3a363618001dda3ffbfae84bcd0f41	76456adfef686589fc8d6f630f3c658992f876a0	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
 README_JA.md	M	keep	M	custom-docs-ops	09aa77ee48aec83440ee76054887b2627c1e3792	e47b616f0773d614e56110fe2d07381235ad5f76	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
 backend/cmd/custom-database-boundary/main.go	A	keep	A	custom-backend	@absent	0eb5f0c59730e706e32ebc0410d91ad013b1952b	-	-	database-boundary-unit+candidate-tree-test	允许仅通过精确基线、Blob 和摘要登记的人工审核结构变化，其他变化继续失败关闭
