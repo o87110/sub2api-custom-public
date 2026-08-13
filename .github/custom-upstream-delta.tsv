@@ -5,7 +5,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	ca835a48014396f4563568a04399742ce63253c1	-	-	database-boundary-unit+candidate-tree-test	精确绑定已审核的渠道监控、分组最低余额、套餐库存及订阅统计周期 Migration、Ent Schema 和生成文件结构指纹
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	35dfd0c72c273a973f599da7ad44aa71705a2d14	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证分组模型黑名单新增官方薄桥预算和允许路径
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
-.github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	a318109bf89337d8f9e24f0815b893192fe62e98	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+.github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	a29b9a4a35c949cab81d31117f6a88b3fd5ec23a	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/upgrades/0.1.162.md	A	keep	A	custom-docs-ops	@absent	a873781565b70fa65a9ed5e2f88ddb762faeb81b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 .github/upgrades/0.1.164.md	A	keep	A	custom-docs-ops	@absent	81ea0d2f32358597dc9a4c91f487d3b74760dac7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
