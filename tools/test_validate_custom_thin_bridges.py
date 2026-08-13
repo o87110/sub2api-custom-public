@@ -256,6 +256,22 @@ class ThinBridgeContractTests(unittest.TestCase):
             validator.BASELINE_DELEGATE_VIEW_CONTROL,
         )
 
+    def test_v0176_payment_config_call_surface_is_bound_to_exact_vendor_commit(self) -> None:
+        path = "backend/internal/service/payment_config_service.go"
+        approved = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+            ("e803e3851c0a7e222cfadeafad7b8636ab959d11", path)
+        ]
+        self.assertEqual(
+            approved,
+            (
+                ("GetPaymentConfig", "fmt.Errorf"),
+                ("GetPaymentConfig", "paymentchannels.ParseChannelSettings"),
+                ("UpdatePaymentConfig", "err.Error"),
+                ("UpdatePaymentConfig", "infraerrors.BadRequest"),
+                ("UpdatePaymentConfig", "paymentchannels.SerializeChannelSettings"),
+            ),
+        )
+
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
         fixture = self.fixture(candidate_content="if (enabled) { value = 2 }\n", kind="dto")
         with self.assertRaisesRegex(validator.ContractError, "introduces control flow"):
