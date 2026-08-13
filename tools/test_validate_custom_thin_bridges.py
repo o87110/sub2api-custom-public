@@ -219,6 +219,27 @@ class ThinBridgeContractTests(unittest.TestCase):
         self.assertIn(
             (
                 "WebSearch",
+                "if service.IsGroupModelBlockedError(err) {",
+            ),
+            approved,
+        )
+        self.assertIn(
+            (
+                "doGrokNativeWebSearch",
+                'if upstreamModel == "" {',
+            ),
+            approved,
+        )
+        self.assertIn(
+            (
+                "doGrokNativeWebSearch",
+                "if !enforceGroupModelAccess(c, upstreamModel) {",
+            ),
+            approved,
+        )
+        self.assertIn(
+            (
+                "WebSearch",
                 "if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, xai.DefaultTextModel, auditBody); decision != nil && !decision.AllowNextStage {",
             ),
             approved,
