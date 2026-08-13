@@ -23,7 +23,7 @@ backend/internal/handler/gateway_handler.go	delegate	true	49	15	-
 backend/internal/handler/gateway_handler_chat_completions.go	delegate	true	10	6	-
 backend/internal/handler/gateway_handler_responses.go	delegate	true	6	0	-
 backend/internal/handler/gateway_helper.go	delegate	true	42	0	-
-backend/internal/handler/gateway_web_search.go	delegate	true	28	56	-
+backend/internal/handler/gateway_web_search.go	delegate	true	12	1	-
 backend/internal/handler/gemini_v1beta_handler.go	delegate	true	42	3	-
 backend/internal/handler/image_task_handler.go	delegate	true	34	0	-
 backend/internal/handler/no_account_error.go	delegate	true	15	9	-
