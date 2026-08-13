@@ -627,6 +627,22 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
     tuple[str, str], tuple[tuple[str, str], ...]
 ] = {
     (
+        "29009f0b2ea14edf3b11ae2564fb617ff91a03b4",
+        "backend/internal/service/openai_gateway_scheduling.go",
+    ): _approved_call_deltas(
+        ("isOpenAICompatibleAccountEligibleForRequest", {
+            "modelAccessBlocksOpenAIAccount": 1,
+        }),
+    ),
+    (
+        "93c32fa1a2450351561abc46156d2e28cb5f74ca",
+        "backend/internal/service/openai_gateway_scheduling.go",
+    ): _approved_call_deltas(
+        ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", {
+            "modelAccessBlocksOpenAIAccount": 1,
+        }),
+    ),
+    (
         "c043c24774228ba891ddf90d783aa6dc7d0855b5",
         "backend/internal/service/payment_config_service.go",
     ): _approved_call_deltas(
@@ -1024,6 +1040,23 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
         ("confirmSubscribe", "if (isPlanSoldOut(selectedPlan.value)) {"),
         ("selectPlan", "if (isPlanSoldOut(plan)) {"),
         ("selectPlanFromModal", "if (isPlanSoldOut(plan)) {"),
+    ),
+}
+
+BASELINE_DELEGATE_VIEW_CONTROL: dict[
+    tuple[str, str], tuple[tuple[str, str], ...]
+] = {
+    (
+        "29009f0b2ea14edf3b11ae2564fb617ff91a03b4",
+        "backend/internal/service/openai_gateway_scheduling.go",
+    ): (
+        ("isOpenAICompatibleAccountEligibleForRequest", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
+    ),
+    (
+        "93c32fa1a2450351561abc46156d2e28cb5f74ca",
+        "backend/internal/service/openai_gateway_scheduling.go",
+    ): (
+        ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
     ),
 }
 
@@ -2474,7 +2507,10 @@ def validate_delegate_view_structure(
             f"{sorted(missing_calls.elements())}"
         )
 
-    approved_control = Counter(APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()))
+    approved_control = Counter(BASELINE_DELEGATE_VIEW_CONTROL.get(
+        (baseline_commit, row.path),
+        APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()),
+    ))
     approved_orchestration = Counter(
         APPROVED_DELEGATE_VIEW_ORCHESTRATION.get(row.path, ())
     )
