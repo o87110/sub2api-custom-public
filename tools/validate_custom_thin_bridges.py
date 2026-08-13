@@ -1043,6 +1043,9 @@ BASELINE_DELEGATE_VIEW_CONTROL: dict[
         "backend/internal/service/openai_gateway_scheduling.go",
     ): (
         ("isOpenAICompatibleAccountEligibleForRequest", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
+        ("modelAccessBlocksOpenAIAccount", "if account == nil || groupmodelaccess.FromContext(ctx).Empty() {"),
+        ("resolveOpenAIAccountModelForAccess", "if account == nil {"),
+        ("resolveOpenAIAccountModelForAccess", "if requireCompact {"),
     ),
     (
         "93c32fa1a2450351561abc46156d2e28cb5f74ca",
