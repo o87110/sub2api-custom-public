@@ -682,6 +682,20 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
             "paymentchannels.SerializeChannelSettings": 1,
         }),
     ),
+    (
+        "93c32fa1a2450351561abc46156d2e28cb5f74ca",
+        "backend/internal/service/payment_config_service.go",
+    ): _approved_call_deltas(
+        ("GetPaymentConfig", {
+            "fmt.Errorf": 1,
+            "paymentchannels.ParseChannelSettings": 1,
+        }),
+        ("UpdatePaymentConfig", {
+            "err.Error": 1,
+            "infraerrors.BadRequest": 1,
+            "paymentchannels.SerializeChannelSettings": 1,
+        }),
+    ),
 }
 
 # Control-flow additions in delegate/view bridges use an exact structural
@@ -1597,7 +1611,7 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
         }),
     ),
     "backend/internal/service/openai_gateway_scheduling.go": _approved_call_deltas(
-        ("isOpenAICompatibleAccountEligibleForRequest", {
+        ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", {
             "modelAccessBlocksOpenAIAccount": 1,
         }),
         ("modelAccessBlocksOpenAIAccount", {
@@ -1969,7 +1983,7 @@ APPROVED_DELEGATE_VIEW_CONTROL.update({
         ("DiagnoseModelAvailabilityForPlatform", "if modelAccessBlocksOpenAIAccount(ctx, &accounts[i], requestedModel, false) {"),
     ),
     "backend/internal/service/openai_gateway_scheduling.go": (
-        ("isOpenAICompatibleAccountEligibleForRequest", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
+        ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
         ("modelAccessBlocksOpenAIAccount", "if account == nil || groupmodelaccess.FromContext(ctx).Empty() {"),
         ("resolveOpenAIAccountModelForAccess", "if account == nil {"),
         ("resolveOpenAIAccountModelForAccess", "if requireCompact {"),
