@@ -136,7 +136,7 @@ func (s *OpenAIGatewayService) ProxyGrokRealtime(ctx context.Context, c *gin.Con
 	}
 	model = firstNonEmpty(strings.TrimSpace(account.GetMappedModel(model)), model, "grok-voice-latest")
 	if err := enforceResolvedModelAccess(ctx, c, model); err != nil {
-		return err
+		return false, err
 	}
 	base, err := buildGrokVoiceURL(account, s.cfg, "realtime")
 	if err != nil {
