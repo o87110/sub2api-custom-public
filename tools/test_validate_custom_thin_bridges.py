@@ -211,6 +211,30 @@ class ThinBridgeContractTests(unittest.TestCase):
         self.assertEqual(next_target, latest_target)
         self.assertNotIn(("UpdatePaymentConfig", "setPaymentConfigValue"), latest_target)
 
+    def test_v0176_web_search_control_flow_is_bound_to_exact_vendor_commit(self) -> None:
+        path = "backend/internal/handler/gateway_web_search.go"
+        approved = validator.BASELINE_DELEGATE_VIEW_CONTROL[
+            ("e803e3851c0a7e222cfadeafad7b8636ab959d11", path)
+        ]
+        self.assertIn(
+            (
+                "WebSearch",
+                "if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, xai.DefaultTextModel, auditBody); decision != nil && !decision.AllowNextStage {",
+            ),
+            approved,
+        )
+        self.assertIn(
+            (
+                "extractGrokWebSearchSources",
+                'if item.Get("type").String() == "web_search_call" {',
+            ),
+            approved,
+        )
+        self.assertNotIn(
+            ("e803e3851c0a7e222cfadeafad7b8636ab959d11", "some/other/file.go"),
+            validator.BASELINE_DELEGATE_VIEW_CONTROL,
+        )
+
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
         fixture = self.fixture(candidate_content="if (enabled) { value = 2 }\n", kind="dto")
         with self.assertRaisesRegex(validator.ContractError, "introduces control flow"):
