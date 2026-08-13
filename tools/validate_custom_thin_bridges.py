@@ -1611,7 +1611,7 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
         }),
     ),
     "backend/internal/service/openai_gateway_scheduling.go": _approved_call_deltas(
-        ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", {
+        ("isOpenAICompatibleAccountEligibleForRequest", {
             "modelAccessBlocksOpenAIAccount": 1,
         }),
         ("modelAccessBlocksOpenAIAccount", {
@@ -1983,7 +1983,7 @@ APPROVED_DELEGATE_VIEW_CONTROL.update({
         ("DiagnoseModelAvailabilityForPlatform", "if modelAccessBlocksOpenAIAccount(ctx, &accounts[i], requestedModel, false) {"),
     ),
     "backend/internal/service/openai_gateway_scheduling.go": (
-        ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
+        ("isOpenAICompatibleAccountEligibleForRequest", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
         ("modelAccessBlocksOpenAIAccount", "if account == nil || groupmodelaccess.FromContext(ctx).Empty() {"),
         ("resolveOpenAIAccountModelForAccess", "if account == nil {"),
         ("resolveOpenAIAccountModelForAccess", "if requireCompact {"),
