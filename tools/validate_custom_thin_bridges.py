@@ -627,6 +627,20 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
     tuple[str, str], tuple[tuple[str, str], ...]
 ] = {
     (
+        "e803e3851c0a7e222cfadeafad7b8636ab959d11",
+        "backend/internal/service/payment_config_service.go",
+    ): _approved_call_deltas(
+        ("GetPaymentConfig", {
+            "fmt.Errorf": 1,
+            "paymentchannels.ParseChannelSettings": 1,
+        }),
+        ("UpdatePaymentConfig", {
+            "err.Error": 1,
+            "infraerrors.BadRequest": 1,
+            "paymentchannels.SerializeChannelSettings": 1,
+        }),
+    ),
+    (
         "93c32fa1a2450351561abc46156d2e28cb5f74ca",
         "backend/internal/service/openai_gateway_scheduling.go",
     ): _approved_call_deltas(
