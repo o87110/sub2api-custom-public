@@ -633,6 +633,22 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
         ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", {
             "modelAccessBlocksOpenAIAccount": 1,
         }),
+        ("modelAccessBlocksOpenAIAccount", {
+            "CheckOpenAIAccountModelAccess": 1,
+            "Empty": 1,
+            "groupmodelaccess.FromContext": 1,
+        }),
+        ("resolveOpenAIAccountModelForAccess", {
+            "groupmodelaccess.FallbackModel": 1,
+            "groupmodelaccess.RequestModel": 1,
+            "normalizeOpenAIModelForUpstream": 1,
+            "resolveOpenAICompactForwardModel": 1,
+            "resolveOpenAIForwardModel": 1,
+            "strings.TrimSpace": 1,
+        }),
+        ("resolveOpenAIAccountUpstreamModelForRequest", {
+            "normalizeOpenAIModelForUpstream": 1,
+        }),
     ),
     (
         "c043c24774228ba891ddf90d783aa6dc7d0855b5",
