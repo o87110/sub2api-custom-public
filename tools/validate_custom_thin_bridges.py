@@ -627,14 +627,6 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
     tuple[str, str], tuple[tuple[str, str], ...]
 ] = {
     (
-        "29009f0b2ea14edf3b11ae2564fb617ff91a03b4",
-        "backend/internal/service/openai_gateway_scheduling.go",
-    ): _approved_call_deltas(
-        ("isOpenAICompatibleAccountEligibleForRequest", {
-            "modelAccessBlocksOpenAIAccount": 1,
-        }),
-    ),
-    (
         "93c32fa1a2450351561abc46156d2e28cb5f74ca",
         "backend/internal/service/openai_gateway_scheduling.go",
     ): _approved_call_deltas(
@@ -1051,6 +1043,9 @@ BASELINE_DELEGATE_VIEW_CONTROL: dict[
         "backend/internal/service/openai_gateway_scheduling.go",
     ): (
         ("isOpenAICompatibleAccountEligibleForRequest", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
+        ("modelAccessBlocksOpenAIAccount", "if account == nil || groupmodelaccess.FromContext(ctx).Empty() {"),
+        ("resolveOpenAIAccountModelForAccess", "if account == nil {"),
+        ("resolveOpenAIAccountModelForAccess", "if requireCompact {"),
     ),
     (
         "93c32fa1a2450351561abc46156d2e28cb5f74ca",
@@ -2493,6 +2488,15 @@ def validate_delegate_view_structure(
         (baseline_commit, row.path),
         APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()),
     ))
+    if (
+        baseline_commit == "29009f0b2ea14edf3b11ae2564fb617ff91a03b4"
+        and row.path == "backend/internal/service/openai_gateway_scheduling.go"
+    ):
+        approved_calls = Counter(
+            ("isOpenAICompatibleAccountEligibleForRequest" if name == "isOpenAICompatibleAccountEligibleForRequestBeforeProfit" else name, call)
+            for (name, call), count in approved_calls.items()
+            for _ in range(count)
+        )
     added_calls = delegate_view_call_surface(content) - delegate_view_call_surface(baseline_content)
     unexpected_calls = added_calls - approved_calls
     if unexpected_calls:
