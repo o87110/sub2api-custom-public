@@ -11,7 +11,7 @@
 # 2026-08-09 开发结构登记：198 为订阅周期新增默认关闭的手动批量重置资格；不更新历史数据，发布前须人工审核 Migration 并备份 user_subscription_cycles。
 # 2026-08-09 官方 v0.1.173 人工审核：新增 Channel Monitor V2 表/索引/配置、groups 视频模型/音频/搜索计价字段；Migration 220 先备份再清空非 Grok/非 composite 视频价。升级语义指纹 1548074a37bee3e541af4ef1446503b13b5fabf34b5e921144da8f94fa38abec；以下 Custom 差异已重绑官方提交。
 # 2026-08-12 前向 Migration 221 仅 CREATE OR REPLACE 已发布 193 的认证缓存失效 Trigger，补充 models_list_config 比较；不新增表、列、Schema 字段或数据回写。发布前须人工审核函数定义及执行顺序。
-# 2026-08-13 官方 v0.1.175 无 Migration、Ent Schema、实体字段或 DDL 变化；Custom 64 项结构/只读 SQL 差异按新官方提交重绑，最终指纹 1daba043cb43cf5cbaf8a821e8a281476537c8fd532214218fba150fbb5c25f0。
+# 2026-08-13 官方 v0.1.176 人工审核登记：新增 groups.long_context_pricing_enabled BOOLEAN NOT NULL DEFAULT TRUE、groups.model_pricing JSONB 与存量 long_context_pricing_enabled 回填；必须备份 groups、评估 ALTER/UPDATE 锁与耗时，并在隔离/灰度环境演练后发布。
 backend/ent/channelmonitor.go	93c32fa1a2450351561abc46156d2e28cb5f74ca	e5697863f0d1e252d4032580bb67a668cda10c77	2dd1614195d345fdecb244e36f770593ebfbfd86	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855	6461954897c23947c521f91f335639165e136ec342fddc030098ac93c68f8dfa
 backend/ent/channelmonitor/channelmonitor.go	93c32fa1a2450351561abc46156d2e28cb5f74ca	711e6217e2ffea8670b84451d07d7fdd9a791c59	47505143e40f03a24eb3e505bf19099fa7d0dd4a	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855	614743f3d901ae1dc97e546ea0e939092b525c8bf3489fd5175e54e914b5104e
 backend/ent/channelmonitor/where.go	93c32fa1a2450351561abc46156d2e28cb5f74ca	6575aa5df6ad3226d6cb70a3bb865d229aa408b4	7e5aa276590dea7d0aad04362ccf86b2e37c1cd9	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855	590321b83a2a02f49c856a30b676aef7fa657ae98be900109869437741c7999c
