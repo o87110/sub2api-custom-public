@@ -23,7 +23,7 @@ backend/internal/handler/gateway_handler.go	delegate	true	49	15	-
 backend/internal/handler/gateway_handler_chat_completions.go	delegate	true	10	6	-
 backend/internal/handler/gateway_handler_responses.go	delegate	true	6	0	-
 backend/internal/handler/gateway_helper.go	delegate	true	42	0	-
-backend/internal/handler/gateway_web_search.go	delegate	true	12	1	-
+backend/internal/handler/gateway_web_search.go	delegate	true	28	56	-
 backend/internal/handler/gemini_v1beta_handler.go	delegate	true	42	3	-
 backend/internal/handler/image_task_handler.go	delegate	true	34	0	-
 backend/internal/handler/no_account_error.go	delegate	true	15	9	-
@@ -52,7 +52,7 @@ backend/internal/server/routes/admin.go	delegate	true	3	0	-
 backend/internal/server/routes/gateway.go	delegate	true	19	0	-
 backend/internal/service/admin_group.go	delegate	true	106	13	-
 backend/internal/service/admin_group_duplicate.go	persistence	false	4	2	-
-backend/internal/service/admin_service.go	persistence	false	5	0	-
+backend/internal/service/admin_service.go	persistence	false	5	1	-
 backend/internal/service/antigravity_gateway_claude.go	delegate	true	3	0	-
 backend/internal/service/antigravity_gateway_compat.go	delegate	true	3	0	-
 backend/internal/service/antigravity_gateway_gemini.go	delegate	true	9	1	-
