@@ -1054,6 +1054,24 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
 BASELINE_DELEGATE_VIEW_CONTROL: dict[
     tuple[str, str], tuple[tuple[str, str], ...]
 ] = {
+    # Official v0.1.176 absorbed the standalone Grok search implementation
+    # into the Vendor source.  These two statements remain the reviewed
+    # Custom security/model-access bridge in the candidate tree and are bound
+    # to the exact Vendor commit so a later upstream rewrite cannot inherit
+    # this approval implicitly.
+    (
+        "e803e3851c0a7e222cfadeafad7b8636ab959d11",
+        "backend/internal/handler/gateway_web_search.go",
+    ): (
+        (
+            "WebSearch",
+            "if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, xai.DefaultTextModel, auditBody); decision != nil && !decision.AllowNextStage {",
+        ),
+        (
+            "extractGrokWebSearchSources",
+            'if item.Get("type").String() == "web_search_call" {',
+        ),
+    ),
     (
         "29009f0b2ea14edf3b11ae2564fb617ff91a03b4",
         "backend/internal/service/openai_gateway_scheduling.go",
