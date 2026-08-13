@@ -1065,7 +1065,19 @@ BASELINE_DELEGATE_VIEW_CONTROL: dict[
     ): (
         (
             "WebSearch",
+            "if service.IsGroupModelBlockedError(err) {",
+        ),
+        (
+            "WebSearch",
             "if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, xai.DefaultTextModel, auditBody); decision != nil && !decision.AllowNextStage {",
+        ),
+        (
+            "doGrokNativeWebSearch",
+            'if upstreamModel == "" {',
+        ),
+        (
+            "doGrokNativeWebSearch",
+            "if !enforceGroupModelAccess(c, upstreamModel) {",
         ),
         (
             "extractGrokWebSearchSources",
