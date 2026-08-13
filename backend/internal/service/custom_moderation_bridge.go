@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	custommoderation "github.com/Wei-Shaw/sub2api/internal/custom/moderation"
@@ -198,17 +199,38 @@ func (s *ContentModerationService) tryRecordCustomCyberPolicyEvent(ctx context.C
 	if s == nil || s.repo == nil {
 		return true
 	}
-	adapter := &contentModerationCyberPolicyAdapter{service: s}
+	// Resolve the same cached runtime snapshot used by the official gateway
+	// path before delegating to custom orchestration.  This keeps cyber-policy
+	// auditing aligned with group/model scope and ensures an unavailable
+	// initial snapshot fails closed for the audit side effect.
+	snapshot, err := s.loadRuntimeSnapshot(ctx)
+	if err != nil {
+		slog.Warn("content_moderation.cyber_runtime_snapshot_load_failed", "error", err)
+		return true
+	}
+	if snapshot == nil || !snapshot.riskControlEnabled || snapshot.config == nil ||
+		!snapshot.config.includesGroup(in.GroupID) || !snapshot.config.includesModel(in.Model) {
+		return true
+	}
+	adapter := &contentModerationCyberPolicyAdapter{
+		service:            s,
+		config:             snapshot.config,
+		riskControlEnabled: snapshot.riskControlEnabled,
+	}
 	custommoderation.RecordCyberPolicyEvent(ctx, toCustomCyberPolicyEvent(in), adapter)
 	return true
 }
 
 type contentModerationCyberPolicyAdapter struct {
-	service *ContentModerationService
-	config  *ContentModerationConfig
+	service            *ContentModerationService
+	config             *ContentModerationConfig
+	riskControlEnabled bool
 }
 
 func (a *contentModerationCyberPolicyAdapter) RiskControlEnabled(ctx context.Context) bool {
+	if a != nil && a.config != nil {
+		return a.riskControlEnabled
+	}
 	return a != nil && a.service != nil && a.service.isRiskControlEnabled(ctx)
 }
 
@@ -224,6 +246,12 @@ func (a *contentModerationCyberPolicyAdapter) LoadScope(ctx context.Context, gro
 }
 
 func (a *contentModerationCyberPolicyAdapter) LoadPolicy(ctx context.Context, groupID *int64) (custommoderation.Policy, error) {
+	if a != nil && a.config != nil {
+		return custommoderation.Policy{
+			InGroupScope:        a.config.includesGroup(groupID),
+			ExcludeFromBanCount: a.config.CyberPolicyExcludeFromBanCount,
+		}, nil
+	}
 	cfg, err := a.service.loadConfig(ctx)
 	if err != nil {
 		return custommoderation.Policy{}, err
