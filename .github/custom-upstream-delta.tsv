@@ -2,10 +2,10 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/CODEOWNERS	A	keep	A	fixed-path	@absent	cebde9836da3df3906461ef276d7d726c69c3a6f	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、订阅周期与批量重置、内容审计、分组模型黑名单、CI Integration 与前端 Artifact 回归测试路径
 .github/audit-exceptions.yml	M	keep	M	fixed-path	2a89dd07614f2b0c89b4f1fd53bb0be6cc1d2123	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
-.github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	c62e0e7a26596eed55e2d27d3adbd5b9fece0b4c	-	-	database-boundary-unit+candidate-tree-test	精确绑定已审核的渠道监控、分组最低余额、套餐库存及订阅统计周期 Migration、Ent Schema 和生成文件结构指纹
+.github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	cb834f8c589f98d2af5a7c836b3d4774fa7e7759	-	-	database-boundary-unit+candidate-tree-test	精确绑定已审核的渠道监控、分组最低余额、套餐库存及订阅统计周期 Migration、Ent Schema 和生成文件结构指纹
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	91a0e83f6db8e4e37f29d6a737d16de355b945ff	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证分组模型黑名单新增官方薄桥预算和允许路径
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
-.github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	a318109bf89337d8f9e24f0815b893192fe62e98	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+.github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	a29b9a4a35c949cab81d31117f6a88b3fd5ec23a	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/upgrades/0.1.162.md	A	keep	A	custom-docs-ops	@absent	a873781565b70fa65a9ed5e2f88ddb762faeb81b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 .github/upgrades/0.1.164.md	A	keep	A	custom-docs-ops	@absent	81ea0d2f32358597dc9a4c91f487d3b74760dac7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
