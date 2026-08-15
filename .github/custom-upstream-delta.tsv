@@ -4,7 +4,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	5a8ff3aef9fcbe9df0299bb18e01198b4b228460	-	-	database-boundary-unit+candidate-tree-test	精确绑定已审核的渠道监控、分组最低余额、套餐库存及订阅统计周期 Migration、Ent Schema 和生成文件结构指纹
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	b0fe3eaf71bcce042578dd5258a17051c2287344	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证分组模型黑名单新增官方薄桥预算和允许路径
-.github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	19c39f54978b9d9304ea1d2ac8dd4537e1d419e9	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+.github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	c02b308603ade86dccd94fc864bb32ca596d945c	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	aefc812af0220136f647c39feb1185f305415e41	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/upgrades/0.1.162.md	A	keep	A	custom-docs-ops	@absent	a873781565b70fa65a9ed5e2f88ddb762faeb81b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
@@ -24,18 +24,19 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/workflows/backend-ci.yml	M	keep	M	fixed-path	6c4a028c96c33a30e9574b87c6dd892130f049c5	7fa0fa06a06c9d7f67f1a0580d133990fb685d31	-	-	yaml-parse+action-pin+actionlint+container-safety	并行边界门禁、收窄 Integration 包并为准确 main SHA 产出前端 Release Artifact
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
 .github/workflows/release.yml	M	keep	M	fixed-path	4ecc8a26baf649d446e370bcc71a21d03dad6d6a	fc9d57a34c6bc752e72b2898c40124097508e8bd	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
-.github/workflows/security-scan.yml	M	keep	M	fixed-path	0e68d950ac5fbb5c3b2560c4557c8956d12250b2	0ac90b7c2968eb0b1e638a46340c87daafe9a993	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
+.github/workflows/security-scan.yml	M	keep	M	fixed-path	0e68d950ac5fbb5c3b2560c4557c8956d12250b2	6bc288f5d1ad5298edb45f7b6fef723c17e57609	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	0732fac7ad9031762905c761da8e1e4c4171518b	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义、保护内容审计、订阅周期、批量重置与分组模型黑名单二改路径，并使用 Blob 过滤减少上游同步 Checkout 与 Fetch 传输
 .github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	f957ffad6d8554bd0a797d55753e26555f482439	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护内容审计、订阅周期、批量重置与分组模型黑名单二改路径，复用收窄 Integration 入口并对完整历史 Checkout 与 Fetch 使用 Blob 过滤
 .gitignore	M	keep	M	fixed-path	4ea6ff311b07e0df55c431f7ddcac8594458ff71	5ea3bf5b99bcc91e654fb85717016bb42fec4b39	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .goreleaser.yaml	M	keep	M	fixed-path	19adfdf6dc489acd4af4ed82bdf63f64e16b8e33	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 AGENTS.md	A	keep	A	custom-docs-ops	@absent	96e736e67995af280d711e30f828e9314da88800	-	-	documentation-consistency-review+candidate-tree-test	明确同 SHA CI 证据复用、Integration 登记、自动发布输入、前端 Artifact 与缓存信任边界
-Dockerfile	M	keep	M	fixed-path	b2dfd7034f769abd7e8640090282e6b05a2af4a1	8c825c3ea188b048f6187fd688974bebba966c05	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+Dockerfile	M	keep	M	fixed-path	b2dfd7034f769abd7e8640090282e6b05a2af4a1	71241d3372d55e0d1670712855265002fb06c83a	-	-	candidate-tree+targeted-CI	固定 Go 构建镜像与官方 go.mod 1.26.6 保持一致
 Dockerfile.goreleaser	M	keep	M	fixed-path	804fb05e057e3b8b2d48ae740bc6e8acb32cfdc2	7687a1ee72fe8f39b9d429091f0339c44aca38be	-	-	goreleaser-check+release-safety+runtime-resource-test	保留 Custom runtime 双二进制布局并移植官方定价 fallback resources
 Makefile	M	keep	M	fixed-path	b0bc1b99f687a9156cfb543c41ddc0d401d3c63d	81072b096fd386aae8d2fb0f60e8ced8cd2cb4e1	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 README.md	M	keep	M	custom-docs-ops	f4ad2fa6b028bdc70ac0b502104a345dd8d940c1	eeb846466cbbeda6a5f7d0ab966718e685a337f4	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
 README_CN.md	M	keep	M	custom-docs-ops	2d2a57a9ff3a363618001dda3ffbfae84bcd0f41	76456adfef686589fc8d6f630f3c658992f876a0	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
 README_JA.md	M	keep	M	custom-docs-ops	09aa77ee48aec83440ee76054887b2627c1e3792	e47b616f0773d614e56110fe2d07381235ad5f76	-	-	documentation-consistency-review	公开仓库说明、克隆地址与部署命令需要匹配公开二改分发模型，并记录旧部署 runtime 的隔离保全顺序
+backend/Dockerfile	M	keep	M	fixed-path	9976abe46b5494b1bed2a5ea1ec712137f812791	1efbd3859da876eaf6c3843080f6c9dc5ad3e33e	-	-	candidate-tree+targeted-CI	固定 legacy Go 构建镜像与官方 go.mod 1.26.6 保持一致
 backend/cmd/custom-database-boundary/main.go	A	keep	A	custom-backend	@absent	0eb5f0c59730e706e32ebc0410d91ad013b1952b	-	-	database-boundary-unit+candidate-tree-test	允许仅通过精确基线、Blob 和摘要登记的人工审核结构变化，其他变化继续失败关闭
 backend/cmd/custom-database-boundary/main_test.go	A	keep	A	custom-test	@absent	353ffe36f6a21ab00514fe60f7deab63c73d6f22	-	-	database-boundary-unit+candidate-tree-test	验证结构审批精确匹配、未审批拒绝、指纹漂移拒绝及写入 SQL 继续拒绝
 backend/cmd/server/wire.go	M	keep	M	official-thin-bridge	8bd9ac5b1685f8e2011146a43f71dc6dff60243e	1be853d073781c267a50329d5aac69fc4fdd7bcc	backend/cmd/server/wire.go	backend/internal/custom/channelmonitor/wire.go|backend/internal/custom/moderation/wire.go|backend/internal/custom/subscriptionrepository/repository.go|backend/internal/custom/updater/wire.go	thin-bridge-review+go-test+candidate-tree-test	保留连接官方入口与二改实现的最薄适配
@@ -347,6 +348,7 @@ backend/migrations/subscription_plan_inventory_migration_test.go	A	keep	A	custom
 backend/migrations/subscription_plan_sold_out_action_migration_test.go	A	keep	A	custom-test	@absent	8d5c0d0fab5e78ccf5320fb3c2f215962f38bfd0	-	-	database-boundary-unit+migration-review+go-test	验证售罄策略默认值、合法枚举及历史套餐不需数据回写
 deploy/.env.example	M	keep	M	fixed-path	6beca88308572880c2ffdad0ff051c571ac223ff	5a56b9058d672344122d22daf5fb3bc593ae878f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/CUSTOM_UPGRADE_CN.md	A	keep	A	custom-docs-ops	@absent	ae8da2590530f2c84e96a04fc8450ea27c1b6ec4	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+deploy/Dockerfile	M	keep	M	fixed-path	325520f308fb279dfabe1e6826f5f4f3c93413c4	30c7a1a240f1c74f3f46a868b1bffe309a732e21	-	-	candidate-tree+targeted-CI	固定 legacy 部署 Go 构建镜像与官方 go.mod 1.26.6 保持一致
 deploy/README.md	M	keep	M	custom-docs-ops	e87f33fa252c01ea95ee864f5b95cde3b9a2adae	a319ce4da00568e50d103b93998533cbc0da3f91	-	-	documentation-consistency-review	公开二改部署文档需要固定准确镜像、匹配公开仓库并记录旧部署 runtime 的隔离保全顺序
 deploy/docker-compose.custom.yml	A	keep	A	fixed-path	@absent	f0a74a10c339a23bb53fd31f28e4440e8fc59b61	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/docker-compose.local.yml	M	keep	M	fixed-path	588862e2f25f1383693171b9493e481f8ba865e2	fcc403eb0bb6ee94aeab5cdcdf7a38227ef5985a	-	-	compose-config+runtime-persistence-test+container-safety	公开二改预构建部署固定准确镜像、持久化 runtime 并禁止提权
