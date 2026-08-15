@@ -222,7 +222,8 @@ jobs:
           set -euo pipefail
           if [[ "$MODE" == "full" || -z "$PACKAGES" ]]; then
             make test-unit
-            /bin/bash ../deploy/tests/backend-integration-test.sh
+            PGOPTIONS="-c timezone=Asia/Shanghai" \
+              /bin/bash ../deploy/tests/backend-integration-test.sh
             make build
           else
             read -r -a packages <<< "$PACKAGES"
@@ -358,7 +359,9 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
       - name: Integration tests
-        run: /bin/bash deploy/tests/backend-integration-test.sh
+        run: |
+          PGOPTIONS="-c timezone=Asia/Shanghai" \
+            /bin/bash deploy/tests/backend-integration-test.sh
 
   full-backend-build:
     needs: [verify-target, impact]
