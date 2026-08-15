@@ -222,7 +222,8 @@ jobs:
           set -euo pipefail
           if [[ "$MODE" == "full" || -z "$PACKAGES" ]]; then
             make test-unit
-            PGOPTIONS="-c timezone=Asia/Shanghai" \
+            SUB2API_TEST_POSTGRES_TIMEZONE=Asia/Shanghai \
+              PGOPTIONS="-c timezone=Asia/Shanghai" \
               /bin/bash ../deploy/tests/backend-integration-test.sh
             make build
           else
@@ -360,7 +361,8 @@ jobs:
           cache-dependency-path: backend/go.sum
       - name: Integration tests
         run: |
-          PGOPTIONS="-c timezone=Asia/Shanghai" \
+          SUB2API_TEST_POSTGRES_TIMEZONE=Asia/Shanghai \
+            PGOPTIONS="-c timezone=Asia/Shanghai" \
             /bin/bash deploy/tests/backend-integration-test.sh
 
   full-backend-build:

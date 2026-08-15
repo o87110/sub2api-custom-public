@@ -85,7 +85,15 @@ func TestMain(m *testing.M) {
 	}
 	defer func() { _ = redisContainer.Terminate(ctx) }()
 
-	dsn, err := pgContainer.ConnectionString(ctx, "sslmode=disable", "TimeZone=UTC")
+	postgresTimezone := strings.TrimSpace(os.Getenv("SUB2API_TEST_POSTGRES_TIMEZONE"))
+	if postgresTimezone == "" {
+		postgresTimezone = "UTC"
+	}
+	if _, err := time.LoadLocation(postgresTimezone); err != nil {
+		log.Printf("invalid SUB2API_TEST_POSTGRES_TIMEZONE %q: %v", postgresTimezone, err)
+		os.Exit(1)
+	}
+	dsn, err := pgContainer.ConnectionString(ctx, "sslmode=disable", "TimeZone="+postgresTimezone)
 	if err != nil {
 		log.Printf("failed to get postgres dsn: %v", err)
 		os.Exit(1)
