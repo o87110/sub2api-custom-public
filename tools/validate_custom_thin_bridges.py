@@ -679,6 +679,27 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
         }),
     ),
     (
+        "073e92d17178a1ccdb0a27017f572f10c9c7ab62",
+        "backend/internal/service/openai_gateway_scheduling.go",
+    ): _approved_call_deltas(
+        ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", {
+            "modelAccessBlocksOpenAIAccount": 1,
+        }),
+        ("modelAccessBlocksOpenAIAccount", {
+            "CheckOpenAIAccountModelAccess": 1,
+            "Empty": 1,
+            "groupmodelaccess.FromContext": 1,
+        }),
+        ("resolveOpenAIAccountModelForAccess", {
+            "groupmodelaccess.FallbackModel": 1,
+            "groupmodelaccess.RequestModel": 1,
+            "normalizeOpenAIModelForUpstream": 1,
+            "resolveOpenAICompactForwardModel": 1,
+            "resolveOpenAIForwardModel": 1,
+            "strings.TrimSpace": 1,
+        }),
+    ),
+    (
         "c043c24774228ba891ddf90d783aa6dc7d0855b5",
         "backend/internal/service/payment_config_service.go",
     ): _approved_call_deltas(
@@ -1150,6 +1171,15 @@ BASELINE_DELEGATE_VIEW_CONTROL: dict[
     ),
     (
         "93c32fa1a2450351561abc46156d2e28cb5f74ca",
+        "backend/internal/service/openai_gateway_scheduling.go",
+    ): (
+        ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
+        ("modelAccessBlocksOpenAIAccount", "if account == nil || groupmodelaccess.FromContext(ctx).Empty() {"),
+        ("resolveOpenAIAccountModelForAccess", "if account == nil {"),
+        ("resolveOpenAIAccountModelForAccess", "if requireCompact {"),
+    ),
+    (
+        "073e92d17178a1ccdb0a27017f572f10c9c7ab62",
         "backend/internal/service/openai_gateway_scheduling.go",
     ): (
         ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
