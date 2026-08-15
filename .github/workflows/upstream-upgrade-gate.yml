@@ -703,7 +703,8 @@ jobs:
       - name: Backend tests
         run: |
           make -C backend test-unit
-          /bin/bash deploy/tests/backend-integration-test.sh
+          PGOPTIONS="-c timezone=Asia/Shanghai" \
+            /bin/bash deploy/tests/backend-integration-test.sh
       - name: Verify generated Wire graph
         working-directory: backend
         run: |
