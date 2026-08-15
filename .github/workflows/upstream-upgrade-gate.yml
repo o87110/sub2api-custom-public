@@ -703,8 +703,8 @@ jobs:
       - name: Backend tests
         run: |
           make -C backend test-unit
-          SUB2API_TEST_POSTGRES_TIMEZONE=Asia/Shanghai \
-            PGOPTIONS="-c timezone=Asia/Shanghai" \
+          SUB2API_TEST_POSTGRES_TIMEZONE=UTC \
+            PGOPTIONS="-c timezone=UTC" \
             /bin/bash deploy/tests/backend-integration-test.sh
       - name: Verify generated Wire graph
         working-directory: backend
