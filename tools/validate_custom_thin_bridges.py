@@ -641,6 +641,20 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
         }),
     ),
     (
+        "073e92d17178a1ccdb0a27017f572f10c9c7ab62",
+        "backend/internal/service/payment_config_service.go",
+    ): _approved_call_deltas(
+        ("GetPaymentConfig", {
+            "fmt.Errorf": 1,
+            "paymentchannels.ParseChannelSettings": 1,
+        }),
+        ("UpdatePaymentConfig", {
+            "err.Error": 1,
+            "infraerrors.BadRequest": 1,
+            "paymentchannels.SerializeChannelSettings": 1,
+        }),
+    ),
+    (
         "93c32fa1a2450351561abc46156d2e28cb5f74ca",
         "backend/internal/service/openai_gateway_scheduling.go",
     ): _approved_call_deltas(
@@ -1075,6 +1089,33 @@ BASELINE_DELEGATE_VIEW_CONTROL: dict[
     # this approval implicitly.
     (
         "e803e3851c0a7e222cfadeafad7b8636ab959d11",
+        "backend/internal/handler/gateway_web_search.go",
+    ): (
+        (
+            "WebSearch",
+            "if service.IsGroupModelBlockedError(err) {",
+        ),
+        (
+            "WebSearch",
+            "if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, xai.DefaultTextModel, auditBody); decision != nil && !decision.AllowNextStage {",
+        ),
+        (
+            "doGrokNativeWebSearch",
+            'if upstreamModel == "" {',
+        ),
+        (
+            "doGrokNativeWebSearch",
+            "if !enforceGroupModelAccess(c, upstreamModel) {",
+        ),
+        (
+            "extractGrokWebSearchSources",
+            'if item.Get("type").String() == "web_search_call" {',
+        ),
+    ),
+    # Official v0.1.177 keeps the same reviewed Vendor source Blob, so the
+    # approval is copied exactly and remains bound to the new Vendor commit.
+    (
+        "073e92d17178a1ccdb0a27017f572f10c9c7ab62",
         "backend/internal/handler/gateway_web_search.go",
     ): (
         (
