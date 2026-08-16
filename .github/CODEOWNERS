@@ -72,6 +72,7 @@
 /backend/internal/repository/integration_harness_test.go @o87110
 /backend/internal/repository/usage_billing_repo.go @o87110
 /backend/internal/repository/auth_cache_invalidation_profit_integration_test.go @o87110
+/backend/internal/repository/group_usage_rollup_trigger_integration_test.go @o87110
 /backend/migrations/group_model_blocklist_auth_cache_invalidation_migration_test.go @o87110
 /backend/internal/repository/user_subscription_lock_test.go @o87110
 /backend/internal/repository/user_subscription_repo.go @o87110
