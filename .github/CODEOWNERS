@@ -113,6 +113,7 @@
 /backend/internal/service/group.go @o87110
 /backend/internal/service/gateway_model_availability_test.go @o87110
 /backend/internal/service/group_model_access_test.go @o87110
+/backend/internal/service/openai_images_test.go @o87110
 /backend/internal/service/openai_live_test.go @o87110
 /backend/internal/service/payment_config_limits.go @o87110
 /backend/internal/service/payment_config_limits_test.go @o87110
