@@ -1,16 +1,21 @@
 import { mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import type { UserMonitorView } from '@/api/channelMonitor'
 import MonitorCard from '@/components/user/monitor/MonitorCard.vue'
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    locale: ref('zh-CN'),
-    t: (key: string) => key,
-  }),
-}))
+vi.mock('vue-i18n', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vue-i18n')>()
+  return {
+    ...actual,
+    useI18n: () => ({
+      locale: ref('zh-CN'),
+      t: (key: string) => key,
+    }),
+  }
+})
 
 function makeMonitor(overrides: Partial<UserMonitorView> = {}): UserMonitorView {
   return {
@@ -40,6 +45,7 @@ function mountCard(item: UserMonitorView) {
       countdownSeconds: 30,
     },
     global: {
+      plugins: [createPinia()],
       stubs: {
         ProviderIcon: true,
         MonitorMetricPair: true,
