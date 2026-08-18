@@ -1800,7 +1800,7 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
     ),
     "backend/internal/service/openai_images_responses.go": _approved_call_deltas(
         ("forwardOpenAIImagesOAuth", {
-            "enforceResolvedModelAccess": 2,
+            "enforceResolvedModelAccess": 1,
         }),
     ),
     "backend/internal/service/openai_live.go": _approved_call_deltas(
@@ -2155,7 +2155,6 @@ APPROVED_DELEGATE_VIEW_CONTROL.update({
     ),
     "backend/internal/service/openai_images_responses.go": (
         ("forwardOpenAIImagesOAuth", "if err := enforceResolvedModelAccess(ctx, c, requestModel); err != nil {"),
-        ("forwardOpenAIImagesOAuth", "if err := enforceResolvedModelAccess(ctx, c, openAIImagesResponsesMainModel); err != nil {"),
     ),
     "backend/internal/service/openai_live.go": (
         ("liveRequestModel", "if request == nil {"),

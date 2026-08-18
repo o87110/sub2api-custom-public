@@ -98,7 +98,7 @@ backend/internal/service/openai_gateway_messages_chat_fallback.go	delegate	true	
 backend/internal/service/openai_gateway_model_availability.go	delegate	true	5	0	-
 backend/internal/service/openai_gateway_scheduling.go	delegate	true	26	1	073e92d17178a1ccdb0a27017f572f10c9c7ab62:25:0
 backend/internal/service/openai_images.go	delegate	true	3	0	-
-backend/internal/service/openai_images_responses.go	delegate	true	6	0	-
+backend/internal/service/openai_images_responses.go	delegate	true	3	0	-
 backend/internal/service/openai_live.go	delegate	true	35	7	-
 backend/internal/service/payment_config_limits.go	delegate	true	97	0	-
 backend/internal/service/payment_config_limits_test.go	compat-test	true	265	0	-

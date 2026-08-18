@@ -309,6 +309,29 @@ func TestOpenAIDiagnoseModelAvailability_ContinuesAfterBlockedMappedPath(t *test
 	require.False(t, diag.PolicyBlocked)
 }
 
+func TestOpenAIDiagnoseModelAvailability_OAuthImageIgnoresInternalModelBlock(t *testing.T) {
+	groupID := int64(53)
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true,
+				AccountGroups: []AccountGroup{{GroupID: groupID}},
+			},
+		},
+		accountsByID: map[int64]*Account{},
+	}
+	ctx := WithCurrentGroupModelAccess(context.Background(), &Group{ModelsListConfig: GroupModelsListConfig{
+		BlockedModels: []string{openAIImagesResponsesMainModel},
+	}})
+	svc := &OpenAIGatewayService{accountRepo: repo, cfg: testConfig()}
+
+	diag := svc.DiagnoseModelAvailabilityForPlatform(ctx, &groupID, "gpt-image-2", PlatformOpenAI)
+
+	require.True(t, diag.HasAccountsInPool)
+	require.True(t, diag.HasModelSupport)
+	require.False(t, diag.PolicyBlocked)
+}
+
 func TestFilterModelsByGroupAccessHidesHaikuWhenMessagesTargetIsBlocked(t *testing.T) {
 	groupID := int64(53)
 	group := &Group{

@@ -103,30 +103,28 @@ func TestOpenAIMessagesHaikuDispatchToMiniIsBlockedBeforeNetwork(t *testing.T) {
 	require.Equal(t, "gpt-5.4-mini", GroupModelBlockedModel(err))
 }
 
-func TestOpenAIOAuthImagePathIncludesInternalResponsesModel(t *testing.T) {
+func TestOpenAIOAuthImagePathIgnoresInternalResponsesModelBlock(t *testing.T) {
 	ctx := WithCurrentGroupModelAccess(context.Background(), &Group{ModelsListConfig: GroupModelsListConfig{
 		BlockedModels: []string{openAIImagesResponsesMainModel},
+	}})
+	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+
+	err := CheckOpenAIAccountModelAccess(ctx, account, openAIImagesResponsesMainModel, false)
+	require.True(t, IsGroupModelBlockedError(err))
+	require.Equal(t, openAIImagesResponsesMainModel, GroupModelBlockedModel(err))
+	require.NoError(t, CheckOpenAIAccountModelAccess(ctx, account, "gpt-image-2", false))
+}
+
+func TestOpenAIOAuthImagePathStillBlocksRequestedImageModel(t *testing.T) {
+	ctx := WithCurrentGroupModelAccess(context.Background(), &Group{ModelsListConfig: GroupModelsListConfig{
+		BlockedModels: []string{"gpt-image-2"},
 	}})
 	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 
 	err := CheckOpenAIAccountModelAccess(ctx, account, "gpt-image-2", false)
-	require.Error(t, err)
-	require.Equal(t, openAIImagesResponsesMainModel, GroupModelBlockedModel(err))
-}
-
-func TestOpenAIOAuthImagesFinalGuardBlocksInternalResponsesModel(t *testing.T) {
-	ctx := WithCurrentGroupModelAccess(context.Background(), &Group{ModelsListConfig: GroupModelsListConfig{
-		BlockedModels: []string{openAIImagesResponsesMainModel},
-	}})
-	svc := &OpenAIGatewayService{}
-	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}
-
-	_, err := svc.forwardOpenAIImagesOAuth(ctx, nil, account, &OpenAIImagesRequest{
-		Model: "gpt-image-2",
-	}, "")
 
 	require.True(t, IsGroupModelBlockedError(err))
-	require.Equal(t, openAIImagesResponsesMainModel, GroupModelBlockedModel(err))
+	require.Equal(t, "gpt-image-2", GroupModelBlockedModel(err))
 }
 
 func TestSelectionGroupModelAccessUnionsOriginalAndFallbackPolicies(t *testing.T) {
