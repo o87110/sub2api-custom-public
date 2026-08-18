@@ -716,7 +716,7 @@ func findOpenAIImageTestSSEEvent(events []openAIImageTestSSEEvent, name string) 
 	return openAIImageTestSSEEvent{}, false
 }
 
-func TestOpenAIGatewayServiceForwardImages_OAuthPassesNAndReturnsAllImages(t *testing.T) {
+func TestOpenAIGatewayServiceForwardImages_OAuthInternalModelBlockDoesNotAffectImages(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{"model":"gpt-image-2","prompt":"draw a cat","size":"1024x1024","quality":"high","n":3}`)
 
@@ -757,7 +757,10 @@ func TestOpenAIGatewayServiceForwardImages_OAuthPassesNAndReturnsAllImages(t *te
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	ctx := WithCurrentGroupModelAccess(context.Background(), &Group{ModelsListConfig: GroupModelsListConfig{
+		BlockedModels: []string{openAIImagesResponsesMainModel},
+	}})
+	result, err := svc.ForwardImages(ctx, c, account, body, parsed, "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "gpt-image-2", result.Model)

@@ -57,14 +57,7 @@ func CheckGatewayAccountModelAccess(ctx context.Context, account *Account, reque
 }
 
 func CheckOpenAIAccountModelAccess(ctx context.Context, account *Account, requestedModel string, requireCompact bool) error {
-	if err := groupmodelaccess.Check(ctx, resolveOpenAIAccountModelForAccess(ctx, account, requestedModel, requireCompact)); err != nil {
-		return err
-	}
-	baseModel := groupmodelaccess.RequestModel(ctx, requestedModel)
-	if account != nil && account.Platform == PlatformOpenAI && account.Type == AccountTypeOAuth && IsGPTImageGenerationModel(baseModel) {
-		return groupmodelaccess.Check(ctx, openAIImagesResponsesMainModel)
-	}
-	return nil
+	return groupmodelaccess.Check(ctx, resolveOpenAIAccountModelForAccess(ctx, account, requestedModel, requireCompact))
 }
 
 func enforceResolvedModelAccess(ctx context.Context, c *gin.Context, model string) error {

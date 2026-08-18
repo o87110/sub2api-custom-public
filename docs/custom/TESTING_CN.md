@@ -387,6 +387,8 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
   去空、去重并保持精确匹配；
 - 禁用 Luna 时 Sol/Terra 继续可用，`gpt-5.6` 仍按既有规则规范化到 Sol；直接请求
   GPT-5.4 Mini 及 Haiku 映射到 Mini 均返回 404；
+- OpenAI OAuth 生图内部 Responses 主模型命中黑名单时，`gpt-image-2` 仍可调度和转发，
+  出站主模型及图片工具模型保持既有协议结构；直接禁用 `gpt-image-2` 仍返回 404；
 - 一个账号映射到禁用模型时跳过并选择另一条允许路径，全部账号路径被排除时返回
   `model_not_found` 而非 503；透传、渠道映射、复合路由和 fallback 分组均不能绕过；
 - JSON、`session.model`、multipart、Gemini 路径模型与 Realtime query 解析后请求体保持原样；
