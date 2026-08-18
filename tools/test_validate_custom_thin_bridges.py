@@ -211,7 +211,7 @@ class ThinBridgeContractTests(unittest.TestCase):
         self.assertEqual(next_target, latest_target)
         self.assertNotIn(("UpdatePaymentConfig", "setPaymentConfigValue"), latest_target)
 
-    def test_v0176_v0177_web_search_control_flow_is_bound_to_exact_vendor_commits(self) -> None:
+    def test_v0176_v0177_v0178_web_search_control_flow_is_bound_to_exact_vendor_commits(self) -> None:
         path = "backend/internal/handler/gateway_web_search.go"
         approved = validator.BASELINE_DELEGATE_VIEW_CONTROL[
             ("e803e3851c0a7e222cfadeafad7b8636ab959d11", path)
@@ -219,7 +219,11 @@ class ThinBridgeContractTests(unittest.TestCase):
         current = validator.BASELINE_DELEGATE_VIEW_CONTROL[
             ("073e92d17178a1ccdb0a27017f572f10c9c7ab62", path)
         ]
+        latest = validator.BASELINE_DELEGATE_VIEW_CONTROL[
+            ("e0c48a19ed794a565e3858662520afe0a1f9f0ba", path)
+        ]
         self.assertEqual(approved, current)
+        self.assertEqual(current, latest)
         self.assertIn(
             (
                 "WebSearch",
@@ -260,7 +264,7 @@ class ThinBridgeContractTests(unittest.TestCase):
             validator.BASELINE_DELEGATE_VIEW_CONTROL,
         )
 
-    def test_v0176_v0177_payment_config_call_surface_is_bound_to_exact_vendor_commits(self) -> None:
+    def test_v0176_v0177_v0178_payment_config_call_surface_is_bound_to_exact_vendor_commits(self) -> None:
         path = "backend/internal/service/payment_config_service.go"
         approved = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
             ("e803e3851c0a7e222cfadeafad7b8636ab959d11", path)
@@ -268,7 +272,11 @@ class ThinBridgeContractTests(unittest.TestCase):
         current = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
             ("073e92d17178a1ccdb0a27017f572f10c9c7ab62", path)
         ]
+        latest = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+            ("e0c48a19ed794a565e3858662520afe0a1f9f0ba", path)
+        ]
         self.assertEqual(approved, current)
+        self.assertEqual(current, latest)
         self.assertEqual(
             approved,
             (
@@ -278,6 +286,38 @@ class ThinBridgeContractTests(unittest.TestCase):
                 ("UpdatePaymentConfig", "infraerrors.BadRequest"),
                 ("UpdatePaymentConfig", "paymentchannels.SerializeChannelSettings"),
             ),
+        )
+
+    def test_v0177_v0178_openai_scheduling_approvals_are_bound_to_exact_vendor_commits(self) -> None:
+        path = "backend/internal/service/openai_gateway_scheduling.go"
+        previous_calls = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+            ("073e92d17178a1ccdb0a27017f572f10c9c7ab62", path)
+        ]
+        current_calls = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+            ("e0c48a19ed794a565e3858662520afe0a1f9f0ba", path)
+        ]
+        previous_control = validator.BASELINE_DELEGATE_VIEW_CONTROL[
+            ("073e92d17178a1ccdb0a27017f572f10c9c7ab62", path)
+        ]
+        current_control = validator.BASELINE_DELEGATE_VIEW_CONTROL[
+            ("e0c48a19ed794a565e3858662520afe0a1f9f0ba", path)
+        ]
+
+        self.assertEqual(previous_calls, current_calls)
+        self.assertEqual(previous_control, current_control)
+        self.assertIn(
+            (
+                "isOpenAICompatibleAccountEligibleForRequestBeforeProfit",
+                "modelAccessBlocksOpenAIAccount",
+            ),
+            current_calls,
+        )
+        self.assertIn(
+            (
+                "resolveOpenAIAccountModelForAccess",
+                "if requireCompact {",
+            ),
+            current_control,
         )
 
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
