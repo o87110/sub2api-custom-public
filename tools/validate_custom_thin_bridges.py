@@ -771,6 +771,24 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS: dict[
     ),
 }
 
+# Official v0.1.178 keeps the same reviewed Custom call surface for these
+# bridges. Bind the approval to the exact new Vendor commit so later upstream
+# changes cannot inherit it implicitly.
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e0c48a19ed794a565e3858662520afe0a1f9f0ba",
+    "backend/internal/service/payment_config_service.go",
+)] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "073e92d17178a1ccdb0a27017f572f10c9c7ab62",
+    "backend/internal/service/payment_config_service.go",
+)]
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e0c48a19ed794a565e3858662520afe0a1f9f0ba",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "073e92d17178a1ccdb0a27017f572f10c9c7ab62",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)]
+
 # Control-flow additions in delegate/view bridges use an exact structural
 # allowlist. Keeping the owning function and complete trimmed statement makes
 # renames, additional branches, and moved orchestration fail even when the TSV
@@ -1188,6 +1206,23 @@ BASELINE_DELEGATE_VIEW_CONTROL: dict[
         ("resolveOpenAIAccountModelForAccess", "if requireCompact {"),
     ),
 }
+
+# The reviewed v0.1.177 control statements remain the exact Custom delta on
+# v0.1.178; copy them under the new Vendor identity without widening defaults.
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e0c48a19ed794a565e3858662520afe0a1f9f0ba",
+    "backend/internal/handler/gateway_web_search.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "073e92d17178a1ccdb0a27017f572f10c9c7ab62",
+    "backend/internal/handler/gateway_web_search.go",
+)]
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e0c48a19ed794a565e3858662520afe0a1f9f0ba",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "073e92d17178a1ccdb0a27017f572f10c9c7ab62",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)]
 
 # Group model blocklist bridges: exact reviewed deltas from vendor-0.1.173.
 APPROVED_NEW_BRIDGE_FUNCTIONS.update({

@@ -1,7 +1,7 @@
 path	kind	shadow_required	approved_additions	approved_deletions	baseline_budget_overrides
 backend/cmd/server/wire.go	wire	true	28	2	-
 backend/internal/domain/models_list_config.go	dto	false	5	3	-
-backend/internal/handler/admin/channel_monitor_handler.go	dto	false	118	104	-
+backend/internal/handler/admin/channel_monitor_handler.go	dto	false	118	104	e0c48a19ed794a565e3858662520afe0a1f9f0ba:124:112
 backend/internal/handler/admin/content_moderation_handler.go	dto	false	6	0	-
 backend/internal/handler/admin/group_handler.go	dto	false	4	0	-
 backend/internal/handler/admin/payment_handler.go	delegate	true	60	45	-
@@ -15,7 +15,7 @@ backend/internal/handler/api_key_handler.go	delegate	true	21	4	-
 backend/internal/handler/auth_wechat_oauth.go	delegate	true	45	12	-
 backend/internal/handler/auth_wechat_oauth_test.go	compat-test	true	53	1	-
 backend/internal/handler/batch_image_handler.go	delegate	true	9	0	-
-backend/internal/handler/channel_monitor_user_handler.go	delegate	true	56	26	-
+backend/internal/handler/channel_monitor_user_handler.go	delegate	true	56	26	e0c48a19ed794a565e3858662520afe0a1f9f0ba:59:26
 backend/internal/handler/dto/mappers.go	dto	false	28	22	-
 backend/internal/handler/dto/settings.go	dto	true	18	16	-
 backend/internal/handler/dto/types.go	dto	false	8	0	-
@@ -23,7 +23,7 @@ backend/internal/handler/gateway_handler.go	delegate	true	49	15	-
 backend/internal/handler/gateway_handler_chat_completions.go	delegate	true	10	6	-
 backend/internal/handler/gateway_handler_responses.go	delegate	true	6	0	-
 backend/internal/handler/gateway_helper.go	delegate	true	42	0	-
-backend/internal/handler/gateway_web_search.go	delegate	true	12	1	e803e3851c0a7e222cfadeafad7b8636ab959d11:28:56,073e92d17178a1ccdb0a27017f572f10c9c7ab62:28:56
+backend/internal/handler/gateway_web_search.go	delegate	true	12	1	e803e3851c0a7e222cfadeafad7b8636ab959d11:28:56,073e92d17178a1ccdb0a27017f572f10c9c7ab62:28:56,e0c48a19ed794a565e3858662520afe0a1f9f0ba:28:56
 backend/internal/handler/gemini_v1beta_handler.go	delegate	true	42	3	-
 backend/internal/handler/image_task_handler.go	delegate	true	34	0	-
 backend/internal/handler/no_account_error.go	delegate	true	15	9	-
@@ -42,7 +42,7 @@ backend/internal/payment/load_balancer.go	delegate	true	157	29	-
 backend/internal/payment/types.go	dto	false	6	5	-
 backend/internal/repository/api_key_minimum_balance_repo.go	persistence	false	11	0	-
 backend/internal/repository/api_key_repo.go	persistence	false	1	0	-
-backend/internal/repository/channel_monitor_repo.go	persistence	false	32	20	-
+backend/internal/repository/channel_monitor_repo.go	persistence	false	32	20	e0c48a19ed794a565e3858662520afe0a1f9f0ba:33:21
 backend/internal/repository/group_repo.go	persistence	false	2	0	-
 backend/internal/repository/usage_billing_repo.go	persistence	true	2	1	-
 backend/internal/repository/user_subscription_repo.go	dto	true	23	19	-
@@ -52,19 +52,19 @@ backend/internal/server/routes/admin.go	delegate	true	3	0	-
 backend/internal/server/routes/gateway.go	delegate	true	19	0	-
 backend/internal/service/admin_group.go	delegate	true	106	13	-
 backend/internal/service/admin_group_duplicate.go	persistence	false	4	2	-
-backend/internal/service/admin_service.go	persistence	false	5	0	e803e3851c0a7e222cfadeafad7b8636ab959d11:5:1,073e92d17178a1ccdb0a27017f572f10c9c7ab62:5:1
+backend/internal/service/admin_service.go	persistence	false	5	0	e803e3851c0a7e222cfadeafad7b8636ab959d11:5:1,073e92d17178a1ccdb0a27017f572f10c9c7ab62:5:1,e0c48a19ed794a565e3858662520afe0a1f9f0ba:5:1
 backend/internal/service/antigravity_gateway_claude.go	delegate	true	3	0	-
 backend/internal/service/antigravity_gateway_compat.go	delegate	true	3	0	-
 backend/internal/service/antigravity_gateway_gemini.go	delegate	true	9	1	-
 backend/internal/service/antigravity_gateway_upstream.go	delegate	true	3	0	-
 backend/internal/service/api_key_auth_cache.go	persistence	false	1	0	-
-backend/internal/service/api_key_auth_cache_impl.go	persistence	false	15	1	-
+backend/internal/service/api_key_auth_cache_impl.go	persistence	false	15	1	e0c48a19ed794a565e3858662520afe0a1f9f0ba:16:1
 backend/internal/service/api_key_service.go	delegate	true	58	20	-
 backend/internal/service/batch_image_public.go	delegate	true	62	10	-
 backend/internal/service/billing_cache_service.go	delegate	true	88	1	-
 backend/internal/service/channel_monitor_aggregator.go	dto	false	11	10	-
 backend/internal/service/channel_monitor_const.go	dto	false	6	0	-
-backend/internal/service/channel_monitor_service.go	delegate	true	85	33	-
+backend/internal/service/channel_monitor_service.go	delegate	true	85	33	e0c48a19ed794a565e3858662520afe0a1f9f0ba:89:37
 backend/internal/service/channel_monitor_types.go	dto	false	62	54	-
 backend/internal/service/content_moderation.go	delegate	true	75	8	-
 backend/internal/service/content_moderation_email.go	view	true	7	1	-
@@ -96,7 +96,7 @@ backend/internal/service/openai_gateway_grok.go	delegate	true	3	0	-
 backend/internal/service/openai_gateway_messages.go	delegate	true	3	0	-
 backend/internal/service/openai_gateway_messages_chat_fallback.go	delegate	true	3	0	-
 backend/internal/service/openai_gateway_model_availability.go	delegate	true	5	0	-
-backend/internal/service/openai_gateway_scheduling.go	delegate	true	26	1	073e92d17178a1ccdb0a27017f572f10c9c7ab62:25:0
+backend/internal/service/openai_gateway_scheduling.go	delegate	true	26	1	073e92d17178a1ccdb0a27017f572f10c9c7ab62:25:0,e0c48a19ed794a565e3858662520afe0a1f9f0ba:25:0
 backend/internal/service/openai_images.go	delegate	true	3	0	-
 backend/internal/service/openai_images_responses.go	delegate	true	3	0	-
 backend/internal/service/openai_live.go	delegate	true	35	7	-
