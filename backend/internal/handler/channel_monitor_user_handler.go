@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -54,6 +55,15 @@ func (h *ChannelMonitorUserHandler) featureEnabled(c *gin.Context) bool {
 	return runtime.Enabled && runtime.Mode == service.ChannelMonitorModeV1
 }
 
+// quotaVisible 返回用户端是否展示配额/余额快照（channel_monitor_show_quota，
+// fail-closed：未配置/非 "true" 一律视为关闭）。settingService 为 nil 时 fail-closed。
+func (h *ChannelMonitorUserHandler) quotaVisible(c *gin.Context) bool {
+	if h.settingService == nil {
+		return false
+	}
+	return h.settingService.GetChannelMonitorRuntime(c.Request.Context()).ShowQuota
+}
+
 // --- Response ---
 
 type channelMonitorUserListItem struct {
@@ -70,6 +80,9 @@ type channelMonitorUserListItem struct {
 	Availability7d           float64                              `json:"availability_7d"`
 	ExtraModels              []dto.ChannelMonitorExtraModelStatus `json:"extra_models"`
 	Timeline                 []channelMonitorUserTimelinePoint    `json:"timeline"`
+	// LatestQuota 主模型最近配额快照；channel_monitor_show_quota=false 时
+	// 由 userMonitorViewToItem 的调用方传入 false 剥离（服务端脱敏，非仅前端隐藏）。
+	LatestQuota *domain.MonitorQuotaSnapshot `json:"latest_quota,omitempty"`
 }
 
 // channelMonitorUserTimelinePoint 主模型最近一次检测的 timeline 点。
@@ -99,7 +112,11 @@ type channelMonitorUserModelStat struct {
 	AvgLatency7dMs  *int    `json:"avg_latency_7d_ms"`
 }
 
-func userMonitorViewToItem(v *service.UserMonitorView, groupRateMultiplier *float64) channelMonitorUserListItem {
+func userMonitorViewToItem(
+	v *service.UserMonitorView,
+	groupRateMultiplier *float64,
+	includeQuota bool,
+) channelMonitorUserListItem {
 	extras := make([]dto.ChannelMonitorExtraModelStatus, 0, len(v.ExtraModels))
 	for _, e := range v.ExtraModels {
 		extras = append(extras, dto.ChannelMonitorExtraModelStatus{
@@ -117,7 +134,7 @@ func userMonitorViewToItem(v *service.UserMonitorView, groupRateMultiplier *floa
 			CheckedAt:     p.CheckedAt.UTC().Format(time.RFC3339),
 		})
 	}
-	return channelMonitorUserListItem{
+	item := channelMonitorUserListItem{
 		ID:                       v.ID,
 		Name:                     v.Name,
 		Provider:                 v.Provider,
@@ -132,6 +149,10 @@ func userMonitorViewToItem(v *service.UserMonitorView, groupRateMultiplier *floa
 		ExtraModels:              extras,
 		Timeline:                 timeline,
 	}
+	if includeQuota {
+		item.LatestQuota = v.LatestQuota
+	}
+	return item
 }
 
 func userMonitorDetailToResponse(d *service.UserMonitorDetail) *channelMonitorUserDetailResponse {
@@ -169,12 +190,12 @@ func (h *ChannelMonitorUserHandler) List(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-
 	var groupRates map[int64]float64
 	if h.groupRateResolver != nil {
 		groupRates = h.groupRateResolver.Resolve(c.Request.Context())
 	}
 
+	includeQuota := h.quotaVisible(c)
 	items := make([]channelMonitorUserListItem, 0, len(views))
 	for _, v := range views {
 		var groupRateMultiplier *float64
@@ -182,7 +203,7 @@ func (h *ChannelMonitorUserHandler) List(c *gin.Context) {
 			rateCopy := rate
 			groupRateMultiplier = &rateCopy
 		}
-		items = append(items, userMonitorViewToItem(v, groupRateMultiplier))
+		items = append(items, userMonitorViewToItem(v, groupRateMultiplier, includeQuota))
 	}
 	response.Success(c, gin.H{"items": items})
 }

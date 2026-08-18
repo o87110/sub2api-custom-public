@@ -16,7 +16,7 @@ func TestUserMonitorViewToItemIncludesCustomGroupRateMultiplier(t *testing.T) {
 		GroupName:                "custom label",
 		GroupRateDisplayTemplate: "{rate}优先用",
 		PrimaryModel:             "gpt-5",
-	}, &rate)
+	}, &rate, false)
 
 	require.NotNil(t, item.GroupRateMultiplier)
 	require.Equal(t, 0.18, *item.GroupRateMultiplier)
@@ -26,8 +26,8 @@ func TestUserMonitorViewToItemIncludesCustomGroupRateMultiplier(t *testing.T) {
 
 func TestUserMonitorViewToItemPreservesZeroAndMissingGroupRates(t *testing.T) {
 	zero := 0.0
-	withZero := userMonitorViewToItem(&service.UserMonitorView{ID: 8}, &zero)
-	withoutRate := userMonitorViewToItem(&service.UserMonitorView{ID: 9}, nil)
+	withZero := userMonitorViewToItem(&service.UserMonitorView{ID: 8}, &zero, false)
+	withoutRate := userMonitorViewToItem(&service.UserMonitorView{ID: 9}, nil, false)
 
 	require.NotNil(t, withZero.GroupRateMultiplier)
 	require.Zero(t, *withZero.GroupRateMultiplier)
