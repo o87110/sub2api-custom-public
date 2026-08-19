@@ -10,6 +10,7 @@ import (
 // ViolationCounter is the narrow custom read port used by the official moderation service.
 type ViolationCounter interface {
 	CountFlaggedByUserSince(ctx context.Context, userID int64, since time.Time, excludeCyberPolicy bool) (int, error)
+	CountAPIAuditFlaggedByUserSince(ctx context.Context, userID int64, since time.Time) (int, error)
 }
 
 type sqlViolationCounter struct {
@@ -53,6 +54,39 @@ WHERE user_id = $1
 `, userID, since, excludeCyberPolicy).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count custom content moderation violations: %w", err)
+	}
+	return count, nil
+}
+
+func (c *sqlViolationCounter) CountAPIAuditFlaggedByUserSince(
+	ctx context.Context,
+	userID int64,
+	since time.Time,
+) (int, error) {
+	if userID <= 0 {
+		return 0, nil
+	}
+	if c == nil || c.db == nil {
+		return 0, fmt.Errorf("custom violation counter database is unavailable")
+	}
+
+	var count int
+	err := c.db.QueryRowContext(ctx, `
+WITH last_auto_ban AS (
+    SELECT MAX(created_at) AS at
+    FROM content_moderation_logs
+    WHERE user_id = $1 AND auto_banned = TRUE
+)
+SELECT COUNT(*)
+FROM content_moderation_logs
+WHERE user_id = $1
+  AND flagged = TRUE
+  AND action IN ('allow', 'block')
+  AND created_at >= $2
+  AND created_at > COALESCE((SELECT at FROM last_auto_ban), '-infinity'::timestamptz)
+`, userID, since).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count custom API audit violations: %w", err)
 	}
 	return count, nil
 }

@@ -990,10 +990,58 @@
               <div>
                 <label class="input-label">{{ customT('defaultBanThreshold') }}</label>
                 <input v-model.number="configForm.ban_threshold" type="number" min="1" max="1000" class="input" />
+                <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ customT('defaultBanThresholdHint') }}</p>
               </div>
               <div>
                 <label class="input-label">{{ t('admin.riskControl.violationWindowHours') }}</label>
                 <input v-model.number="configForm.violation_window_hours" type="number" min="1" max="8760" class="input" />
+              </div>
+            </div>
+            <div class="rounded-lg border border-gray-100 p-4 dark:border-dark-700" data-test="api-audit-ban-settings">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ customT('apiAuditBanEnabled') }}</p>
+                  <p id="api-audit-ban-hint" class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                    {{ customT('apiAuditBanHint') }}
+                  </p>
+                </div>
+                <Toggle
+                  v-model="configForm.api_audit_ban_enabled"
+                  data-test="api-audit-ban-toggle"
+                  :aria-label="customT('apiAuditBanEnabled')"
+                />
+              </div>
+              <div class="mt-4 max-w-md">
+                <label for="api-audit-ban-threshold" class="input-label">{{ customT('apiAuditBanThreshold') }}</label>
+                <input
+                  id="api-audit-ban-threshold"
+                  ref="apiAuditBanThresholdInput"
+                  v-model.number="configForm.api_audit_ban_threshold"
+                  data-test="api-audit-ban-threshold"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  class="input"
+                  :disabled="!configForm.api_audit_ban_enabled"
+                  :aria-invalid="apiAuditBanThresholdTouched && Boolean(apiAuditBanThresholdError)"
+                  aria-describedby="api-audit-ban-hint api-audit-ban-threshold-feedback"
+                  @blur="apiAuditBanThresholdTouched = true"
+                />
+                <p
+                  id="api-audit-ban-threshold-feedback"
+                  class="mt-1 min-h-5 text-xs leading-5"
+                  :class="apiAuditBanThresholdTouched && apiAuditBanThresholdError
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-gray-500 dark:text-gray-400'"
+                  :role="apiAuditBanThresholdTouched && apiAuditBanThresholdError ? 'alert' : undefined"
+                >
+                  {{ apiAuditBanThresholdTouched && apiAuditBanThresholdError
+                    ? apiAuditBanThresholdError
+                    : customT(configForm.api_audit_ban_enabled ? 'apiAuditBanActiveHint' : 'apiAuditBanDisabledHint') }}
+                </p>
+                <p v-if="!configForm.auto_ban_enabled" class="mt-1 text-xs leading-5 text-amber-600 dark:text-amber-400">
+                  {{ customT('apiAuditBanMasterDisabledHint') }}
+                </p>
               </div>
             </div>
             <div class="rounded-lg border border-gray-100 p-4 dark:border-dark-700">
@@ -1219,7 +1267,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   customRiskControlAPI,
@@ -1334,6 +1382,8 @@ const moderationTestPrompt = ref('')
 const moderationTestImages = ref<string[]>([])
 const moderationTestResult = ref<ContentModerationTestAuditResult | null>(null)
 const inputDetailRow = ref<ContentModerationLog | null>(null)
+const apiAuditBanThresholdInput = ref<HTMLInputElement | null>(null)
+const apiAuditBanThresholdTouched = ref(false)
 let statusTimer: number | null = null
 
 const configForm = reactive({
@@ -1364,6 +1414,8 @@ const configForm = reactive({
   block_message: defaultBlockMessage(),
   email_on_hit: true,
   auto_ban_enabled: true,
+  api_audit_ban_enabled: false,
+  api_audit_ban_threshold: 10,
   cyber_policy_exclude_from_ban_count: false,
   ban_threshold: 10,
   user_ban_thresholds: [] as UserBanThresholdOverride[],
@@ -1560,6 +1612,14 @@ const apiAuditScopeSummary = computed(() => (
     ? customT('apiAuditAllSummary')
     : customT('apiAuditSelectedSummary').replace('{count}', String(configForm.api_audit_group_ids.length))
 ))
+
+const apiAuditBanThresholdError = computed(() => {
+  const threshold = Number(configForm.api_audit_ban_threshold)
+  if (!Number.isInteger(threshold) || threshold < 1 || threshold > 1000) {
+    return customT('apiAuditBanInvalid')
+  }
+  return ''
+})
 
 const modelFilterModelCount = computed(() => configForm.model_filter_models.length)
 
@@ -1894,8 +1954,16 @@ function applyConfig(config: CustomContentModerationConfig, existingGroupIDs?: R
   configForm.block_message = config.block_message || defaultBlockMessage()
   configForm.email_on_hit = config.email_on_hit ?? true
   configForm.auto_ban_enabled = config.auto_ban_enabled ?? true
+  configForm.api_audit_ban_enabled = config.api_audit_ban_enabled ?? false
   configForm.cyber_policy_exclude_from_ban_count = config.cyber_policy_exclude_from_ban_count ?? false
   configForm.ban_threshold = config.ban_threshold || 10
+  const apiAuditBanThreshold = Number(config.api_audit_ban_threshold)
+  configForm.api_audit_ban_threshold = Number.isInteger(apiAuditBanThreshold)
+    && apiAuditBanThreshold >= 1
+    && apiAuditBanThreshold <= 1000
+    ? apiAuditBanThreshold
+    : configForm.ban_threshold
+  apiAuditBanThresholdTouched.value = false
   configForm.user_ban_thresholds = cloneUserBanThresholdOverrides(config.user_ban_thresholds)
   configForm.violation_window_hours = config.violation_window_hours || 720
   configForm.hit_retention_days = config.hit_retention_days || 180
@@ -1971,6 +2039,14 @@ async function saveConfig() {
       appStore.showError(customT('userBanThresholdValidationFailed'))
       return
     }
+    if (apiAuditBanThresholdError.value) {
+      activeSettingsTab.value = 'response'
+      apiAuditBanThresholdTouched.value = true
+      appStore.showError(customT('apiAuditBanValidationFailed'))
+      await nextTick()
+      apiAuditBanThresholdInput.value?.focus()
+      return
+    }
     const payload: CustomUpdateContentModerationConfig = {
       enabled: configForm.enabled,
       mode: configForm.mode,
@@ -1995,6 +2071,8 @@ async function saveConfig() {
       block_message: configForm.block_message || defaultBlockMessage(),
       email_on_hit: configForm.email_on_hit,
       auto_ban_enabled: configForm.auto_ban_enabled,
+      api_audit_ban_enabled: configForm.api_audit_ban_enabled,
+      api_audit_ban_threshold: Number(configForm.api_audit_ban_threshold),
       cyber_policy_exclude_from_ban_count: configForm.cyber_policy_exclude_from_ban_count,
       ban_threshold: Number(configForm.ban_threshold) || 10,
       user_ban_thresholds: cloneUserBanThresholdOverrides(configForm.user_ban_thresholds),

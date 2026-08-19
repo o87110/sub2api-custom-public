@@ -161,6 +161,8 @@ type ContentModerationConfig struct {
 	EmailOnHit           bool                         `json:"email_on_hit"`
 	AutoBanEnabled       bool                         `json:"auto_ban_enabled"`
 	BanThreshold         int                          `json:"ban_threshold"`
+	APIAuditBanEnabled   bool                         `json:"api_audit_ban_enabled"`
+	APIAuditBanThreshold int                          `json:"api_audit_ban_threshold"`
 	UserBanThresholds    []UserBanThresholdOverride   `json:"user_ban_thresholds"`
 	ViolationWindowHours int                          `json:"violation_window_hours"`
 	RetryCount           int                          `json:"retry_count"`
@@ -201,6 +203,8 @@ type ContentModerationConfigView struct {
 	EmailOnHit                     bool                            `json:"email_on_hit"`
 	AutoBanEnabled                 bool                            `json:"auto_ban_enabled"`
 	BanThreshold                   int                             `json:"ban_threshold"`
+	APIAuditBanEnabled             bool                            `json:"api_audit_ban_enabled"`
+	APIAuditBanThreshold           int                             `json:"api_audit_ban_threshold"`
 	UserBanThresholds              []UserBanThresholdOverride      `json:"user_ban_thresholds"`
 	ViolationWindowHours           int                             `json:"violation_window_hours"`
 	RetryCount                     int                             `json:"retry_count"`
@@ -295,6 +299,8 @@ type UpdateContentModerationConfigInput struct {
 	EmailOnHit                     *bool                         `json:"email_on_hit"`
 	AutoBanEnabled                 *bool                         `json:"auto_ban_enabled"`
 	BanThreshold                   *int                          `json:"ban_threshold"`
+	APIAuditBanEnabled             *bool                         `json:"api_audit_ban_enabled"`
+	APIAuditBanThreshold           *int                          `json:"api_audit_ban_threshold"`
 	UserBanThresholds              *[]UserBanThresholdOverride   `json:"user_ban_thresholds"`
 	ViolationWindowHours           *int                          `json:"violation_window_hours"`
 	RetryCount                     *int                          `json:"retry_count"`
@@ -670,6 +676,15 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 	}
 	if input.BanThreshold != nil {
 		cfg.BanThreshold = *input.BanThreshold
+	}
+	if input.APIAuditBanEnabled != nil {
+		cfg.APIAuditBanEnabled = *input.APIAuditBanEnabled
+	}
+	if input.APIAuditBanThreshold != nil {
+		if err := validateContentModerationAPIAuditBanThreshold(*input.APIAuditBanThreshold); err != nil {
+			return nil, infraerrors.BadRequest("INVALID_CONTENT_MODERATION_API_AUDIT_BAN_THRESHOLD", "API 审计封禁阈值必须为 1-1000 的整数")
+		}
+		cfg.APIAuditBanThreshold = *input.APIAuditBanThreshold
 	}
 	if input.UserBanThresholds != nil {
 		cfg.UserBanThresholds = cloneContentModerationUserBanThresholdOverrides(*input.UserBanThresholds)
@@ -1544,6 +1559,12 @@ func parseContentModerationConfig(raw string) (*ContentModerationConfig, error) 
 	if err := json.Unmarshal([]byte(raw), cfg); err != nil {
 		return nil, infraerrors.BadRequest("INVALID_CONTENT_MODERATION_CONFIG", "内容审计配置不是有效 JSON")
 	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &fields); err == nil {
+		if _, ok := fields["api_audit_ban_threshold"]; !ok {
+			cfg.APIAuditBanThreshold = cfg.BanThreshold
+		}
+	}
 	cfg.normalize()
 	return cfg, nil
 }
@@ -1713,6 +1734,9 @@ func (s *ContentModerationService) validateConfig(ctx context.Context, cfg *Cont
 	}
 	if err := validateContentModerationUserBanThresholdOverrides(cfg.UserBanThresholds); err != nil {
 		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_CONFIG", "用户专属封禁阈值无效: "+err.Error())
+	}
+	if err := validateContentModerationAPIAuditBanThreshold(cfg.APIAuditBanThreshold); err != nil {
+		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_API_AUDIT_BAN_THRESHOLD", "API 审计封禁阈值必须为 1-1000 的整数")
 	}
 	requireAPIAuditScope := cfg.Mode == ContentModerationModeObserve ||
 		cfg.KeywordBlockingMode != ContentModerationKeywordModeKeywordOnly
@@ -1950,10 +1974,11 @@ func (s *ContentModerationService) persistContentModerationLog(ctx context.Conte
 		}
 	}
 	autoBanJustApplied := false
+	notificationCfg := cfg
 	if applySideEffects {
 		effectiveCfg := effectiveContentModerationConfigForUser(cfg, log.UserID)
-		autoBanJustApplied = s.applyFlaggedAccountSideEffects(ctx, effectiveCfg, log)
-		s.sendFlaggedNotificationSideEffects(ctx, effectiveCfg, log, autoBanJustApplied)
+		autoBanJustApplied, notificationCfg = s.applyFlaggedAccountSideEffects(ctx, effectiveCfg, log)
+		s.sendFlaggedNotificationSideEffects(ctx, notificationCfg, log, autoBanJustApplied)
 	}
 	if s.repo != nil {
 		if err := s.repo.CreateLog(ctx, log); err != nil {
@@ -1963,35 +1988,44 @@ func (s *ContentModerationService) persistContentModerationLog(ctx context.Conte
 	}
 }
 
-func (s *ContentModerationService) applyFlaggedAccountSideEffects(ctx context.Context, cfg *ContentModerationConfig, log *ContentModerationLog) bool {
+func (s *ContentModerationService) applyFlaggedAccountSideEffects(
+	ctx context.Context,
+	cfg *ContentModerationConfig,
+	log *ContentModerationLog,
+) (bool, *ContentModerationConfig) {
 	if s == nil || cfg == nil || log == nil || !log.Flagged || log.UserID == nil || *log.UserID <= 0 {
-		return false
+		return false, cfg
 	}
-	count := 1
+	totalCount := 1
+	var since time.Time
 	if s.repo != nil && cfg.ViolationWindowHours > 0 {
-		since := time.Now().Add(-time.Duration(cfg.ViolationWindowHours) * time.Hour)
+		since = time.Now().Add(-time.Duration(cfg.ViolationWindowHours) * time.Hour)
 		if n, err := s.countFlaggedByUserSince(ctx, *log.UserID, since, cfg.CyberPolicyExcludeFromBanCount); err == nil {
-			count = n + 1
+			totalCount = n + 1
+		} else {
+			slog.Warn("content_moderation.violation_count_failed", "user_id", *log.UserID, "error", err)
 		}
 	}
-	log.ViolationCount = count
+	evaluation := s.evaluateContentModerationBanRules(ctx, cfg, log, totalCount, since)
+	log.ViolationCount = evaluation.Count
+	notificationCfg := contentModerationNotificationConfigForBanEvaluation(cfg, evaluation)
 	autoBanJustApplied := false
-	if cfg.AutoBanEnabled && cfg.BanThreshold > 0 && count >= cfg.BanThreshold && s.userRepo != nil {
+	if cfg.AutoBanEnabled && evaluation.Reached && s.userRepo != nil {
 		user, err := s.userRepo.GetByID(ctx, *log.UserID)
 		if err != nil {
 			slog.Warn("content_moderation.ban_get_user_failed", "user_id", *log.UserID, "error", err)
-			return false
+			return false, notificationCfg
 		}
 		if user.IsAdmin() {
-			slog.Warn("content_moderation.autoban_skipped_admin", "user_id", *log.UserID, "role", user.Role, "count", count, "threshold", cfg.BanThreshold)
+			slog.Warn("content_moderation.autoban_skipped_admin", "user_id", *log.UserID, "role", user.Role, "count", evaluation.Count, "threshold", evaluation.Threshold, "source", evaluation.Source)
 			// TODO: Disable the triggering API key instead when API key mutation is available here.
-			return false
+			return false, notificationCfg
 		}
 		if user.Status != StatusDisabled {
 			user.Status = StatusDisabled
 			if err := s.userRepo.Update(ctx, user, UserUpdateFields{Status: true}); err != nil {
 				slog.Warn("content_moderation.ban_update_user_failed", "user_id", *log.UserID, "error", err)
-				return false
+				return false, notificationCfg
 			}
 			if s.authCacheInvalidator != nil {
 				s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, *log.UserID)
@@ -2000,7 +2034,7 @@ func (s *ContentModerationService) applyFlaggedAccountSideEffects(ctx context.Co
 		}
 		log.AutoBanned = true
 	}
-	return autoBanJustApplied
+	return autoBanJustApplied, notificationCfg
 }
 
 func (s *ContentModerationService) sendFlaggedNotificationSideEffects(ctx context.Context, cfg *ContentModerationConfig, log *ContentModerationLog, autoBanJustApplied bool) {
@@ -2151,6 +2185,8 @@ func defaultContentModerationConfig() *ContentModerationConfig {
 		EmailOnHit:           true,
 		AutoBanEnabled:       true,
 		BanThreshold:         defaultContentModerationBanThreshold,
+		APIAuditBanEnabled:   false,
+		APIAuditBanThreshold: defaultContentModerationBanThreshold,
 		UserBanThresholds:    []UserBanThresholdOverride{},
 		ViolationWindowHours: defaultContentModerationViolationWindowHours,
 		RetryCount:           defaultContentModerationRetryCount,
@@ -2240,6 +2276,9 @@ func (cfg *ContentModerationConfig) normalize() {
 	}
 	if cfg.BanThreshold <= 0 {
 		cfg.BanThreshold = defaultContentModerationBanThreshold
+	}
+	if validateContentModerationAPIAuditBanThreshold(cfg.APIAuditBanThreshold) != nil {
+		cfg.APIAuditBanThreshold = cfg.BanThreshold
 	}
 	cfg.UserBanThresholds = cloneContentModerationUserBanThresholdOverrides(cfg.UserBanThresholds)
 	if cfg.ViolationWindowHours <= 0 {
@@ -2492,6 +2531,8 @@ func (s *ContentModerationService) configView(cfg *ContentModerationConfig) *Con
 		EmailOnHit:                     cfg.EmailOnHit,
 		AutoBanEnabled:                 cfg.AutoBanEnabled,
 		BanThreshold:                   cfg.BanThreshold,
+		APIAuditBanEnabled:             cfg.APIAuditBanEnabled,
+		APIAuditBanThreshold:           cfg.APIAuditBanThreshold,
 		UserBanThresholds:              cloneContentModerationUserBanThresholdOverrides(cfg.UserBanThresholds),
 		ViolationWindowHours:           cfg.ViolationWindowHours,
 		RetryCount:                     cfg.RetryCount,
@@ -3110,7 +3151,7 @@ func (s *ContentModerationService) RecordCyberPolicyEvent(ctx context.Context, i
 	// 历史行由 CountFlaggedByUserSince 的 excludeCyberPolicy 排除。
 	autoBanned := false
 	if !cfg.CyberPolicyExcludeFromBanCount {
-		autoBanned = s.applyFlaggedAccountSideEffects(ctx, cfg, log)
+		autoBanned, _ = s.applyFlaggedAccountSideEffects(ctx, cfg, log)
 	}
 	log.EmailSent = false
 	logPersisted := true

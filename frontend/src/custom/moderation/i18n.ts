@@ -17,6 +17,15 @@ export type CustomModerationTextKey =
   | 'apiAuditAllSummary'
   | 'apiAuditSelectedSummary'
   | 'defaultBanThreshold'
+  | 'defaultBanThresholdHint'
+  | 'apiAuditBanEnabled'
+  | 'apiAuditBanHint'
+  | 'apiAuditBanThreshold'
+  | 'apiAuditBanActiveHint'
+  | 'apiAuditBanDisabledHint'
+  | 'apiAuditBanMasterDisabledHint'
+  | 'apiAuditBanInvalid'
+  | 'apiAuditBanValidationFailed'
   | 'userBanThresholdTitle'
   | 'userBanThresholdHint'
   | 'userBanThresholdInactiveHint'
@@ -56,6 +65,15 @@ const messages: Record<'zh' | 'en', Record<CustomModerationTextKey, string>> = {
     apiAuditAllSummary: '总范围内全部分组',
     apiAuditSelectedSummary: '总范围内 {count} 个分组',
     defaultBanThreshold: '默认封禁触发次数',
+    defaultBanThresholdHint: '关键词、API 审计及未排除的 cyber_policy 共用此累计；用户专属阈值只覆盖这里。',
+    apiAuditBanEnabled: '启用 API 审计专属封禁阈值',
+    apiAuditBanHint: 'API 审计命中仍计入上方总累计，并额外进入专属累计；任一达到阈值即封号，因此该规则只能收紧封禁条件。',
+    apiAuditBanThreshold: 'API 审计专属封禁次数',
+    apiAuditBanActiveHint: 'API 专属累计达到该次数时执行自动封禁。',
+    apiAuditBanDisabledHint: '关闭时保留当前阈值，但专属累计不触发封号。',
+    apiAuditBanMasterDisabledHint: '自动封禁总开关已关闭；API 专属配置会保留，重新开启后生效。',
+    apiAuditBanInvalid: '请输入 1–1000 的整数。',
+    apiAuditBanValidationFailed: '请先修正 API 审计专属封禁次数。',
     userBanThresholdTitle: '用户专属封禁阈值',
     userBanThresholdHint: '指定用户命中时使用这里的绝对阈值，其他用户继续使用默认封禁触发次数。',
     userBanThresholdInactiveHint: '自动封禁当前已关闭；专属阈值会保留，并在重新开启后生效。',
@@ -94,6 +112,15 @@ const messages: Record<'zh' | 'en', Record<CustomModerationTextKey, string>> = {
     apiAuditAllSummary: 'All groups in the overall scope',
     apiAuditSelectedSummary: '{count} groups in the overall scope',
     defaultBanThreshold: 'Default ban trigger count',
+    defaultBanThresholdHint: 'Keyword, API moderation, and non-excluded cyber_policy hits share this total. User overrides only replace this threshold.',
+    apiAuditBanEnabled: 'Enable API moderation-specific ban threshold',
+    apiAuditBanHint: 'API moderation hits still count toward the total above and also enter this dedicated count. Either threshold can ban, so this rule can only make enforcement stricter.',
+    apiAuditBanThreshold: 'API moderation ban trigger count',
+    apiAuditBanActiveHint: 'Automatic banning runs when the dedicated API moderation count reaches this value.',
+    apiAuditBanDisabledHint: 'The value is retained while disabled, but the dedicated count cannot trigger a ban.',
+    apiAuditBanMasterDisabledHint: 'Automatic banning is off. This configuration is retained and will apply when automatic banning is enabled again.',
+    apiAuditBanInvalid: 'Enter an integer from 1 to 1000.',
+    apiAuditBanValidationFailed: 'Fix the API moderation ban trigger count before saving.',
     userBanThresholdTitle: 'User-specific ban thresholds',
     userBanThresholdHint: 'Matched users use the absolute threshold below; everyone else keeps the default ban trigger count.',
     userBanThresholdInactiveHint: 'Automatic banning is off. These thresholds are retained and will apply when it is enabled again.',

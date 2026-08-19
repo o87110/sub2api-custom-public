@@ -16,11 +16,15 @@ export interface UserBanThresholdOverride {
 
 export interface CustomContentModerationConfig extends ContentModerationConfig {
   api_audit_scope?: ContentModerationAPIAuditScope
+  api_audit_ban_enabled?: boolean
+  api_audit_ban_threshold?: number
   user_ban_thresholds: UserBanThresholdOverride[]
 }
 
 export interface CustomUpdateContentModerationConfig extends UpdateContentModerationConfig {
   api_audit_scope?: ContentModerationAPIAuditScope
+  api_audit_ban_enabled?: boolean
+  api_audit_ban_threshold?: number
   user_ban_thresholds?: UserBanThresholdOverride[]
 }
 

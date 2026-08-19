@@ -2,7 +2,7 @@ path	kind	shadow_required	approved_additions	approved_deletions	baseline_budget_
 backend/cmd/server/wire.go	wire	true	28	2	-
 backend/internal/domain/models_list_config.go	dto	false	5	3	-
 backend/internal/handler/admin/channel_monitor_handler.go	dto	false	118	104	e0c48a19ed794a565e3858662520afe0a1f9f0ba:124:112
-backend/internal/handler/admin/content_moderation_handler.go	dto	false	6	0	-
+backend/internal/handler/admin/content_moderation_handler.go	dto	false	10	0	-
 backend/internal/handler/admin/group_handler.go	dto	false	4	0	-
 backend/internal/handler/admin/payment_handler.go	delegate	true	60	45	-
 backend/internal/handler/admin/payment_handler_test.go	compat-test	true	18	14	-
@@ -66,7 +66,7 @@ backend/internal/service/channel_monitor_aggregator.go	dto	false	11	10	-
 backend/internal/service/channel_monitor_const.go	dto	false	6	0	-
 backend/internal/service/channel_monitor_service.go	delegate	true	85	33	e0c48a19ed794a565e3858662520afe0a1f9f0ba:89:37
 backend/internal/service/channel_monitor_types.go	dto	false	62	54	-
-backend/internal/service/content_moderation.go	delegate	true	75	8	-
+backend/internal/service/content_moderation.go	delegate	true	129	21	-
 backend/internal/service/content_moderation_email.go	view	true	7	1	-
 backend/internal/service/gateway_bedrock.go	delegate	true	3	0	-
 backend/internal/service/gateway_count_tokens.go	delegate	true	5	0	-

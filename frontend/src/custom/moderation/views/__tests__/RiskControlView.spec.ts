@@ -105,6 +105,8 @@ const baseConfig = (): CustomContentModerationConfig => ({
   block_message: '内容审计命中风险规则，请调整输入后重试',
   email_on_hit: true,
   auto_ban_enabled: true,
+  api_audit_ban_enabled: false,
+  api_audit_ban_threshold: 10,
   ban_threshold: 10,
   user_ban_thresholds: [],
   violation_window_hours: 720,
@@ -231,6 +233,29 @@ const ModelWhitelistSelectorStub = defineComponent({
       })
   },
 })
+const ToggleStub = defineComponent({
+  name: 'Toggle',
+  inheritAttrs: false,
+  props: {
+    modelValue: {
+      type: Boolean,
+      default: false,
+    },
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { attrs, emit }) {
+    return () => h('button', {
+      ...attrs,
+      type: 'button',
+      disabled: props.disabled,
+      onClick: () => emit('update:modelValue', !props.modelValue),
+    }, String(props.modelValue))
+  },
+})
 const UserBanThresholdOverridesStub = defineComponent({
   name: 'UserBanThresholdOverrides',
   props: {
@@ -268,15 +293,16 @@ function findButtonByText(wrapper: VueWrapper, text: string): DOMWrapper<HTMLBut
   return button
 }
 
-function mountRiskControlView(): VueWrapper {
+function mountRiskControlView(attachTo?: HTMLElement): VueWrapper {
   return mount(RiskControlView, {
+    attachTo,
     global: {
       stubs: {
         AppLayout: AppLayoutStub,
         BaseDialog: BaseDialogStub,
         Icon: true,
         Select: true,
-        Toggle: true,
+        Toggle: ToggleStub,
         Pagination: true,
         ModelWhitelistSelector: ModelWhitelistSelectorStub,
         UserBanThresholdOverrides: UserBanThresholdOverridesStub,
@@ -388,6 +414,98 @@ describe('admin RiskControlView', () => {
     expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
       user_ban_thresholds: [{ user_id: 1002, ban_threshold: 40 }],
     }))
+  })
+
+  it('loads, retains, and saves the API moderation ban threshold', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      api_audit_ban_enabled: true,
+      api_audit_ban_threshold: 2,
+    })
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.tabs.response').trigger('click')
+    const threshold = wrapper.get<HTMLInputElement>('[data-test="api-audit-ban-threshold"]')
+    expect(threshold.element.value).toBe('2')
+    expect(threshold.attributes('disabled')).toBeUndefined()
+
+    await wrapper.get('[data-test="api-audit-ban-toggle"]').trigger('click')
+    expect(threshold.attributes('disabled')).toBeDefined()
+    expect(threshold.element.value).toBe('2')
+
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      api_audit_ban_enabled: false,
+      api_audit_ban_threshold: 2,
+    }))
+  })
+
+  it('defaults a legacy API moderation ban setting to disabled and the total threshold', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      ban_threshold: 7,
+      api_audit_ban_enabled: undefined,
+      api_audit_ban_threshold: undefined,
+    })
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.tabs.response').trigger('click')
+    const threshold = wrapper.get<HTMLInputElement>('[data-test="api-audit-ban-threshold"]')
+    expect(threshold.element.value).toBe('7')
+    expect(threshold.attributes('disabled')).toBeDefined()
+
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      api_audit_ban_enabled: false,
+      api_audit_ban_threshold: 7,
+    }))
+  })
+
+  it('shows an inline API moderation threshold error and focuses the field', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      api_audit_ban_enabled: true,
+      api_audit_ban_threshold: 2,
+    })
+    const wrapper = mountRiskControlView(document.body)
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.tabs.response').trigger('click')
+    const threshold = wrapper.get<HTMLInputElement>('[data-test="api-audit-ban-threshold"]')
+    await threshold.setValue('0')
+    await threshold.trigger('blur')
+    expect(wrapper.get('[role="alert"]').text()).toBe('请输入 1–1000 的整数。')
+
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+    expect(updateConfig).not.toHaveBeenCalled()
+    expect(showError).toHaveBeenCalledWith('请先修正 API 审计专属封禁次数。')
+    expect(document.activeElement).toBe(threshold.element)
+    wrapper.unmount()
+  })
+
+  it('explains that the API moderation rule is retained while automatic banning is off', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      auto_ban_enabled: false,
+      api_audit_ban_enabled: true,
+      api_audit_ban_threshold: 2,
+    })
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.tabs.response').trigger('click')
+    expect(wrapper.get('[data-test="api-audit-ban-settings"]').text()).toContain(
+      '自动封禁总开关已关闭；API 专属配置会保留，重新开启后生效。'
+    )
   })
 
   it('blocks saving invalid user-specific ban thresholds', async () => {

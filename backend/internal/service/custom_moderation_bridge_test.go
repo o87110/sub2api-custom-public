@@ -23,6 +23,9 @@ type customViolationCounterStub struct {
 	err                error
 	calls              int
 	excludeCyberPolicy bool
+	apiAuditCount      int
+	apiAuditErr        error
+	apiAuditCalls      int
 }
 
 func (s *customViolationCounterStub) CountFlaggedByUserSince(
@@ -34,6 +37,15 @@ func (s *customViolationCounterStub) CountFlaggedByUserSince(
 	s.calls++
 	s.excludeCyberPolicy = excludeCyberPolicy
 	return s.count, s.err
+}
+
+func (s *customViolationCounterStub) CountAPIAuditFlaggedByUserSince(
+	_ context.Context,
+	_ int64,
+	_ time.Time,
+) (int, error) {
+	s.apiAuditCalls++
+	return s.apiAuditCount, s.apiAuditErr
 }
 
 func TestCustomCyberPolicyPenaltyUsesUserBanThresholdOverride(t *testing.T) {
@@ -139,6 +151,131 @@ func TestCustomContentModerationAutoBanFallsBackToGlobalThresholdForOtherUsers(t
 	require.Len(t, userRepo.updated, 1)
 }
 
+func TestCustomAPIAuditBanThresholdCanBanBeforeTotalThreshold(t *testing.T) {
+	userID := int64(1001)
+	counter := &customViolationCounterStub{count: 1, apiAuditCount: 1}
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
+	invalidator := &contentModerationTestAuthCacheInvalidator{}
+	svc := NewContentModerationService(nil, &contentModerationTestRepo{}, nil, nil, userRepo, nil, invalidator, nil)
+	AttachCustomViolationCounter(svc, counter)
+	cfg := defaultContentModerationConfig()
+	cfg.BanThreshold = 5
+	cfg.APIAuditBanEnabled = true
+	cfg.APIAuditBanThreshold = 2
+	log := newContentModerationFlaggedLog(userID)
+
+	justBanned, notificationCfg := svc.applyFlaggedAccountSideEffects(context.Background(), cfg, log)
+
+	require.True(t, justBanned)
+	require.True(t, log.AutoBanned)
+	require.Equal(t, 2, log.ViolationCount)
+	require.Equal(t, 2, notificationCfg.BanThreshold)
+	require.Equal(t, "2", contentModerationEmailVariables(log, notificationCfg)["ban_threshold"])
+	require.Equal(t, 5, cfg.BanThreshold, "API 专属通知阈值不得改写基础配置")
+	require.Equal(t, 1, counter.calls)
+	require.Equal(t, 1, counter.apiAuditCalls)
+	require.Equal(t, []int64{userID}, invalidator.userIDs)
+}
+
+func TestCustomAPIAuditBanThresholdStillSkipsAdminAccount(t *testing.T) {
+	userID := int64(1001)
+	counter := &customViolationCounterStub{count: 1, apiAuditCount: 1}
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleAdmin, Status: StatusActive}}
+	svc := NewContentModerationService(nil, &contentModerationTestRepo{}, nil, nil, userRepo, nil, nil, nil)
+	AttachCustomViolationCounter(svc, counter)
+	cfg := defaultContentModerationConfig()
+	cfg.BanThreshold = 10
+	cfg.APIAuditBanEnabled = true
+	cfg.APIAuditBanThreshold = 2
+	log := newContentModerationFlaggedLog(userID)
+
+	justBanned, notificationCfg := svc.applyFlaggedAccountSideEffects(context.Background(), cfg, log)
+
+	require.False(t, justBanned)
+	require.False(t, log.AutoBanned)
+	require.Equal(t, 2, log.ViolationCount)
+	require.Equal(t, 2, notificationCfg.BanThreshold)
+	require.Empty(t, userRepo.updated)
+}
+
+func TestCustomAPIAuditBanThresholdKeepsTotalRulePrecedence(t *testing.T) {
+	userID := int64(1001)
+	counter := &customViolationCounterStub{count: 2, apiAuditCount: 1}
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
+	svc := NewContentModerationService(nil, &contentModerationTestRepo{}, nil, nil, userRepo, nil, nil, nil)
+	AttachCustomViolationCounter(svc, counter)
+	cfg := defaultContentModerationConfig()
+	cfg.BanThreshold = 3
+	cfg.APIAuditBanEnabled = true
+	cfg.APIAuditBanThreshold = 2
+	log := newContentModerationFlaggedLog(userID)
+
+	justBanned, notificationCfg := svc.applyFlaggedAccountSideEffects(context.Background(), cfg, log)
+
+	require.True(t, justBanned)
+	require.Equal(t, 3, log.ViolationCount)
+	require.Same(t, cfg, notificationCfg)
+	require.Len(t, userRepo.updated, 1, "两条规则同时达到时只能更新一次用户")
+}
+
+func TestCustomAPIAuditBanThresholdDoesNotApplyToKeywordOrDisabledAutoBan(t *testing.T) {
+	userID := int64(1001)
+	tests := []struct {
+		name       string
+		autoBan    bool
+		action     string
+		apiEnabled bool
+	}{
+		{name: "keyword", autoBan: true, action: ContentModerationActionKeywordBlock, apiEnabled: true},
+		{name: "master disabled", autoBan: false, action: ContentModerationActionBlock, apiEnabled: true},
+		{name: "API rule disabled", autoBan: true, action: ContentModerationActionBlock, apiEnabled: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			counter := &customViolationCounterStub{count: 0, apiAuditCount: 20}
+			userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
+			svc := NewContentModerationService(nil, &contentModerationTestRepo{}, nil, nil, userRepo, nil, nil, nil)
+			AttachCustomViolationCounter(svc, counter)
+			cfg := defaultContentModerationConfig()
+			cfg.AutoBanEnabled = tt.autoBan
+			cfg.BanThreshold = 10
+			cfg.APIAuditBanEnabled = tt.apiEnabled
+			cfg.APIAuditBanThreshold = 1
+			log := &ContentModerationLog{UserID: &userID, Flagged: true, Action: tt.action}
+
+			justBanned, _ := svc.applyFlaggedAccountSideEffects(context.Background(), cfg, log)
+
+			require.False(t, justBanned)
+			require.False(t, log.AutoBanned)
+			require.Equal(t, 0, counter.apiAuditCalls)
+			require.Empty(t, userRepo.updated)
+		})
+	}
+}
+
+func TestCustomAPIAuditBanThresholdIgnoresUserTotalOverride(t *testing.T) {
+	userID := int64(1001)
+	counter := &customViolationCounterStub{count: 1, apiAuditCount: 1}
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
+	svc := NewContentModerationService(nil, &contentModerationTestRepo{}, nil, nil, userRepo, nil, nil, nil)
+	AttachCustomViolationCounter(svc, counter)
+	cfg := defaultContentModerationConfig()
+	cfg.BanThreshold = 3
+	cfg.UserBanThresholds = []UserBanThresholdOverride{{UserID: userID, BanThreshold: 20}}
+	cfg.APIAuditBanEnabled = true
+	cfg.APIAuditBanThreshold = 2
+	effective := effectiveContentModerationConfigForUser(cfg, &userID)
+	log := newContentModerationFlaggedLog(userID)
+
+	justBanned, notificationCfg := svc.applyFlaggedAccountSideEffects(context.Background(), effective, log)
+
+	require.True(t, justBanned)
+	require.Equal(t, 2, log.ViolationCount)
+	require.Equal(t, 2, notificationCfg.BanThreshold)
+	require.Equal(t, 20, effective.BanThreshold)
+}
+
 func TestCustomContentModerationEmailUsesEffectiveUserBanThreshold(t *testing.T) {
 	userID := int64(1001)
 	cfg := defaultContentModerationConfig()
@@ -205,6 +342,43 @@ func TestCustomContentModerationUpdateConfigRejectsInvalidUserBanThresholds(t *t
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "用户专属封禁阈值无效")
 		})
+	}
+}
+
+func TestCustomContentModerationAPIAuditBanConfigLegacyDefaultAndRoundTrip(t *testing.T) {
+	legacy, err := parseContentModerationConfig(`{"ban_threshold":3}`)
+	require.NoError(t, err)
+	require.False(t, legacy.APIAuditBanEnabled)
+	require.Equal(t, 3, legacy.APIAuditBanThreshold)
+
+	settingRepo := &contentModerationTestSettingRepo{values: map[string]string{}}
+	svc := NewContentModerationService(settingRepo, nil, nil, nil, nil, nil, nil, nil)
+	enabled := true
+	threshold := 2
+	view, err := svc.UpdateConfig(context.Background(), UpdateContentModerationConfigInput{
+		APIAuditBanEnabled:   &enabled,
+		APIAuditBanThreshold: &threshold,
+	})
+	require.NoError(t, err)
+	require.True(t, view.APIAuditBanEnabled)
+	require.Equal(t, 2, view.APIAuditBanThreshold)
+
+	view, err = svc.UpdateConfig(context.Background(), UpdateContentModerationConfigInput{})
+	require.NoError(t, err)
+	require.True(t, view.APIAuditBanEnabled)
+	require.Equal(t, 2, view.APIAuditBanThreshold)
+}
+
+func TestCustomContentModerationUpdateConfigRejectsInvalidAPIAuditBanThreshold(t *testing.T) {
+	settingRepo := &contentModerationTestSettingRepo{values: map[string]string{}}
+	svc := NewContentModerationService(settingRepo, nil, nil, nil, nil, nil, nil, nil)
+
+	for _, threshold := range []int{0, 1001} {
+		_, err := svc.UpdateConfig(context.Background(), UpdateContentModerationConfigInput{
+			APIAuditBanThreshold: &threshold,
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "API 审计封禁阈值")
 	}
 }
 
@@ -322,6 +496,18 @@ func TestCustomViolationCounterAttachmentOverridesOfficialCountPort(t *testing.T
 	require.Equal(t, 7, count)
 	require.Equal(t, 1, counter.calls)
 	require.True(t, counter.excludeCyberPolicy)
+}
+
+func TestCustomViolationCounterAttachmentProvidesAPIAuditCount(t *testing.T) {
+	service := &ContentModerationService{}
+	counter := &customViolationCounterStub{apiAuditCount: 4}
+	AttachCustomViolationCounter(service, counter)
+
+	count, err := service.countAPIAuditFlaggedByUserSince(context.Background(), 1001, time.Now())
+
+	require.NoError(t, err)
+	require.Equal(t, 4, count)
+	require.Equal(t, 1, counter.apiAuditCalls)
 }
 
 func TestCustomModerationExcerptBoundaries(t *testing.T) {
