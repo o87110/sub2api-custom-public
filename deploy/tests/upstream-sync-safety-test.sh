@@ -222,8 +222,13 @@ done
 
 extract_protected_pattern() {
   local workflow="$1"
-  local protected_pattern group_model_access_protected_pattern
+  local protected_pattern appended_pattern group_model_access_protected_pattern
   protected_pattern="$(sed -n "s/^[[:space:]]*protected_pattern='\(.*\)'$/\1/p" "$workflow")"
+  while IFS= read -r appended_pattern; do
+    [[ -n "$appended_pattern" ]] || continue
+    [[ "$appended_pattern" != *'${'* ]] || continue
+    protected_pattern="${protected_pattern}|${appended_pattern}"
+  done < <(sed -n 's/^[[:space:]]*protected_pattern="${protected_pattern}|\(.*\)"$/\1/p' "$workflow")
   group_model_access_protected_pattern="$(sed -n "s/^[[:space:]]*group_model_access_protected_pattern='\(.*\)'$/\1/p" "$workflow")"
   if [[ -n "$group_model_access_protected_pattern" ]]; then
     protected_pattern="${protected_pattern}|${group_model_access_protected_pattern}"

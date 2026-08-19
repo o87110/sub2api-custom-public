@@ -1,5 +1,5 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	f08e057c59640d1aea1252824bad75a2f2250c6e	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、订阅周期与批量重置、内容审计、分组模型黑名单及 OAuth 生图回归测试、CI Integration 与前端 Artifact 路径
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	fa2b489b52c83e945eca1e8440e3add715718296	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、订阅周期与批量重置、内容审计、Grok 继承测试修正、分组模型黑名单及发布路径
 .github/audit-exceptions.yml	M	keep	M	fixed-path	2a89dd07614f2b0c89b4f1fd53bb0be6cc1d2123	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	c456d3525283430f2d7efce497a7b9d258f83848	-	-	database-boundary-unit+candidate-tree-test	精确绑定内容审计 API 专属只读累计 SQL 及既有 Migration、Ent Schema 和生成文件结构指纹
@@ -26,8 +26,8 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
 .github/workflows/release.yml	M	keep	M	fixed-path	4ecc8a26baf649d446e370bcc71a21d03dad6d6a	fc9d57a34c6bc752e72b2898c40124097508e8bd	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	0e68d950ac5fbb5c3b2560c4557c8956d12250b2	6bc288f5d1ad5298edb45f7b6fef723c17e57609	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	1ed02a7283e6fecbe082dd7f65d6dd73b2b554a5	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义、保护内容审计、订阅周期、批量重置、分组模型黑名单及 OAuth 生图回归测试路径，并使用 Blob 过滤减少上游同步 Checkout 与 Fetch 传输
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	39e6775324364e856ec353c1af49b27994ebbade	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护内容审计、订阅周期、批量重置、分组模型黑名单及 OAuth 生图回归测试路径，复用收窄 Integration 入口并对完整历史 Checkout 与 Fetch 使用 Blob 过滤；集成 harness 保持 UTC，分组用量测试在事务内显式设置业务时区
+.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	868d8ff50c0008e4b9fa6969728f586ae9af2a24	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 OAuth 生图回归路径
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	096088a0f6bbe123e3474baf382bde9df58ef653	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护内容审计、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 OAuth 生图回归路径，保持既有验证和发布策略
 .gitignore	M	keep	M	fixed-path	4ea6ff311b07e0df55c431f7ddcac8594458ff71	5ea3bf5b99bcc91e654fb85717016bb42fec4b39	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .goreleaser.yaml	M	keep	M	fixed-path	19adfdf6dc489acd4af4ed82bdf63f64e16b8e33	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 AGENTS.md	A	keep	A	custom-docs-ops	@absent	96e736e67995af280d711e30f828e9314da88800	-	-	documentation-consistency-review+candidate-tree-test	明确同 SHA CI 证据复用、Integration 登记、自动发布输入、前端 Artifact 与缓存信任边界
@@ -389,7 +389,7 @@ deploy/tests/frontend-dist-safety-test.sh	A	keep	A	custom-test	@absent	a79c40721
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	b66ce85f8dcc17795ca239630841390cf9118771	-	-	candidate-tree+shadow-map+thin-bridge-contract	验证内容审计 API 独立封禁及既有官方源到 Custom 实现的精确影子关系
-deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	dd65f949ba74b3b9369bee46c033972b065e74a1	-	-	upstream-sync+crlf-ledger-test	升级门禁继续保护内容审计 API 独立封禁影子路径及既有同步契约
+deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	63e539c5336f465a360e3a5751b8e37dc63ec3ab	-	-	upstream-sync+crlf-ledger-test	升级门禁继续保护内容审计与 Grok 继承测试修正，并让安全测试识别工作流显式追加的保护正则
 deploy/upstream/validate-upgrade-report-maintenance.sh	A	keep	A	fixed-path	@absent	f5a53260391239668e82cadba98d48d814a3d803	-	-	upstream-sync+candidate-tree	固定工具路径中的二改上游升级控制面最小差异
 docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	36717e761dcb61e12be9738df3afa8c951c44d79	-	-	docs-review+group-model-blocklist-tests	记录分组模型双重黑名单语义、覆盖入口、验证命令与数据库边界
 docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	4a99b76e27b10d29f9e9edfa02004a293579c72e	-	-	docs-review+moderation-unit+bridge-tests	记录 API 审计额外独立封禁阈值、计数来源、优先级、兼容性与数据库边界

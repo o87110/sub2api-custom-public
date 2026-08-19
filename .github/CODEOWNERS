@@ -193,6 +193,7 @@
 /frontend/src/api/admin/settings.ts @o87110
 /frontend/src/api/admin/subscriptions.ts @o87110
 /frontend/src/custom/** @o87110
+/frontend/src/components/account/__tests__/CreateAccountModal.grok.spec.ts @o87110
 /frontend/src/components/layout/AppSidebar.vue @o87110
 /frontend/src/components/common/SubscriptionProgressMini.vue @o87110
 /frontend/src/components/admin/monitor/MonitorFormDialog.vue @o87110
