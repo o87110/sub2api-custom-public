@@ -47,6 +47,8 @@ type contentModerationConfigRequest struct {
 	EmailOnHit           *bool               `json:"email_on_hit"`
 	AutoBanEnabled       *bool               `json:"auto_ban_enabled"`
 	BanThreshold         *int                `json:"ban_threshold"`
+	APIAuditBanEnabled   *bool               `json:"api_audit_ban_enabled"`
+	APIAuditBanThreshold *int                `json:"api_audit_ban_threshold"`
 	ViolationWindowHours *int                `json:"violation_window_hours"`
 	// cyber_policy 命中是否排除出自动封号计数；前端 RiskControlView 已发送该字段，
 	// service.UpdateContentModerationConfigInput 已支持，此前 handler 层缺透传导致开关静默失效。
@@ -115,6 +117,8 @@ func (h *ContentModerationHandler) UpdateConfig(c *gin.Context) {
 		EmailOnHit:                     req.EmailOnHit,
 		AutoBanEnabled:                 req.AutoBanEnabled,
 		BanThreshold:                   req.BanThreshold,
+		APIAuditBanEnabled:             req.APIAuditBanEnabled,
+		APIAuditBanThreshold:           req.APIAuditBanThreshold,
 		UserBanThresholds:              req.UserBanThresholds,
 		ViolationWindowHours:           req.ViolationWindowHours,
 		CyberPolicyExcludeFromBanCount: req.CyberPolicyExcludeFromBanCount,

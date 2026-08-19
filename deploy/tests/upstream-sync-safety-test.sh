@@ -222,8 +222,13 @@ done
 
 extract_protected_pattern() {
   local workflow="$1"
-  local protected_pattern group_model_access_protected_pattern
+  local protected_pattern appended_pattern group_model_access_protected_pattern
   protected_pattern="$(sed -n "s/^[[:space:]]*protected_pattern='\(.*\)'$/\1/p" "$workflow")"
+  while IFS= read -r appended_pattern; do
+    [[ -n "$appended_pattern" ]] || continue
+    [[ "$appended_pattern" != *'${'* ]] || continue
+    protected_pattern="${protected_pattern}|${appended_pattern}"
+  done < <(sed -n 's/^[[:space:]]*protected_pattern="${protected_pattern}|\(.*\)"$/\1/p' "$workflow")
   group_model_access_protected_pattern="$(sed -n "s/^[[:space:]]*group_model_access_protected_pattern='\(.*\)'$/\1/p" "$workflow")"
   if [[ -n "$group_model_access_protected_pattern" ]]; then
     protected_pattern="${protected_pattern}|${group_model_access_protected_pattern}"
@@ -617,10 +622,10 @@ expect_map_success \
 grep -Fqx $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go' "$shadow_map"
 grep -Fqx $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go' "$shadow_map"
 grep -Fqx $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go' "$shadow_map"
-grep -Fqx $'backend/internal/service/content_moderation.go\tbackend/internal/custom/moderation/api_audit_scope.go|backend/internal/custom/moderation/cyber_policy.go|backend/internal/custom/moderation/excerpt.go|backend/internal/custom/moderation/group_scope_reconcile.go|backend/internal/custom/moderation/user_ban_threshold.go' "$shadow_map"
+grep -Fqx $'backend/internal/service/content_moderation.go\tbackend/internal/custom/moderation/api_audit_ban.go|backend/internal/custom/moderation/api_audit_scope.go|backend/internal/custom/moderation/cyber_policy.go|backend/internal/custom/moderation/excerpt.go|backend/internal/custom/moderation/group_scope_reconcile.go|backend/internal/custom/moderation/user_ban_threshold.go' "$shadow_map"
 grep -Fqx $'backend/internal/service/content_moderation_cyber_test.go\tbackend/internal/custom/moderation/cyber_policy_test.go|backend/internal/service/custom_moderation_bridge_test.go' "$shadow_map"
 grep -Fqx $'backend/internal/service/content_moderation_email.go\tbackend/internal/custom/moderation/cyber_policy.go' "$shadow_map"
-grep -Fqx $'backend/internal/service/content_moderation_test.go\tbackend/internal/custom/moderation/api_audit_scope_test.go|backend/internal/custom/moderation/excerpt_test.go|backend/internal/custom/moderation/group_scope_reconcile_test.go|backend/internal/custom/moderation/user_ban_threshold_test.go|backend/internal/service/custom_moderation_bridge_test.go' "$shadow_map"
+grep -Fqx $'backend/internal/service/content_moderation_test.go\tbackend/internal/custom/moderation/api_audit_ban_test.go|backend/internal/custom/moderation/api_audit_scope_test.go|backend/internal/custom/moderation/excerpt_test.go|backend/internal/custom/moderation/group_scope_reconcile_test.go|backend/internal/custom/moderation/user_ban_threshold_test.go|backend/internal/service/custom_moderation_bridge_test.go' "$shadow_map"
 grep -Fqx $'backend/internal/service/notification_email_service.go\tbackend/internal/custom/moderation/cyber_policy.go' "$shadow_map"
 grep -Fqx $'backend/internal/service/notification_email_service_test.go\tbackend/internal/custom/moderation/cyber_policy_test.go' "$shadow_map"
 grep -Fqx $'frontend/src/api/admin/riskControl.ts\tfrontend/src/custom/moderation/api.ts|frontend/src/custom/moderation/userBanThresholds.ts' "$shadow_map"

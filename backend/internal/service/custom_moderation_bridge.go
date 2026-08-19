@@ -13,6 +13,7 @@ import (
 
 type contentModerationViolationCounter interface {
 	CountFlaggedByUserSince(ctx context.Context, userID int64, since time.Time, excludeCyberPolicy bool) (int, error)
+	CountAPIAuditFlaggedByUserSince(ctx context.Context, userID int64, since time.Time) (int, error)
 }
 
 // AttachCustomViolationCounter installs the custom read port before the server starts.
@@ -35,10 +36,22 @@ func (s *ContentModerationService) countFlaggedByUserSince(
 	return s.repo.CountFlaggedByUserSince(ctx, userID, since, excludeCyberPolicy)
 }
 
+func (s *ContentModerationService) countAPIAuditFlaggedByUserSince(
+	ctx context.Context,
+	userID int64,
+	since time.Time,
+) (int, error) {
+	if s == nil || s.violationCounter == nil {
+		return 0, fmt.Errorf("custom API audit violation counter is unavailable")
+	}
+	return s.violationCounter.CountAPIAuditFlaggedByUserSince(ctx, userID, since)
+}
+
 const (
 	ContentModerationActionCyberPolicyOutOfScope = custommoderation.ActionCyberPolicyOutOfScope
 	contentModerationKeywordContextSeparator     = custommoderation.KeywordContextSeparator
 	contentModerationKeywordExcerptRunes         = custommoderation.MaxKeywordExcerptRunes
+	contentModerationBanCountSourceAPIAudit      = custommoderation.BanCountSourceAPIAudit
 )
 
 type APIAuditScope = custommoderation.APIAuditScope
@@ -62,6 +75,57 @@ func validateContentModerationUserBanThresholdOverrides(
 	overrides []UserBanThresholdOverride,
 ) error {
 	return custommoderation.ValidateUserBanThresholdOverrides(overrides)
+}
+
+func validateContentModerationAPIAuditBanThreshold(threshold int) error {
+	return custommoderation.ValidateAPIAuditBanThreshold(threshold)
+}
+
+func isContentModerationAPIAuditViolation(log *ContentModerationLog) bool {
+	return log != nil && custommoderation.IsAPIAuditViolation(log.Action, log.Flagged)
+}
+
+func (s *ContentModerationService) evaluateContentModerationBanRules(
+	ctx context.Context,
+	cfg *ContentModerationConfig,
+	log *ContentModerationLog,
+	totalCount int,
+	since time.Time,
+) custommoderation.BanEvaluation {
+	if cfg == nil {
+		return custommoderation.BanEvaluation{}
+	}
+	apiAuditRuleActive := cfg.AutoBanEnabled && cfg.APIAuditBanEnabled && isContentModerationAPIAuditViolation(log)
+	apiAuditCount := 0
+	if apiAuditRuleActive {
+		apiAuditCount = 1
+		if !since.IsZero() {
+			if n, err := s.countAPIAuditFlaggedByUserSince(ctx, *log.UserID, since); err == nil {
+				apiAuditCount = n + 1
+			} else {
+				slog.Warn("content_moderation.api_audit_violation_count_failed", "user_id", *log.UserID, "error", err)
+			}
+		}
+	}
+	return custommoderation.EvaluateBanRules(
+		totalCount,
+		cfg.BanThreshold,
+		apiAuditCount,
+		cfg.APIAuditBanThreshold,
+		apiAuditRuleActive,
+	)
+}
+
+func contentModerationNotificationConfigForBanEvaluation(
+	cfg *ContentModerationConfig,
+	evaluation custommoderation.BanEvaluation,
+) *ContentModerationConfig {
+	if cfg == nil || evaluation.Source != contentModerationBanCountSourceAPIAudit {
+		return cfg
+	}
+	notificationCfg := cloneContentModerationConfig(cfg)
+	notificationCfg.BanThreshold = evaluation.Threshold
+	return notificationCfg
 }
 
 func effectiveContentModerationConfigForUser(
@@ -270,7 +334,7 @@ func (a *contentModerationCyberPolicyAdapter) Redact(text string) string {
 func (a *contentModerationCyberPolicyAdapter) ApplyPenalty(ctx context.Context, record *custommoderation.Record) custommoderation.PenaltyResult {
 	log := toServiceContentModerationLog(record)
 	a.config = effectiveContentModerationConfigForUser(a.config, log.UserID)
-	justBanned := a.service.applyFlaggedAccountSideEffects(ctx, a.config, log)
+	justBanned, _ := a.service.applyFlaggedAccountSideEffects(ctx, a.config, log)
 	return custommoderation.PenaltyResult{
 		ViolationCount: log.ViolationCount,
 		AutoBanned:     log.AutoBanned,

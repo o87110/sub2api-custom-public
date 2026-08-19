@@ -55,10 +55,10 @@ backend/internal/service/api_key_service.go	backend/internal/custom/groupaccess/
 backend/internal/service/batch_image_public.go	backend/internal/custom/groupaccess/minimum_balance.go|backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/service/billing_cache_service.go	backend/internal/custom/groupaccess/minimum_balance.go|backend/internal/custom/groupaccess/eligibility.go
 backend/internal/service/channel_monitor_service.go	backend/internal/custom/channelmonitor/ratedisplay/config.go
-backend/internal/service/content_moderation.go	backend/internal/custom/moderation/api_audit_scope.go|backend/internal/custom/moderation/cyber_policy.go|backend/internal/custom/moderation/excerpt.go|backend/internal/custom/moderation/group_scope_reconcile.go|backend/internal/custom/moderation/user_ban_threshold.go
+backend/internal/service/content_moderation.go	backend/internal/custom/moderation/api_audit_ban.go|backend/internal/custom/moderation/api_audit_scope.go|backend/internal/custom/moderation/cyber_policy.go|backend/internal/custom/moderation/excerpt.go|backend/internal/custom/moderation/group_scope_reconcile.go|backend/internal/custom/moderation/user_ban_threshold.go
 backend/internal/service/content_moderation_cyber_test.go	backend/internal/custom/moderation/cyber_policy_test.go|backend/internal/service/custom_moderation_bridge_test.go
 backend/internal/service/content_moderation_email.go	backend/internal/custom/moderation/cyber_policy.go
-backend/internal/service/content_moderation_test.go	backend/internal/custom/moderation/api_audit_scope_test.go|backend/internal/custom/moderation/excerpt_test.go|backend/internal/custom/moderation/group_scope_reconcile_test.go|backend/internal/custom/moderation/user_ban_threshold_test.go|backend/internal/service/custom_moderation_bridge_test.go
+backend/internal/service/content_moderation_test.go	backend/internal/custom/moderation/api_audit_ban_test.go|backend/internal/custom/moderation/api_audit_scope_test.go|backend/internal/custom/moderation/excerpt_test.go|backend/internal/custom/moderation/group_scope_reconcile_test.go|backend/internal/custom/moderation/user_ban_threshold_test.go|backend/internal/service/custom_moderation_bridge_test.go
 backend/internal/service/gateway_bedrock.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/service/gateway_count_tokens.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/service/gateway_forward.go	backend/internal/custom/groupmodelaccess/policy.go
