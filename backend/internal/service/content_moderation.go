@@ -1973,11 +1973,9 @@ func (s *ContentModerationService) persistContentModerationLog(ctx context.Conte
 			slog.Warn("content_moderation.record_hash_failed", "user_id", contentModerationEmailUserID(log), "endpoint", log.Endpoint, "error", err)
 		}
 	}
-	autoBanJustApplied := false
-	notificationCfg := cfg
 	if applySideEffects {
 		effectiveCfg := effectiveContentModerationConfigForUser(cfg, log.UserID)
-		autoBanJustApplied, notificationCfg = s.applyFlaggedAccountSideEffects(ctx, effectiveCfg, log)
+		autoBanJustApplied, notificationCfg := s.applyFlaggedAccountSideEffects(ctx, effectiveCfg, log)
 		s.sendFlaggedNotificationSideEffects(ctx, notificationCfg, log, autoBanJustApplied)
 	}
 	if s.repo != nil {

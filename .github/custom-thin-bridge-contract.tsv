@@ -66,7 +66,7 @@ backend/internal/service/channel_monitor_aggregator.go	dto	false	11	10	-
 backend/internal/service/channel_monitor_const.go	dto	false	6	0	-
 backend/internal/service/channel_monitor_service.go	delegate	true	85	33	e0c48a19ed794a565e3858662520afe0a1f9f0ba:89:37
 backend/internal/service/channel_monitor_types.go	dto	false	62	54	-
-backend/internal/service/content_moderation.go	delegate	true	129	21	-
+backend/internal/service/content_moderation.go	delegate	true	128	22	-
 backend/internal/service/content_moderation_email.go	view	true	7	1	-
 backend/internal/service/gateway_bedrock.go	delegate	true	3	0	-
 backend/internal/service/gateway_count_tokens.go	delegate	true	5	0	-
