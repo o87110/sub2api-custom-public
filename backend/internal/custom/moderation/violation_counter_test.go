@@ -82,7 +82,7 @@ func TestViolationCounterCountsOnlyAPIAuditActions(t *testing.T) {
 
 	counter := NewViolationCounter(db)
 	since := time.Now().Add(-24 * time.Hour)
-	mock.ExpectQuery(regexp.QuoteMeta("AND action IN ('allow', 'block')")).
+	mock.ExpectQuery(regexp.QuoteMeta("AND action IN ('allow', 'block', 'cyber_policy')")).
 		WithArgs(int64(1001), since).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(4))
 

@@ -177,6 +177,28 @@ func TestCustomAPIAuditBanThresholdCanBanBeforeTotalThreshold(t *testing.T) {
 	require.Equal(t, []int64{userID}, invalidator.userIDs)
 }
 
+func TestCustomAPIAuditBanThresholdIncludesCyberPolicy(t *testing.T) {
+	userID := int64(1001)
+	counter := &customViolationCounterStub{count: 0, apiAuditCount: 0}
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
+	svc := NewContentModerationService(nil, &contentModerationTestRepo{}, nil, nil, userRepo, nil, nil, nil)
+	AttachCustomViolationCounter(svc, counter)
+	cfg := defaultContentModerationConfig()
+	cfg.BanThreshold = 5
+	cfg.APIAuditBanEnabled = true
+	cfg.APIAuditBanThreshold = 1
+	log := &ContentModerationLog{UserID: &userID, Flagged: true, Action: ContentModerationActionCyberPolicy}
+
+	justBanned, notificationCfg := svc.applyFlaggedAccountSideEffects(context.Background(), cfg, log)
+
+	require.True(t, justBanned)
+	require.True(t, log.AutoBanned)
+	require.Equal(t, 1, log.ViolationCount)
+	require.Equal(t, 1, notificationCfg.BanThreshold)
+	require.Equal(t, 1, counter.apiAuditCalls, "cyber_policy 命中必须进入 API 专属累计")
+	require.Len(t, userRepo.updated, 1)
+}
+
 func TestCustomAPIAuditBanThresholdStillSkipsAdminAccount(t *testing.T) {
 	userID := int64(1001)
 	counter := &customViolationCounterStub{count: 1, apiAuditCount: 1}
