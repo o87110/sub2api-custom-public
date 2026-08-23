@@ -792,12 +792,47 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     "backend/internal/service/payment_config_service.go",
 )]
 BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "75f88be5f75c27771836b586f7de1503afa0e3bc",
+    "backend/internal/service/payment_config_service.go",
+)] = _approved_call_deltas(
+    ("GetPaymentConfig", {
+        "fmt.Errorf": 1,
+        "paymentchannels.ParseChannelSettings": 1,
+    }),
+    ("UpdatePaymentConfig", {
+        "err.Error": 1,
+        "infraerrors.BadRequest": 1,
+        "paymentchannels.SerializeChannelSettings": 1,
+    }),
+)
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     "e0c48a19ed794a565e3858662520afe0a1f9f0ba",
     "backend/internal/service/openai_gateway_scheduling.go",
 )] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     "073e92d17178a1ccdb0a27017f572f10c9c7ab62",
     "backend/internal/service/openai_gateway_scheduling.go",
 )]
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "75f88be5f75c27771836b586f7de1503afa0e3bc",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)] = _approved_call_deltas(
+    ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", {
+        "modelAccessBlocksOpenAIAccount": 1,
+    }),
+    ("modelAccessBlocksOpenAIAccount", {
+        "CheckOpenAIAccountModelAccess": 1,
+        "Empty": 1,
+        "groupmodelaccess.FromContext": 1,
+    }),
+    ("resolveOpenAIAccountModelForAccess", {
+        "groupmodelaccess.FallbackModel": 1,
+        "groupmodelaccess.RequestModel": 1,
+        "normalizeOpenAIModelForUpstream": 1,
+        "resolveOpenAICompactForwardModel": 1,
+        "resolveOpenAIForwardModel": 1,
+        "strings.TrimSpace": 1,
+    }),
+)
 
 # Control-flow additions in delegate/view bridges use an exact structural
 # allowlist. Keeping the owning function and complete trimmed statement makes
@@ -1234,6 +1269,39 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     "073e92d17178a1ccdb0a27017f572f10c9c7ab62",
     "backend/internal/handler/gateway_web_search.go",
 )]
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "75f88be5f75c27771836b586f7de1503afa0e3bc",
+    "backend/internal/handler/gateway_web_search.go",
+)] = (
+    (
+        "WebSearch",
+        "if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, xai.DefaultTextModel, auditBody); decision != nil && !decision.AllowNextStage {",
+    ),
+    (
+        "WebSearch",
+        "if service.IsGroupModelBlockedError(err) {",
+    ),
+    (
+        "doGrokNativeWebSearch",
+        'if upstreamModel == "" {',
+    ),
+    (
+        "doGrokNativeWebSearch",
+        "if !enforceGroupModelAccess(c, upstreamModel) {",
+    ),
+    (
+        "extractGrokWebSearchSources",
+        'if item.Get("type").String() == "web_search_call" {',
+    ),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "75f88be5f75c27771836b586f7de1503afa0e3bc",
+    "backend/internal/handler/no_account_error.go",
+)] = (
+    ("classifyNoAccountErrorFromGin", "if c != nil {"),
+    ("classifyNoAccountErrorFromGin", "if classification.LocalPolicyDenied {"),
+    ("classifyNoAccountErrorFromGin", "} else if classification.ModelNotFound {"),
+)
 BASELINE_DELEGATE_VIEW_CONTROL[(
     "e0c48a19ed794a565e3858662520afe0a1f9f0ba",
     "backend/internal/service/openai_gateway_scheduling.go",
