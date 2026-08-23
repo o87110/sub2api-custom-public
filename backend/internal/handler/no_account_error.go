@@ -109,8 +109,12 @@ func classifyNoAccountErrorFromGin(
 		ctx = c.Request.Context()
 	}
 	classification := classifyNoAccountError(ctx, diag, apiKey, routingModel, displayModel, platform)
-	if classification.LocalPolicyDenied && c != nil {
-		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+	if c != nil {
+		if classification.LocalPolicyDenied {
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+		} else if classification.ModelNotFound {
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalModelConfiguration)
+		}
 	}
 	return classification
 }
