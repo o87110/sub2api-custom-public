@@ -42,7 +42,7 @@ backend/internal/payment/load_balancer.go	delegate	true	157	29	-
 backend/internal/payment/types.go	dto	false	6	5	-
 backend/internal/repository/api_key_minimum_balance_repo.go	persistence	false	11	0	-
 backend/internal/repository/api_key_repo.go	persistence	false	1	0	-
-backend/internal/repository/channel_monitor_repo.go	persistence	false	32	20	e0c48a19ed794a565e3858662520afe0a1f9f0ba:33:21
+backend/internal/repository/channel_monitor_repo.go	persistence	false	32	20	e0c48a19ed794a565e3858662520afe0a1f9f0ba:33:21,75f88be5f75c27771836b586f7de1503afa0e3bc:33:21
 backend/internal/repository/group_repo.go	persistence	false	2	0	-
 backend/internal/repository/usage_billing_repo.go	persistence	true	2	1	-
 backend/internal/repository/user_subscription_repo.go	dto	true	23	19	-
