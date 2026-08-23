@@ -20,7 +20,7 @@ func TestIsAPIAuditViolation(t *testing.T) {
 		{name: "non hit", action: "allow", flagged: false, want: false},
 		{name: "keyword", action: "keyword_block", flagged: true, want: false},
 		{name: "hash", action: "hash_block", flagged: true, want: false},
-		{name: "cyber policy", action: "cyber_policy", flagged: true, want: false},
+		{name: "cyber policy", action: "cyber_policy", flagged: true, want: true},
 		{name: "out of scope", action: "cyber_policy_out_of_scope", flagged: true, want: false},
 	}
 

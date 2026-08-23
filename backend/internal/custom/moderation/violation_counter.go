@@ -81,7 +81,7 @@ SELECT COUNT(*)
 FROM content_moderation_logs
 WHERE user_id = $1
   AND flagged = TRUE
-  AND action IN ('allow', 'block')
+  AND action IN ('allow', 'block', 'cyber_policy')
   AND created_at >= $2
   AND created_at > COALESCE((SELECT at FROM last_auto_ban), '-infinity'::timestamptz)
 `, userID, since).Scan(&count)

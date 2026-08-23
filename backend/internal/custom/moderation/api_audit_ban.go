@@ -27,13 +27,15 @@ func ValidateAPIAuditBanThreshold(threshold int) error {
 	return nil
 }
 
-// IsAPIAuditViolation identifies a flagged result produced by the configured
-// moderation API. Keyword, hash and cyber-policy actions use distinct values.
+// IsAPIAuditViolation identifies a flagged result that belongs to the API
+// moderation enforcement stream. Upstream cyber-policy blocks are included:
+// they are an API request rejection and must honor the same dedicated ban
+// threshold when that rule is enabled.
 func IsAPIAuditViolation(action string, flagged bool) bool {
 	if !flagged {
 		return false
 	}
-	return action == "allow" || action == "block"
+	return action == "allow" || action == "block" || action == "cyber_policy"
 }
 
 // EvaluateBanRules keeps the existing total rule authoritative while allowing
