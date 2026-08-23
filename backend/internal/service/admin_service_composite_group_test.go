@@ -6,13 +6,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/stretchr/testify/require"
 )
 
 type accountRepoStubForCompositeModelsList struct {
 	accountRepoStub
 	accounts []Account
-}
+	}
 
 func (s *accountRepoStubForCompositeModelsList) ListSchedulableByGroupID(_ context.Context, _ int64) ([]Account, error) {
 	return s.accounts, nil
@@ -174,6 +175,13 @@ func TestAdminService_CompositeModelsListCandidatesIncludeConcreteAccountMapping
 					"model_mapping": map[string]any{"gemini-custom": "gemini-2.5-flash"},
 				},
 			},
+			{
+				ID:       3,
+				Platform: PlatformKimi,
+				Credentials: map[string]any{
+					"model_mapping": map[string]any{"kimi-custom": "kimi-k2"},
+				},
+			},
 		},
 	}
 	groupRepo := &groupRepoStubForAdmin{
@@ -188,6 +196,7 @@ func TestAdminService_CompositeModelsListCandidatesIncludeConcreteAccountMapping
 	require.NoError(t, err)
 	require.Contains(t, candidates, "gpt-custom")
 	require.Contains(t, candidates, "gemini-custom")
+	require.Contains(t, candidates, "kimi-custom")
 	require.Contains(t, candidates, "gpt-5.5")
 	require.Contains(t, candidates, "gemini-2.5-flash")
 }
@@ -242,5 +251,17 @@ func TestAdminService_ModelsListCandidatesAggregateEveryMappingSource(t *testing
 		"channel-public", "channel-upstream",
 	} {
 		require.Contains(t, candidates, model)
+	}
+}
+
+// 独立 CN 分组的模型列表候选沿用 default 分支的 Claude 默认列表；
+// composite 支持不得改变独立分组的候选语义。
+func TestAdminService_CNProviderModelsListCandidatesKeepClaudeDefaults(t *testing.T) {
+	want := make([]string, 0, len(claude.DefaultModels))
+	for _, model := range claude.DefaultModels {
+		want = append(want, model.ID)
+	}
+	for _, platform := range []string{PlatformKimi, PlatformZhipu, PlatformDeepseek} {
+		require.Equal(t, want, defaultModelsListCandidateIDs(platform), "platform=%s", platform)
 	}
 }
