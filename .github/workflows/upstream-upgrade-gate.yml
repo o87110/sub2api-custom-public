@@ -1156,8 +1156,15 @@ jobs:
           if ! git show-ref --verify --quiet "$vendor_ref"; then
             release_workflow_api="repos/${GITHUB_REPOSITORY}/actions/workflows/release.yml"
             restore_release_workflow=false
+            vendor_ref_created=false
             restore_vendor_release_workflow() {
               if [[ "$restore_release_workflow" == "true" ]]; then
+                if [[ "$vendor_ref_created" == "true" ]]; then
+                  # Tag push events are evaluated asynchronously against the
+                  # Workflow stored in the official commit. Keep release.yml
+                  # disabled until GitHub has ingested the Vendor Tag event.
+                  sleep 30
+                fi
                 gh api --method PUT "${release_workflow_api}/enable" >/dev/null
                 restore_release_workflow=false
               fi
@@ -1194,8 +1201,35 @@ jobs:
               -f ref="refs/tags/${VENDOR_TAG}" \
               -f sha="$tag_object" \
               >/dev/null
+            vendor_ref_created=true
 
             restore_vendor_release_workflow
+            if [[ "$release_workflow_state" == "active" ]]; then
+              for _ in {1..15}; do
+                vendor_release_runs="$(
+                  gh run list \
+                    --repo "$GITHUB_REPOSITORY" \
+                    --workflow release.yml \
+                    --event push \
+                    --branch "$VENDOR_TAG" \
+                    --limit 20 \
+                    --json databaseId,headSha,status,conclusion \
+                    --jq ".[] | select(.headSha == \"$official_commit\") | [.databaseId, .status, (.conclusion // \"\")] | @tsv"
+                )"
+                if [[ -n "$vendor_release_runs" ]]; then
+                  while IFS=$'\t' read -r run_id run_status run_conclusion; do
+                    [[ "$run_id" =~ ^[0-9]+$ ]]
+                    if [[ "$run_status" != "completed" ]]; then
+                      gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"
+                    fi
+                    echo "Unexpected Vendor Release run ${run_id}: status=${run_status}, conclusion=${run_conclusion:-pending}." >&2
+                  done <<<"$vendor_release_runs"
+                  echo "Vendor Tag unexpectedly triggered release.yml; cancelled active runs and refusing publication dispatch." >&2
+                  exit 1
+                fi
+                sleep 2
+              done
+            fi
             trap - EXIT
           fi
 

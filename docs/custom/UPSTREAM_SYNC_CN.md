@@ -168,7 +168,9 @@ Commit 可能包含 Workflow 文件变化，临时 `GITHUB_TOKEN` 不通过 Git 
 active，先通过 Actions API 临时停用，再创建注释 Tag，并在成功路径和异常退出路径
 恢复原状态。原因是官方 Workflow 的 `v*` 模式也会匹配 `vendor-*`，而 Tag 事件读取
 的是 Tag 所指官方 Commit 中的 Workflow；仅收紧 `main` 上的 Custom Tag 模式不能阻止
-该官方 Release 误触发。原本已停用的 Workflow 不得被最终器擅自启用。
+该官方 Release 误触发。原本已停用的 Workflow 不得被最终器擅自启用。创建 Tag 后
+必须等待事件收敛再恢复 Workflow，并短时轮询同 `vendor-*`、同官方 Commit 的 Push
+Release；若仍因竞态出现，先取消运行再失败关闭，只允许通过精确最终器恢复继续。
 
 ## 10. 阻断恢复
 

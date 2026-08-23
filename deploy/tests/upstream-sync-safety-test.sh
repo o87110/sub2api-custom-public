@@ -1083,13 +1083,31 @@ grep -Fq \
 grep -Fq \
   'release_workflow_state" != "disabled_inactivity"' \
   "$tmp_dir/finalize.yml"
+grep -Fq \
+  'vendor_ref_created=true' \
+  "$tmp_dir/finalize.yml"
+grep -Fq \
+  'sleep 30' \
+  "$tmp_dir/finalize.yml"
+grep -Fq \
+  'gh run list \' \
+  "$tmp_dir/finalize.yml"
+grep -Fq \
+  'gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"' \
+  "$tmp_dir/finalize.yml"
+grep -Fq \
+  'Vendor Tag unexpectedly triggered release.yml; cancelled active runs and refusing publication dispatch.' \
+  "$tmp_dir/finalize.yml"
 disable_release_line="$(grep -nF 'gh api --method PUT "${release_workflow_api}/disable"' "$tmp_dir/finalize.yml" | cut -d: -f1)"
 create_vendor_ref_line="$(grep -nF '"repos/${GITHUB_REPOSITORY}/git/refs"' "$tmp_dir/finalize.yml" | cut -d: -f1)"
 restore_release_line="$(grep -nF 'restore_vendor_release_workflow' "$tmp_dir/finalize.yml" | tail -n 1 | cut -d: -f1)"
+guard_release_line="$(grep -nF 'vendor_release_runs="$(' "$tmp_dir/finalize.yml" | cut -d: -f1)"
 if [[ -z "$disable_release_line" || -z "$create_vendor_ref_line" || -z "$restore_release_line" ||
+      -z "$guard_release_line" ||
       "$disable_release_line" -ge "$create_vendor_ref_line" ||
-      "$create_vendor_ref_line" -ge "$restore_release_line" ]]; then
-  fail "Vendor Tag publication is not enclosed by Release Workflow disable/restore protection"
+      "$create_vendor_ref_line" -ge "$restore_release_line" ||
+      "$restore_release_line" -ge "$guard_release_line" ]]; then
+  fail "Vendor Tag publication is not enclosed by Release Workflow disable/restore and post-enable guard protection"
 fi
 awk '
   /release_workflow_api="repos\/\$\{GITHUB_REPOSITORY\}\/actions\/workflows\/release.yml"/ { capture=1 }
@@ -1110,9 +1128,17 @@ elif [[ "$*" == *'/git/tags'* ]]; then
     exit 1
   fi
   printf '%s\n' 0123456789abcdef0123456789abcdef01234567
+elif [[ "$*" == run\ list* && "${GH_VENDOR_RELEASE_RUN:-false}" == "true" ]]; then
+  printf '424242\tin_progress\t\n'
 fi
 EOF
 chmod +x "$tmp_dir/mock-bin/gh"
+cat > "$tmp_dir/mock-bin/sleep" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'sleep %s\n' "$*" >> "$GH_CAPTURE"
+EOF
+chmod +x "$tmp_dir/mock-bin/sleep"
 
 run_vendor_tag_publication_case() {
   local failure_mode="$1"
@@ -1135,6 +1161,17 @@ run_vendor_tag_publication_case() {
       VENDOR_TAG=vendor-9.9.9 \
       official_commit=0123456789abcdef0123456789abcdef01234567 \
       /bin/bash -euo pipefail "$tmp_dir/vendor-tag-publication.sh"
+  elif [[ "$failure_mode" == "rogue" ]]; then
+    if env \
+      PATH="$tmp_dir/mock-bin:$PATH" \
+      GH_CAPTURE="$capture" \
+      GH_VENDOR_RELEASE_RUN=true \
+      GITHUB_REPOSITORY=o87110/sub2api-custom-public \
+      VENDOR_TAG=vendor-9.9.9 \
+      official_commit=0123456789abcdef0123456789abcdef01234567 \
+      /bin/bash -euo pipefail "$tmp_dir/vendor-tag-publication.sh" >/dev/null 2>&1; then
+      fail "Vendor Tag publication fixture did not reject a rogue Release run"
+    fi
   elif env \
       PATH="$tmp_dir/mock-bin:$PATH" \
       GH_CAPTURE="$capture" \
@@ -1152,11 +1189,19 @@ run_vendor_tag_publication_case() {
     test "$(grep -Fc '/actions/workflows/release.yml/disable' "$capture")" -eq 1
     test "$(grep -Fc '/actions/workflows/release.yml/enable' "$capture")" -eq 1
   fi
+  if [[ "$failure_mode" == "success" ]]; then
+    test "$(grep -Fc 'run list --repo o87110/sub2api-custom-public --workflow release.yml --event push --branch vendor-9.9.9' "$capture")" -eq 15
+    test "$(grep -Fc 'run cancel' "$capture")" -eq 0
+    grep -Fq 'sleep 30' "$capture"
+  elif [[ "$failure_mode" == "rogue" ]]; then
+    test "$(grep -Fc 'run cancel 424242 --repo o87110/sub2api-custom-public' "$capture")" -eq 1
+  fi
 }
 
 run_vendor_tag_publication_case success
 run_vendor_tag_publication_case failure
 run_vendor_tag_publication_case disabled
+run_vendor_tag_publication_case rogue
 grep -Fq \
   '"$(git cat-file -t "$vendor_ref")" != "tag"' \
   "$gate_workflow"

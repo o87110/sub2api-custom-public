@@ -28,7 +28,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/workflows/release.yml	M	keep	M	fixed-path	4ecc8a26baf649d446e370bcc71a21d03dad6d6a	fc9d57a34c6bc752e72b2898c40124097508e8bd	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	0e68d950ac5fbb5c3b2560c4557c8956d12250b2	6bc288f5d1ad5298edb45f7b6fef723c17e57609	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	1034bee97807c4d16404841178ab7e089fa7b9fc	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 OAuth 生图回归路径
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	1d05a0efb90e43846fd8828f01728e38898901b3	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护内容审计缓存继承测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 OAuth 生图回归路径，保持既有验证和发布策略
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	a722612becb3bad4c3a20e08c21ca0874ed1cb35	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
 .gitignore	M	keep	M	fixed-path	4ea6ff311b07e0df55c431f7ddcac8594458ff71	5ea3bf5b99bcc91e654fb85717016bb42fec4b39	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .goreleaser.yaml	M	keep	M	fixed-path	19adfdf6dc489acd4af4ed82bdf63f64e16b8e33	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 AGENTS.md	A	keep	A	custom-docs-ops	@absent	96e736e67995af280d711e30f828e9314da88800	-	-	documentation-consistency-review+candidate-tree-test	明确同 SHA CI 证据复用、Integration 登记、自动发布输入、前端 Artifact 与缓存信任边界
@@ -391,16 +391,16 @@ deploy/tests/frontend-dist-safety-test.sh	A	keep	A	custom-test	@absent	a79c40721
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	b66ce85f8dcc17795ca239630841390cf9118771	-	-	candidate-tree+shadow-map+thin-bridge-contract	验证内容审计 API 独立封禁及既有官方源到 Custom 实现的精确影子关系
-deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	63e539c5336f465a360e3a5751b8e37dc63ec3ab	-	-	upstream-sync+crlf-ledger-test	升级门禁继续保护内容审计与 Grok 继承测试修正，并让安全测试识别工作流显式追加的保护正则
+deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	20c4be7db1f560bf274b4181884e850ad97b9d73	-	-	upstream-sync+crlf-ledger-test	覆盖 Vendor Tag 创建时 Release Workflow 停用、事件收敛、恢复后轮询和误触发取消的失败关闭夹具
 deploy/upstream/validate-upgrade-report-maintenance.sh	A	keep	A	fixed-path	@absent	f5a53260391239668e82cadba98d48d814a3d803	-	-	upstream-sync+candidate-tree	固定工具路径中的二改上游升级控制面最小差异
 docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	36717e761dcb61e12be9738df3afa8c951c44d79	-	-	docs-review+group-model-blocklist-tests	记录分组模型双重黑名单语义、覆盖入口、验证命令与数据库边界
 docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	d1910f538a5f81aa2cd07e7655df850f8d4a0093	-	-	docs-review+moderation-unit+bridge-tests	记录 API 审计额外独立封禁阈值、cyber_policy 计数来源、优先级、兼容性与数据库边界
 docs/custom/MAINTENANCE_CN.md	A	keep	A	custom-docs-ops	@absent	a0f728877394b8584cc5a2f383e43f9b60d9bd21	-	-	documentation-consistency-review	同步 112 个薄桥边界、发布门禁与运维约束
 docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	2d587754297429e692b6b754220c20562a0eecc7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
-docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	b371724e43172fa3c59b065190761fecfa01d4f6	-	-	documentation-consistency-review	记录自动发布分类、前端 Artifact、Manifest 兼容、OCI 缓存和耗时观测
-docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	49d7ef56e23ab52638716dae9cee14667de34383	-	-	documentation-consistency-review	明确 CI 证据复用、前端 Artifact 失败关闭、缓存信任边界及 nanoid 条件 Override 审计策略
+docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	88b9a8afcaf25bcab6c506c1d01b713084f38806	-	-	documentation-consistency-review	记录生产发布信任链及 Vendor Tag 误触发官方 Release 的事件收敛与失败关闭规则
+docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	49b4f1997d733d9ce78831c71acdf37c68530bc9	-	-	documentation-consistency-review	明确发布权限、资产信任边界及 Vendor Tag 误触发官方 Release 时的取消与失败关闭策略
 docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	063fa115f30f85a0e62ecda34adad299513d5717	-	-	docs-review+moderation-unit+bridge-tests	记录 API 审计独立封禁配置、cyber_policy 计数过滤、组合处罚、前端交互与无数据库变更验证
-docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	fc4e09299737533c457025561bd6eec6c9d63891	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
+docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	dc243b85eef1748a524c67413f475294ab9df705	-	-	documentation-consistency-review	记录 Vendor Tag 事件收敛、官方 Release 误触发取消及精确最终器恢复要求
 frontend/package.json	M	keep	M	fixed-path	1d4aaf3aeffb7660beb42b12c25ccace0ae56cf6	1c5b6db9a31380c05fb1055361d44cf71320161e	-	-	frontend-security+pnpm-audit+build	在既有 PostCSS 安全升级上，以最小条件 Override 将受影响 nanoid 版本固定到 3.3.18
 frontend/pnpm-lock.yaml	M	keep	M	fixed-path	4c86452ccaf0e0c6808eb82a83e44aa806f8f641	832c17416b6a786f329b182441a76b1110b42036	-	-	frontend-security+pnpm-audit+build	锁定 PostCSS 间接依赖 nanoid 3.3.18 及对应完整性摘要
 frontend/src/api/__tests__/admin.subscriptions.bulkResetQuota.spec.ts	A	keep	A	custom-test	@absent	5d3fde6657978dd850834a164a7f9597dd7f0e87	-	-	subscription-bulk-reset-vitest+typecheck+build	验证候选静态路由、强制幂等键及超过 300 条时不发送请求
