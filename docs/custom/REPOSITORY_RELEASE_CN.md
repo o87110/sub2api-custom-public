@@ -84,7 +84,9 @@ base/Head/merge SHA 重放门禁。官方镜像与注释 `vendor-*` Tag 通过 G
 最终器创建 `vendor-*` 时必须临时停用仓库的 `release.yml`，并用退出 Trap 恢复其原
 active 状态。官方 Tag Workflow 可能使用宽泛的 `v*` 触发器，而 `vendor-*` 同样以
 字母 `v` 开头；不能依赖 Custom `main` 中较严格的 Tag 过滤规则。若 Workflow 原本已
-被人工或闲置策略停用，则保持停用，不得自动启用。
+被人工或闲置策略停用，则保持停用，不得自动启用。创建 Tag 后还必须保留短暂的事件
+收敛窗口；恢复 Workflow 后若发现绑定该 `vendor-*` 和官方 Commit 的 Push Release
+运行，立即取消并失败关闭，后续只能走精确最终器恢复。
 
 官方同步由独立变量控制：
 
