@@ -1260,6 +1260,14 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     ),
 )
 BASELINE_DELEGATE_VIEW_CONTROL[(
+    "75f88be5f75c27771836b586f7de1503afa0e3bc",
+    "backend/internal/handler/no_account_error.go",
+)] = (
+    ("classifyNoAccountErrorFromGin", "if c != nil {"),
+    ("classifyNoAccountErrorFromGin", "if classification.LocalPolicyDenied {"),
+    ("classifyNoAccountErrorFromGin", "} else if classification.ModelNotFound {"),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
     "e0c48a19ed794a565e3858662520afe0a1f9f0ba",
     "backend/internal/service/openai_gateway_scheduling.go",
 )] = BASELINE_DELEGATE_VIEW_CONTROL[(
