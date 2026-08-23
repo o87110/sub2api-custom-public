@@ -15,7 +15,7 @@ backend/internal/handler/api_key_handler.go	delegate	true	21	4	-
 backend/internal/handler/auth_wechat_oauth.go	delegate	true	45	12	-
 backend/internal/handler/auth_wechat_oauth_test.go	compat-test	true	53	1	-
 backend/internal/handler/batch_image_handler.go	delegate	true	9	0	-
-backend/internal/handler/channel_monitor_user_handler.go	delegate	true	56	26	e0c48a19ed794a565e3858662520afe0a1f9f0ba:59:26
+backend/internal/handler/channel_monitor_user_handler.go	delegate	true	59	26	75f88be5f75c27771836b586f7de1503afa0e3bc:59:26
 backend/internal/handler/dto/mappers.go	dto	false	28	22	-
 backend/internal/handler/dto/settings.go	dto	true	18	16	-
 backend/internal/handler/dto/types.go	dto	false	8	0	-
