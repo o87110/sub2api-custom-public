@@ -798,6 +798,27 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     "073e92d17178a1ccdb0a27017f572f10c9c7ab62",
     "backend/internal/service/openai_gateway_scheduling.go",
 )]
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "75f88be5f75c27771836b586f7de1503afa0e3bc",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)] = _approved_call_deltas(
+    ("isOpenAICompatibleAccountEligibleForRequestBeforeProfit", {
+        "modelAccessBlocksOpenAIAccount": 1,
+    }),
+    ("modelAccessBlocksOpenAIAccount", {
+        "CheckOpenAIAccountModelAccess": 1,
+        "Empty": 1,
+        "groupmodelaccess.FromContext": 1,
+    }),
+    ("resolveOpenAIAccountModelForAccess", {
+        "groupmodelaccess.FallbackModel": 1,
+        "groupmodelaccess.RequestModel": 1,
+        "normalizeOpenAIModelForUpstream": 1,
+        "resolveOpenAICompactForwardModel": 1,
+        "resolveOpenAIForwardModel": 1,
+        "strings.TrimSpace": 1,
+    }),
+)
 
 # Control-flow additions in delegate/view bridges use an exact structural
 # allowlist. Keeping the owning function and complete trimmed statement makes
