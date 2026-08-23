@@ -3,7 +3,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/audit-exceptions.yml	M	keep	M	fixed-path	2a89dd07614f2b0c89b4f1fd53bb0be6cc1d2123	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	01fcebf5de65f23be9993b97023c43223ffd7deb	-	-	database-boundary-unit+candidate-tree-test	精确绑定内容审计 API 专属只读累计 SQL 及既有 Migration、Ent Schema 和生成文件结构指纹
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	b0e041d01b6539d75032791676670c34faa35c67	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证内容审计 API 独立封禁阈值 DTO、处罚委托与既有官方薄桥精确预算
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	5c1ca582e9e3f6095c99ffe06e2ccae5515d48b5	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证内容审计 API 独立封禁阈值 DTO、处罚委托与既有官方薄桥精确预算
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	c02b308603ade86dccd94fc864bb32ca596d945c	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	3ccf1bfdc59315651e214f26a7e72de0aed09621	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
