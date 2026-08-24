@@ -45,6 +45,8 @@ import { isBuiltInAlipayMethod, isBuiltInWxpayMethod } from '@/components/paymen
 import QRCode from 'qrcode'
 import alipayIcon from '@/assets/icons/alipay.svg'
 import wxpayIcon from '@/assets/icons/wxpay.svg'
+import type { PaymentOrder } from '@/types/payment'
+import { createPaymentOrderRecovery } from '@/composables/usePaymentOrderRecovery'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -63,6 +65,7 @@ const paymentType = ref('')
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
+const paymentOrderRecovery = createPaymentOrderRecovery()
 
 const countdownDisplay = computed(() => {
   const m = Math.floor(remainingSeconds.value / 60)
@@ -139,9 +142,11 @@ async function pollStatus() {
   if (pollInFlight) return
   pollInFlight = true
   try {
-    const order = await paymentStore.pollOrderStatus(orderId.value)
+    let order = await paymentStore.pollOrderStatus(orderId.value)
     if (!order) return
     // 定时器已被 cleanup 清除时不再执行终态跳转（响应可能在 cleanup 后才回来）。
+    if (!pollTimer) return
+    order = await tryRecoverPendingOrder(order)
     if (!pollTimer) return
     if (order.status === 'COMPLETED' || order.status === 'PAID') {
       cleanup()
@@ -153,6 +158,10 @@ async function pollStatus() {
   } finally {
     pollInFlight = false
   }
+}
+
+async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder> {
+  return paymentOrderRecovery.recoverPendingOrder(order)
 }
 
 function startCountdown(seconds: number) {
@@ -196,6 +205,7 @@ onMounted(() => {
   qrUrl.value = String(route.query.qr || '')
   payUrl.value = String(route.query.pay_url || '')
   paymentType.value = String(route.query.payment_type || '')
+  paymentOrderRecovery.reset()
 
   // Calculate countdown from expiresAt
   const expiresAtStr = String(route.query.expires_at || '')
