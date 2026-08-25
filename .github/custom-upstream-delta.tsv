@@ -4,7 +4,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	5e98a0b55671614781d6df6c6a01ab38d2fc4856	-	-	database-boundary-unit+candidate-tree-test	重绑 64 条既有 Custom 数据库例外到 vendor-0.1.179；保持 Blob、语义和变更摘要不变，官方新增迁移不加入白名单
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	7637d3e60831b57d04ff182fc299961f7ef749e4	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证内容审计 API 独立封禁阈值 DTO、处罚委托与既有官方薄桥精确预算
-.github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	c02b308603ade86dccd94fc864bb32ca596d945c	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+.github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	479f1087aa63d67fe1ee5902d8190b2b04bcb0e7	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	3ccf1bfdc59315651e214f26a7e72de0aed09621	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/upgrades/0.1.162.md	A	keep	A	custom-docs-ops	@absent	a873781565b70fa65a9ed5e2f88ddb762faeb81b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
@@ -26,7 +26,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/workflows/backend-ci.yml	M	keep	M	fixed-path	6c4a028c96c33a30e9574b87c6dd892130f049c5	42bce667dc0044b93209fb18cfc816c600f7c0d5	-	-	yaml-parse+action-pin+actionlint+container-safety	并行边界门禁、收窄 Integration 包并为准确 main SHA 产出前端 Release Artifact；集成 harness 保持 UTC，分组用量测试在事务内显式设置业务时区
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
 .github/workflows/release.yml	M	keep	M	fixed-path	4ecc8a26baf649d446e370bcc71a21d03dad6d6a	fc9d57a34c6bc752e72b2898c40124097508e8bd	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
-.github/workflows/security-scan.yml	M	keep	M	fixed-path	0e68d950ac5fbb5c3b2560c4557c8956d12250b2	6bc288f5d1ad5298edb45f7b6fef723c17e57609	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
+.github/workflows/security-scan.yml	M	keep	M	fixed-path	0e68d950ac5fbb5c3b2560c4557c8956d12250b2	1fc1fa808dfd146f499687499c64717da350d222	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	1034bee97807c4d16404841178ab7e089fa7b9fc	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 OAuth 生图回归路径
 .github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	a722612becb3bad4c3a20e08c21ca0874ed1cb35	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
 .gitignore	M	keep	M	fixed-path	4ea6ff311b07e0df55c431f7ddcac8594458ff71	5ea3bf5b99bcc91e654fb85717016bb42fec4b39	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -91,6 +91,7 @@ backend/ent/usersubscriptioncycle_create.go	A	keep	A	generated	@absent	b536af491
 backend/ent/usersubscriptioncycle_delete.go	A	keep	A	generated	@absent	92b59601325de80f3529ac3afca7224757825cd1	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期删除器
 backend/ent/usersubscriptioncycle_query.go	A	keep	A	generated	@absent	a84bdee411e8257a69e60c26cb768e20c6c5fc06	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期查询器
 backend/ent/usersubscriptioncycle_update.go	A	keep	A	generated	@absent	89ad56d75bd030e74deca285db073713573e7b50	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期更新器
+backend/go.mod	M	keep	M	fixed-path	d5188b3ca77895808662efd232c36fe2c1dba0c1	636a1cc6241e027981a26e1f2622c078efec26c3	-	-	candidate-tree+targeted-CI	让 Custom 工具链与官方 go.mod 声明的 Go 1.27.0 保持一致
 backend/go.sum	M	keep	M	fixed-path	cdea1a5b91362c8df92472957c65c6a314fe8621	46be7088d9fad97686de7e805b9b0f8053a45a6a	-	-	go-generate+clean-diff+go-build	补齐官方 Wire 生成所需的 google/subcommands 传递依赖校验和
 backend/internal/config/custom_artifacts_test.go	A	keep	A	custom-test	@absent	afcc1070e845c90c8069619914a77134580230ef	-	-	test-executed-in-CI	验证二改行为和发布边界
 backend/internal/custom/channelmonitor/group_rate_lookup.go	A	keep	A	custom-backend	@absent	900ba1f1a7b1ded0c0c9da5e3e4471c8a68116fd	backend/internal/handler/channel_monitor_user_handler.go	backend/internal/custom/channelmonitor/group_rate_lookup.go	channel-monitor-unit+go-test	批量加载本站 Key、用户、分组、订阅窗口用量及限额快照并委托统一运行时资格判断
@@ -385,6 +386,7 @@ deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
 deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	361e16b491ff71d305c566795628c7c796694739	-	-	goreleaser-check+release-safety+runtime-resource-test	验证发布输入分类、同 SHA 门禁复用、前端来源、Manifest 兼容、缓存与耗时契约
 deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	46b9c3adc8214b90519031a9fd0f03eeb986116b	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证分组模型黑名单新增官方薄桥预算和允许路径
+deploy/tests/docker-compose-gateway-env-test.sh	A	keep	A	custom-test	@absent	f068410ba2eb8ee1e3451176c2a85f5c8e85a628	-	-	compose-config+shell-test	验证官方 Gateway 环境变量在四种 Compose 部署中只传递一次且保留后端默认值
 deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
 deploy/tests/docker-runtime-resources-test.sh	M	keep	M	custom-test	4e7480d4d59c6edda9bbd3259f47c0db4fc7e5aa	4752f88556f2706ef283163c6524b64f90368f6d	-	-	runtime-resource-test+release-safety	验证官方及 Custom 镜像构建链路均携带定价 fallback resources
 deploy/tests/frontend-dist-safety-test.sh	A	keep	A	custom-test	@absent	a79c40721355a3b9c0dad1ce1ab43fd46caaa1f3	-	-	frontend-artifact-fixtures+release-safety	验证前端 Artifact 复用、失败关闭及 v1 内容哈希不依赖 GNU tar
