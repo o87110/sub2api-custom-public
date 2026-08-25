@@ -73,8 +73,10 @@
 /backend/internal/repository/usage_billing_repo.go @o87110
 /backend/internal/repository/auth_cache_invalidation_profit_integration_test.go @o87110
 /backend/internal/repository/group_usage_rollup_trigger_integration_test.go @o87110
+/backend/internal/repository/http_upstream_http2_keepalive_test.go @o87110
 /backend/migrations/group_model_blocklist_auth_cache_invalidation_migration_test.go @o87110
 /backend/internal/repository/user_subscription_lock_test.go @o87110
+/backend/internal/repository/usage_log_repo_request_type_test.go @o87110
 /backend/internal/repository/user_subscription_repo.go @o87110
 /backend/internal/repository/user_subscription_repo_integration_test.go @o87110
 /backend/internal/server/api_contract_test.go @o87110
@@ -177,6 +179,7 @@
 /deploy/tests/custom-release-safety-test.sh @o87110
 /deploy/tests/frontend-dist-safety-test.sh @o87110
 /deploy/tests/docker-compose-security-test.sh @o87110
+/deploy/tests/docker-compose-gateway-env-test.sh @o87110
 /deploy/tests/docker-entrypoint-runtime-test.sh @o87110
 /deploy/tests/docker-runtime-resources-test.sh @o87110
 /deploy/tests/rehearsal-compose-safety-test.sh @o87110
