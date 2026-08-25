@@ -1407,58 +1407,6 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
         "strings.TrimSpace": 1,
     }),
 )
-BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
-    "e8cb019fabf8b55199436229044cbf9aa7a82564",
-    "backend/internal/service/openai_gateway_scheduling.go",
-)] = _approved_call_deltas(
-    ("openAICompatibleAccountEligibilityFailureReasonBeforeProfit", {
-        "modelAccessBlocksOpenAIAccount": 1,
-    }),
-    ("modelAccessBlocksOpenAIAccount", {
-        "CheckOpenAIAccountModelAccess": 1,
-        "Empty": 1,
-        "groupmodelaccess.FromContext": 1,
-    }),
-    ("resolveOpenAIAccountModelForAccess", {
-        "groupmodelaccess.FallbackModel": 1,
-        "groupmodelaccess.RequestModel": 1,
-        "normalizeOpenAIModelForUpstream": 1,
-        "resolveOpenAICompactForwardModel": 1,
-        "resolveOpenAIForwardModel": 1,
-        "strings.TrimSpace": 1,
-    }),
-)
-BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
-    "e8cb019fabf8b55199436229044cbf9aa7a82564",
-    "backend/internal/service/payment_config_service.go",
-)] = _approved_call_deltas(
-    ("GetPaymentConfig", {
-        "fmt.Errorf": 1,
-        "paymentchannels.ParseChannelSettings": 1,
-    }),
-    ("UpdatePaymentConfig", {
-        "err.Error": 1,
-        "infraerrors.BadRequest": 1,
-        "paymentchannels.SerializeChannelSettings": 1,
-    }),
-)
-BASELINE_DELEGATE_VIEW_CONTROL[(
-    "e8cb019fabf8b55199436229044cbf9aa7a82564",
-    "backend/internal/service/openai_gateway_scheduling.go",
-)] = (
-    ("openAICompatibleAccountEligibilityFailureReasonBeforeProfit", "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {"),
-    ("modelAccessBlocksOpenAIAccount", "if account == nil || groupmodelaccess.FromContext(ctx).Empty() {"),
-    ("resolveOpenAIAccountModelForAccess", "if account == nil {"),
-    ("resolveOpenAIAccountModelForAccess", "if requireCompact {"),
-)
-BASELINE_DELEGATE_VIEW_CONTROL[(
-    "e8cb019fabf8b55199436229044cbf9aa7a82564",
-    "backend/internal/service/payment_config_service.go",
-)] = (
-    ("GetPaymentConfig", "if err != nil {"),
-    ("UpdatePaymentConfig", "if req.ChannelSettings != nil {"),
-    ("UpdatePaymentConfig", "if err != nil {"),
-)
 APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/handler/batch_image_handler.go": frozenset({}),
     "backend/internal/handler/gateway_handler.go": frozenset({}),
