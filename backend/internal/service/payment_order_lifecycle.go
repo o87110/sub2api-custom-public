@@ -431,9 +431,10 @@ func (s *PaymentService) ReconcilePendingPaymentOrders(ctx context.Context) (int
 	recovered := 0
 	for _, order := range allOrders {
 		result := s.reconcilePaid(ctx, order)
-		if result == checkPaidResultAlreadyPaid {
+		switch result {
+		case checkPaidResultAlreadyPaid:
 			recovered++
-		} else if result == checkPaidResultUnavailable {
+		case checkPaidResultUnavailable:
 			slog.Warn("payment order reconciliation deferred", "orderID", order.ID, "status", order.Status)
 		}
 	}
