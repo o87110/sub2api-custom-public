@@ -257,6 +257,12 @@ func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.Paym
 		}
 		return checkPaidResultAlreadyPaid
 	}
+	if resp.Status == payment.ProviderStatusFailed {
+		// A terminal upstream failure already proves that no payment was made.
+		// Do not issue a second close/cancel request: providers commonly reject
+		// cancellation after the trade has already been closed.
+		return checkPaidResultUnpaid
+	}
 	if !opts.cancelIfUnpaid {
 		return checkPaidResultUnpaid
 	}
