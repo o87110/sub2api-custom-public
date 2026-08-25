@@ -1312,6 +1312,83 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
 )]
 
 # Group model blocklist bridges: exact reviewed deltas from vendor-0.1.173.
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/handler/openai_gateway_handler.go",
+)] = tuple(
+    call
+    for call in _approved_call_deltas(
+        ("Messages", {
+            "bindGroupModelAccessChannelMapping": 1,
+            "bindGroupModelAccessFallbackModel": 1,
+        }),
+        ("Responses", {"bindGroupModelAccessChannelMapping": 1}),
+        ("ResponsesWebSocket", {
+            "c.Request.WithContext": 1,
+            "classifyOpenAICompatibleNoAccountErrorFromGin": 2,
+            "closeOpenAIClientWS": 4,
+            "service.CheckGroupModelAccess": 4,
+            "service.CheckOpenAIAccountModelAccess": 1,
+            "service.GroupModelBlockedModel": 1,
+            "service.MarkOpsClientBusinessLimited": 5,
+            "service.NewOpenAIWSClientCloseError": 3,
+            "withGroupModelAccessChannelMapping": 2,
+            "writeGroupModelBlockedWSError": 7,
+        }),
+        ("rejectIfCyberSessionBlocked", {
+            "c.Request.Context": 1,
+            "h.contentModerationService.CyberPolicyGroupInScope": 1,
+        }),
+        ("writeGroupModelBlockedWSError", {
+            "cancel": 1,
+            "conn.Write": 1,
+            "context.Background": 1,
+            "context.WithTimeout": 1,
+            "fmt.Sprintf": 1,
+            "json.Marshal": 1,
+            "strings.TrimSpace": 1,
+        }),
+    )
+)
+
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/handler/admin/setting_handler_update.go",
+)] = (
+    ("UpdateSettings", "if err != nil {"),
+)
+_v0183_subscription_control = Counter(
+    BASELINE_DELEGATE_VIEW_CONTROL.get(
+        (
+            "75f88be5f75c27771836b586f7de1503afa0e3bc",
+            "backend/internal/handler/admin/subscription_handler.go",
+        ),
+        APPROVED_DELEGATE_VIEW_CONTROL[
+            "backend/internal/handler/admin/subscription_handler.go"
+        ],
+    )
+)
+_v0183_subscription_control.subtract(
+    [("BulkResetQuota", "if err != nil {")]
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/handler/admin/subscription_handler.go",
+)] = tuple(_v0183_subscription_control.elements())
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/handler/gateway_web_search.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "75f88be5f75c27771836b586f7de1503afa0e3bc",
+    "backend/internal/handler/gateway_web_search.go",
+)]
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/handler/no_account_error.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "75f88be5f75c27771836b586f7de1503afa0e3bc",
+    "backend/internal/handler/no_account_error.go",
+)]
 APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/handler/batch_image_handler.go": frozenset({}),
     "backend/internal/handler/gateway_handler.go": frozenset({}),
