@@ -2,7 +2,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/CODEOWNERS	A	keep	A	fixed-path	@absent	c21dcaed801d17a528a322e67e9cb794291892d5	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、订阅周期与批量重置、内容审计缓存继承测试、Grok 继承测试修正、分组模型黑名单及发布路径
 .github/audit-exceptions.yml	M	keep	M	fixed-path	2a89dd07614f2b0c89b4f1fd53bb0be6cc1d2123	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
-.github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	5e98a0b55671614781d6df6c6a01ab38d2fc4856	-	-	database-boundary-unit+candidate-tree-test	重绑 64 条既有 Custom 数据库例外到 vendor-0.1.179；保持 Blob、语义和变更摘要不变，官方新增迁移不加入白名单
+.github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	9b5dd31d8c6fb9244ed7ef0e2c041f327cfc23c6	-	-	database-boundary-unit+candidate-tree-test	重绑 Go 1.27 生成 Ent 结构例外到准确候选 Blob；保持只读/结构语义与变更摘要不变，官方新增迁移不加入白名单
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	8712cde4031459b201af532641d1d56e671d14c0	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记并验证内容审计 API 独立封禁阈值 DTO、处罚委托与既有官方薄桥精确预算
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	38907c3d119bde7ce0f23a95140f6280724eb12f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	3ccf1bfdc59315651e214f26a7e72de0aed09621	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
