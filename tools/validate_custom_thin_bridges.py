@@ -1389,6 +1389,24 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     "75f88be5f75c27771836b586f7de1503afa0e3bc",
     "backend/internal/handler/no_account_error.go",
 )]
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/service/grok_audio.go",
+)] = _approved_call_deltas(
+    ("ForwardGrokVoice", {
+        "String": 1,
+        "account.GetMappedModel": 1,
+        "enforceResolvedModelAccess": 1,
+        "gjson.GetBytes": 1,
+        "strings.TrimSpace": 2,
+    }),
+    ("ProxyGrokRealtime", {
+        "account.GetMappedModel": 1,
+        "enforceResolvedModelAccess": 1,
+        "firstNonEmpty": 1,
+        "strings.TrimSpace": 1,
+    }),
+)
 APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/handler/batch_image_handler.go": frozenset({}),
     "backend/internal/handler/gateway_handler.go": frozenset({}),

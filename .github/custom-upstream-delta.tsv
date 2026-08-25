@@ -530,5 +530,5 @@ frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	M	keep	M	official-
 frontend/src/views/user/paymentWechatResume.ts	M	keep	M	official-thin-bridge	8121bc56fc4bd590385ad4780422dc95584aa0b1	9e753cd42ca8b0672e7b793fbadadf9d4c208091	frontend/src/views/user/paymentWechatResume.ts	frontend/src/custom/payment-channels/paymentRecoveryRoute.ts	thin-bridge-review+go-test+candidate-tree-test	微信支付恢复查询的服务商薄适配
 tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	a1751a1927c021a1234bd51674263de7496d0438	-	-	thin-bridge-contract-unit+candidate-tree-test	精确审批分组模型黑名单官方薄桥的新函数、调用面、控制流与已审核映射语义引用，并登记官方 v0.1.176/v0.1.177/v0.1.178 基线断言
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
-tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	4fe4103cb4fe4988f6d3c85f645a171d7a215a3f	-	-	thin-bridge-contract-unit+candidate-tree-test	预置 v0.1.179 Web Search、无账号错误、调度与支付配置薄桥的精确调用及控制流审批
+tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	641be62835c77428bb4c170cfb5923e6ad9d5504	-	-	thin-bridge-contract-unit+candidate-tree-test	预置 v0.1.179 Web Search、无账号错误、调度与支付配置薄桥的精确调用及控制流审批
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
