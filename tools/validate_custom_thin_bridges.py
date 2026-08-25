@@ -869,6 +869,7 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "backend/internal/handler/admin/setting_handler_update.go": (
         ("UpdateSettings", "if err != nil {"),
+        ("buildSettingKeyByJSONName", "if field.Type.Kind() == reflect.Pointer {"),
     ),
     "backend/internal/handler/admin/system_handler.go": (
         ("PerformUpdate", "if errors.Is(err, customupdater.ErrNoUpdateAvailable) {"),
