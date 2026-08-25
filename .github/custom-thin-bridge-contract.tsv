@@ -7,7 +7,7 @@ backend/internal/handler/admin/group_handler.go	dto	false	4	0	-
 backend/internal/handler/admin/payment_handler.go	delegate	true	60	45	-
 backend/internal/handler/admin/payment_handler_test.go	compat-test	true	18	14	-
 backend/internal/handler/admin/setting_handler.go	delegate	true	6	1	-
-backend/internal/handler/admin/setting_handler_update.go	delegate	true	26	18	-
+backend/internal/handler/admin/setting_handler_update.go	delegate	true	27	19	-
 backend/internal/handler/admin/subscription_handler.go	delegate	true	165	22	-
 backend/internal/handler/admin/system_handler.go	delegate	true	19	26	-
 backend/internal/handler/admin/system_handler_test.go	compat-test	true	52	36	-

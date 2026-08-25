@@ -592,6 +592,8 @@ jobs:
           [[ "$database_changed" == "true" || "$database_changed" == "false" ]]
           [[ "$database_fingerprint" =~ ^[0-9a-f]{64}$ ]]
 
+          protected_pattern="${protected_pattern}|^backend/internal/repository/http_upstream_http2_keepalive_test\.go$"
+          protected_pattern="${protected_pattern}|^backend/internal/repository/usage_log_repo_request_type_test\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/repository/auth_cache_invalidation_profit_integration_test\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/service/content_moderation_runtime_cache_test\.go$"
           protected_pattern="${protected_pattern}|^frontend/src/components/account/__tests__/CreateAccountModal\.grok\.spec\.ts$"
