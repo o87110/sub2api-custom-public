@@ -125,6 +125,8 @@ frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts|@removed	
 frontend/src/components/layout/AppSidebar.vue	frontend/src/custom/updater/components/VersionBadge.vue
 frontend/src/components/payment/AmountInput.vue	frontend/src/custom/payment-channels/paymentMoney.ts
 frontend/src/components/payment/PaymentProviderDialog.vue	frontend/src/custom/payment-channels/PaymentChannelSettings.vue
+frontend/src/components/payment/PaymentQRDialog.vue	frontend/src/custom/payment-channels/usePaymentOrderRecovery.ts
+frontend/src/components/payment/PaymentStatusPanel.vue	frontend/src/custom/payment-channels/usePaymentOrderRecovery.ts
 frontend/src/components/payment/SubscriptionPlanCard.vue	frontend/src/custom/subscription-plan-inventory/inventory.ts
 frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts	frontend/src/custom/subscription-plan-inventory/__tests__/inventory.spec.ts
 frontend/src/components/payment/__tests__/paymentFlow.spec.ts	frontend/src/custom/payment-channels/paymentChannels.spec.ts
@@ -157,6 +159,7 @@ frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts	frontend
 frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts	frontend/src/custom/subscription-plan-inventory/__tests__/inventory.spec.ts|frontend/src/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue
 frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts	frontend/src/custom/payment-channels/paymentChannels.spec.ts
 frontend/src/views/user/KeysView.vue	frontend/src/custom/api-keys/ApiKeyBulkActions.vue|frontend/src/custom/api-keys/bulkActions.ts|frontend/src/custom/group-access/GroupBalanceWarning.vue|frontend/src/custom/group-access/minimumBalance.ts
+frontend/src/views/user/PaymentQRCodeView.vue	frontend/src/custom/payment-channels/usePaymentOrderRecovery.ts
 frontend/src/views/user/PaymentView.vue	frontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/paymentMoney.ts|frontend/src/custom/payment-channels/usePaymentChannelPricing.ts|frontend/src/custom/payment-channels/usePaymentChannelRecovery.ts|frontend/src/custom/payment-channels/paymentRecoveryRoute.ts|frontend/src/custom/subscription-plan-inventory/inventory.ts
 frontend/src/views/user/SubscriptionsView.vue	frontend/src/custom/subscription-quota/SubscriptionCycleStats.vue
 frontend/src/views/user/__tests__/KeysView.spec.ts	frontend/src/custom/api-keys/__tests__/ApiKeyBulkActions.spec.ts|frontend/src/custom/api-keys/__tests__/bulkActions.spec.ts|frontend/src/custom/group-access/__tests__/GroupBalanceWarning.spec.ts|frontend/src/custom/group-access/__tests__/minimumBalance.spec.ts

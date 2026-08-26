@@ -27,8 +27,10 @@ const (
 	rateLimitModeFixed         = "fixed"
 	checkPaidResultAlreadyPaid = "already_paid"
 	checkPaidResultCancelled   = "cancelled"
+	checkPaidResultUnpaid      = "unpaid"
+	checkPaidResultUnavailable = "unavailable"
 
-	pendingWxpayReconcileLimit = 20
+	paymentOrderReconcileLimit = 20
 )
 
 type checkPaidOptions struct {
@@ -106,9 +108,13 @@ func (s *PaymentService) CancelOrder(ctx context.Context, orderID, userID int64)
 		return "", infraerrors.Forbidden("FORBIDDEN", "no permission for this order")
 	}
 	if o.Status != OrderStatusPending {
-		return "", infraerrors.BadRequest("INVALID_STATUS", "order cannot be cancelled in current status")
+		if paymentOrderIsPaidLike(o.Status) {
+			return "", infraerrors.Conflict("ORDER_ALREADY_PAID", "order has already been paid and cannot be cancelled")
+		}
+		return "", infraerrors.Conflict("ORDER_STATUS_CHANGED", "order status changed while cancelling")
 	}
-	return s.cancelCore(ctx, o, OrderStatusCancelled, fmt.Sprintf("user:%d", userID), "user cancelled order")
+	outcome, err := s.cancelCore(ctx, o, OrderStatusCancelled, fmt.Sprintf("user:%d", userID), "user cancelled order")
+	return normalizeCancelOutcome(outcome, err)
 }
 
 func (s *PaymentService) AdminCancelOrder(ctx context.Context, orderID int64) (string, error) {
@@ -117,29 +123,71 @@ func (s *PaymentService) AdminCancelOrder(ctx context.Context, orderID int64) (s
 		return "", infraerrors.NotFound("NOT_FOUND", "order not found")
 	}
 	if o.Status != OrderStatusPending {
-		return "", infraerrors.BadRequest("INVALID_STATUS", "order cannot be cancelled in current status")
+		if paymentOrderIsPaidLike(o.Status) {
+			return "", infraerrors.Conflict("ORDER_ALREADY_PAID", "order has already been paid and cannot be cancelled")
+		}
+		return "", infraerrors.Conflict("ORDER_STATUS_CHANGED", "order status changed while cancelling")
 	}
-	return s.cancelCore(ctx, o, OrderStatusCancelled, "admin", "admin cancelled order")
+	outcome, err := s.cancelCore(ctx, o, OrderStatusCancelled, "admin", "admin cancelled order")
+	return normalizeCancelOutcome(outcome, err)
 }
 
 func (s *PaymentService) cancelCore(ctx context.Context, o *dbent.PaymentOrder, fs, op, ad string) (string, error) {
 	if o.PaymentTradeNo != "" || o.PaymentType != "" {
-		if s.checkPaid(ctx, o) == checkPaidResultAlreadyPaid {
+		switch s.checkPaid(ctx, o) {
+		case checkPaidResultAlreadyPaid:
 			return checkPaidResultAlreadyPaid, nil
+		case checkPaidResultUnavailable:
+			return checkPaidResultUnavailable, nil
 		}
 	}
 	c, err := subscriptioninventory.TransitionPendingOrderAndRelease(ctx, s.entClient, o.ID, fs)
 	if err != nil {
 		return "", fmt.Errorf("cancel order and release inventory: %w", err)
 	}
-	if c > 0 {
-		auditAction := "ORDER_CANCELLED"
-		if fs == OrderStatusExpired {
-			auditAction = "ORDER_EXPIRED"
+	if c == 0 {
+		current, reloadErr := s.entClient.PaymentOrder.Get(ctx, o.ID)
+		if reloadErr != nil {
+			return "", fmt.Errorf("reload order after state transition race: %w", reloadErr)
 		}
-		s.writeAuditLog(ctx, o.ID, auditAction, op, map[string]any{"detail": ad})
+		if paymentOrderIsPaidLike(current.Status) {
+			return checkPaidResultAlreadyPaid, nil
+		}
+		return "", infraerrors.Conflict("ORDER_STATUS_CHANGED", "order status changed while cancelling")
 	}
+	auditAction := "ORDER_CANCELLED"
+	if fs == OrderStatusExpired {
+		auditAction = "ORDER_EXPIRED"
+	}
+	s.writeAuditLog(ctx, o.ID, auditAction, op, map[string]any{"detail": ad})
 	return checkPaidResultCancelled, nil
+}
+
+func normalizeCancelOutcome(outcome string, err error) (string, error) {
+	if err != nil {
+		return "", err
+	}
+	switch outcome {
+	case checkPaidResultAlreadyPaid:
+		return "", infraerrors.Conflict("ORDER_ALREADY_PAID", "order has already been paid and cannot be cancelled")
+	case checkPaidResultUnavailable:
+		return "", infraerrors.ServiceUnavailable("PAYMENT_STATUS_UNAVAILABLE", "payment provider status is temporarily unavailable")
+	case checkPaidResultCancelled:
+		return outcome, nil
+	default:
+		return "", infraerrors.Conflict("ORDER_STATUS_CHANGED", "order status changed while cancelling")
+	}
+}
+
+func paymentOrderIsPaidLike(status string) bool {
+	switch status {
+	case OrderStatusPaid, OrderStatusRecharging, OrderStatusCompleted,
+		OrderStatusRefundRequested, OrderStatusRefunding, OrderStatusRefundPending,
+		OrderStatusPartiallyRefunded, OrderStatusRefunded, OrderStatusRefundFailed:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *PaymentService) checkPaid(ctx context.Context, o *dbent.PaymentOrder) string {
@@ -153,18 +201,28 @@ func (s *PaymentService) reconcilePaid(ctx context.Context, o *dbent.PaymentOrde
 func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.PaymentOrder, opts checkPaidOptions) string {
 	prov, err := s.getOrderProvider(ctx, o)
 	if err != nil {
-		return ""
+		slog.Warn("load payment provider for status check failed", "orderID", o.ID, "error", err)
+		return checkPaidResultUnavailable
 	}
 	queryRef := paymentOrderQueryReference(o, prov)
 	if queryRef == "" {
-		return ""
+		slog.Warn("payment status query reference is missing", "orderID", o.ID)
+		return checkPaidResultUnavailable
 	}
 	finishProviderCall := servertiming.ObserveDependency(ctx, "payment")
 	resp, err := prov.QueryOrder(ctx, queryRef)
 	finishProviderCall()
 	if err != nil {
 		slog.Warn("query upstream failed", "orderID", o.ID, "error", err)
-		return ""
+		return checkPaidResultUnavailable
+	}
+	if resp == nil {
+		slog.Warn("query upstream returned empty response", "orderID", o.ID, "queryRef", queryRef)
+		return checkPaidResultUnavailable
+	}
+	if resp.Status != payment.ProviderStatusPaid && resp.Status != payment.ProviderStatusPending && resp.Status != payment.ProviderStatusFailed {
+		slog.Warn("query upstream returned unsupported status", "orderID", o.ID, "queryRef", queryRef, "status", resp.Status)
+		return checkPaidResultUnavailable
 	}
 	if resp.Status == payment.ProviderStatusPaid {
 		if !isValidProviderAmount(resp.Amount) {
@@ -177,7 +235,7 @@ func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.Paym
 			slog.Warn("query upstream returned invalid paid amount", "orderID", o.ID, "queryRef", queryRef, "paid", resp.Amount)
 			retriedResp, retryOK := requeryPaidOrderOnce(ctx, prov, queryRef)
 			if !retryOK {
-				return ""
+				return checkPaidResultUnavailable
 			}
 			resp = retriedResp
 		}
@@ -199,15 +257,25 @@ func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.Paym
 		}
 		return checkPaidResultAlreadyPaid
 	}
+	if resp.Status == payment.ProviderStatusFailed {
+		// A terminal upstream failure already proves that no payment was made.
+		// Do not issue a second close/cancel request: providers commonly reject
+		// cancellation after the trade has already been closed.
+		return checkPaidResultUnpaid
+	}
 	if !opts.cancelIfUnpaid {
-		return ""
+		return checkPaidResultUnpaid
 	}
 	if cp, ok := prov.(payment.CancelableProvider); ok {
 		finishProviderCall := servertiming.ObserveDependency(ctx, "payment")
-		_ = cp.CancelPayment(ctx, queryRef)
+		cancelErr := cp.CancelPayment(ctx, queryRef)
 		finishProviderCall()
+		if cancelErr != nil {
+			slog.Warn("cancel upstream payment failed", "orderID", o.ID, "queryRef", queryRef, "error", cancelErr)
+			return checkPaidResultUnavailable
+		}
 	}
-	return ""
+	return checkPaidResultUnpaid
 }
 
 func requeryPaidOrderOnce(ctx context.Context, prov payment.Provider, queryRef string) (*payment.QueryOrderResponse, bool) {
@@ -304,35 +372,89 @@ func (s *PaymentService) VerifyOrderByOutTradeNo(ctx context.Context, outTradeNo
 	return o, nil
 }
 
-// ReconcilePendingWxpayOrders actively checks recent pending WeChat orders so
-// missed provider notifications do not wait until order expiry to fulfill.
-func (s *PaymentService) ReconcilePendingWxpayOrders(ctx context.Context) (int, error) {
+// ReconcilePendingPaymentOrders actively checks pending and recently terminal
+// payment orders across all configured providers so missed notifications do not
+// leave paid orders stuck in PENDING, EXPIRED, or CANCELLED.
+func (s *PaymentService) ReconcilePendingPaymentOrders(ctx context.Context) (int, error) {
 	now := time.Now()
 	orders, err := s.entClient.PaymentOrder.Query().
 		Where(
 			paymentorder.StatusEQ(OrderStatusPending),
 			paymentorder.ExpiresAtGT(now),
-			paymentorder.Or(
-				paymentorder.PaymentTypeEQ(payment.TypeWxpay),
-				paymentorder.PaymentTypeHasPrefix(payment.TypeWxpay+"_"),
-				paymentorder.ProviderKeyEQ(payment.TypeWxpay),
-				paymentorder.ProviderKeyHasPrefix(payment.TypeWxpay+"_"),
-			),
 		).
 		Order(dbent.Asc(paymentorder.FieldCreatedAt)).
-		Limit(pendingWxpayReconcileLimit).
+		Limit(paymentOrderReconcileLimit).
 		All(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("query pending wxpay orders: %w", err)
+		return 0, fmt.Errorf("query pending payment orders: %w", err)
+	}
+
+	lateOrders, err := s.entClient.PaymentOrder.Query().
+		Where(
+			paymentorder.StatusIn(OrderStatusExpired, OrderStatusCancelled),
+			paymentorder.UpdatedAtGTE(now.Add(-paymentGraceMinutes*time.Minute)),
+		).
+		Order(dbent.Asc(paymentorder.FieldUpdatedAt)).
+		Limit(paymentOrderReconcileLimit).
+		All(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("query recently terminal payment orders: %w", err)
+	}
+
+	fulfillmentOrders, err := s.entClient.PaymentOrder.Query().
+		Where(
+			paymentorder.Or(
+				paymentorder.StatusEQ(OrderStatusPaid),
+				paymentorder.And(
+					paymentorder.StatusEQ(OrderStatusRecharging),
+					paymentorder.UpdatedAtLTE(now.Add(-paymentFulfillmentLeaseDuration)),
+				),
+			),
+		).
+		Order(dbent.Asc(paymentorder.FieldUpdatedAt)).
+		Limit(paymentOrderReconcileLimit).
+		All(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("query payment orders awaiting fulfillment: %w", err)
+	}
+
+	seen := make(map[int64]struct{}, len(orders)+len(lateOrders))
+	allOrders := make([]*dbent.PaymentOrder, 0, len(orders)+len(lateOrders))
+	for _, order := range append(orders, lateOrders...) {
+		if _, ok := seen[order.ID]; ok {
+			continue
+		}
+		seen[order.ID] = struct{}{}
+		allOrders = append(allOrders, order)
 	}
 
 	recovered := 0
-	for _, order := range orders {
-		if s.reconcilePaid(ctx, order) == checkPaidResultAlreadyPaid {
+	for _, order := range allOrders {
+		result := s.reconcilePaid(ctx, order)
+		switch result {
+		case checkPaidResultAlreadyPaid:
+			recovered++
+		case checkPaidResultUnavailable:
+			slog.Warn("payment order reconciliation deferred", "orderID", order.ID, "status", order.Status)
+		}
+	}
+	for _, order := range fulfillmentOrders {
+		if err := s.executeFulfillment(ctx, order.ID); err != nil {
+			slog.Warn("payment order fulfillment retry failed", "orderID", order.ID, "status", order.Status, "error", err)
+			continue
+		}
+		current, err := s.entClient.PaymentOrder.Get(ctx, order.ID)
+		if err == nil && current.Status == OrderStatusCompleted {
 			recovered++
 		}
 	}
 	return recovered, nil
+}
+
+// ReconcilePendingWxpayOrders is kept as a compatibility wrapper for callers
+// from older builds; reconciliation is now intentionally provider-agnostic.
+func (s *PaymentService) ReconcilePendingWxpayOrders(ctx context.Context) (int, error) {
+	return s.ReconcilePendingPaymentOrders(ctx)
 }
 
 // VerifyOrderPublic returns the currently persisted public order state without
@@ -383,12 +505,20 @@ func (s *PaymentService) ExpireTimedOutOrders(ctx context.Context) (int, error) 
 	for _, o := range orders {
 		// Check upstream payment status before expiring — the user may have
 		// paid just before timeout and the webhook hasn't arrived yet.
-		outcome, _ := s.cancelCore(ctx, o, OrderStatusExpired, "system", "order expired")
+		outcome, err := s.cancelCore(ctx, o, OrderStatusExpired, "system", "order expired")
+		if err != nil {
+			slog.Warn("defer order expiry after state transition error", "orderID", o.ID, "error", err)
+			continue
+		}
 		if outcome == checkPaidResultAlreadyPaid {
 			slog.Info("order was paid during expiry", "orderID", o.ID)
 			continue
 		}
-		if outcome != "" {
+		if outcome == checkPaidResultUnavailable {
+			slog.Warn("defer order expiry because payment status is unavailable", "orderID", o.ID)
+			continue
+		}
+		if outcome == checkPaidResultCancelled {
 			n++
 		}
 	}

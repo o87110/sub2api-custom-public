@@ -206,7 +206,11 @@
 /frontend/src/components/payment/paymentFlow.ts @o87110
 /frontend/src/components/payment/__tests__/paymentFlow.spec.ts @o87110
 /frontend/src/components/payment/PaymentProviderDialog.vue @o87110
+/frontend/src/components/payment/PaymentQRDialog.vue @o87110
+/frontend/src/components/payment/PaymentStatusPanel.vue @o87110
 /frontend/src/components/payment/SubscriptionPlanCard.vue @o87110
+/frontend/src/components/payment/__tests__/PaymentQRDialog.spec.ts @o87110
+/frontend/src/components/payment/__tests__/PaymentStatusPanel.spec.ts @o87110
 /frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts @o87110
 /frontend/src/i18n/locales/en/admin/settings.ts @o87110
 /frontend/src/i18n/locales/en/admin/channels.ts @o87110
@@ -233,9 +237,11 @@
 /frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts @o87110
 /frontend/src/views/user/KeysView.vue @o87110
 /frontend/src/views/user/PaymentView.vue @o87110
+/frontend/src/views/user/PaymentQRCodeView.vue @o87110
 /frontend/src/views/user/SubscriptionsView.vue @o87110
 /frontend/src/views/user/__tests__/KeysView.spec.ts @o87110
 /frontend/src/views/user/__tests__/PaymentView.spec.ts @o87110
+/frontend/src/views/user/__tests__/PaymentQRCodeView.spec.ts @o87110
 /frontend/src/views/user/__tests__/paymentWechatResume.spec.ts @o87110
 /frontend/src/views/user/paymentWechatResume.ts @o87110
 /tools/validate_pnpm_audit.py @o87110

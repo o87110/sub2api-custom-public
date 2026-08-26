@@ -108,8 +108,6 @@ backend/internal/service/payment_config_service_test.go	compat-test	true	307	0	-
 backend/internal/service/payment_fulfillment.go	delegate	true	13	5	-
 backend/internal/service/payment_fulfillment_test.go	compat-test	true	100	0	-
 backend/internal/service/payment_order.go	delegate	true	179	100	-
-backend/internal/service/payment_order_lifecycle.go	delegate	true	3	2	-
-backend/internal/service/payment_order_lifecycle_test.go	compat-test	true	67	0	-
 backend/internal/service/payment_order_result_test.go	compat-test	true	134	34	-
 backend/internal/service/payment_refund.go	delegate	true	15	16	-
 backend/internal/service/payment_refund_test.go	compat-test	true	176	0	-
@@ -139,11 +137,11 @@ frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue	view	true	9	15	-
 frontend/src/i18n/locales/en/admin/channels.ts	dto	true	59	2	-
 frontend/src/i18n/locales/en/admin/overview.ts	dto	false	7	0	-
 frontend/src/i18n/locales/en/admin/settings.ts	dto	true	4	3	-
-frontend/src/i18n/locales/en/misc.ts	dto	true	29	0	-
+frontend/src/i18n/locales/en/misc.ts	dto	true	32	0	-
 frontend/src/i18n/locales/zh/admin/channels.ts	dto	true	58	1	-
 frontend/src/i18n/locales/zh/admin/overview.ts	dto	false	7	0	-
 frontend/src/i18n/locales/zh/admin/settings.ts	dto	true	4	3	-
-frontend/src/i18n/locales/zh/misc.ts	dto	true	29	0	-
+frontend/src/i18n/locales/zh/misc.ts	dto	true	32	0	-
 frontend/src/router/index.ts	wire	true	1	1	-
 frontend/src/types/index.ts	dto	false	15	0	-
 frontend/src/types/payment.ts	dto	true	29	0	-

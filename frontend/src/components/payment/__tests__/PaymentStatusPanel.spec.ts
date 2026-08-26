@@ -185,6 +185,57 @@ describe('PaymentStatusPanel', () => {
     expect(wrapper.emitted('success')).toHaveLength(1)
   })
 
+  it('actively verifies pending EasyPay orders instead of waiting for a webhook', async () => {
+    pollOrderStatus.mockResolvedValue(orderFactory('PENDING'))
+    verifyOrder.mockResolvedValue({ data: orderFactory('COMPLETED') })
+
+    const wrapper = mount(PaymentStatusPanel, {
+      props: {
+        orderId: 42,
+        qrCode: 'https://pay.example.com/qr/42',
+        expiresAt: '2099-01-01T12:30:00Z',
+        paymentType: 'easypay',
+        orderType: 'balance',
+      },
+      global: { stubs: { Icon: true } },
+    })
+
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+
+    expect(verifyOrder).toHaveBeenCalledWith('sub2_20260420abcd1234')
+    expect(wrapper.emitted('success')).toHaveLength(1)
+  })
+
+  it('keeps polling when cancellation conflicts with an already paid order', async () => {
+    pollOrderStatus.mockResolvedValue(orderFactory('PENDING'))
+    cancelOrder.mockRejectedValue({ reason: 'ORDER_ALREADY_PAID' })
+
+    const wrapper = mount(PaymentStatusPanel, {
+      props: {
+        orderId: 42,
+        qrCode: 'https://pay.example.com/qr/42',
+        expiresAt: '2099-01-01T12:30:00Z',
+        paymentType: 'easypay',
+        orderType: 'balance',
+      },
+      global: { stubs: { Icon: true } },
+    })
+
+    await flushPromises()
+    const cancelButton = wrapper.findAll('button').find(button => button.text() === 'payment.qr.cancelOrder')
+    expect(cancelButton).toBeDefined()
+    await cancelButton!.trigger('click')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith(expect.any(String))
+    expect(wrapper.text()).not.toContain('payment.qr.cancelled')
+    await vi.advanceTimersByTimeAsync(6000)
+    await flushPromises()
+    expect(pollOrderStatus.mock.calls.length).toBeGreaterThanOrEqual(2)
+  })
+
   it('actively verifies a pending mobile Alipay precreate order', async () => {
     const originalLocation = window.location
     const originalHidden = Object.getOwnPropertyDescriptor(document, 'hidden')

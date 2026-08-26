@@ -85,6 +85,7 @@ import { currencySymbol } from '@/components/payment/currency'
 import QRCode from 'qrcode'
 import alipayIcon from '@/assets/icons/alipay.svg'
 import wxpayIcon from '@/assets/icons/wxpay.svg'
+import { createPaymentOrderRecovery } from '@/composables/usePaymentOrderRecovery'
 
 const props = defineProps<{
   show: boolean
@@ -116,11 +117,7 @@ const creditedAmountSymbol = currencySymbol('USD')
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
-let verifyAttempts = 0
-let lastVerifyAt = 0
-
-const VERIFY_RETRY_INTERVAL_MS = 15000
-const VERIFY_RETRY_MAX_ATTEMPTS = 6
+const paymentOrderRecovery = createPaymentOrderRecovery()
 
 const isAlipay = computed(() => isBuiltInAlipayMethod(props.paymentType))
 const isWxpay = computed(() => isBuiltInWxpayMethod(props.paymentType))
@@ -212,24 +209,7 @@ async function pollStatus() {
 }
 
 async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder> {
-  if (!isWxpay.value) return order
-  const outTradeNo = String(order.out_trade_no || '').trim()
-  if (!outTradeNo) return order
-  const normalizedStatus = String(order.status || '').trim().toUpperCase()
-  if (normalizedStatus !== 'PENDING') return order
-  const now = Date.now()
-  if (verifyAttempts >= VERIFY_RETRY_MAX_ATTEMPTS || now - lastVerifyAt < VERIFY_RETRY_INTERVAL_MS) {
-    return order
-  }
-
-  lastVerifyAt = now
-  verifyAttempts += 1
-  try {
-    const result = await paymentAPI.verifyOrder(outTradeNo)
-    return result.data ?? order
-  } catch {
-    return order
-  }
+  return paymentOrderRecovery.recoverPendingOrder(order)
 }
 
 function startCountdown(seconds: number) {
@@ -278,13 +258,12 @@ function cleanup() {
 
 function init() {
   // Reset state
+  paymentOrderRecovery.reset()
   success.value = false
   paidOrder.value = null
   expired.value = false
   cancelling.value = false
   qrUrl.value = props.qrCode
-  verifyAttempts = 0
-  lastVerifyAt = 0
 
   let seconds = 30 * 60
   if (props.expiresAt) {

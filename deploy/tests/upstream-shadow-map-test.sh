@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-164}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-167}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 164 ]]; then
+if [[ "$expected_count" -eq 167 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -110,11 +110,14 @@ if [[ "$expected_count" -eq 164 ]]; then
   assert_mapping $'frontend/src/views/admin/__tests__/SettingsView.spec.ts\tfrontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.spec.ts|frontend/src/custom/payment-channels/adminPaymentChannels.spec.ts'
   assert_mapping $'frontend/src/api/admin/payment.ts\tfrontend/src/custom/payment-channels/PaymentChannelSettings.vue'
   assert_mapping $'frontend/src/components/payment/PaymentProviderDialog.vue\tfrontend/src/custom/payment-channels/PaymentChannelSettings.vue'
+  assert_mapping $'frontend/src/components/payment/PaymentQRDialog.vue\tfrontend/src/custom/payment-channels/usePaymentOrderRecovery.ts'
+  assert_mapping $'frontend/src/components/payment/PaymentStatusPanel.vue\tfrontend/src/custom/payment-channels/usePaymentOrderRecovery.ts'
   assert_mapping $'frontend/src/components/payment/SubscriptionPlanCard.vue\tfrontend/src/custom/subscription-plan-inventory/inventory.ts'
   assert_mapping $'frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts\tfrontend/src/custom/subscription-plan-inventory/__tests__/inventory.spec.ts'
   assert_mapping $'frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts\tfrontend/src/custom/payment-channels/paymentChannels.spec.ts'
   assert_mapping $'frontend/src/views/user/__tests__/paymentWechatResume.spec.ts\tfrontend/src/custom/payment-channels/usePaymentChannelRecovery.spec.ts'
   assert_mapping $'frontend/src/views/user/paymentWechatResume.ts\tfrontend/src/custom/payment-channels/paymentRecoveryRoute.ts'
+  assert_mapping $'frontend/src/views/user/PaymentQRCodeView.vue\tfrontend/src/custom/payment-channels/usePaymentOrderRecovery.ts'
   assert_mapping $'backend/internal/handler/channel_monitor_user_handler.go\tbackend/internal/custom/channelmonitor/group_rate_resolver.go|backend/internal/custom/channelmonitor/group_rate_lookup.go|backend/internal/custom/channelmonitor/runtime_eligibility.go'
   assert_mapping $'backend/internal/service/channel_monitor_service.go\tbackend/internal/custom/channelmonitor/ratedisplay/config.go'
   assert_mapping $'frontend/src/components/user/monitor/MonitorCard.vue\tfrontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts'
@@ -446,6 +449,8 @@ frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts
 frontend/src/components/layout/AppSidebar.vue
 frontend/src/components/payment/AmountInput.vue
 frontend/src/components/payment/PaymentProviderDialog.vue
+frontend/src/components/payment/PaymentQRDialog.vue
+frontend/src/components/payment/PaymentStatusPanel.vue
 frontend/src/components/payment/SubscriptionPlanCard.vue
 frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts
 frontend/src/components/payment/paymentFlow.ts
@@ -477,6 +482,7 @@ frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts
 frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts
 frontend/src/views/user/KeysView.vue
 frontend/src/views/user/__tests__/KeysView.spec.ts
+frontend/src/views/user/PaymentQRCodeView.vue
 frontend/src/views/user/PaymentView.vue
 frontend/src/views/user/SubscriptionsView.vue
 frontend/src/views/user/__tests__/PaymentView.spec.ts
