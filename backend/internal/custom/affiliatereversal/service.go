@@ -143,7 +143,8 @@ func (s *Service) Reverse(ctx context.Context, input ReverseInput, operatorUserI
 	if err = lockLedgerRows(txCtx, txClient, ids); err != nil {
 		return nil, err
 	}
-	targets, accounts, reversedCount, err := loadTargetSnapshots(txCtx, txClient, ids)
+	var accounts map[int64]accountSnapshot
+	targets, _, reversedCount, err := loadTargetSnapshots(txCtx, txClient, ids)
 	if err != nil {
 		return nil, err
 	}
