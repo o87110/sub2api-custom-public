@@ -9,13 +9,30 @@
           </div>
           <input v-model="filters.start_at" type="date" class="input w-full sm:w-44" :title="t('admin.affiliates.records.startAt')" @change="reloadFromFirstPage" />
           <input v-model="filters.end_at" type="date" class="input w-full sm:w-44" :title="t('admin.affiliates.records.endAt')" @change="reloadFromFirstPage" />
-          <button class="btn btn-secondary px-2 md:px-3" :disabled="loading" :title="t('common.refresh')" @click="loadRecords">
+          <select
+            v-if="props.type === 'rebates'"
+            v-model="filters.rebate_status"
+            class="input w-full sm:w-40"
+            :aria-label="t('admin.affiliates.reversal.statusFilter')"
+            @change="reloadFromFirstPage"
+          >
+            <option value="all">{{ t('admin.affiliates.reversal.statusAll') }}</option>
+            <option value="active">{{ t('admin.affiliates.reversal.statusActive') }}</option>
+            <option value="reversed">{{ t('admin.affiliates.reversal.statusReversed') }}</option>
+          </select>
+          <button class="btn btn-secondary px-2 md:px-3" :disabled="loading" :title="t('common.refresh')" @click="refreshRecords">
             <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
           </button>
         </div>
       </template>
 
       <template #table>
+        <AffiliateReversalActionBar
+          v-if="props.type === 'rebates'"
+          :selected-records="selectedRebateRecords"
+          @clear="clearSelection"
+          @completed="handleReversalCompleted"
+        />
         <DataTable
           :columns="columns"
           :data="records"
@@ -24,6 +41,12 @@
           default-sort-key="created_at"
           default-sort-order="desc"
           :sort-storage-key="sortStorageKey"
+          :selectable="props.type === 'rebates'"
+          row-key="order_id"
+          :selected-keys="selectedOrderIds"
+          :row-selectable="isRecordSelectable"
+          :selection-label="rebateSelectionLabel"
+          @update:selected-keys="handleSelectionChange"
           @sort="handleSort"
         >
           <template #cell-inviter="{ row }">
@@ -67,6 +90,37 @@
           </template>
           <template #cell-order_status="{ row }">
             <OrderStatusBadge :status="row.order_status" />
+          </template>
+          <template #cell-rebate_status="{ row }">
+            <div class="space-y-1">
+              <span
+                class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
+                :class="row.rebate_status === 'reversed'
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'"
+              >
+                {{ t(`admin.affiliates.reversal.status${row.rebate_status === 'reversed' ? 'Reversed' : 'Active'}`) }}
+              </span>
+              <div v-if="row.reversed_at" class="text-xs text-gray-500 dark:text-dark-400">
+                {{ formatDateTime(row.reversed_at) }}
+              </div>
+              <div v-if="row.reversed_by_user_id" class="text-xs text-gray-500 dark:text-dark-400">
+                {{ t('admin.affiliates.reversal.reversedBy', { user: row.reversed_by_user_id }) }}
+              </div>
+              <div v-if="row.reversal_reason" class="max-w-48 truncate text-xs text-gray-500 dark:text-dark-400" :title="row.reversal_reason">
+                {{ row.reversal_reason }}
+              </div>
+              <div v-if="row.rebate_status === 'reversed' && row.snapshot_available" class="max-w-64 text-xs text-gray-500 dark:text-dark-400">
+                {{ t('admin.affiliates.reversal.deductionSummary', {
+                  frozen: formatAmount(row.frozen_quota_deducted),
+                  quota: formatAmount(row.available_quota_deducted),
+                  balance: formatAmount(row.balance_deducted),
+                }) }}
+              </div>
+              <div v-else-if="row.rebate_status === 'reversed'" class="text-xs text-amber-600 dark:text-amber-400">
+                {{ t('admin.affiliates.reversal.snapshotUnavailable') }}
+              </div>
+            </div>
           </template>
           <template #cell-total_rebate="{ row }">
             <AmountText :value="row.total_rebate" />
@@ -153,10 +207,11 @@ import Icon from '@/components/icons/Icon.vue'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import type { Column } from '@/components/common/types'
 import { useAppStore } from '@/stores/app'
-import { affiliatesAPI, type AffiliateInviteRecord, type AffiliateRebateRecord, type AffiliateTransferRecord, type AffiliateUserOverview, type ListAffiliateRecordsParams } from '@/api/admin/affiliates'
+import { affiliatesAPI, type AffiliateInviteRecord, type AffiliateRebateRecord, type AffiliateReversalResult, type AffiliateTransferRecord, type AffiliateUserOverview, type ListAffiliateRecordsParams } from '@/api/admin/affiliates'
 import type { PaginatedResponse } from '@/types'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { formatDateTime as formatDisplayDateTime } from '@/utils/format'
+import AffiliateReversalActionBar from '@/custom/affiliate-reversal/AffiliateReversalActionBar.vue'
 
 type RecordType = 'invites' | 'rebates' | 'transfers'
 type AffiliateRecord = AffiliateInviteRecord | AffiliateRebateRecord | AffiliateTransferRecord
@@ -169,8 +224,9 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const loading = ref(false)
 const records = ref<AffiliateRecord[]>([])
-const filters = reactive({ search: '', start_at: '', end_at: '' })
+const filters = reactive({ search: '', start_at: '', end_at: '', rebate_status: 'all' as 'all' | 'active' | 'reversed' })
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
+const selectedOrderIds = ref<number[]>([])
 const overviewDialog = ref(false)
 const overviewLoading = ref(false)
 const selectedOverview = ref<AffiliateUserOverview | null>(null)
@@ -196,6 +252,7 @@ const columns = computed<Column[]>(() => {
       { key: 'rebate_amount', label: t('admin.affiliates.records.rebateAmount') },
       { key: 'payment_type', label: t('admin.affiliates.records.paymentType'), sortable: true },
       { key: 'order_status', label: t('admin.affiliates.records.orderStatus'), sortable: true },
+      { key: 'rebate_status', label: t('admin.affiliates.reversal.statusColumn'), sortable: true },
       { key: 'created_at', label: t('admin.affiliates.records.rebatedAt'), sortable: true },
     ]
   }
@@ -249,6 +306,7 @@ function buildParams(): ListAffiliateRecordsParams {
     sort_by: sortState.sort_by,
     sort_order: sortState.sort_order,
     timezone: userTimezone(),
+    rebate_status: props.type === 'rebates' ? filters.rebate_status : undefined,
   }
 }
 
@@ -281,26 +339,71 @@ function debounceLoad() {
 }
 
 function reloadFromFirstPage() {
+  clearSelection()
   pagination.page = 1
   void loadRecords()
 }
 
+function refreshRecords() {
+  clearSelection()
+  void loadRecords()
+}
+
 function handlePageChange(page: number) {
+  clearSelection()
   pagination.page = page
   void loadRecords()
 }
 
 function handlePageSizeChange(size: number) {
+  clearSelection()
   pagination.page_size = size
   pagination.page = 1
   void loadRecords()
 }
 
 function handleSort(key: string, order: 'asc' | 'desc') {
+  clearSelection()
   sortState.sort_by = key
   sortState.sort_order = order
   pagination.page = 1
   void loadRecords()
+}
+
+const selectedRebateRecords = computed(() => {
+  if (props.type !== 'rebates') return []
+  const selected = new Set(selectedOrderIds.value)
+  return (records.value as AffiliateRebateRecord[]).filter(record => selected.has(record.order_id))
+})
+
+function isRecordSelectable(row: AffiliateRecord): boolean {
+  return props.type === 'rebates'
+    && (row as AffiliateRebateRecord).rebate_status === 'active'
+}
+
+function rebateSelectionLabel(row: AffiliateRecord): string {
+  const record = row as AffiliateRebateRecord
+  return t('admin.affiliates.reversal.selectOrder', { order: record.order_id })
+}
+
+function handleSelectionChange(keys: Array<string | number>) {
+  selectedOrderIds.value = keys
+    .map(key => Number(key))
+    .filter(key => Number.isInteger(key) && key > 0)
+    .slice(0, 100)
+}
+
+function clearSelection() {
+  selectedOrderIds.value = []
+}
+
+async function handleReversalCompleted(result: AffiliateReversalResult) {
+  clearSelection()
+  appStore.showSuccess(t('admin.affiliates.reversal.success', {
+    count: result.reversed_count,
+    amount: formatAmount(result.total_rebate_amount),
+  }))
+  await loadRecords()
 }
 
 function formatAmount(value: number | null | undefined): string {

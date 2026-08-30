@@ -177,12 +177,22 @@ APPROVED_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
         "invalidateAdjustedSubscriptionCache",
     }),
     "frontend/src/components/payment/SubscriptionPlanCard.vue": frozenset({"handleSelect"}),
+    "frontend/src/components/common/DataTable.vue": frozenset({"isRowSelectable"}),
     "frontend/src/views/admin/orders/PlanEditDialog.vue": frozenset({
         "handleRemainingQuantityInput",
         "remainingQuantityError",
         "togglePlanForSale",
     }),
     "frontend/src/views/admin/SubscriptionsView.vue": frozenset({"cancelResetQuota"}),
+    "frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue": frozenset({
+        "clearSelection",
+        "handleReversalCompleted",
+        "handleSelectionChange",
+        "isRecordSelectable",
+        "rebateSelectionLabel",
+        "refreshRecords",
+        "selectedRebateRecords",
+    }),
     "frontend/src/views/user/KeysView.vue": frozenset({
         "refreshApiKeys",
         "handleTableSelectionChange",
@@ -299,6 +309,9 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('rejectIfCyberSessionBlocked', {'c.Request.Context': 1, 'h.contentModerationService.CyberPolicyGroupInScope': 1}),
     ),
     'backend/internal/server/routes/admin.go': _approved_call_deltas(
+        ('registerAffiliateRoutes', {
+            'affiliates.POST': 2,
+        }),
         ('registerSubscriptionRoutes', {
             'subscriptions.GET': 1,
             'subscriptions.POST': 1,
@@ -309,6 +322,55 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('GetCheckoutInfo', {'h.configService.GetAvailableMethodOptions': 1, 'response.ErrorFrom': 1, 'subscriptioninventory.IsSoldOut': 1}),
         ('GetPlans', {'subscriptioninventory.IsSoldOut': 1}),
         ('applyWeChatPaymentResumeClaims', {'infraerrors.BadRequest': 3, 'math.IsInf': 1, 'math.IsNaN': 1, 'paymentchannels.IsValidSelection': 1, 'strings.EqualFold': 1, 'strings.ToLower': 1, 'strings.TrimSpace': 2}),
+    ),
+    'frontend/src/components/common/DataTable.vue': _approved_call_deltas(
+        ('<top-level>', {
+            'filter': 1,
+            'isRowSelectable': 3,
+            'map': 1,
+            'props.rowSelectable': 1,
+        }),
+        ('toggleRowSelection', {
+            'isRowSelectable': 1,
+        }),
+    ),
+    'frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue': _approved_call_deltas(
+        ('<top-level>', {
+            'formatAmount': 3,
+            'formatDateTime': 1,
+            't': 9,
+        }),
+        ('reloadFromFirstPage', {'clearSelection': 1}),
+        ('refreshRecords', {'clearSelection': 1, 'loadRecords': 1}),
+        ('handlePageChange', {'clearSelection': 1}),
+        ('handlePageSizeChange', {'clearSelection': 1}),
+        ('handleSort', {'clearSelection': 1}),
+        ('selectedRebateRecords', {
+            'Set': 1,
+            'computed': 1,
+            'filter': 1,
+            'selected.has': 1,
+        }),
+        ('rebateSelectionLabel', {'t': 1}),
+        ('handleSelectionChange', {
+            'Number': 1,
+            'Number.isInteger': 1,
+            'filter': 1,
+            'map': 1,
+            'slice': 1,
+        }),
+        ('handleReversalCompleted', {
+            'appStore.showSuccess': 1,
+            'clearSelection': 1,
+            'formatAmount': 1,
+            'loadRecords': 1,
+            't': 1,
+        }),
+        ('<template:@change>', {'reloadFromFirstPage': 1}),
+        ('<template:@click>', {'refreshRecords': 1}),
+        ('<template:@clear>', {'clearSelection': 1}),
+        ('<template:@completed>', {'handleReversalCompleted': 1}),
+        ('<template:@update:selected-keys>', {'handleSelectionChange': 1}),
     ),
     'backend/internal/payment/load_balancer.go': _approved_call_deltas(
         ('<top-level>', {'RevalidateSelection': 1}),
@@ -1107,6 +1169,9 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
     "frontend/src/components/payment/paymentFlow.ts": (
         ("buildCreateOrderPayload", "if (input.providerKey?.trim()) {"),
     ),
+    "frontend/src/components/common/DataTable.vue": (
+        ("toggleRowSelection", "if (!isRowSelectable(row)) return"),
+    ),
     "frontend/src/components/payment/SubscriptionPlanCard.vue": (
         ("<top-level>", '<span v-if="soldOut" class="mt-1 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300">'),
         ("handleSelect", "if (soldOut.value) return"),
@@ -1120,6 +1185,16 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
     "frontend/src/views/admin/GroupsView.vue": (
         ("handleCreateGroup", "if (minimumBalance === null) {"),
         ("handleUpdateGroup", "if (minimumBalance === null) {"),
+    ),
+    "frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue": (
+        ("<top-level>", '<div v-else-if="row.rebate_status === \'reversed\'" class="text-xs text-amber-600 dark:text-amber-400">'),
+        ("<top-level>", '<div v-if="row.rebate_status === \'reversed\' && row.snapshot_available" class="max-w-64 text-xs text-gray-500 dark:text-dark-400">'),
+        ("<top-level>", '<div v-if="row.reversal_reason" class="max-w-48 truncate text-xs text-gray-500 dark:text-dark-400" :title="row.reversal_reason">'),
+        ("<top-level>", '<div v-if="row.reversed_at" class="text-xs text-gray-500 dark:text-dark-400">'),
+        ("<top-level>", '<div v-if="row.reversed_by_user_id" class="text-xs text-gray-500 dark:text-dark-400">'),
+        ("<top-level>", "v-if=\"props.type === 'rebates'\""),
+        ("<top-level>", "v-if=\"props.type === 'rebates'\""),
+        ("selectedRebateRecords", "if (props.type !== 'rebates') return []"),
     ),
     "frontend/src/views/admin/orders/AdminPaymentPlansView.vue": (
         ("toggleForSale", "if (!plan.for_sale && isPlanSoldOut(plan) && !canListSoldOutPlan(plan)) {"),

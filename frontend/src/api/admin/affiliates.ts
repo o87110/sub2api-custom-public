@@ -32,6 +32,7 @@ export interface ListAffiliateRecordsParams {
   sort_by?: string
   sort_order?: 'asc' | 'desc'
   timezone?: string
+  rebate_status?: 'all' | 'active' | 'reversed'
 }
 
 export interface AffiliateInviteRecord {
@@ -47,6 +48,7 @@ export interface AffiliateInviteRecord {
 }
 
 export interface AffiliateRebateRecord {
+  ledger_id?: number | null
   order_id: number
   out_trade_no: string
   inviter_id: number
@@ -60,7 +62,84 @@ export interface AffiliateRebateRecord {
   rebate_amount: number
   payment_type: string
   order_status: string
+  rebate_status: 'active' | 'reversed'
+  reversed_at?: string | null
+  reversal_reason?: string | null
+  reversed_by_user_id?: number | null
+  snapshot_available: boolean
+  frozen_quota_deducted?: number | null
+  available_quota_deducted?: number | null
+  balance_deducted?: number | null
+  balance_before?: number | null
+  balance_after?: number | null
   created_at: string
+}
+
+export interface AffiliateReversalPreviewOrder {
+  order_id: number
+  ledger_id: number
+  inviter_id: number
+  invitee_id: number
+  rebate_amount: number
+  quota_bucket: 'frozen' | 'available'
+  frozen_quota_deducted: number
+  available_quota_deducted: number
+  balance_deducted: number
+}
+
+export interface AffiliateReversalInviterImpact {
+  inviter_id: number
+  inviter_email: string
+  inviter_username: string
+  order_count: number
+  total_rebate_amount: number
+  frozen_quota_deducted: number
+  available_quota_deducted: number
+  balance_deducted: number
+  balance_before: number
+  balance_after: number
+  history_quota_before: number
+  history_quota_after: number
+  total_recharged_before: number
+  total_recharged_after: number
+  will_be_negative: boolean
+}
+
+export interface AffiliateReversalPreview {
+  preview_token: string
+  order_count: number
+  total_rebate_amount: number
+  total_balance_deducted: number
+  negative_balance_users: number
+  has_negative_balance: boolean
+  orders: AffiliateReversalPreviewOrder[]
+  inviters: AffiliateReversalInviterImpact[]
+}
+
+export interface AffiliateReversalResult {
+  reversed_count: number
+  total_rebate_amount: number
+  total_balance_deducted: number
+  negative_balance_users: number
+  orders: Array<{
+    reversal_id: number
+    order_id: number
+    ledger_id: number
+    inviter_id: number
+    invitee_id: number
+    rebate_amount: number
+    frozen_quota_deducted: number
+    available_quota_deducted: number
+    balance_deducted: number
+  }>
+  inviters: AffiliateReversalInviterImpact[]
+}
+
+export interface ReverseAffiliateRebatesRequest {
+  order_ids: number[]
+  preview_token: string
+  reason: string
+  confirm_negative_balance: boolean
 }
 
 export interface AffiliateTransferRecord {
@@ -173,6 +252,7 @@ function recordParams(params: ListAffiliateRecordsParams = {}) {
     sort_by: params.sort_by || undefined,
     sort_order: params.sort_order || undefined,
     timezone: params.timezone || undefined,
+    rebate_status: params.rebate_status || undefined,
   }
 }
 
@@ -215,6 +295,28 @@ export async function getUserOverview(
   return data
 }
 
+export async function previewRebateReversal(
+  orderIds: number[],
+): Promise<AffiliateReversalPreview> {
+  const { data } = await apiClient.post<AffiliateReversalPreview>(
+    '/admin/affiliates/rebates/reversal-preview',
+    { order_ids: orderIds },
+  )
+  return data
+}
+
+export async function reverseRebates(
+  payload: ReverseAffiliateRebatesRequest,
+  idempotencyKey: string,
+): Promise<AffiliateReversalResult> {
+  const { data } = await apiClient.post<AffiliateReversalResult>(
+    '/admin/affiliates/rebates/reverse',
+    payload,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  )
+  return data
+}
+
 export const affiliatesAPI = {
   listUsers,
   lookupUsers,
@@ -225,6 +327,8 @@ export const affiliatesAPI = {
   listRebateRecords,
   listTransferRecords,
   getUserOverview,
+  previewRebateReversal,
+  reverseRebates,
 }
 
 export default affiliatesAPI

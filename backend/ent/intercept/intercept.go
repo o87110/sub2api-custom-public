@@ -43,6 +43,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
+	"github.com/Wei-Shaw/sub2api/ent/useraffiliate"
+	"github.com/Wei-Shaw/sub2api/ent/useraffiliateledger"
+	"github.com/Wei-Shaw/sub2api/ent/useraffiliatereversal"
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
@@ -1025,6 +1028,87 @@ func (f TraverseUser) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.UserQuery", q)
 }
 
+// The UserAffiliateFunc type is an adapter to allow the use of ordinary function as a Querier.
+type UserAffiliateFunc func(context.Context, *ent.UserAffiliateQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f UserAffiliateFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.UserAffiliateQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.UserAffiliateQuery", q)
+}
+
+// The TraverseUserAffiliate type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseUserAffiliate func(context.Context, *ent.UserAffiliateQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseUserAffiliate) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseUserAffiliate) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.UserAffiliateQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.UserAffiliateQuery", q)
+}
+
+// The UserAffiliateLedgerFunc type is an adapter to allow the use of ordinary function as a Querier.
+type UserAffiliateLedgerFunc func(context.Context, *ent.UserAffiliateLedgerQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f UserAffiliateLedgerFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.UserAffiliateLedgerQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.UserAffiliateLedgerQuery", q)
+}
+
+// The TraverseUserAffiliateLedger type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseUserAffiliateLedger func(context.Context, *ent.UserAffiliateLedgerQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseUserAffiliateLedger) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseUserAffiliateLedger) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.UserAffiliateLedgerQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.UserAffiliateLedgerQuery", q)
+}
+
+// The UserAffiliateReversalFunc type is an adapter to allow the use of ordinary function as a Querier.
+type UserAffiliateReversalFunc func(context.Context, *ent.UserAffiliateReversalQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f UserAffiliateReversalFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.UserAffiliateReversalQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.UserAffiliateReversalQuery", q)
+}
+
+// The TraverseUserAffiliateReversal type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseUserAffiliateReversal func(context.Context, *ent.UserAffiliateReversalQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseUserAffiliateReversal) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseUserAffiliateReversal) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.UserAffiliateReversalQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.UserAffiliateReversalQuery", q)
+}
+
 // The UserAllowedGroupFunc type is an adapter to allow the use of ordinary function as a Querier.
 type UserAllowedGroupFunc func(context.Context, *ent.UserAllowedGroupQuery) (ent.Value, error)
 
@@ -1258,6 +1342,12 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.UsageLogQuery, predicate.UsageLog, usagelog.OrderOption]{typ: ent.TypeUsageLog, tq: q}, nil
 	case *ent.UserQuery:
 		return &query[*ent.UserQuery, predicate.User, user.OrderOption]{typ: ent.TypeUser, tq: q}, nil
+	case *ent.UserAffiliateQuery:
+		return &query[*ent.UserAffiliateQuery, predicate.UserAffiliate, useraffiliate.OrderOption]{typ: ent.TypeUserAffiliate, tq: q}, nil
+	case *ent.UserAffiliateLedgerQuery:
+		return &query[*ent.UserAffiliateLedgerQuery, predicate.UserAffiliateLedger, useraffiliateledger.OrderOption]{typ: ent.TypeUserAffiliateLedger, tq: q}, nil
+	case *ent.UserAffiliateReversalQuery:
+		return &query[*ent.UserAffiliateReversalQuery, predicate.UserAffiliateReversal, useraffiliatereversal.OrderOption]{typ: ent.TypeUserAffiliateReversal, tq: q}, nil
 	case *ent.UserAllowedGroupQuery:
 		return &query[*ent.UserAllowedGroupQuery, predicate.UserAllowedGroup, userallowedgroup.OrderOption]{typ: ent.TypeUserAllowedGroup, tq: q}, nil
 	case *ent.UserAttributeDefinitionQuery:

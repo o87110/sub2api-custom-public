@@ -49,6 +49,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
+	"github.com/Wei-Shaw/sub2api/ent/useraffiliate"
+	"github.com/Wei-Shaw/sub2api/ent/useraffiliateledger"
+	"github.com/Wei-Shaw/sub2api/ent/useraffiliatereversal"
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
@@ -132,6 +135,12 @@ type Client struct {
 	UsageLog *UsageLogClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// UserAffiliate is the client for interacting with the UserAffiliate builders.
+	UserAffiliate *UserAffiliateClient
+	// UserAffiliateLedger is the client for interacting with the UserAffiliateLedger builders.
+	UserAffiliateLedger *UserAffiliateLedgerClient
+	// UserAffiliateReversal is the client for interacting with the UserAffiliateReversal builders.
+	UserAffiliateReversal *UserAffiliateReversalClient
 	// UserAllowedGroup is the client for interacting with the UserAllowedGroup builders.
 	UserAllowedGroup *UserAllowedGroupClient
 	// UserAttributeDefinition is the client for interacting with the UserAttributeDefinition builders.
@@ -189,6 +198,9 @@ func (c *Client) init() {
 	c.UsageCleanupTask = NewUsageCleanupTaskClient(c.config)
 	c.UsageLog = NewUsageLogClient(c.config)
 	c.User = NewUserClient(c.config)
+	c.UserAffiliate = NewUserAffiliateClient(c.config)
+	c.UserAffiliateLedger = NewUserAffiliateLedgerClient(c.config)
+	c.UserAffiliateReversal = NewUserAffiliateReversalClient(c.config)
 	c.UserAllowedGroup = NewUserAllowedGroupClient(c.config)
 	c.UserAttributeDefinition = NewUserAttributeDefinitionClient(c.config)
 	c.UserAttributeValue = NewUserAttributeValueClient(c.config)
@@ -321,6 +333,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
 		UsageLog:                      NewUsageLogClient(cfg),
 		User:                          NewUserClient(cfg),
+		UserAffiliate:                 NewUserAffiliateClient(cfg),
+		UserAffiliateLedger:           NewUserAffiliateLedgerClient(cfg),
+		UserAffiliateReversal:         NewUserAffiliateReversalClient(cfg),
 		UserAllowedGroup:              NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition:       NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
@@ -380,6 +395,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
 		UsageLog:                      NewUsageLogClient(cfg),
 		User:                          NewUserClient(cfg),
+		UserAffiliate:                 NewUserAffiliateClient(cfg),
+		UserAffiliateLedger:           NewUserAffiliateLedgerClient(cfg),
+		UserAffiliateReversal:         NewUserAffiliateReversalClient(cfg),
 		UserAllowedGroup:              NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition:       NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
@@ -424,6 +442,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
 		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
+		c.UserAffiliate, c.UserAffiliateLedger, c.UserAffiliateReversal,
 		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
 		c.UserPlatformQuota, c.UserSubscription, c.UserSubscriptionCycle,
 	} {
@@ -444,6 +463,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
 		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
+		c.UserAffiliate, c.UserAffiliateLedger, c.UserAffiliateReversal,
 		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
 		c.UserPlatformQuota, c.UserSubscription, c.UserSubscriptionCycle,
 	} {
@@ -522,6 +542,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.UsageLog.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
+	case *UserAffiliateMutation:
+		return c.UserAffiliate.mutate(ctx, m)
+	case *UserAffiliateLedgerMutation:
+		return c.UserAffiliateLedger.mutate(ctx, m)
+	case *UserAffiliateReversalMutation:
+		return c.UserAffiliateReversal.mutate(ctx, m)
 	case *UserAllowedGroupMutation:
 		return c.UserAllowedGroup.mutate(ctx, m)
 	case *UserAttributeDefinitionMutation:
@@ -6048,6 +6074,405 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 	}
 }
 
+// UserAffiliateClient is a client for the UserAffiliate schema.
+type UserAffiliateClient struct {
+	config
+}
+
+// NewUserAffiliateClient returns a client for the UserAffiliate from the given config.
+func NewUserAffiliateClient(c config) *UserAffiliateClient {
+	return &UserAffiliateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `useraffiliate.Hooks(f(g(h())))`.
+func (c *UserAffiliateClient) Use(hooks ...Hook) {
+	c.hooks.UserAffiliate = append(c.hooks.UserAffiliate, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `useraffiliate.Intercept(f(g(h())))`.
+func (c *UserAffiliateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserAffiliate = append(c.inters.UserAffiliate, interceptors...)
+}
+
+// Create returns a builder for creating a UserAffiliate entity.
+func (c *UserAffiliateClient) Create() *UserAffiliateCreate {
+	mutation := newUserAffiliateMutation(c.config, OpCreate)
+	return &UserAffiliateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserAffiliate entities.
+func (c *UserAffiliateClient) CreateBulk(builders ...*UserAffiliateCreate) *UserAffiliateCreateBulk {
+	return &UserAffiliateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserAffiliateClient) MapCreateBulk(slice any, setFunc func(*UserAffiliateCreate, int)) *UserAffiliateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserAffiliateCreateBulk{err: fmt.Errorf("calling to UserAffiliateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserAffiliateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserAffiliateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserAffiliate.
+func (c *UserAffiliateClient) Update() *UserAffiliateUpdate {
+	mutation := newUserAffiliateMutation(c.config, OpUpdate)
+	return &UserAffiliateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserAffiliateClient) UpdateOne(_m *UserAffiliate) *UserAffiliateUpdateOne {
+	mutation := newUserAffiliateMutation(c.config, OpUpdateOne, withUserAffiliate(_m))
+	return &UserAffiliateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserAffiliateClient) UpdateOneID(id int64) *UserAffiliateUpdateOne {
+	mutation := newUserAffiliateMutation(c.config, OpUpdateOne, withUserAffiliateID(id))
+	return &UserAffiliateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserAffiliate.
+func (c *UserAffiliateClient) Delete() *UserAffiliateDelete {
+	mutation := newUserAffiliateMutation(c.config, OpDelete)
+	return &UserAffiliateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserAffiliateClient) DeleteOne(_m *UserAffiliate) *UserAffiliateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserAffiliateClient) DeleteOneID(id int64) *UserAffiliateDeleteOne {
+	builder := c.Delete().Where(useraffiliate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserAffiliateDeleteOne{builder}
+}
+
+// Query returns a query builder for UserAffiliate.
+func (c *UserAffiliateClient) Query() *UserAffiliateQuery {
+	return &UserAffiliateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserAffiliate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserAffiliate entity by its id.
+func (c *UserAffiliateClient) Get(ctx context.Context, id int64) (*UserAffiliate, error) {
+	return c.Query().Where(useraffiliate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserAffiliateClient) GetX(ctx context.Context, id int64) *UserAffiliate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *UserAffiliateClient) Hooks() []Hook {
+	return c.hooks.UserAffiliate
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserAffiliateClient) Interceptors() []Interceptor {
+	return c.inters.UserAffiliate
+}
+
+func (c *UserAffiliateClient) mutate(ctx context.Context, m *UserAffiliateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserAffiliateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserAffiliateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserAffiliateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserAffiliateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserAffiliate mutation op: %q", m.Op())
+	}
+}
+
+// UserAffiliateLedgerClient is a client for the UserAffiliateLedger schema.
+type UserAffiliateLedgerClient struct {
+	config
+}
+
+// NewUserAffiliateLedgerClient returns a client for the UserAffiliateLedger from the given config.
+func NewUserAffiliateLedgerClient(c config) *UserAffiliateLedgerClient {
+	return &UserAffiliateLedgerClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `useraffiliateledger.Hooks(f(g(h())))`.
+func (c *UserAffiliateLedgerClient) Use(hooks ...Hook) {
+	c.hooks.UserAffiliateLedger = append(c.hooks.UserAffiliateLedger, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `useraffiliateledger.Intercept(f(g(h())))`.
+func (c *UserAffiliateLedgerClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserAffiliateLedger = append(c.inters.UserAffiliateLedger, interceptors...)
+}
+
+// Create returns a builder for creating a UserAffiliateLedger entity.
+func (c *UserAffiliateLedgerClient) Create() *UserAffiliateLedgerCreate {
+	mutation := newUserAffiliateLedgerMutation(c.config, OpCreate)
+	return &UserAffiliateLedgerCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserAffiliateLedger entities.
+func (c *UserAffiliateLedgerClient) CreateBulk(builders ...*UserAffiliateLedgerCreate) *UserAffiliateLedgerCreateBulk {
+	return &UserAffiliateLedgerCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserAffiliateLedgerClient) MapCreateBulk(slice any, setFunc func(*UserAffiliateLedgerCreate, int)) *UserAffiliateLedgerCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserAffiliateLedgerCreateBulk{err: fmt.Errorf("calling to UserAffiliateLedgerClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserAffiliateLedgerCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserAffiliateLedgerCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserAffiliateLedger.
+func (c *UserAffiliateLedgerClient) Update() *UserAffiliateLedgerUpdate {
+	mutation := newUserAffiliateLedgerMutation(c.config, OpUpdate)
+	return &UserAffiliateLedgerUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserAffiliateLedgerClient) UpdateOne(_m *UserAffiliateLedger) *UserAffiliateLedgerUpdateOne {
+	mutation := newUserAffiliateLedgerMutation(c.config, OpUpdateOne, withUserAffiliateLedger(_m))
+	return &UserAffiliateLedgerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserAffiliateLedgerClient) UpdateOneID(id int64) *UserAffiliateLedgerUpdateOne {
+	mutation := newUserAffiliateLedgerMutation(c.config, OpUpdateOne, withUserAffiliateLedgerID(id))
+	return &UserAffiliateLedgerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserAffiliateLedger.
+func (c *UserAffiliateLedgerClient) Delete() *UserAffiliateLedgerDelete {
+	mutation := newUserAffiliateLedgerMutation(c.config, OpDelete)
+	return &UserAffiliateLedgerDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserAffiliateLedgerClient) DeleteOne(_m *UserAffiliateLedger) *UserAffiliateLedgerDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserAffiliateLedgerClient) DeleteOneID(id int64) *UserAffiliateLedgerDeleteOne {
+	builder := c.Delete().Where(useraffiliateledger.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserAffiliateLedgerDeleteOne{builder}
+}
+
+// Query returns a query builder for UserAffiliateLedger.
+func (c *UserAffiliateLedgerClient) Query() *UserAffiliateLedgerQuery {
+	return &UserAffiliateLedgerQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserAffiliateLedger},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserAffiliateLedger entity by its id.
+func (c *UserAffiliateLedgerClient) Get(ctx context.Context, id int64) (*UserAffiliateLedger, error) {
+	return c.Query().Where(useraffiliateledger.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserAffiliateLedgerClient) GetX(ctx context.Context, id int64) *UserAffiliateLedger {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *UserAffiliateLedgerClient) Hooks() []Hook {
+	return c.hooks.UserAffiliateLedger
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserAffiliateLedgerClient) Interceptors() []Interceptor {
+	return c.inters.UserAffiliateLedger
+}
+
+func (c *UserAffiliateLedgerClient) mutate(ctx context.Context, m *UserAffiliateLedgerMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserAffiliateLedgerCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserAffiliateLedgerUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserAffiliateLedgerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserAffiliateLedgerDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserAffiliateLedger mutation op: %q", m.Op())
+	}
+}
+
+// UserAffiliateReversalClient is a client for the UserAffiliateReversal schema.
+type UserAffiliateReversalClient struct {
+	config
+}
+
+// NewUserAffiliateReversalClient returns a client for the UserAffiliateReversal from the given config.
+func NewUserAffiliateReversalClient(c config) *UserAffiliateReversalClient {
+	return &UserAffiliateReversalClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `useraffiliatereversal.Hooks(f(g(h())))`.
+func (c *UserAffiliateReversalClient) Use(hooks ...Hook) {
+	c.hooks.UserAffiliateReversal = append(c.hooks.UserAffiliateReversal, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `useraffiliatereversal.Intercept(f(g(h())))`.
+func (c *UserAffiliateReversalClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserAffiliateReversal = append(c.inters.UserAffiliateReversal, interceptors...)
+}
+
+// Create returns a builder for creating a UserAffiliateReversal entity.
+func (c *UserAffiliateReversalClient) Create() *UserAffiliateReversalCreate {
+	mutation := newUserAffiliateReversalMutation(c.config, OpCreate)
+	return &UserAffiliateReversalCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserAffiliateReversal entities.
+func (c *UserAffiliateReversalClient) CreateBulk(builders ...*UserAffiliateReversalCreate) *UserAffiliateReversalCreateBulk {
+	return &UserAffiliateReversalCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserAffiliateReversalClient) MapCreateBulk(slice any, setFunc func(*UserAffiliateReversalCreate, int)) *UserAffiliateReversalCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserAffiliateReversalCreateBulk{err: fmt.Errorf("calling to UserAffiliateReversalClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserAffiliateReversalCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserAffiliateReversalCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserAffiliateReversal.
+func (c *UserAffiliateReversalClient) Update() *UserAffiliateReversalUpdate {
+	mutation := newUserAffiliateReversalMutation(c.config, OpUpdate)
+	return &UserAffiliateReversalUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserAffiliateReversalClient) UpdateOne(_m *UserAffiliateReversal) *UserAffiliateReversalUpdateOne {
+	mutation := newUserAffiliateReversalMutation(c.config, OpUpdateOne, withUserAffiliateReversal(_m))
+	return &UserAffiliateReversalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserAffiliateReversalClient) UpdateOneID(id int64) *UserAffiliateReversalUpdateOne {
+	mutation := newUserAffiliateReversalMutation(c.config, OpUpdateOne, withUserAffiliateReversalID(id))
+	return &UserAffiliateReversalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserAffiliateReversal.
+func (c *UserAffiliateReversalClient) Delete() *UserAffiliateReversalDelete {
+	mutation := newUserAffiliateReversalMutation(c.config, OpDelete)
+	return &UserAffiliateReversalDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserAffiliateReversalClient) DeleteOne(_m *UserAffiliateReversal) *UserAffiliateReversalDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserAffiliateReversalClient) DeleteOneID(id int64) *UserAffiliateReversalDeleteOne {
+	builder := c.Delete().Where(useraffiliatereversal.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserAffiliateReversalDeleteOne{builder}
+}
+
+// Query returns a query builder for UserAffiliateReversal.
+func (c *UserAffiliateReversalClient) Query() *UserAffiliateReversalQuery {
+	return &UserAffiliateReversalQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserAffiliateReversal},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserAffiliateReversal entity by its id.
+func (c *UserAffiliateReversalClient) Get(ctx context.Context, id int64) (*UserAffiliateReversal, error) {
+	return c.Query().Where(useraffiliatereversal.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserAffiliateReversalClient) GetX(ctx context.Context, id int64) *UserAffiliateReversal {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *UserAffiliateReversalClient) Hooks() []Hook {
+	return c.hooks.UserAffiliateReversal
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserAffiliateReversalClient) Interceptors() []Interceptor {
+	return c.inters.UserAffiliateReversal
+}
+
+func (c *UserAffiliateReversalClient) mutate(ctx context.Context, m *UserAffiliateReversalMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserAffiliateReversalCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserAffiliateReversalUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserAffiliateReversalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserAffiliateReversalDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserAffiliateReversal mutation op: %q", m.Op())
+	}
+}
+
 // UserAllowedGroupClient is a client for the UserAllowedGroup schema.
 type UserAllowedGroupClient struct {
 	config
@@ -7005,7 +7430,8 @@ type (
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
+		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAffiliate,
+		UserAffiliateLedger, UserAffiliateReversal, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
 		UserSubscription, UserSubscriptionCycle []ent.Hook
 	}
@@ -7017,7 +7443,8 @@ type (
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
+		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAffiliate,
+		UserAffiliateLedger, UserAffiliateReversal, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
 		UserSubscription, UserSubscriptionCycle []ent.Interceptor
 	}

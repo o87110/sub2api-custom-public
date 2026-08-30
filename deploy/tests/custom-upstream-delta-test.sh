@@ -203,6 +203,7 @@ thin_bridge_allowed() {
       backend/internal/handler/gateway_web_search.go | \
       backend/internal/handler/gateway_helper.go | \
       backend/internal/handler/gemini_v1beta_handler.go | \
+      backend/internal/handler/handler.go | \
       backend/internal/handler/image_task_handler.go | \
       backend/internal/handler/no_account_error.go | \
       backend/internal/handler/openai_alpha_search.go | \
@@ -226,6 +227,7 @@ thin_bridge_allowed() {
       backend/internal/repository/user_subscription_repo.go | \
       backend/internal/server/middleware/api_key_auth_google.go | \
       backend/internal/server/middleware/api_key_auth.go | \
+      backend/internal/server/middleware/audit_log.go | \
       backend/internal/server/routes/admin.go | \
       backend/internal/server/routes/gateway.go | \
       backend/internal/service/admin_group_duplicate.go | \
@@ -298,13 +300,16 @@ thin_bridge_allowed() {
       backend/internal/service/subscription_service.go | \
       backend/internal/service/user_subscription_port.go | \
       backend/internal/service/user_subscription.go | \
+      frontend/src/api/admin/affiliates.ts | \
       frontend/src/api/admin/channelMonitor.ts | \
       frontend/src/api/admin/payment.ts | \
       frontend/src/api/admin/settings.ts | \
       frontend/src/api/admin/subscriptions.ts | \
       frontend/src/api/channelMonitor.ts | \
       frontend/src/components/admin/monitor/MonitorFormDialog.vue | \
+      frontend/src/components/common/DataTable.vue | \
       frontend/src/components/common/SubscriptionProgressMini.vue | \
+      frontend/src/components/common/__tests__/DataTable.spec.ts | \
       frontend/src/components/layout/AppSidebar.vue | \
       frontend/src/components/payment/__tests__/paymentFlow.spec.ts | \
       frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts | \
@@ -326,6 +331,7 @@ thin_bridge_allowed() {
       frontend/src/types/index.ts | \
       frontend/src/types/payment.ts | \
       frontend/src/views/admin/__tests__/SettingsView.spec.ts | \
+      frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue | \
       frontend/src/views/admin/groupsModelsList.ts | \
       frontend/src/views/admin/GroupsView.vue | \
       frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts | \

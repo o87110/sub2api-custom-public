@@ -1834,6 +1834,149 @@ var (
 			},
 		},
 	}
+	// UserAffiliatesColumns holds the columns for the "user_affiliates" table.
+	UserAffiliatesColumns = []*schema.Column{
+		{Name: "user_id", Type: field.TypeInt64, Increment: true},
+		{Name: "aff_code", Type: field.TypeString, Size: 32},
+		{Name: "aff_code_custom", Type: field.TypeBool, Default: false},
+		{Name: "aff_rebate_rate_percent", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(5,2)"}},
+		{Name: "inviter_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "aff_count", Type: field.TypeInt, Default: 0},
+		{Name: "aff_quota", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "aff_frozen_quota", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "aff_history_quota", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// UserAffiliatesTable holds the schema information for the "user_affiliates" table.
+	UserAffiliatesTable = &schema.Table{
+		Name:       "user_affiliates",
+		Columns:    UserAffiliatesColumns,
+		PrimaryKey: []*schema.Column{UserAffiliatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "useraffiliate_aff_code",
+				Unique:  true,
+				Columns: []*schema.Column{UserAffiliatesColumns[1]},
+			},
+			{
+				Name:    "useraffiliate_inviter_id",
+				Unique:  false,
+				Columns: []*schema.Column{UserAffiliatesColumns[4]},
+			},
+			{
+				Name:    "useraffiliate_aff_quota",
+				Unique:  false,
+				Columns: []*schema.Column{UserAffiliatesColumns[6]},
+			},
+		},
+	}
+	// UserAffiliateLedgerColumns holds the columns for the "user_affiliate_ledger" table.
+	UserAffiliateLedgerColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "action", Type: field.TypeString, Size: 32},
+		{Name: "amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "source_user_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "source_order_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "frozen_until", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "balance_after", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "aff_quota_after", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "aff_frozen_quota_after", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "aff_history_quota_after", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// UserAffiliateLedgerTable holds the schema information for the "user_affiliate_ledger" table.
+	UserAffiliateLedgerTable = &schema.Table{
+		Name:       "user_affiliate_ledger",
+		Columns:    UserAffiliateLedgerColumns,
+		PrimaryKey: []*schema.Column{UserAffiliateLedgerColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "useraffiliateledger_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{UserAffiliateLedgerColumns[1]},
+			},
+			{
+				Name:    "useraffiliateledger_action",
+				Unique:  false,
+				Columns: []*schema.Column{UserAffiliateLedgerColumns[2]},
+			},
+			{
+				Name:    "useraffiliateledger_source_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{UserAffiliateLedgerColumns[5]},
+			},
+			{
+				Name:    "useraffiliateledger_action_source_order_id_user_id_source_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UserAffiliateLedgerColumns[2], UserAffiliateLedgerColumns[5], UserAffiliateLedgerColumns[1], UserAffiliateLedgerColumns[4], UserAffiliateLedgerColumns[11]},
+			},
+		},
+	}
+	// UserAffiliateReversalsColumns holds the columns for the "user_affiliate_reversals" table.
+	UserAffiliateReversalsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "source_ledger_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "source_order_id", Type: field.TypeInt64},
+		{Name: "inviter_user_id", Type: field.TypeInt64},
+		{Name: "invitee_user_id", Type: field.TypeInt64},
+		{Name: "rebate_amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "frozen_quota_deducted", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "available_quota_deducted", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "balance_deducted", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "total_recharged_deducted", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "balance_before", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "balance_after", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "aff_quota_before", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "aff_quota_after", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "aff_frozen_quota_before", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "aff_frozen_quota_after", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "aff_history_quota_before", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "aff_history_quota_after", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "total_recharged_before", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "total_recharged_after", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "snapshot_available", Type: field.TypeBool, Default: true},
+		{Name: "reason", Type: field.TypeString, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "operator_user_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "operation_key_hash", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// UserAffiliateReversalsTable holds the schema information for the "user_affiliate_reversals" table.
+	UserAffiliateReversalsTable = &schema.Table{
+		Name:       "user_affiliate_reversals",
+		Columns:    UserAffiliateReversalsColumns,
+		PrimaryKey: []*schema.Column{UserAffiliateReversalsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "useraffiliatereversal_source_ledger_id",
+				Unique:  true,
+				Columns: []*schema.Column{UserAffiliateReversalsColumns[1]},
+			},
+			{
+				Name:    "useraffiliatereversal_source_order_id",
+				Unique:  true,
+				Columns: []*schema.Column{UserAffiliateReversalsColumns[2]},
+			},
+			{
+				Name:    "useraffiliatereversal_inviter_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UserAffiliateReversalsColumns[3], UserAffiliateReversalsColumns[24]},
+			},
+			{
+				Name:    "useraffiliatereversal_invitee_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UserAffiliateReversalsColumns[4], UserAffiliateReversalsColumns[24]},
+			},
+			{
+				Name:    "useraffiliatereversal_operation_key_hash",
+				Unique:  false,
+				Columns: []*schema.Column{UserAffiliateReversalsColumns[23]},
+			},
+		},
+	}
 	// UserAllowedGroupsColumns holds the columns for the "user_allowed_groups" table.
 	UserAllowedGroupsColumns = []*schema.Column{
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
@@ -2187,6 +2330,9 @@ var (
 		UsageCleanupTasksTable,
 		UsageLogsTable,
 		UsersTable,
+		UserAffiliatesTable,
+		UserAffiliateLedgerTable,
+		UserAffiliateReversalsTable,
 		UserAllowedGroupsTable,
 		UserAttributeDefinitionsTable,
 		UserAttributeValuesTable,
@@ -2326,6 +2472,15 @@ func init() {
 	}
 	UsersTable.Annotation = &entsql.Annotation{
 		Table: "users",
+	}
+	UserAffiliatesTable.Annotation = &entsql.Annotation{
+		Table: "user_affiliates",
+	}
+	UserAffiliateLedgerTable.Annotation = &entsql.Annotation{
+		Table: "user_affiliate_ledger",
+	}
+	UserAffiliateReversalsTable.Annotation = &entsql.Annotation{
+		Table: "user_affiliate_reversals",
 	}
 	UserAllowedGroupsTable.ForeignKeys[0].RefTable = UsersTable
 	UserAllowedGroupsTable.ForeignKeys[1].RefTable = GroupsTable

@@ -25,6 +25,7 @@ backend/internal/handler/gateway_handler_responses.go	delegate	true	6	0	-
 backend/internal/handler/gateway_helper.go	delegate	true	42	0	-
 backend/internal/handler/gateway_web_search.go	delegate	true	12	1	e803e3851c0a7e222cfadeafad7b8636ab959d11:28:56,073e92d17178a1ccdb0a27017f572f10c9c7ab62:28:56,e0c48a19ed794a565e3858662520afe0a1f9f0ba:28:56,75f88be5f75c27771836b586f7de1503afa0e3bc:28:56,e8cb019fabf8b55199436229044cbf9aa7a82564:28:56
 backend/internal/handler/gemini_v1beta_handler.go	delegate	true	42	3	-
+backend/internal/handler/handler.go	dto	true	2	0	-
 backend/internal/handler/image_task_handler.go	delegate	true	34	0	-
 backend/internal/handler/no_account_error.go	delegate	true	15	9	75f88be5f75c27771836b586f7de1503afa0e3bc:16:10,e8cb019fabf8b55199436229044cbf9aa7a82564:16:10
 backend/internal/handler/openai_alpha_search.go	delegate	true	3	0	-
@@ -37,7 +38,7 @@ backend/internal/handler/openai_images.go	delegate	true	3	0	-
 backend/internal/handler/openai_live.go	delegate	true	16	0	-
 backend/internal/handler/payment_handler.go	delegate	true	49	9	-
 backend/internal/handler/payment_handler_resume_test.go	compat-test	true	47	0	-
-backend/internal/handler/wire.go	wire	true	4	1	-
+backend/internal/handler/wire.go	wire	true	9	1	-
 backend/internal/payment/load_balancer.go	delegate	true	157	29	-
 backend/internal/payment/types.go	dto	false	6	5	-
 backend/internal/repository/api_key_minimum_balance_repo.go	persistence	false	11	0	-
@@ -48,7 +49,8 @@ backend/internal/repository/usage_billing_repo.go	persistence	true	2	1	-
 backend/internal/repository/user_subscription_repo.go	dto	true	23	19	-
 backend/internal/server/middleware/api_key_auth.go	delegate	true	6	0	-
 backend/internal/server/middleware/api_key_auth_google.go	delegate	true	6	0	-
-backend/internal/server/routes/admin.go	delegate	true	3	0	-
+backend/internal/server/middleware/audit_log.go	dto	false	3	0	-
+backend/internal/server/routes/admin.go	delegate	true	6	1	-
 backend/internal/server/routes/gateway.go	delegate	true	19	0	-
 backend/internal/service/admin_group.go	delegate	true	106	13	-
 backend/internal/service/admin_group_duplicate.go	persistence	false	4	2	-
@@ -118,13 +120,16 @@ backend/internal/service/redeem_service.go	delegate	true	9	5	-
 backend/internal/service/subscription_service.go	delegate	true	188	26	-
 backend/internal/service/user_subscription.go	dto	false	13	0	-
 backend/internal/service/user_subscription_port.go	dto	true	30	0	-
+frontend/src/api/admin/affiliates.ts	dto	false	104	0	-
 frontend/src/api/admin/channelMonitor.ts	dto	false	7	0	-
 frontend/src/api/admin/payment.ts	dto	true	9	0	-
 frontend/src/api/admin/settings.ts	dto	true	3	0	-
 frontend/src/api/admin/subscriptions.ts	dto	true	75	2	-
 frontend/src/api/channelMonitor.ts	dto	false	4	0	-
 frontend/src/components/admin/monitor/MonitorFormDialog.vue	view	true	35	4	-
+frontend/src/components/common/DataTable.vue	view	true	17	5	-
 frontend/src/components/common/SubscriptionProgressMini.vue	view	true	6	0	-
+frontend/src/components/common/__tests__/DataTable.spec.ts	compat-test	false	23	0	-
 frontend/src/components/layout/AppSidebar.vue	view	true	1	1	-
 frontend/src/components/payment/AmountInput.vue	view	true	22	7	-
 frontend/src/components/payment/PaymentProviderDialog.vue	view	true	3	0	-
@@ -135,11 +140,11 @@ frontend/src/components/payment/paymentFlow.ts	delegate	true	14	0	-
 frontend/src/components/user/monitor/MonitorCard.vue	view	true	18	7	-
 frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue	view	true	9	15	-
 frontend/src/i18n/locales/en/admin/channels.ts	dto	true	59	2	-
-frontend/src/i18n/locales/en/admin/overview.ts	dto	false	7	0	-
+frontend/src/i18n/locales/en/admin/overview.ts	dto	false	49	0	-
 frontend/src/i18n/locales/en/admin/settings.ts	dto	true	4	3	-
 frontend/src/i18n/locales/en/misc.ts	dto	true	32	0	-
 frontend/src/i18n/locales/zh/admin/channels.ts	dto	true	58	1	-
-frontend/src/i18n/locales/zh/admin/overview.ts	dto	false	7	0	-
+frontend/src/i18n/locales/zh/admin/overview.ts	dto	false	49	0	-
 frontend/src/i18n/locales/zh/admin/settings.ts	dto	true	4	3	-
 frontend/src/i18n/locales/zh/misc.ts	dto	true	32	0	-
 frontend/src/router/index.ts	wire	true	1	1	-
@@ -149,6 +154,7 @@ frontend/src/views/admin/GroupsView.vue	view	true	49	0	-
 frontend/src/views/admin/SettingsView.vue	view	true	29	130	-
 frontend/src/views/admin/SubscriptionsView.vue	view	true	42	5	-
 frontend/src/views/admin/__tests__/SettingsView.spec.ts	compat-test	true	101	0	-
+frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue	view	true	106	3	-
 frontend/src/views/admin/groupsModelsList.ts	delegate	true	27	5	-
 frontend/src/views/admin/orders/AdminPaymentPlansView.vue	view	true	23	1	-
 frontend/src/views/admin/orders/PlanEditDialog.vue	view	true	95	7	-

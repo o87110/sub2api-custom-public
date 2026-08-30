@@ -417,6 +417,42 @@ func (f UserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserMutation", m)
 }
 
+// The UserAffiliateFunc type is an adapter to allow the use of ordinary
+// function as UserAffiliate mutator.
+type UserAffiliateFunc func(context.Context, *ent.UserAffiliateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserAffiliateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserAffiliateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserAffiliateMutation", m)
+}
+
+// The UserAffiliateLedgerFunc type is an adapter to allow the use of ordinary
+// function as UserAffiliateLedger mutator.
+type UserAffiliateLedgerFunc func(context.Context, *ent.UserAffiliateLedgerMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserAffiliateLedgerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserAffiliateLedgerMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserAffiliateLedgerMutation", m)
+}
+
+// The UserAffiliateReversalFunc type is an adapter to allow the use of ordinary
+// function as UserAffiliateReversal mutator.
+type UserAffiliateReversalFunc func(context.Context, *ent.UserAffiliateReversalMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserAffiliateReversalFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserAffiliateReversalMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserAffiliateReversalMutation", m)
+}
+
 // The UserAllowedGroupFunc type is an adapter to allow the use of ordinary
 // function as UserAllowedGroup mutator.
 type UserAllowedGroupFunc func(context.Context, *ent.UserAllowedGroupMutation) (ent.Value, error)

@@ -44,6 +44,7 @@ Issue 和生产资料不迁移。
 
 ```text
 backend/internal/custom/
+├── affiliatereversal/      邀请返利预览、严格追回、审计与幂等恢复
 ├── databaseboundary/       数据库与迁移边界检查
 ├── groupaccess/            分组最低余额资格协调、fallback、熔断与错误
 ├── groupmodelaccess/       分组模型调用黑名单、原始/最终模型检查与协议错误
@@ -53,6 +54,7 @@ backend/internal/custom/
 └── updater/                自定义 Release、更新与回退
 
 frontend/src/custom/
+├── affiliate-reversal/     管理端返利勾选、影响预览与危险确认
 ├── api-keys/               API 密钥当前页批量分组、启用、禁用与删除
 ├── group-access/           分组最低余额表单、禁用状态、问号说明浮层与错误提示
 ├── group-model-access/     分组模型调用黑名单表单
