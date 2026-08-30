@@ -32,10 +32,14 @@ type balanceCacheInvalidator interface {
 const cacheInvalidationTimeout = 5 * time.Second
 
 func NewService(client *dbent.Client, authCacheInvalidator service.APIKeyAuthCacheInvalidator, billingCacheService *service.BillingCacheService) *Service {
+	var balanceCache balanceCacheInvalidator
+	if billingCacheService != nil {
+		balanceCache = billingCacheService
+	}
 	return &Service{
 		client:               client,
 		authCacheInvalidator: authCacheInvalidator,
-		billingCacheService:  billingCacheService,
+		billingCacheService:  balanceCache,
 	}
 }
 
