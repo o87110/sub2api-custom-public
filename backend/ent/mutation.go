@@ -47,6 +47,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
+	"github.com/Wei-Shaw/sub2api/ent/useraffiliate"
+	"github.com/Wei-Shaw/sub2api/ent/useraffiliateledger"
+	"github.com/Wei-Shaw/sub2api/ent/useraffiliatereversal"
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
@@ -99,6 +102,9 @@ const (
 	TypeUsageCleanupTask              = "UsageCleanupTask"
 	TypeUsageLog                      = "UsageLog"
 	TypeUser                          = "User"
+	TypeUserAffiliate                 = "UserAffiliate"
+	TypeUserAffiliateLedger           = "UserAffiliateLedger"
+	TypeUserAffiliateReversal         = "UserAffiliateReversal"
 	TypeUserAllowedGroup              = "UserAllowedGroup"
 	TypeUserAttributeDefinition       = "UserAttributeDefinition"
 	TypeUserAttributeValue            = "UserAttributeValue"
@@ -51942,6 +51948,5024 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)
+}
+
+// UserAffiliateMutation represents an operation that mutates the UserAffiliate nodes in the graph.
+type UserAffiliateMutation struct {
+	config
+	op                         Op
+	typ                        string
+	id                         *int64
+	aff_code                   *string
+	aff_code_custom            *bool
+	aff_rebate_rate_percent    *float64
+	addaff_rebate_rate_percent *float64
+	inviter_id                 *int64
+	addinviter_id              *int64
+	aff_count                  *int
+	addaff_count               *int
+	aff_quota                  *float64
+	addaff_quota               *float64
+	aff_frozen_quota           *float64
+	addaff_frozen_quota        *float64
+	aff_history_quota          *float64
+	addaff_history_quota       *float64
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	clearedFields              map[string]struct{}
+	done                       bool
+	oldValue                   func(context.Context) (*UserAffiliate, error)
+	predicates                 []predicate.UserAffiliate
+}
+
+var _ ent.Mutation = (*UserAffiliateMutation)(nil)
+
+// useraffiliateOption allows management of the mutation configuration using functional options.
+type useraffiliateOption func(*UserAffiliateMutation)
+
+// newUserAffiliateMutation creates new mutation for the UserAffiliate entity.
+func newUserAffiliateMutation(c config, op Op, opts ...useraffiliateOption) *UserAffiliateMutation {
+	m := &UserAffiliateMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserAffiliate,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserAffiliateID sets the ID field of the mutation.
+func withUserAffiliateID(id int64) useraffiliateOption {
+	return func(m *UserAffiliateMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserAffiliate
+		)
+		m.oldValue = func(ctx context.Context) (*UserAffiliate, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserAffiliate.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserAffiliate sets the old UserAffiliate of the mutation.
+func withUserAffiliate(node *UserAffiliate) useraffiliateOption {
+	return func(m *UserAffiliateMutation) {
+		m.oldValue = func(context.Context) (*UserAffiliate, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserAffiliateMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserAffiliateMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of UserAffiliate entities.
+func (m *UserAffiliateMutation) SetID(id int64) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserAffiliateMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserAffiliateMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserAffiliate.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAffCode sets the "aff_code" field.
+func (m *UserAffiliateMutation) SetAffCode(s string) {
+	m.aff_code = &s
+}
+
+// AffCode returns the value of the "aff_code" field in the mutation.
+func (m *UserAffiliateMutation) AffCode() (r string, exists bool) {
+	v := m.aff_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffCode returns the old "aff_code" field's value of the UserAffiliate entity.
+// If the UserAffiliate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateMutation) OldAffCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffCode: %w", err)
+	}
+	return oldValue.AffCode, nil
+}
+
+// ResetAffCode resets all changes to the "aff_code" field.
+func (m *UserAffiliateMutation) ResetAffCode() {
+	m.aff_code = nil
+}
+
+// SetAffCodeCustom sets the "aff_code_custom" field.
+func (m *UserAffiliateMutation) SetAffCodeCustom(b bool) {
+	m.aff_code_custom = &b
+}
+
+// AffCodeCustom returns the value of the "aff_code_custom" field in the mutation.
+func (m *UserAffiliateMutation) AffCodeCustom() (r bool, exists bool) {
+	v := m.aff_code_custom
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffCodeCustom returns the old "aff_code_custom" field's value of the UserAffiliate entity.
+// If the UserAffiliate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateMutation) OldAffCodeCustom(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffCodeCustom is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffCodeCustom requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffCodeCustom: %w", err)
+	}
+	return oldValue.AffCodeCustom, nil
+}
+
+// ResetAffCodeCustom resets all changes to the "aff_code_custom" field.
+func (m *UserAffiliateMutation) ResetAffCodeCustom() {
+	m.aff_code_custom = nil
+}
+
+// SetAffRebateRatePercent sets the "aff_rebate_rate_percent" field.
+func (m *UserAffiliateMutation) SetAffRebateRatePercent(f float64) {
+	m.aff_rebate_rate_percent = &f
+	m.addaff_rebate_rate_percent = nil
+}
+
+// AffRebateRatePercent returns the value of the "aff_rebate_rate_percent" field in the mutation.
+func (m *UserAffiliateMutation) AffRebateRatePercent() (r float64, exists bool) {
+	v := m.aff_rebate_rate_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffRebateRatePercent returns the old "aff_rebate_rate_percent" field's value of the UserAffiliate entity.
+// If the UserAffiliate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateMutation) OldAffRebateRatePercent(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffRebateRatePercent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffRebateRatePercent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffRebateRatePercent: %w", err)
+	}
+	return oldValue.AffRebateRatePercent, nil
+}
+
+// AddAffRebateRatePercent adds f to the "aff_rebate_rate_percent" field.
+func (m *UserAffiliateMutation) AddAffRebateRatePercent(f float64) {
+	if m.addaff_rebate_rate_percent != nil {
+		*m.addaff_rebate_rate_percent += f
+	} else {
+		m.addaff_rebate_rate_percent = &f
+	}
+}
+
+// AddedAffRebateRatePercent returns the value that was added to the "aff_rebate_rate_percent" field in this mutation.
+func (m *UserAffiliateMutation) AddedAffRebateRatePercent() (r float64, exists bool) {
+	v := m.addaff_rebate_rate_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAffRebateRatePercent clears the value of the "aff_rebate_rate_percent" field.
+func (m *UserAffiliateMutation) ClearAffRebateRatePercent() {
+	m.aff_rebate_rate_percent = nil
+	m.addaff_rebate_rate_percent = nil
+	m.clearedFields[useraffiliate.FieldAffRebateRatePercent] = struct{}{}
+}
+
+// AffRebateRatePercentCleared returns if the "aff_rebate_rate_percent" field was cleared in this mutation.
+func (m *UserAffiliateMutation) AffRebateRatePercentCleared() bool {
+	_, ok := m.clearedFields[useraffiliate.FieldAffRebateRatePercent]
+	return ok
+}
+
+// ResetAffRebateRatePercent resets all changes to the "aff_rebate_rate_percent" field.
+func (m *UserAffiliateMutation) ResetAffRebateRatePercent() {
+	m.aff_rebate_rate_percent = nil
+	m.addaff_rebate_rate_percent = nil
+	delete(m.clearedFields, useraffiliate.FieldAffRebateRatePercent)
+}
+
+// SetInviterID sets the "inviter_id" field.
+func (m *UserAffiliateMutation) SetInviterID(i int64) {
+	m.inviter_id = &i
+	m.addinviter_id = nil
+}
+
+// InviterID returns the value of the "inviter_id" field in the mutation.
+func (m *UserAffiliateMutation) InviterID() (r int64, exists bool) {
+	v := m.inviter_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInviterID returns the old "inviter_id" field's value of the UserAffiliate entity.
+// If the UserAffiliate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateMutation) OldInviterID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInviterID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInviterID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInviterID: %w", err)
+	}
+	return oldValue.InviterID, nil
+}
+
+// AddInviterID adds i to the "inviter_id" field.
+func (m *UserAffiliateMutation) AddInviterID(i int64) {
+	if m.addinviter_id != nil {
+		*m.addinviter_id += i
+	} else {
+		m.addinviter_id = &i
+	}
+}
+
+// AddedInviterID returns the value that was added to the "inviter_id" field in this mutation.
+func (m *UserAffiliateMutation) AddedInviterID() (r int64, exists bool) {
+	v := m.addinviter_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearInviterID clears the value of the "inviter_id" field.
+func (m *UserAffiliateMutation) ClearInviterID() {
+	m.inviter_id = nil
+	m.addinviter_id = nil
+	m.clearedFields[useraffiliate.FieldInviterID] = struct{}{}
+}
+
+// InviterIDCleared returns if the "inviter_id" field was cleared in this mutation.
+func (m *UserAffiliateMutation) InviterIDCleared() bool {
+	_, ok := m.clearedFields[useraffiliate.FieldInviterID]
+	return ok
+}
+
+// ResetInviterID resets all changes to the "inviter_id" field.
+func (m *UserAffiliateMutation) ResetInviterID() {
+	m.inviter_id = nil
+	m.addinviter_id = nil
+	delete(m.clearedFields, useraffiliate.FieldInviterID)
+}
+
+// SetAffCount sets the "aff_count" field.
+func (m *UserAffiliateMutation) SetAffCount(i int) {
+	m.aff_count = &i
+	m.addaff_count = nil
+}
+
+// AffCount returns the value of the "aff_count" field in the mutation.
+func (m *UserAffiliateMutation) AffCount() (r int, exists bool) {
+	v := m.aff_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffCount returns the old "aff_count" field's value of the UserAffiliate entity.
+// If the UserAffiliate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateMutation) OldAffCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffCount: %w", err)
+	}
+	return oldValue.AffCount, nil
+}
+
+// AddAffCount adds i to the "aff_count" field.
+func (m *UserAffiliateMutation) AddAffCount(i int) {
+	if m.addaff_count != nil {
+		*m.addaff_count += i
+	} else {
+		m.addaff_count = &i
+	}
+}
+
+// AddedAffCount returns the value that was added to the "aff_count" field in this mutation.
+func (m *UserAffiliateMutation) AddedAffCount() (r int, exists bool) {
+	v := m.addaff_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAffCount resets all changes to the "aff_count" field.
+func (m *UserAffiliateMutation) ResetAffCount() {
+	m.aff_count = nil
+	m.addaff_count = nil
+}
+
+// SetAffQuota sets the "aff_quota" field.
+func (m *UserAffiliateMutation) SetAffQuota(f float64) {
+	m.aff_quota = &f
+	m.addaff_quota = nil
+}
+
+// AffQuota returns the value of the "aff_quota" field in the mutation.
+func (m *UserAffiliateMutation) AffQuota() (r float64, exists bool) {
+	v := m.aff_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffQuota returns the old "aff_quota" field's value of the UserAffiliate entity.
+// If the UserAffiliate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateMutation) OldAffQuota(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffQuota: %w", err)
+	}
+	return oldValue.AffQuota, nil
+}
+
+// AddAffQuota adds f to the "aff_quota" field.
+func (m *UserAffiliateMutation) AddAffQuota(f float64) {
+	if m.addaff_quota != nil {
+		*m.addaff_quota += f
+	} else {
+		m.addaff_quota = &f
+	}
+}
+
+// AddedAffQuota returns the value that was added to the "aff_quota" field in this mutation.
+func (m *UserAffiliateMutation) AddedAffQuota() (r float64, exists bool) {
+	v := m.addaff_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAffQuota resets all changes to the "aff_quota" field.
+func (m *UserAffiliateMutation) ResetAffQuota() {
+	m.aff_quota = nil
+	m.addaff_quota = nil
+}
+
+// SetAffFrozenQuota sets the "aff_frozen_quota" field.
+func (m *UserAffiliateMutation) SetAffFrozenQuota(f float64) {
+	m.aff_frozen_quota = &f
+	m.addaff_frozen_quota = nil
+}
+
+// AffFrozenQuota returns the value of the "aff_frozen_quota" field in the mutation.
+func (m *UserAffiliateMutation) AffFrozenQuota() (r float64, exists bool) {
+	v := m.aff_frozen_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffFrozenQuota returns the old "aff_frozen_quota" field's value of the UserAffiliate entity.
+// If the UserAffiliate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateMutation) OldAffFrozenQuota(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffFrozenQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffFrozenQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffFrozenQuota: %w", err)
+	}
+	return oldValue.AffFrozenQuota, nil
+}
+
+// AddAffFrozenQuota adds f to the "aff_frozen_quota" field.
+func (m *UserAffiliateMutation) AddAffFrozenQuota(f float64) {
+	if m.addaff_frozen_quota != nil {
+		*m.addaff_frozen_quota += f
+	} else {
+		m.addaff_frozen_quota = &f
+	}
+}
+
+// AddedAffFrozenQuota returns the value that was added to the "aff_frozen_quota" field in this mutation.
+func (m *UserAffiliateMutation) AddedAffFrozenQuota() (r float64, exists bool) {
+	v := m.addaff_frozen_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAffFrozenQuota resets all changes to the "aff_frozen_quota" field.
+func (m *UserAffiliateMutation) ResetAffFrozenQuota() {
+	m.aff_frozen_quota = nil
+	m.addaff_frozen_quota = nil
+}
+
+// SetAffHistoryQuota sets the "aff_history_quota" field.
+func (m *UserAffiliateMutation) SetAffHistoryQuota(f float64) {
+	m.aff_history_quota = &f
+	m.addaff_history_quota = nil
+}
+
+// AffHistoryQuota returns the value of the "aff_history_quota" field in the mutation.
+func (m *UserAffiliateMutation) AffHistoryQuota() (r float64, exists bool) {
+	v := m.aff_history_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffHistoryQuota returns the old "aff_history_quota" field's value of the UserAffiliate entity.
+// If the UserAffiliate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateMutation) OldAffHistoryQuota(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffHistoryQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffHistoryQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffHistoryQuota: %w", err)
+	}
+	return oldValue.AffHistoryQuota, nil
+}
+
+// AddAffHistoryQuota adds f to the "aff_history_quota" field.
+func (m *UserAffiliateMutation) AddAffHistoryQuota(f float64) {
+	if m.addaff_history_quota != nil {
+		*m.addaff_history_quota += f
+	} else {
+		m.addaff_history_quota = &f
+	}
+}
+
+// AddedAffHistoryQuota returns the value that was added to the "aff_history_quota" field in this mutation.
+func (m *UserAffiliateMutation) AddedAffHistoryQuota() (r float64, exists bool) {
+	v := m.addaff_history_quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAffHistoryQuota resets all changes to the "aff_history_quota" field.
+func (m *UserAffiliateMutation) ResetAffHistoryQuota() {
+	m.aff_history_quota = nil
+	m.addaff_history_quota = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *UserAffiliateMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *UserAffiliateMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the UserAffiliate entity.
+// If the UserAffiliate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *UserAffiliateMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *UserAffiliateMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *UserAffiliateMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the UserAffiliate entity.
+// If the UserAffiliate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *UserAffiliateMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the UserAffiliateMutation builder.
+func (m *UserAffiliateMutation) Where(ps ...predicate.UserAffiliate) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserAffiliateMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserAffiliateMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserAffiliate, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserAffiliateMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserAffiliateMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserAffiliate).
+func (m *UserAffiliateMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserAffiliateMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.aff_code != nil {
+		fields = append(fields, useraffiliate.FieldAffCode)
+	}
+	if m.aff_code_custom != nil {
+		fields = append(fields, useraffiliate.FieldAffCodeCustom)
+	}
+	if m.aff_rebate_rate_percent != nil {
+		fields = append(fields, useraffiliate.FieldAffRebateRatePercent)
+	}
+	if m.inviter_id != nil {
+		fields = append(fields, useraffiliate.FieldInviterID)
+	}
+	if m.aff_count != nil {
+		fields = append(fields, useraffiliate.FieldAffCount)
+	}
+	if m.aff_quota != nil {
+		fields = append(fields, useraffiliate.FieldAffQuota)
+	}
+	if m.aff_frozen_quota != nil {
+		fields = append(fields, useraffiliate.FieldAffFrozenQuota)
+	}
+	if m.aff_history_quota != nil {
+		fields = append(fields, useraffiliate.FieldAffHistoryQuota)
+	}
+	if m.created_at != nil {
+		fields = append(fields, useraffiliate.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, useraffiliate.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserAffiliateMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case useraffiliate.FieldAffCode:
+		return m.AffCode()
+	case useraffiliate.FieldAffCodeCustom:
+		return m.AffCodeCustom()
+	case useraffiliate.FieldAffRebateRatePercent:
+		return m.AffRebateRatePercent()
+	case useraffiliate.FieldInviterID:
+		return m.InviterID()
+	case useraffiliate.FieldAffCount:
+		return m.AffCount()
+	case useraffiliate.FieldAffQuota:
+		return m.AffQuota()
+	case useraffiliate.FieldAffFrozenQuota:
+		return m.AffFrozenQuota()
+	case useraffiliate.FieldAffHistoryQuota:
+		return m.AffHistoryQuota()
+	case useraffiliate.FieldCreatedAt:
+		return m.CreatedAt()
+	case useraffiliate.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserAffiliateMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case useraffiliate.FieldAffCode:
+		return m.OldAffCode(ctx)
+	case useraffiliate.FieldAffCodeCustom:
+		return m.OldAffCodeCustom(ctx)
+	case useraffiliate.FieldAffRebateRatePercent:
+		return m.OldAffRebateRatePercent(ctx)
+	case useraffiliate.FieldInviterID:
+		return m.OldInviterID(ctx)
+	case useraffiliate.FieldAffCount:
+		return m.OldAffCount(ctx)
+	case useraffiliate.FieldAffQuota:
+		return m.OldAffQuota(ctx)
+	case useraffiliate.FieldAffFrozenQuota:
+		return m.OldAffFrozenQuota(ctx)
+	case useraffiliate.FieldAffHistoryQuota:
+		return m.OldAffHistoryQuota(ctx)
+	case useraffiliate.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case useraffiliate.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserAffiliate field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserAffiliateMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case useraffiliate.FieldAffCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffCode(v)
+		return nil
+	case useraffiliate.FieldAffCodeCustom:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffCodeCustom(v)
+		return nil
+	case useraffiliate.FieldAffRebateRatePercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffRebateRatePercent(v)
+		return nil
+	case useraffiliate.FieldInviterID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInviterID(v)
+		return nil
+	case useraffiliate.FieldAffCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffCount(v)
+		return nil
+	case useraffiliate.FieldAffQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffQuota(v)
+		return nil
+	case useraffiliate.FieldAffFrozenQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffFrozenQuota(v)
+		return nil
+	case useraffiliate.FieldAffHistoryQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffHistoryQuota(v)
+		return nil
+	case useraffiliate.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case useraffiliate.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliate field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserAffiliateMutation) AddedFields() []string {
+	var fields []string
+	if m.addaff_rebate_rate_percent != nil {
+		fields = append(fields, useraffiliate.FieldAffRebateRatePercent)
+	}
+	if m.addinviter_id != nil {
+		fields = append(fields, useraffiliate.FieldInviterID)
+	}
+	if m.addaff_count != nil {
+		fields = append(fields, useraffiliate.FieldAffCount)
+	}
+	if m.addaff_quota != nil {
+		fields = append(fields, useraffiliate.FieldAffQuota)
+	}
+	if m.addaff_frozen_quota != nil {
+		fields = append(fields, useraffiliate.FieldAffFrozenQuota)
+	}
+	if m.addaff_history_quota != nil {
+		fields = append(fields, useraffiliate.FieldAffHistoryQuota)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserAffiliateMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case useraffiliate.FieldAffRebateRatePercent:
+		return m.AddedAffRebateRatePercent()
+	case useraffiliate.FieldInviterID:
+		return m.AddedInviterID()
+	case useraffiliate.FieldAffCount:
+		return m.AddedAffCount()
+	case useraffiliate.FieldAffQuota:
+		return m.AddedAffQuota()
+	case useraffiliate.FieldAffFrozenQuota:
+		return m.AddedAffFrozenQuota()
+	case useraffiliate.FieldAffHistoryQuota:
+		return m.AddedAffHistoryQuota()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserAffiliateMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case useraffiliate.FieldAffRebateRatePercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffRebateRatePercent(v)
+		return nil
+	case useraffiliate.FieldInviterID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInviterID(v)
+		return nil
+	case useraffiliate.FieldAffCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffCount(v)
+		return nil
+	case useraffiliate.FieldAffQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffQuota(v)
+		return nil
+	case useraffiliate.FieldAffFrozenQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffFrozenQuota(v)
+		return nil
+	case useraffiliate.FieldAffHistoryQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffHistoryQuota(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliate numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserAffiliateMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(useraffiliate.FieldAffRebateRatePercent) {
+		fields = append(fields, useraffiliate.FieldAffRebateRatePercent)
+	}
+	if m.FieldCleared(useraffiliate.FieldInviterID) {
+		fields = append(fields, useraffiliate.FieldInviterID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserAffiliateMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserAffiliateMutation) ClearField(name string) error {
+	switch name {
+	case useraffiliate.FieldAffRebateRatePercent:
+		m.ClearAffRebateRatePercent()
+		return nil
+	case useraffiliate.FieldInviterID:
+		m.ClearInviterID()
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliate nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserAffiliateMutation) ResetField(name string) error {
+	switch name {
+	case useraffiliate.FieldAffCode:
+		m.ResetAffCode()
+		return nil
+	case useraffiliate.FieldAffCodeCustom:
+		m.ResetAffCodeCustom()
+		return nil
+	case useraffiliate.FieldAffRebateRatePercent:
+		m.ResetAffRebateRatePercent()
+		return nil
+	case useraffiliate.FieldInviterID:
+		m.ResetInviterID()
+		return nil
+	case useraffiliate.FieldAffCount:
+		m.ResetAffCount()
+		return nil
+	case useraffiliate.FieldAffQuota:
+		m.ResetAffQuota()
+		return nil
+	case useraffiliate.FieldAffFrozenQuota:
+		m.ResetAffFrozenQuota()
+		return nil
+	case useraffiliate.FieldAffHistoryQuota:
+		m.ResetAffHistoryQuota()
+		return nil
+	case useraffiliate.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case useraffiliate.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliate field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserAffiliateMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserAffiliateMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserAffiliateMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserAffiliateMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserAffiliateMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserAffiliateMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserAffiliateMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown UserAffiliate unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserAffiliateMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown UserAffiliate edge %s", name)
+}
+
+// UserAffiliateLedgerMutation represents an operation that mutates the UserAffiliateLedger nodes in the graph.
+type UserAffiliateLedgerMutation struct {
+	config
+	op                         Op
+	typ                        string
+	id                         *int64
+	user_id                    *int64
+	adduser_id                 *int64
+	action                     *string
+	amount                     *float64
+	addamount                  *float64
+	source_user_id             *int64
+	addsource_user_id          *int64
+	source_order_id            *int64
+	addsource_order_id         *int64
+	frozen_until               *time.Time
+	balance_after              *float64
+	addbalance_after           *float64
+	aff_quota_after            *float64
+	addaff_quota_after         *float64
+	aff_frozen_quota_after     *float64
+	addaff_frozen_quota_after  *float64
+	aff_history_quota_after    *float64
+	addaff_history_quota_after *float64
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	clearedFields              map[string]struct{}
+	done                       bool
+	oldValue                   func(context.Context) (*UserAffiliateLedger, error)
+	predicates                 []predicate.UserAffiliateLedger
+}
+
+var _ ent.Mutation = (*UserAffiliateLedgerMutation)(nil)
+
+// useraffiliateledgerOption allows management of the mutation configuration using functional options.
+type useraffiliateledgerOption func(*UserAffiliateLedgerMutation)
+
+// newUserAffiliateLedgerMutation creates new mutation for the UserAffiliateLedger entity.
+func newUserAffiliateLedgerMutation(c config, op Op, opts ...useraffiliateledgerOption) *UserAffiliateLedgerMutation {
+	m := &UserAffiliateLedgerMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserAffiliateLedger,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserAffiliateLedgerID sets the ID field of the mutation.
+func withUserAffiliateLedgerID(id int64) useraffiliateledgerOption {
+	return func(m *UserAffiliateLedgerMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserAffiliateLedger
+		)
+		m.oldValue = func(ctx context.Context) (*UserAffiliateLedger, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserAffiliateLedger.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserAffiliateLedger sets the old UserAffiliateLedger of the mutation.
+func withUserAffiliateLedger(node *UserAffiliateLedger) useraffiliateledgerOption {
+	return func(m *UserAffiliateLedgerMutation) {
+		m.oldValue = func(context.Context) (*UserAffiliateLedger, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserAffiliateLedgerMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserAffiliateLedgerMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserAffiliateLedgerMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserAffiliateLedgerMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserAffiliateLedger.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *UserAffiliateLedgerMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *UserAffiliateLedgerMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *UserAffiliateLedgerMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *UserAffiliateLedgerMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *UserAffiliateLedgerMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetAction sets the "action" field.
+func (m *UserAffiliateLedgerMutation) SetAction(s string) {
+	m.action = &s
+}
+
+// Action returns the value of the "action" field in the mutation.
+func (m *UserAffiliateLedgerMutation) Action() (r string, exists bool) {
+	v := m.action
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAction returns the old "action" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldAction(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAction is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAction requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAction: %w", err)
+	}
+	return oldValue.Action, nil
+}
+
+// ResetAction resets all changes to the "action" field.
+func (m *UserAffiliateLedgerMutation) ResetAction() {
+	m.action = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *UserAffiliateLedgerMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *UserAffiliateLedgerMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *UserAffiliateLedgerMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *UserAffiliateLedgerMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *UserAffiliateLedgerMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetSourceUserID sets the "source_user_id" field.
+func (m *UserAffiliateLedgerMutation) SetSourceUserID(i int64) {
+	m.source_user_id = &i
+	m.addsource_user_id = nil
+}
+
+// SourceUserID returns the value of the "source_user_id" field in the mutation.
+func (m *UserAffiliateLedgerMutation) SourceUserID() (r int64, exists bool) {
+	v := m.source_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceUserID returns the old "source_user_id" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldSourceUserID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceUserID: %w", err)
+	}
+	return oldValue.SourceUserID, nil
+}
+
+// AddSourceUserID adds i to the "source_user_id" field.
+func (m *UserAffiliateLedgerMutation) AddSourceUserID(i int64) {
+	if m.addsource_user_id != nil {
+		*m.addsource_user_id += i
+	} else {
+		m.addsource_user_id = &i
+	}
+}
+
+// AddedSourceUserID returns the value that was added to the "source_user_id" field in this mutation.
+func (m *UserAffiliateLedgerMutation) AddedSourceUserID() (r int64, exists bool) {
+	v := m.addsource_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSourceUserID clears the value of the "source_user_id" field.
+func (m *UserAffiliateLedgerMutation) ClearSourceUserID() {
+	m.source_user_id = nil
+	m.addsource_user_id = nil
+	m.clearedFields[useraffiliateledger.FieldSourceUserID] = struct{}{}
+}
+
+// SourceUserIDCleared returns if the "source_user_id" field was cleared in this mutation.
+func (m *UserAffiliateLedgerMutation) SourceUserIDCleared() bool {
+	_, ok := m.clearedFields[useraffiliateledger.FieldSourceUserID]
+	return ok
+}
+
+// ResetSourceUserID resets all changes to the "source_user_id" field.
+func (m *UserAffiliateLedgerMutation) ResetSourceUserID() {
+	m.source_user_id = nil
+	m.addsource_user_id = nil
+	delete(m.clearedFields, useraffiliateledger.FieldSourceUserID)
+}
+
+// SetSourceOrderID sets the "source_order_id" field.
+func (m *UserAffiliateLedgerMutation) SetSourceOrderID(i int64) {
+	m.source_order_id = &i
+	m.addsource_order_id = nil
+}
+
+// SourceOrderID returns the value of the "source_order_id" field in the mutation.
+func (m *UserAffiliateLedgerMutation) SourceOrderID() (r int64, exists bool) {
+	v := m.source_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceOrderID returns the old "source_order_id" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldSourceOrderID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceOrderID: %w", err)
+	}
+	return oldValue.SourceOrderID, nil
+}
+
+// AddSourceOrderID adds i to the "source_order_id" field.
+func (m *UserAffiliateLedgerMutation) AddSourceOrderID(i int64) {
+	if m.addsource_order_id != nil {
+		*m.addsource_order_id += i
+	} else {
+		m.addsource_order_id = &i
+	}
+}
+
+// AddedSourceOrderID returns the value that was added to the "source_order_id" field in this mutation.
+func (m *UserAffiliateLedgerMutation) AddedSourceOrderID() (r int64, exists bool) {
+	v := m.addsource_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSourceOrderID clears the value of the "source_order_id" field.
+func (m *UserAffiliateLedgerMutation) ClearSourceOrderID() {
+	m.source_order_id = nil
+	m.addsource_order_id = nil
+	m.clearedFields[useraffiliateledger.FieldSourceOrderID] = struct{}{}
+}
+
+// SourceOrderIDCleared returns if the "source_order_id" field was cleared in this mutation.
+func (m *UserAffiliateLedgerMutation) SourceOrderIDCleared() bool {
+	_, ok := m.clearedFields[useraffiliateledger.FieldSourceOrderID]
+	return ok
+}
+
+// ResetSourceOrderID resets all changes to the "source_order_id" field.
+func (m *UserAffiliateLedgerMutation) ResetSourceOrderID() {
+	m.source_order_id = nil
+	m.addsource_order_id = nil
+	delete(m.clearedFields, useraffiliateledger.FieldSourceOrderID)
+}
+
+// SetFrozenUntil sets the "frozen_until" field.
+func (m *UserAffiliateLedgerMutation) SetFrozenUntil(t time.Time) {
+	m.frozen_until = &t
+}
+
+// FrozenUntil returns the value of the "frozen_until" field in the mutation.
+func (m *UserAffiliateLedgerMutation) FrozenUntil() (r time.Time, exists bool) {
+	v := m.frozen_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrozenUntil returns the old "frozen_until" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldFrozenUntil(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrozenUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrozenUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrozenUntil: %w", err)
+	}
+	return oldValue.FrozenUntil, nil
+}
+
+// ClearFrozenUntil clears the value of the "frozen_until" field.
+func (m *UserAffiliateLedgerMutation) ClearFrozenUntil() {
+	m.frozen_until = nil
+	m.clearedFields[useraffiliateledger.FieldFrozenUntil] = struct{}{}
+}
+
+// FrozenUntilCleared returns if the "frozen_until" field was cleared in this mutation.
+func (m *UserAffiliateLedgerMutation) FrozenUntilCleared() bool {
+	_, ok := m.clearedFields[useraffiliateledger.FieldFrozenUntil]
+	return ok
+}
+
+// ResetFrozenUntil resets all changes to the "frozen_until" field.
+func (m *UserAffiliateLedgerMutation) ResetFrozenUntil() {
+	m.frozen_until = nil
+	delete(m.clearedFields, useraffiliateledger.FieldFrozenUntil)
+}
+
+// SetBalanceAfter sets the "balance_after" field.
+func (m *UserAffiliateLedgerMutation) SetBalanceAfter(f float64) {
+	m.balance_after = &f
+	m.addbalance_after = nil
+}
+
+// BalanceAfter returns the value of the "balance_after" field in the mutation.
+func (m *UserAffiliateLedgerMutation) BalanceAfter() (r float64, exists bool) {
+	v := m.balance_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceAfter returns the old "balance_after" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldBalanceAfter(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceAfter: %w", err)
+	}
+	return oldValue.BalanceAfter, nil
+}
+
+// AddBalanceAfter adds f to the "balance_after" field.
+func (m *UserAffiliateLedgerMutation) AddBalanceAfter(f float64) {
+	if m.addbalance_after != nil {
+		*m.addbalance_after += f
+	} else {
+		m.addbalance_after = &f
+	}
+}
+
+// AddedBalanceAfter returns the value that was added to the "balance_after" field in this mutation.
+func (m *UserAffiliateLedgerMutation) AddedBalanceAfter() (r float64, exists bool) {
+	v := m.addbalance_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceAfter clears the value of the "balance_after" field.
+func (m *UserAffiliateLedgerMutation) ClearBalanceAfter() {
+	m.balance_after = nil
+	m.addbalance_after = nil
+	m.clearedFields[useraffiliateledger.FieldBalanceAfter] = struct{}{}
+}
+
+// BalanceAfterCleared returns if the "balance_after" field was cleared in this mutation.
+func (m *UserAffiliateLedgerMutation) BalanceAfterCleared() bool {
+	_, ok := m.clearedFields[useraffiliateledger.FieldBalanceAfter]
+	return ok
+}
+
+// ResetBalanceAfter resets all changes to the "balance_after" field.
+func (m *UserAffiliateLedgerMutation) ResetBalanceAfter() {
+	m.balance_after = nil
+	m.addbalance_after = nil
+	delete(m.clearedFields, useraffiliateledger.FieldBalanceAfter)
+}
+
+// SetAffQuotaAfter sets the "aff_quota_after" field.
+func (m *UserAffiliateLedgerMutation) SetAffQuotaAfter(f float64) {
+	m.aff_quota_after = &f
+	m.addaff_quota_after = nil
+}
+
+// AffQuotaAfter returns the value of the "aff_quota_after" field in the mutation.
+func (m *UserAffiliateLedgerMutation) AffQuotaAfter() (r float64, exists bool) {
+	v := m.aff_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffQuotaAfter returns the old "aff_quota_after" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldAffQuotaAfter(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffQuotaAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffQuotaAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffQuotaAfter: %w", err)
+	}
+	return oldValue.AffQuotaAfter, nil
+}
+
+// AddAffQuotaAfter adds f to the "aff_quota_after" field.
+func (m *UserAffiliateLedgerMutation) AddAffQuotaAfter(f float64) {
+	if m.addaff_quota_after != nil {
+		*m.addaff_quota_after += f
+	} else {
+		m.addaff_quota_after = &f
+	}
+}
+
+// AddedAffQuotaAfter returns the value that was added to the "aff_quota_after" field in this mutation.
+func (m *UserAffiliateLedgerMutation) AddedAffQuotaAfter() (r float64, exists bool) {
+	v := m.addaff_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAffQuotaAfter clears the value of the "aff_quota_after" field.
+func (m *UserAffiliateLedgerMutation) ClearAffQuotaAfter() {
+	m.aff_quota_after = nil
+	m.addaff_quota_after = nil
+	m.clearedFields[useraffiliateledger.FieldAffQuotaAfter] = struct{}{}
+}
+
+// AffQuotaAfterCleared returns if the "aff_quota_after" field was cleared in this mutation.
+func (m *UserAffiliateLedgerMutation) AffQuotaAfterCleared() bool {
+	_, ok := m.clearedFields[useraffiliateledger.FieldAffQuotaAfter]
+	return ok
+}
+
+// ResetAffQuotaAfter resets all changes to the "aff_quota_after" field.
+func (m *UserAffiliateLedgerMutation) ResetAffQuotaAfter() {
+	m.aff_quota_after = nil
+	m.addaff_quota_after = nil
+	delete(m.clearedFields, useraffiliateledger.FieldAffQuotaAfter)
+}
+
+// SetAffFrozenQuotaAfter sets the "aff_frozen_quota_after" field.
+func (m *UserAffiliateLedgerMutation) SetAffFrozenQuotaAfter(f float64) {
+	m.aff_frozen_quota_after = &f
+	m.addaff_frozen_quota_after = nil
+}
+
+// AffFrozenQuotaAfter returns the value of the "aff_frozen_quota_after" field in the mutation.
+func (m *UserAffiliateLedgerMutation) AffFrozenQuotaAfter() (r float64, exists bool) {
+	v := m.aff_frozen_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffFrozenQuotaAfter returns the old "aff_frozen_quota_after" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldAffFrozenQuotaAfter(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffFrozenQuotaAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffFrozenQuotaAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffFrozenQuotaAfter: %w", err)
+	}
+	return oldValue.AffFrozenQuotaAfter, nil
+}
+
+// AddAffFrozenQuotaAfter adds f to the "aff_frozen_quota_after" field.
+func (m *UserAffiliateLedgerMutation) AddAffFrozenQuotaAfter(f float64) {
+	if m.addaff_frozen_quota_after != nil {
+		*m.addaff_frozen_quota_after += f
+	} else {
+		m.addaff_frozen_quota_after = &f
+	}
+}
+
+// AddedAffFrozenQuotaAfter returns the value that was added to the "aff_frozen_quota_after" field in this mutation.
+func (m *UserAffiliateLedgerMutation) AddedAffFrozenQuotaAfter() (r float64, exists bool) {
+	v := m.addaff_frozen_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAffFrozenQuotaAfter clears the value of the "aff_frozen_quota_after" field.
+func (m *UserAffiliateLedgerMutation) ClearAffFrozenQuotaAfter() {
+	m.aff_frozen_quota_after = nil
+	m.addaff_frozen_quota_after = nil
+	m.clearedFields[useraffiliateledger.FieldAffFrozenQuotaAfter] = struct{}{}
+}
+
+// AffFrozenQuotaAfterCleared returns if the "aff_frozen_quota_after" field was cleared in this mutation.
+func (m *UserAffiliateLedgerMutation) AffFrozenQuotaAfterCleared() bool {
+	_, ok := m.clearedFields[useraffiliateledger.FieldAffFrozenQuotaAfter]
+	return ok
+}
+
+// ResetAffFrozenQuotaAfter resets all changes to the "aff_frozen_quota_after" field.
+func (m *UserAffiliateLedgerMutation) ResetAffFrozenQuotaAfter() {
+	m.aff_frozen_quota_after = nil
+	m.addaff_frozen_quota_after = nil
+	delete(m.clearedFields, useraffiliateledger.FieldAffFrozenQuotaAfter)
+}
+
+// SetAffHistoryQuotaAfter sets the "aff_history_quota_after" field.
+func (m *UserAffiliateLedgerMutation) SetAffHistoryQuotaAfter(f float64) {
+	m.aff_history_quota_after = &f
+	m.addaff_history_quota_after = nil
+}
+
+// AffHistoryQuotaAfter returns the value of the "aff_history_quota_after" field in the mutation.
+func (m *UserAffiliateLedgerMutation) AffHistoryQuotaAfter() (r float64, exists bool) {
+	v := m.aff_history_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffHistoryQuotaAfter returns the old "aff_history_quota_after" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldAffHistoryQuotaAfter(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffHistoryQuotaAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffHistoryQuotaAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffHistoryQuotaAfter: %w", err)
+	}
+	return oldValue.AffHistoryQuotaAfter, nil
+}
+
+// AddAffHistoryQuotaAfter adds f to the "aff_history_quota_after" field.
+func (m *UserAffiliateLedgerMutation) AddAffHistoryQuotaAfter(f float64) {
+	if m.addaff_history_quota_after != nil {
+		*m.addaff_history_quota_after += f
+	} else {
+		m.addaff_history_quota_after = &f
+	}
+}
+
+// AddedAffHistoryQuotaAfter returns the value that was added to the "aff_history_quota_after" field in this mutation.
+func (m *UserAffiliateLedgerMutation) AddedAffHistoryQuotaAfter() (r float64, exists bool) {
+	v := m.addaff_history_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAffHistoryQuotaAfter clears the value of the "aff_history_quota_after" field.
+func (m *UserAffiliateLedgerMutation) ClearAffHistoryQuotaAfter() {
+	m.aff_history_quota_after = nil
+	m.addaff_history_quota_after = nil
+	m.clearedFields[useraffiliateledger.FieldAffHistoryQuotaAfter] = struct{}{}
+}
+
+// AffHistoryQuotaAfterCleared returns if the "aff_history_quota_after" field was cleared in this mutation.
+func (m *UserAffiliateLedgerMutation) AffHistoryQuotaAfterCleared() bool {
+	_, ok := m.clearedFields[useraffiliateledger.FieldAffHistoryQuotaAfter]
+	return ok
+}
+
+// ResetAffHistoryQuotaAfter resets all changes to the "aff_history_quota_after" field.
+func (m *UserAffiliateLedgerMutation) ResetAffHistoryQuotaAfter() {
+	m.aff_history_quota_after = nil
+	m.addaff_history_quota_after = nil
+	delete(m.clearedFields, useraffiliateledger.FieldAffHistoryQuotaAfter)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *UserAffiliateLedgerMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *UserAffiliateLedgerMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *UserAffiliateLedgerMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *UserAffiliateLedgerMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *UserAffiliateLedgerMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the UserAffiliateLedger entity.
+// If the UserAffiliateLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateLedgerMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *UserAffiliateLedgerMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the UserAffiliateLedgerMutation builder.
+func (m *UserAffiliateLedgerMutation) Where(ps ...predicate.UserAffiliateLedger) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserAffiliateLedgerMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserAffiliateLedgerMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserAffiliateLedger, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserAffiliateLedgerMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserAffiliateLedgerMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserAffiliateLedger).
+func (m *UserAffiliateLedgerMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserAffiliateLedgerMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.user_id != nil {
+		fields = append(fields, useraffiliateledger.FieldUserID)
+	}
+	if m.action != nil {
+		fields = append(fields, useraffiliateledger.FieldAction)
+	}
+	if m.amount != nil {
+		fields = append(fields, useraffiliateledger.FieldAmount)
+	}
+	if m.source_user_id != nil {
+		fields = append(fields, useraffiliateledger.FieldSourceUserID)
+	}
+	if m.source_order_id != nil {
+		fields = append(fields, useraffiliateledger.FieldSourceOrderID)
+	}
+	if m.frozen_until != nil {
+		fields = append(fields, useraffiliateledger.FieldFrozenUntil)
+	}
+	if m.balance_after != nil {
+		fields = append(fields, useraffiliateledger.FieldBalanceAfter)
+	}
+	if m.aff_quota_after != nil {
+		fields = append(fields, useraffiliateledger.FieldAffQuotaAfter)
+	}
+	if m.aff_frozen_quota_after != nil {
+		fields = append(fields, useraffiliateledger.FieldAffFrozenQuotaAfter)
+	}
+	if m.aff_history_quota_after != nil {
+		fields = append(fields, useraffiliateledger.FieldAffHistoryQuotaAfter)
+	}
+	if m.created_at != nil {
+		fields = append(fields, useraffiliateledger.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, useraffiliateledger.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserAffiliateLedgerMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case useraffiliateledger.FieldUserID:
+		return m.UserID()
+	case useraffiliateledger.FieldAction:
+		return m.Action()
+	case useraffiliateledger.FieldAmount:
+		return m.Amount()
+	case useraffiliateledger.FieldSourceUserID:
+		return m.SourceUserID()
+	case useraffiliateledger.FieldSourceOrderID:
+		return m.SourceOrderID()
+	case useraffiliateledger.FieldFrozenUntil:
+		return m.FrozenUntil()
+	case useraffiliateledger.FieldBalanceAfter:
+		return m.BalanceAfter()
+	case useraffiliateledger.FieldAffQuotaAfter:
+		return m.AffQuotaAfter()
+	case useraffiliateledger.FieldAffFrozenQuotaAfter:
+		return m.AffFrozenQuotaAfter()
+	case useraffiliateledger.FieldAffHistoryQuotaAfter:
+		return m.AffHistoryQuotaAfter()
+	case useraffiliateledger.FieldCreatedAt:
+		return m.CreatedAt()
+	case useraffiliateledger.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserAffiliateLedgerMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case useraffiliateledger.FieldUserID:
+		return m.OldUserID(ctx)
+	case useraffiliateledger.FieldAction:
+		return m.OldAction(ctx)
+	case useraffiliateledger.FieldAmount:
+		return m.OldAmount(ctx)
+	case useraffiliateledger.FieldSourceUserID:
+		return m.OldSourceUserID(ctx)
+	case useraffiliateledger.FieldSourceOrderID:
+		return m.OldSourceOrderID(ctx)
+	case useraffiliateledger.FieldFrozenUntil:
+		return m.OldFrozenUntil(ctx)
+	case useraffiliateledger.FieldBalanceAfter:
+		return m.OldBalanceAfter(ctx)
+	case useraffiliateledger.FieldAffQuotaAfter:
+		return m.OldAffQuotaAfter(ctx)
+	case useraffiliateledger.FieldAffFrozenQuotaAfter:
+		return m.OldAffFrozenQuotaAfter(ctx)
+	case useraffiliateledger.FieldAffHistoryQuotaAfter:
+		return m.OldAffHistoryQuotaAfter(ctx)
+	case useraffiliateledger.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case useraffiliateledger.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserAffiliateLedger field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserAffiliateLedgerMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case useraffiliateledger.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case useraffiliateledger.FieldAction:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAction(v)
+		return nil
+	case useraffiliateledger.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case useraffiliateledger.FieldSourceUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceUserID(v)
+		return nil
+	case useraffiliateledger.FieldSourceOrderID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceOrderID(v)
+		return nil
+	case useraffiliateledger.FieldFrozenUntil:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrozenUntil(v)
+		return nil
+	case useraffiliateledger.FieldBalanceAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceAfter(v)
+		return nil
+	case useraffiliateledger.FieldAffQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffQuotaAfter(v)
+		return nil
+	case useraffiliateledger.FieldAffFrozenQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffFrozenQuotaAfter(v)
+		return nil
+	case useraffiliateledger.FieldAffHistoryQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffHistoryQuotaAfter(v)
+		return nil
+	case useraffiliateledger.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case useraffiliateledger.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliateLedger field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserAffiliateLedgerMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, useraffiliateledger.FieldUserID)
+	}
+	if m.addamount != nil {
+		fields = append(fields, useraffiliateledger.FieldAmount)
+	}
+	if m.addsource_user_id != nil {
+		fields = append(fields, useraffiliateledger.FieldSourceUserID)
+	}
+	if m.addsource_order_id != nil {
+		fields = append(fields, useraffiliateledger.FieldSourceOrderID)
+	}
+	if m.addbalance_after != nil {
+		fields = append(fields, useraffiliateledger.FieldBalanceAfter)
+	}
+	if m.addaff_quota_after != nil {
+		fields = append(fields, useraffiliateledger.FieldAffQuotaAfter)
+	}
+	if m.addaff_frozen_quota_after != nil {
+		fields = append(fields, useraffiliateledger.FieldAffFrozenQuotaAfter)
+	}
+	if m.addaff_history_quota_after != nil {
+		fields = append(fields, useraffiliateledger.FieldAffHistoryQuotaAfter)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserAffiliateLedgerMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case useraffiliateledger.FieldUserID:
+		return m.AddedUserID()
+	case useraffiliateledger.FieldAmount:
+		return m.AddedAmount()
+	case useraffiliateledger.FieldSourceUserID:
+		return m.AddedSourceUserID()
+	case useraffiliateledger.FieldSourceOrderID:
+		return m.AddedSourceOrderID()
+	case useraffiliateledger.FieldBalanceAfter:
+		return m.AddedBalanceAfter()
+	case useraffiliateledger.FieldAffQuotaAfter:
+		return m.AddedAffQuotaAfter()
+	case useraffiliateledger.FieldAffFrozenQuotaAfter:
+		return m.AddedAffFrozenQuotaAfter()
+	case useraffiliateledger.FieldAffHistoryQuotaAfter:
+		return m.AddedAffHistoryQuotaAfter()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserAffiliateLedgerMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case useraffiliateledger.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case useraffiliateledger.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	case useraffiliateledger.FieldSourceUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceUserID(v)
+		return nil
+	case useraffiliateledger.FieldSourceOrderID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceOrderID(v)
+		return nil
+	case useraffiliateledger.FieldBalanceAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceAfter(v)
+		return nil
+	case useraffiliateledger.FieldAffQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffQuotaAfter(v)
+		return nil
+	case useraffiliateledger.FieldAffFrozenQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffFrozenQuotaAfter(v)
+		return nil
+	case useraffiliateledger.FieldAffHistoryQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffHistoryQuotaAfter(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliateLedger numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserAffiliateLedgerMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(useraffiliateledger.FieldSourceUserID) {
+		fields = append(fields, useraffiliateledger.FieldSourceUserID)
+	}
+	if m.FieldCleared(useraffiliateledger.FieldSourceOrderID) {
+		fields = append(fields, useraffiliateledger.FieldSourceOrderID)
+	}
+	if m.FieldCleared(useraffiliateledger.FieldFrozenUntil) {
+		fields = append(fields, useraffiliateledger.FieldFrozenUntil)
+	}
+	if m.FieldCleared(useraffiliateledger.FieldBalanceAfter) {
+		fields = append(fields, useraffiliateledger.FieldBalanceAfter)
+	}
+	if m.FieldCleared(useraffiliateledger.FieldAffQuotaAfter) {
+		fields = append(fields, useraffiliateledger.FieldAffQuotaAfter)
+	}
+	if m.FieldCleared(useraffiliateledger.FieldAffFrozenQuotaAfter) {
+		fields = append(fields, useraffiliateledger.FieldAffFrozenQuotaAfter)
+	}
+	if m.FieldCleared(useraffiliateledger.FieldAffHistoryQuotaAfter) {
+		fields = append(fields, useraffiliateledger.FieldAffHistoryQuotaAfter)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserAffiliateLedgerMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserAffiliateLedgerMutation) ClearField(name string) error {
+	switch name {
+	case useraffiliateledger.FieldSourceUserID:
+		m.ClearSourceUserID()
+		return nil
+	case useraffiliateledger.FieldSourceOrderID:
+		m.ClearSourceOrderID()
+		return nil
+	case useraffiliateledger.FieldFrozenUntil:
+		m.ClearFrozenUntil()
+		return nil
+	case useraffiliateledger.FieldBalanceAfter:
+		m.ClearBalanceAfter()
+		return nil
+	case useraffiliateledger.FieldAffQuotaAfter:
+		m.ClearAffQuotaAfter()
+		return nil
+	case useraffiliateledger.FieldAffFrozenQuotaAfter:
+		m.ClearAffFrozenQuotaAfter()
+		return nil
+	case useraffiliateledger.FieldAffHistoryQuotaAfter:
+		m.ClearAffHistoryQuotaAfter()
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliateLedger nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserAffiliateLedgerMutation) ResetField(name string) error {
+	switch name {
+	case useraffiliateledger.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case useraffiliateledger.FieldAction:
+		m.ResetAction()
+		return nil
+	case useraffiliateledger.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case useraffiliateledger.FieldSourceUserID:
+		m.ResetSourceUserID()
+		return nil
+	case useraffiliateledger.FieldSourceOrderID:
+		m.ResetSourceOrderID()
+		return nil
+	case useraffiliateledger.FieldFrozenUntil:
+		m.ResetFrozenUntil()
+		return nil
+	case useraffiliateledger.FieldBalanceAfter:
+		m.ResetBalanceAfter()
+		return nil
+	case useraffiliateledger.FieldAffQuotaAfter:
+		m.ResetAffQuotaAfter()
+		return nil
+	case useraffiliateledger.FieldAffFrozenQuotaAfter:
+		m.ResetAffFrozenQuotaAfter()
+		return nil
+	case useraffiliateledger.FieldAffHistoryQuotaAfter:
+		m.ResetAffHistoryQuotaAfter()
+		return nil
+	case useraffiliateledger.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case useraffiliateledger.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliateLedger field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserAffiliateLedgerMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserAffiliateLedgerMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserAffiliateLedgerMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserAffiliateLedgerMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserAffiliateLedgerMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserAffiliateLedgerMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserAffiliateLedgerMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown UserAffiliateLedger unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserAffiliateLedgerMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown UserAffiliateLedger edge %s", name)
+}
+
+// UserAffiliateReversalMutation represents an operation that mutates the UserAffiliateReversal nodes in the graph.
+type UserAffiliateReversalMutation struct {
+	config
+	op                          Op
+	typ                         string
+	id                          *int64
+	source_ledger_id            *int64
+	addsource_ledger_id         *int64
+	source_order_id             *int64
+	addsource_order_id          *int64
+	inviter_user_id             *int64
+	addinviter_user_id          *int64
+	invitee_user_id             *int64
+	addinvitee_user_id          *int64
+	rebate_amount               *float64
+	addrebate_amount            *float64
+	frozen_quota_deducted       *float64
+	addfrozen_quota_deducted    *float64
+	available_quota_deducted    *float64
+	addavailable_quota_deducted *float64
+	balance_deducted            *float64
+	addbalance_deducted         *float64
+	total_recharged_deducted    *float64
+	addtotal_recharged_deducted *float64
+	balance_before              *float64
+	addbalance_before           *float64
+	balance_after               *float64
+	addbalance_after            *float64
+	aff_quota_before            *float64
+	addaff_quota_before         *float64
+	aff_quota_after             *float64
+	addaff_quota_after          *float64
+	aff_frozen_quota_before     *float64
+	addaff_frozen_quota_before  *float64
+	aff_frozen_quota_after      *float64
+	addaff_frozen_quota_after   *float64
+	aff_history_quota_before    *float64
+	addaff_history_quota_before *float64
+	aff_history_quota_after     *float64
+	addaff_history_quota_after  *float64
+	total_recharged_before      *float64
+	addtotal_recharged_before   *float64
+	total_recharged_after       *float64
+	addtotal_recharged_after    *float64
+	snapshot_available          *bool
+	reason                      *string
+	operator_user_id            *int64
+	addoperator_user_id         *int64
+	operation_key_hash          *string
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	clearedFields               map[string]struct{}
+	done                        bool
+	oldValue                    func(context.Context) (*UserAffiliateReversal, error)
+	predicates                  []predicate.UserAffiliateReversal
+}
+
+var _ ent.Mutation = (*UserAffiliateReversalMutation)(nil)
+
+// useraffiliatereversalOption allows management of the mutation configuration using functional options.
+type useraffiliatereversalOption func(*UserAffiliateReversalMutation)
+
+// newUserAffiliateReversalMutation creates new mutation for the UserAffiliateReversal entity.
+func newUserAffiliateReversalMutation(c config, op Op, opts ...useraffiliatereversalOption) *UserAffiliateReversalMutation {
+	m := &UserAffiliateReversalMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserAffiliateReversal,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserAffiliateReversalID sets the ID field of the mutation.
+func withUserAffiliateReversalID(id int64) useraffiliatereversalOption {
+	return func(m *UserAffiliateReversalMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserAffiliateReversal
+		)
+		m.oldValue = func(ctx context.Context) (*UserAffiliateReversal, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserAffiliateReversal.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserAffiliateReversal sets the old UserAffiliateReversal of the mutation.
+func withUserAffiliateReversal(node *UserAffiliateReversal) useraffiliatereversalOption {
+	return func(m *UserAffiliateReversalMutation) {
+		m.oldValue = func(context.Context) (*UserAffiliateReversal, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserAffiliateReversalMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserAffiliateReversalMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserAffiliateReversalMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserAffiliateReversalMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserAffiliateReversal.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSourceLedgerID sets the "source_ledger_id" field.
+func (m *UserAffiliateReversalMutation) SetSourceLedgerID(i int64) {
+	m.source_ledger_id = &i
+	m.addsource_ledger_id = nil
+}
+
+// SourceLedgerID returns the value of the "source_ledger_id" field in the mutation.
+func (m *UserAffiliateReversalMutation) SourceLedgerID() (r int64, exists bool) {
+	v := m.source_ledger_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceLedgerID returns the old "source_ledger_id" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldSourceLedgerID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceLedgerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceLedgerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceLedgerID: %w", err)
+	}
+	return oldValue.SourceLedgerID, nil
+}
+
+// AddSourceLedgerID adds i to the "source_ledger_id" field.
+func (m *UserAffiliateReversalMutation) AddSourceLedgerID(i int64) {
+	if m.addsource_ledger_id != nil {
+		*m.addsource_ledger_id += i
+	} else {
+		m.addsource_ledger_id = &i
+	}
+}
+
+// AddedSourceLedgerID returns the value that was added to the "source_ledger_id" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedSourceLedgerID() (r int64, exists bool) {
+	v := m.addsource_ledger_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSourceLedgerID clears the value of the "source_ledger_id" field.
+func (m *UserAffiliateReversalMutation) ClearSourceLedgerID() {
+	m.source_ledger_id = nil
+	m.addsource_ledger_id = nil
+	m.clearedFields[useraffiliatereversal.FieldSourceLedgerID] = struct{}{}
+}
+
+// SourceLedgerIDCleared returns if the "source_ledger_id" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) SourceLedgerIDCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldSourceLedgerID]
+	return ok
+}
+
+// ResetSourceLedgerID resets all changes to the "source_ledger_id" field.
+func (m *UserAffiliateReversalMutation) ResetSourceLedgerID() {
+	m.source_ledger_id = nil
+	m.addsource_ledger_id = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldSourceLedgerID)
+}
+
+// SetSourceOrderID sets the "source_order_id" field.
+func (m *UserAffiliateReversalMutation) SetSourceOrderID(i int64) {
+	m.source_order_id = &i
+	m.addsource_order_id = nil
+}
+
+// SourceOrderID returns the value of the "source_order_id" field in the mutation.
+func (m *UserAffiliateReversalMutation) SourceOrderID() (r int64, exists bool) {
+	v := m.source_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceOrderID returns the old "source_order_id" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldSourceOrderID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceOrderID: %w", err)
+	}
+	return oldValue.SourceOrderID, nil
+}
+
+// AddSourceOrderID adds i to the "source_order_id" field.
+func (m *UserAffiliateReversalMutation) AddSourceOrderID(i int64) {
+	if m.addsource_order_id != nil {
+		*m.addsource_order_id += i
+	} else {
+		m.addsource_order_id = &i
+	}
+}
+
+// AddedSourceOrderID returns the value that was added to the "source_order_id" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedSourceOrderID() (r int64, exists bool) {
+	v := m.addsource_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSourceOrderID resets all changes to the "source_order_id" field.
+func (m *UserAffiliateReversalMutation) ResetSourceOrderID() {
+	m.source_order_id = nil
+	m.addsource_order_id = nil
+}
+
+// SetInviterUserID sets the "inviter_user_id" field.
+func (m *UserAffiliateReversalMutation) SetInviterUserID(i int64) {
+	m.inviter_user_id = &i
+	m.addinviter_user_id = nil
+}
+
+// InviterUserID returns the value of the "inviter_user_id" field in the mutation.
+func (m *UserAffiliateReversalMutation) InviterUserID() (r int64, exists bool) {
+	v := m.inviter_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInviterUserID returns the old "inviter_user_id" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldInviterUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInviterUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInviterUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInviterUserID: %w", err)
+	}
+	return oldValue.InviterUserID, nil
+}
+
+// AddInviterUserID adds i to the "inviter_user_id" field.
+func (m *UserAffiliateReversalMutation) AddInviterUserID(i int64) {
+	if m.addinviter_user_id != nil {
+		*m.addinviter_user_id += i
+	} else {
+		m.addinviter_user_id = &i
+	}
+}
+
+// AddedInviterUserID returns the value that was added to the "inviter_user_id" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedInviterUserID() (r int64, exists bool) {
+	v := m.addinviter_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetInviterUserID resets all changes to the "inviter_user_id" field.
+func (m *UserAffiliateReversalMutation) ResetInviterUserID() {
+	m.inviter_user_id = nil
+	m.addinviter_user_id = nil
+}
+
+// SetInviteeUserID sets the "invitee_user_id" field.
+func (m *UserAffiliateReversalMutation) SetInviteeUserID(i int64) {
+	m.invitee_user_id = &i
+	m.addinvitee_user_id = nil
+}
+
+// InviteeUserID returns the value of the "invitee_user_id" field in the mutation.
+func (m *UserAffiliateReversalMutation) InviteeUserID() (r int64, exists bool) {
+	v := m.invitee_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInviteeUserID returns the old "invitee_user_id" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldInviteeUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInviteeUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInviteeUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInviteeUserID: %w", err)
+	}
+	return oldValue.InviteeUserID, nil
+}
+
+// AddInviteeUserID adds i to the "invitee_user_id" field.
+func (m *UserAffiliateReversalMutation) AddInviteeUserID(i int64) {
+	if m.addinvitee_user_id != nil {
+		*m.addinvitee_user_id += i
+	} else {
+		m.addinvitee_user_id = &i
+	}
+}
+
+// AddedInviteeUserID returns the value that was added to the "invitee_user_id" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedInviteeUserID() (r int64, exists bool) {
+	v := m.addinvitee_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetInviteeUserID resets all changes to the "invitee_user_id" field.
+func (m *UserAffiliateReversalMutation) ResetInviteeUserID() {
+	m.invitee_user_id = nil
+	m.addinvitee_user_id = nil
+}
+
+// SetRebateAmount sets the "rebate_amount" field.
+func (m *UserAffiliateReversalMutation) SetRebateAmount(f float64) {
+	m.rebate_amount = &f
+	m.addrebate_amount = nil
+}
+
+// RebateAmount returns the value of the "rebate_amount" field in the mutation.
+func (m *UserAffiliateReversalMutation) RebateAmount() (r float64, exists bool) {
+	v := m.rebate_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRebateAmount returns the old "rebate_amount" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldRebateAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRebateAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRebateAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRebateAmount: %w", err)
+	}
+	return oldValue.RebateAmount, nil
+}
+
+// AddRebateAmount adds f to the "rebate_amount" field.
+func (m *UserAffiliateReversalMutation) AddRebateAmount(f float64) {
+	if m.addrebate_amount != nil {
+		*m.addrebate_amount += f
+	} else {
+		m.addrebate_amount = &f
+	}
+}
+
+// AddedRebateAmount returns the value that was added to the "rebate_amount" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedRebateAmount() (r float64, exists bool) {
+	v := m.addrebate_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRebateAmount resets all changes to the "rebate_amount" field.
+func (m *UserAffiliateReversalMutation) ResetRebateAmount() {
+	m.rebate_amount = nil
+	m.addrebate_amount = nil
+}
+
+// SetFrozenQuotaDeducted sets the "frozen_quota_deducted" field.
+func (m *UserAffiliateReversalMutation) SetFrozenQuotaDeducted(f float64) {
+	m.frozen_quota_deducted = &f
+	m.addfrozen_quota_deducted = nil
+}
+
+// FrozenQuotaDeducted returns the value of the "frozen_quota_deducted" field in the mutation.
+func (m *UserAffiliateReversalMutation) FrozenQuotaDeducted() (r float64, exists bool) {
+	v := m.frozen_quota_deducted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrozenQuotaDeducted returns the old "frozen_quota_deducted" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldFrozenQuotaDeducted(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrozenQuotaDeducted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrozenQuotaDeducted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrozenQuotaDeducted: %w", err)
+	}
+	return oldValue.FrozenQuotaDeducted, nil
+}
+
+// AddFrozenQuotaDeducted adds f to the "frozen_quota_deducted" field.
+func (m *UserAffiliateReversalMutation) AddFrozenQuotaDeducted(f float64) {
+	if m.addfrozen_quota_deducted != nil {
+		*m.addfrozen_quota_deducted += f
+	} else {
+		m.addfrozen_quota_deducted = &f
+	}
+}
+
+// AddedFrozenQuotaDeducted returns the value that was added to the "frozen_quota_deducted" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedFrozenQuotaDeducted() (r float64, exists bool) {
+	v := m.addfrozen_quota_deducted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearFrozenQuotaDeducted clears the value of the "frozen_quota_deducted" field.
+func (m *UserAffiliateReversalMutation) ClearFrozenQuotaDeducted() {
+	m.frozen_quota_deducted = nil
+	m.addfrozen_quota_deducted = nil
+	m.clearedFields[useraffiliatereversal.FieldFrozenQuotaDeducted] = struct{}{}
+}
+
+// FrozenQuotaDeductedCleared returns if the "frozen_quota_deducted" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) FrozenQuotaDeductedCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldFrozenQuotaDeducted]
+	return ok
+}
+
+// ResetFrozenQuotaDeducted resets all changes to the "frozen_quota_deducted" field.
+func (m *UserAffiliateReversalMutation) ResetFrozenQuotaDeducted() {
+	m.frozen_quota_deducted = nil
+	m.addfrozen_quota_deducted = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldFrozenQuotaDeducted)
+}
+
+// SetAvailableQuotaDeducted sets the "available_quota_deducted" field.
+func (m *UserAffiliateReversalMutation) SetAvailableQuotaDeducted(f float64) {
+	m.available_quota_deducted = &f
+	m.addavailable_quota_deducted = nil
+}
+
+// AvailableQuotaDeducted returns the value of the "available_quota_deducted" field in the mutation.
+func (m *UserAffiliateReversalMutation) AvailableQuotaDeducted() (r float64, exists bool) {
+	v := m.available_quota_deducted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvailableQuotaDeducted returns the old "available_quota_deducted" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldAvailableQuotaDeducted(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvailableQuotaDeducted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvailableQuotaDeducted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvailableQuotaDeducted: %w", err)
+	}
+	return oldValue.AvailableQuotaDeducted, nil
+}
+
+// AddAvailableQuotaDeducted adds f to the "available_quota_deducted" field.
+func (m *UserAffiliateReversalMutation) AddAvailableQuotaDeducted(f float64) {
+	if m.addavailable_quota_deducted != nil {
+		*m.addavailable_quota_deducted += f
+	} else {
+		m.addavailable_quota_deducted = &f
+	}
+}
+
+// AddedAvailableQuotaDeducted returns the value that was added to the "available_quota_deducted" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedAvailableQuotaDeducted() (r float64, exists bool) {
+	v := m.addavailable_quota_deducted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAvailableQuotaDeducted clears the value of the "available_quota_deducted" field.
+func (m *UserAffiliateReversalMutation) ClearAvailableQuotaDeducted() {
+	m.available_quota_deducted = nil
+	m.addavailable_quota_deducted = nil
+	m.clearedFields[useraffiliatereversal.FieldAvailableQuotaDeducted] = struct{}{}
+}
+
+// AvailableQuotaDeductedCleared returns if the "available_quota_deducted" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) AvailableQuotaDeductedCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldAvailableQuotaDeducted]
+	return ok
+}
+
+// ResetAvailableQuotaDeducted resets all changes to the "available_quota_deducted" field.
+func (m *UserAffiliateReversalMutation) ResetAvailableQuotaDeducted() {
+	m.available_quota_deducted = nil
+	m.addavailable_quota_deducted = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldAvailableQuotaDeducted)
+}
+
+// SetBalanceDeducted sets the "balance_deducted" field.
+func (m *UserAffiliateReversalMutation) SetBalanceDeducted(f float64) {
+	m.balance_deducted = &f
+	m.addbalance_deducted = nil
+}
+
+// BalanceDeducted returns the value of the "balance_deducted" field in the mutation.
+func (m *UserAffiliateReversalMutation) BalanceDeducted() (r float64, exists bool) {
+	v := m.balance_deducted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceDeducted returns the old "balance_deducted" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldBalanceDeducted(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceDeducted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceDeducted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceDeducted: %w", err)
+	}
+	return oldValue.BalanceDeducted, nil
+}
+
+// AddBalanceDeducted adds f to the "balance_deducted" field.
+func (m *UserAffiliateReversalMutation) AddBalanceDeducted(f float64) {
+	if m.addbalance_deducted != nil {
+		*m.addbalance_deducted += f
+	} else {
+		m.addbalance_deducted = &f
+	}
+}
+
+// AddedBalanceDeducted returns the value that was added to the "balance_deducted" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedBalanceDeducted() (r float64, exists bool) {
+	v := m.addbalance_deducted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceDeducted clears the value of the "balance_deducted" field.
+func (m *UserAffiliateReversalMutation) ClearBalanceDeducted() {
+	m.balance_deducted = nil
+	m.addbalance_deducted = nil
+	m.clearedFields[useraffiliatereversal.FieldBalanceDeducted] = struct{}{}
+}
+
+// BalanceDeductedCleared returns if the "balance_deducted" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) BalanceDeductedCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldBalanceDeducted]
+	return ok
+}
+
+// ResetBalanceDeducted resets all changes to the "balance_deducted" field.
+func (m *UserAffiliateReversalMutation) ResetBalanceDeducted() {
+	m.balance_deducted = nil
+	m.addbalance_deducted = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldBalanceDeducted)
+}
+
+// SetTotalRechargedDeducted sets the "total_recharged_deducted" field.
+func (m *UserAffiliateReversalMutation) SetTotalRechargedDeducted(f float64) {
+	m.total_recharged_deducted = &f
+	m.addtotal_recharged_deducted = nil
+}
+
+// TotalRechargedDeducted returns the value of the "total_recharged_deducted" field in the mutation.
+func (m *UserAffiliateReversalMutation) TotalRechargedDeducted() (r float64, exists bool) {
+	v := m.total_recharged_deducted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalRechargedDeducted returns the old "total_recharged_deducted" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldTotalRechargedDeducted(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalRechargedDeducted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalRechargedDeducted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalRechargedDeducted: %w", err)
+	}
+	return oldValue.TotalRechargedDeducted, nil
+}
+
+// AddTotalRechargedDeducted adds f to the "total_recharged_deducted" field.
+func (m *UserAffiliateReversalMutation) AddTotalRechargedDeducted(f float64) {
+	if m.addtotal_recharged_deducted != nil {
+		*m.addtotal_recharged_deducted += f
+	} else {
+		m.addtotal_recharged_deducted = &f
+	}
+}
+
+// AddedTotalRechargedDeducted returns the value that was added to the "total_recharged_deducted" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedTotalRechargedDeducted() (r float64, exists bool) {
+	v := m.addtotal_recharged_deducted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTotalRechargedDeducted clears the value of the "total_recharged_deducted" field.
+func (m *UserAffiliateReversalMutation) ClearTotalRechargedDeducted() {
+	m.total_recharged_deducted = nil
+	m.addtotal_recharged_deducted = nil
+	m.clearedFields[useraffiliatereversal.FieldTotalRechargedDeducted] = struct{}{}
+}
+
+// TotalRechargedDeductedCleared returns if the "total_recharged_deducted" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) TotalRechargedDeductedCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldTotalRechargedDeducted]
+	return ok
+}
+
+// ResetTotalRechargedDeducted resets all changes to the "total_recharged_deducted" field.
+func (m *UserAffiliateReversalMutation) ResetTotalRechargedDeducted() {
+	m.total_recharged_deducted = nil
+	m.addtotal_recharged_deducted = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldTotalRechargedDeducted)
+}
+
+// SetBalanceBefore sets the "balance_before" field.
+func (m *UserAffiliateReversalMutation) SetBalanceBefore(f float64) {
+	m.balance_before = &f
+	m.addbalance_before = nil
+}
+
+// BalanceBefore returns the value of the "balance_before" field in the mutation.
+func (m *UserAffiliateReversalMutation) BalanceBefore() (r float64, exists bool) {
+	v := m.balance_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceBefore returns the old "balance_before" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldBalanceBefore(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceBefore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceBefore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceBefore: %w", err)
+	}
+	return oldValue.BalanceBefore, nil
+}
+
+// AddBalanceBefore adds f to the "balance_before" field.
+func (m *UserAffiliateReversalMutation) AddBalanceBefore(f float64) {
+	if m.addbalance_before != nil {
+		*m.addbalance_before += f
+	} else {
+		m.addbalance_before = &f
+	}
+}
+
+// AddedBalanceBefore returns the value that was added to the "balance_before" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedBalanceBefore() (r float64, exists bool) {
+	v := m.addbalance_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceBefore clears the value of the "balance_before" field.
+func (m *UserAffiliateReversalMutation) ClearBalanceBefore() {
+	m.balance_before = nil
+	m.addbalance_before = nil
+	m.clearedFields[useraffiliatereversal.FieldBalanceBefore] = struct{}{}
+}
+
+// BalanceBeforeCleared returns if the "balance_before" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) BalanceBeforeCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldBalanceBefore]
+	return ok
+}
+
+// ResetBalanceBefore resets all changes to the "balance_before" field.
+func (m *UserAffiliateReversalMutation) ResetBalanceBefore() {
+	m.balance_before = nil
+	m.addbalance_before = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldBalanceBefore)
+}
+
+// SetBalanceAfter sets the "balance_after" field.
+func (m *UserAffiliateReversalMutation) SetBalanceAfter(f float64) {
+	m.balance_after = &f
+	m.addbalance_after = nil
+}
+
+// BalanceAfter returns the value of the "balance_after" field in the mutation.
+func (m *UserAffiliateReversalMutation) BalanceAfter() (r float64, exists bool) {
+	v := m.balance_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceAfter returns the old "balance_after" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldBalanceAfter(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceAfter: %w", err)
+	}
+	return oldValue.BalanceAfter, nil
+}
+
+// AddBalanceAfter adds f to the "balance_after" field.
+func (m *UserAffiliateReversalMutation) AddBalanceAfter(f float64) {
+	if m.addbalance_after != nil {
+		*m.addbalance_after += f
+	} else {
+		m.addbalance_after = &f
+	}
+}
+
+// AddedBalanceAfter returns the value that was added to the "balance_after" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedBalanceAfter() (r float64, exists bool) {
+	v := m.addbalance_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceAfter clears the value of the "balance_after" field.
+func (m *UserAffiliateReversalMutation) ClearBalanceAfter() {
+	m.balance_after = nil
+	m.addbalance_after = nil
+	m.clearedFields[useraffiliatereversal.FieldBalanceAfter] = struct{}{}
+}
+
+// BalanceAfterCleared returns if the "balance_after" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) BalanceAfterCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldBalanceAfter]
+	return ok
+}
+
+// ResetBalanceAfter resets all changes to the "balance_after" field.
+func (m *UserAffiliateReversalMutation) ResetBalanceAfter() {
+	m.balance_after = nil
+	m.addbalance_after = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldBalanceAfter)
+}
+
+// SetAffQuotaBefore sets the "aff_quota_before" field.
+func (m *UserAffiliateReversalMutation) SetAffQuotaBefore(f float64) {
+	m.aff_quota_before = &f
+	m.addaff_quota_before = nil
+}
+
+// AffQuotaBefore returns the value of the "aff_quota_before" field in the mutation.
+func (m *UserAffiliateReversalMutation) AffQuotaBefore() (r float64, exists bool) {
+	v := m.aff_quota_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffQuotaBefore returns the old "aff_quota_before" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldAffQuotaBefore(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffQuotaBefore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffQuotaBefore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffQuotaBefore: %w", err)
+	}
+	return oldValue.AffQuotaBefore, nil
+}
+
+// AddAffQuotaBefore adds f to the "aff_quota_before" field.
+func (m *UserAffiliateReversalMutation) AddAffQuotaBefore(f float64) {
+	if m.addaff_quota_before != nil {
+		*m.addaff_quota_before += f
+	} else {
+		m.addaff_quota_before = &f
+	}
+}
+
+// AddedAffQuotaBefore returns the value that was added to the "aff_quota_before" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedAffQuotaBefore() (r float64, exists bool) {
+	v := m.addaff_quota_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAffQuotaBefore clears the value of the "aff_quota_before" field.
+func (m *UserAffiliateReversalMutation) ClearAffQuotaBefore() {
+	m.aff_quota_before = nil
+	m.addaff_quota_before = nil
+	m.clearedFields[useraffiliatereversal.FieldAffQuotaBefore] = struct{}{}
+}
+
+// AffQuotaBeforeCleared returns if the "aff_quota_before" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) AffQuotaBeforeCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldAffQuotaBefore]
+	return ok
+}
+
+// ResetAffQuotaBefore resets all changes to the "aff_quota_before" field.
+func (m *UserAffiliateReversalMutation) ResetAffQuotaBefore() {
+	m.aff_quota_before = nil
+	m.addaff_quota_before = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldAffQuotaBefore)
+}
+
+// SetAffQuotaAfter sets the "aff_quota_after" field.
+func (m *UserAffiliateReversalMutation) SetAffQuotaAfter(f float64) {
+	m.aff_quota_after = &f
+	m.addaff_quota_after = nil
+}
+
+// AffQuotaAfter returns the value of the "aff_quota_after" field in the mutation.
+func (m *UserAffiliateReversalMutation) AffQuotaAfter() (r float64, exists bool) {
+	v := m.aff_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffQuotaAfter returns the old "aff_quota_after" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldAffQuotaAfter(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffQuotaAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffQuotaAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffQuotaAfter: %w", err)
+	}
+	return oldValue.AffQuotaAfter, nil
+}
+
+// AddAffQuotaAfter adds f to the "aff_quota_after" field.
+func (m *UserAffiliateReversalMutation) AddAffQuotaAfter(f float64) {
+	if m.addaff_quota_after != nil {
+		*m.addaff_quota_after += f
+	} else {
+		m.addaff_quota_after = &f
+	}
+}
+
+// AddedAffQuotaAfter returns the value that was added to the "aff_quota_after" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedAffQuotaAfter() (r float64, exists bool) {
+	v := m.addaff_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAffQuotaAfter clears the value of the "aff_quota_after" field.
+func (m *UserAffiliateReversalMutation) ClearAffQuotaAfter() {
+	m.aff_quota_after = nil
+	m.addaff_quota_after = nil
+	m.clearedFields[useraffiliatereversal.FieldAffQuotaAfter] = struct{}{}
+}
+
+// AffQuotaAfterCleared returns if the "aff_quota_after" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) AffQuotaAfterCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldAffQuotaAfter]
+	return ok
+}
+
+// ResetAffQuotaAfter resets all changes to the "aff_quota_after" field.
+func (m *UserAffiliateReversalMutation) ResetAffQuotaAfter() {
+	m.aff_quota_after = nil
+	m.addaff_quota_after = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldAffQuotaAfter)
+}
+
+// SetAffFrozenQuotaBefore sets the "aff_frozen_quota_before" field.
+func (m *UserAffiliateReversalMutation) SetAffFrozenQuotaBefore(f float64) {
+	m.aff_frozen_quota_before = &f
+	m.addaff_frozen_quota_before = nil
+}
+
+// AffFrozenQuotaBefore returns the value of the "aff_frozen_quota_before" field in the mutation.
+func (m *UserAffiliateReversalMutation) AffFrozenQuotaBefore() (r float64, exists bool) {
+	v := m.aff_frozen_quota_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffFrozenQuotaBefore returns the old "aff_frozen_quota_before" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldAffFrozenQuotaBefore(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffFrozenQuotaBefore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffFrozenQuotaBefore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffFrozenQuotaBefore: %w", err)
+	}
+	return oldValue.AffFrozenQuotaBefore, nil
+}
+
+// AddAffFrozenQuotaBefore adds f to the "aff_frozen_quota_before" field.
+func (m *UserAffiliateReversalMutation) AddAffFrozenQuotaBefore(f float64) {
+	if m.addaff_frozen_quota_before != nil {
+		*m.addaff_frozen_quota_before += f
+	} else {
+		m.addaff_frozen_quota_before = &f
+	}
+}
+
+// AddedAffFrozenQuotaBefore returns the value that was added to the "aff_frozen_quota_before" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedAffFrozenQuotaBefore() (r float64, exists bool) {
+	v := m.addaff_frozen_quota_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAffFrozenQuotaBefore clears the value of the "aff_frozen_quota_before" field.
+func (m *UserAffiliateReversalMutation) ClearAffFrozenQuotaBefore() {
+	m.aff_frozen_quota_before = nil
+	m.addaff_frozen_quota_before = nil
+	m.clearedFields[useraffiliatereversal.FieldAffFrozenQuotaBefore] = struct{}{}
+}
+
+// AffFrozenQuotaBeforeCleared returns if the "aff_frozen_quota_before" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) AffFrozenQuotaBeforeCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldAffFrozenQuotaBefore]
+	return ok
+}
+
+// ResetAffFrozenQuotaBefore resets all changes to the "aff_frozen_quota_before" field.
+func (m *UserAffiliateReversalMutation) ResetAffFrozenQuotaBefore() {
+	m.aff_frozen_quota_before = nil
+	m.addaff_frozen_quota_before = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldAffFrozenQuotaBefore)
+}
+
+// SetAffFrozenQuotaAfter sets the "aff_frozen_quota_after" field.
+func (m *UserAffiliateReversalMutation) SetAffFrozenQuotaAfter(f float64) {
+	m.aff_frozen_quota_after = &f
+	m.addaff_frozen_quota_after = nil
+}
+
+// AffFrozenQuotaAfter returns the value of the "aff_frozen_quota_after" field in the mutation.
+func (m *UserAffiliateReversalMutation) AffFrozenQuotaAfter() (r float64, exists bool) {
+	v := m.aff_frozen_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffFrozenQuotaAfter returns the old "aff_frozen_quota_after" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldAffFrozenQuotaAfter(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffFrozenQuotaAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffFrozenQuotaAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffFrozenQuotaAfter: %w", err)
+	}
+	return oldValue.AffFrozenQuotaAfter, nil
+}
+
+// AddAffFrozenQuotaAfter adds f to the "aff_frozen_quota_after" field.
+func (m *UserAffiliateReversalMutation) AddAffFrozenQuotaAfter(f float64) {
+	if m.addaff_frozen_quota_after != nil {
+		*m.addaff_frozen_quota_after += f
+	} else {
+		m.addaff_frozen_quota_after = &f
+	}
+}
+
+// AddedAffFrozenQuotaAfter returns the value that was added to the "aff_frozen_quota_after" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedAffFrozenQuotaAfter() (r float64, exists bool) {
+	v := m.addaff_frozen_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAffFrozenQuotaAfter clears the value of the "aff_frozen_quota_after" field.
+func (m *UserAffiliateReversalMutation) ClearAffFrozenQuotaAfter() {
+	m.aff_frozen_quota_after = nil
+	m.addaff_frozen_quota_after = nil
+	m.clearedFields[useraffiliatereversal.FieldAffFrozenQuotaAfter] = struct{}{}
+}
+
+// AffFrozenQuotaAfterCleared returns if the "aff_frozen_quota_after" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) AffFrozenQuotaAfterCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldAffFrozenQuotaAfter]
+	return ok
+}
+
+// ResetAffFrozenQuotaAfter resets all changes to the "aff_frozen_quota_after" field.
+func (m *UserAffiliateReversalMutation) ResetAffFrozenQuotaAfter() {
+	m.aff_frozen_quota_after = nil
+	m.addaff_frozen_quota_after = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldAffFrozenQuotaAfter)
+}
+
+// SetAffHistoryQuotaBefore sets the "aff_history_quota_before" field.
+func (m *UserAffiliateReversalMutation) SetAffHistoryQuotaBefore(f float64) {
+	m.aff_history_quota_before = &f
+	m.addaff_history_quota_before = nil
+}
+
+// AffHistoryQuotaBefore returns the value of the "aff_history_quota_before" field in the mutation.
+func (m *UserAffiliateReversalMutation) AffHistoryQuotaBefore() (r float64, exists bool) {
+	v := m.aff_history_quota_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffHistoryQuotaBefore returns the old "aff_history_quota_before" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldAffHistoryQuotaBefore(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffHistoryQuotaBefore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffHistoryQuotaBefore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffHistoryQuotaBefore: %w", err)
+	}
+	return oldValue.AffHistoryQuotaBefore, nil
+}
+
+// AddAffHistoryQuotaBefore adds f to the "aff_history_quota_before" field.
+func (m *UserAffiliateReversalMutation) AddAffHistoryQuotaBefore(f float64) {
+	if m.addaff_history_quota_before != nil {
+		*m.addaff_history_quota_before += f
+	} else {
+		m.addaff_history_quota_before = &f
+	}
+}
+
+// AddedAffHistoryQuotaBefore returns the value that was added to the "aff_history_quota_before" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedAffHistoryQuotaBefore() (r float64, exists bool) {
+	v := m.addaff_history_quota_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAffHistoryQuotaBefore clears the value of the "aff_history_quota_before" field.
+func (m *UserAffiliateReversalMutation) ClearAffHistoryQuotaBefore() {
+	m.aff_history_quota_before = nil
+	m.addaff_history_quota_before = nil
+	m.clearedFields[useraffiliatereversal.FieldAffHistoryQuotaBefore] = struct{}{}
+}
+
+// AffHistoryQuotaBeforeCleared returns if the "aff_history_quota_before" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) AffHistoryQuotaBeforeCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldAffHistoryQuotaBefore]
+	return ok
+}
+
+// ResetAffHistoryQuotaBefore resets all changes to the "aff_history_quota_before" field.
+func (m *UserAffiliateReversalMutation) ResetAffHistoryQuotaBefore() {
+	m.aff_history_quota_before = nil
+	m.addaff_history_quota_before = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldAffHistoryQuotaBefore)
+}
+
+// SetAffHistoryQuotaAfter sets the "aff_history_quota_after" field.
+func (m *UserAffiliateReversalMutation) SetAffHistoryQuotaAfter(f float64) {
+	m.aff_history_quota_after = &f
+	m.addaff_history_quota_after = nil
+}
+
+// AffHistoryQuotaAfter returns the value of the "aff_history_quota_after" field in the mutation.
+func (m *UserAffiliateReversalMutation) AffHistoryQuotaAfter() (r float64, exists bool) {
+	v := m.aff_history_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffHistoryQuotaAfter returns the old "aff_history_quota_after" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldAffHistoryQuotaAfter(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffHistoryQuotaAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffHistoryQuotaAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffHistoryQuotaAfter: %w", err)
+	}
+	return oldValue.AffHistoryQuotaAfter, nil
+}
+
+// AddAffHistoryQuotaAfter adds f to the "aff_history_quota_after" field.
+func (m *UserAffiliateReversalMutation) AddAffHistoryQuotaAfter(f float64) {
+	if m.addaff_history_quota_after != nil {
+		*m.addaff_history_quota_after += f
+	} else {
+		m.addaff_history_quota_after = &f
+	}
+}
+
+// AddedAffHistoryQuotaAfter returns the value that was added to the "aff_history_quota_after" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedAffHistoryQuotaAfter() (r float64, exists bool) {
+	v := m.addaff_history_quota_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAffHistoryQuotaAfter clears the value of the "aff_history_quota_after" field.
+func (m *UserAffiliateReversalMutation) ClearAffHistoryQuotaAfter() {
+	m.aff_history_quota_after = nil
+	m.addaff_history_quota_after = nil
+	m.clearedFields[useraffiliatereversal.FieldAffHistoryQuotaAfter] = struct{}{}
+}
+
+// AffHistoryQuotaAfterCleared returns if the "aff_history_quota_after" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) AffHistoryQuotaAfterCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldAffHistoryQuotaAfter]
+	return ok
+}
+
+// ResetAffHistoryQuotaAfter resets all changes to the "aff_history_quota_after" field.
+func (m *UserAffiliateReversalMutation) ResetAffHistoryQuotaAfter() {
+	m.aff_history_quota_after = nil
+	m.addaff_history_quota_after = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldAffHistoryQuotaAfter)
+}
+
+// SetTotalRechargedBefore sets the "total_recharged_before" field.
+func (m *UserAffiliateReversalMutation) SetTotalRechargedBefore(f float64) {
+	m.total_recharged_before = &f
+	m.addtotal_recharged_before = nil
+}
+
+// TotalRechargedBefore returns the value of the "total_recharged_before" field in the mutation.
+func (m *UserAffiliateReversalMutation) TotalRechargedBefore() (r float64, exists bool) {
+	v := m.total_recharged_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalRechargedBefore returns the old "total_recharged_before" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldTotalRechargedBefore(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalRechargedBefore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalRechargedBefore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalRechargedBefore: %w", err)
+	}
+	return oldValue.TotalRechargedBefore, nil
+}
+
+// AddTotalRechargedBefore adds f to the "total_recharged_before" field.
+func (m *UserAffiliateReversalMutation) AddTotalRechargedBefore(f float64) {
+	if m.addtotal_recharged_before != nil {
+		*m.addtotal_recharged_before += f
+	} else {
+		m.addtotal_recharged_before = &f
+	}
+}
+
+// AddedTotalRechargedBefore returns the value that was added to the "total_recharged_before" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedTotalRechargedBefore() (r float64, exists bool) {
+	v := m.addtotal_recharged_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTotalRechargedBefore clears the value of the "total_recharged_before" field.
+func (m *UserAffiliateReversalMutation) ClearTotalRechargedBefore() {
+	m.total_recharged_before = nil
+	m.addtotal_recharged_before = nil
+	m.clearedFields[useraffiliatereversal.FieldTotalRechargedBefore] = struct{}{}
+}
+
+// TotalRechargedBeforeCleared returns if the "total_recharged_before" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) TotalRechargedBeforeCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldTotalRechargedBefore]
+	return ok
+}
+
+// ResetTotalRechargedBefore resets all changes to the "total_recharged_before" field.
+func (m *UserAffiliateReversalMutation) ResetTotalRechargedBefore() {
+	m.total_recharged_before = nil
+	m.addtotal_recharged_before = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldTotalRechargedBefore)
+}
+
+// SetTotalRechargedAfter sets the "total_recharged_after" field.
+func (m *UserAffiliateReversalMutation) SetTotalRechargedAfter(f float64) {
+	m.total_recharged_after = &f
+	m.addtotal_recharged_after = nil
+}
+
+// TotalRechargedAfter returns the value of the "total_recharged_after" field in the mutation.
+func (m *UserAffiliateReversalMutation) TotalRechargedAfter() (r float64, exists bool) {
+	v := m.total_recharged_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalRechargedAfter returns the old "total_recharged_after" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldTotalRechargedAfter(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalRechargedAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalRechargedAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalRechargedAfter: %w", err)
+	}
+	return oldValue.TotalRechargedAfter, nil
+}
+
+// AddTotalRechargedAfter adds f to the "total_recharged_after" field.
+func (m *UserAffiliateReversalMutation) AddTotalRechargedAfter(f float64) {
+	if m.addtotal_recharged_after != nil {
+		*m.addtotal_recharged_after += f
+	} else {
+		m.addtotal_recharged_after = &f
+	}
+}
+
+// AddedTotalRechargedAfter returns the value that was added to the "total_recharged_after" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedTotalRechargedAfter() (r float64, exists bool) {
+	v := m.addtotal_recharged_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTotalRechargedAfter clears the value of the "total_recharged_after" field.
+func (m *UserAffiliateReversalMutation) ClearTotalRechargedAfter() {
+	m.total_recharged_after = nil
+	m.addtotal_recharged_after = nil
+	m.clearedFields[useraffiliatereversal.FieldTotalRechargedAfter] = struct{}{}
+}
+
+// TotalRechargedAfterCleared returns if the "total_recharged_after" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) TotalRechargedAfterCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldTotalRechargedAfter]
+	return ok
+}
+
+// ResetTotalRechargedAfter resets all changes to the "total_recharged_after" field.
+func (m *UserAffiliateReversalMutation) ResetTotalRechargedAfter() {
+	m.total_recharged_after = nil
+	m.addtotal_recharged_after = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldTotalRechargedAfter)
+}
+
+// SetSnapshotAvailable sets the "snapshot_available" field.
+func (m *UserAffiliateReversalMutation) SetSnapshotAvailable(b bool) {
+	m.snapshot_available = &b
+}
+
+// SnapshotAvailable returns the value of the "snapshot_available" field in the mutation.
+func (m *UserAffiliateReversalMutation) SnapshotAvailable() (r bool, exists bool) {
+	v := m.snapshot_available
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSnapshotAvailable returns the old "snapshot_available" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldSnapshotAvailable(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSnapshotAvailable is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSnapshotAvailable requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSnapshotAvailable: %w", err)
+	}
+	return oldValue.SnapshotAvailable, nil
+}
+
+// ResetSnapshotAvailable resets all changes to the "snapshot_available" field.
+func (m *UserAffiliateReversalMutation) ResetSnapshotAvailable() {
+	m.snapshot_available = nil
+}
+
+// SetReason sets the "reason" field.
+func (m *UserAffiliateReversalMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *UserAffiliateReversalMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *UserAffiliateReversalMutation) ResetReason() {
+	m.reason = nil
+}
+
+// SetOperatorUserID sets the "operator_user_id" field.
+func (m *UserAffiliateReversalMutation) SetOperatorUserID(i int64) {
+	m.operator_user_id = &i
+	m.addoperator_user_id = nil
+}
+
+// OperatorUserID returns the value of the "operator_user_id" field in the mutation.
+func (m *UserAffiliateReversalMutation) OperatorUserID() (r int64, exists bool) {
+	v := m.operator_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOperatorUserID returns the old "operator_user_id" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldOperatorUserID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOperatorUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOperatorUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOperatorUserID: %w", err)
+	}
+	return oldValue.OperatorUserID, nil
+}
+
+// AddOperatorUserID adds i to the "operator_user_id" field.
+func (m *UserAffiliateReversalMutation) AddOperatorUserID(i int64) {
+	if m.addoperator_user_id != nil {
+		*m.addoperator_user_id += i
+	} else {
+		m.addoperator_user_id = &i
+	}
+}
+
+// AddedOperatorUserID returns the value that was added to the "operator_user_id" field in this mutation.
+func (m *UserAffiliateReversalMutation) AddedOperatorUserID() (r int64, exists bool) {
+	v := m.addoperator_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearOperatorUserID clears the value of the "operator_user_id" field.
+func (m *UserAffiliateReversalMutation) ClearOperatorUserID() {
+	m.operator_user_id = nil
+	m.addoperator_user_id = nil
+	m.clearedFields[useraffiliatereversal.FieldOperatorUserID] = struct{}{}
+}
+
+// OperatorUserIDCleared returns if the "operator_user_id" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) OperatorUserIDCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldOperatorUserID]
+	return ok
+}
+
+// ResetOperatorUserID resets all changes to the "operator_user_id" field.
+func (m *UserAffiliateReversalMutation) ResetOperatorUserID() {
+	m.operator_user_id = nil
+	m.addoperator_user_id = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldOperatorUserID)
+}
+
+// SetOperationKeyHash sets the "operation_key_hash" field.
+func (m *UserAffiliateReversalMutation) SetOperationKeyHash(s string) {
+	m.operation_key_hash = &s
+}
+
+// OperationKeyHash returns the value of the "operation_key_hash" field in the mutation.
+func (m *UserAffiliateReversalMutation) OperationKeyHash() (r string, exists bool) {
+	v := m.operation_key_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOperationKeyHash returns the old "operation_key_hash" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldOperationKeyHash(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOperationKeyHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOperationKeyHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOperationKeyHash: %w", err)
+	}
+	return oldValue.OperationKeyHash, nil
+}
+
+// ClearOperationKeyHash clears the value of the "operation_key_hash" field.
+func (m *UserAffiliateReversalMutation) ClearOperationKeyHash() {
+	m.operation_key_hash = nil
+	m.clearedFields[useraffiliatereversal.FieldOperationKeyHash] = struct{}{}
+}
+
+// OperationKeyHashCleared returns if the "operation_key_hash" field was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) OperationKeyHashCleared() bool {
+	_, ok := m.clearedFields[useraffiliatereversal.FieldOperationKeyHash]
+	return ok
+}
+
+// ResetOperationKeyHash resets all changes to the "operation_key_hash" field.
+func (m *UserAffiliateReversalMutation) ResetOperationKeyHash() {
+	m.operation_key_hash = nil
+	delete(m.clearedFields, useraffiliatereversal.FieldOperationKeyHash)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *UserAffiliateReversalMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *UserAffiliateReversalMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *UserAffiliateReversalMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *UserAffiliateReversalMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *UserAffiliateReversalMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the UserAffiliateReversal entity.
+// If the UserAffiliateReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAffiliateReversalMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *UserAffiliateReversalMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the UserAffiliateReversalMutation builder.
+func (m *UserAffiliateReversalMutation) Where(ps ...predicate.UserAffiliateReversal) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserAffiliateReversalMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserAffiliateReversalMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserAffiliateReversal, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserAffiliateReversalMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserAffiliateReversalMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserAffiliateReversal).
+func (m *UserAffiliateReversalMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserAffiliateReversalMutation) Fields() []string {
+	fields := make([]string, 0, 25)
+	if m.source_ledger_id != nil {
+		fields = append(fields, useraffiliatereversal.FieldSourceLedgerID)
+	}
+	if m.source_order_id != nil {
+		fields = append(fields, useraffiliatereversal.FieldSourceOrderID)
+	}
+	if m.inviter_user_id != nil {
+		fields = append(fields, useraffiliatereversal.FieldInviterUserID)
+	}
+	if m.invitee_user_id != nil {
+		fields = append(fields, useraffiliatereversal.FieldInviteeUserID)
+	}
+	if m.rebate_amount != nil {
+		fields = append(fields, useraffiliatereversal.FieldRebateAmount)
+	}
+	if m.frozen_quota_deducted != nil {
+		fields = append(fields, useraffiliatereversal.FieldFrozenQuotaDeducted)
+	}
+	if m.available_quota_deducted != nil {
+		fields = append(fields, useraffiliatereversal.FieldAvailableQuotaDeducted)
+	}
+	if m.balance_deducted != nil {
+		fields = append(fields, useraffiliatereversal.FieldBalanceDeducted)
+	}
+	if m.total_recharged_deducted != nil {
+		fields = append(fields, useraffiliatereversal.FieldTotalRechargedDeducted)
+	}
+	if m.balance_before != nil {
+		fields = append(fields, useraffiliatereversal.FieldBalanceBefore)
+	}
+	if m.balance_after != nil {
+		fields = append(fields, useraffiliatereversal.FieldBalanceAfter)
+	}
+	if m.aff_quota_before != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffQuotaBefore)
+	}
+	if m.aff_quota_after != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffQuotaAfter)
+	}
+	if m.aff_frozen_quota_before != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffFrozenQuotaBefore)
+	}
+	if m.aff_frozen_quota_after != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffFrozenQuotaAfter)
+	}
+	if m.aff_history_quota_before != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffHistoryQuotaBefore)
+	}
+	if m.aff_history_quota_after != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffHistoryQuotaAfter)
+	}
+	if m.total_recharged_before != nil {
+		fields = append(fields, useraffiliatereversal.FieldTotalRechargedBefore)
+	}
+	if m.total_recharged_after != nil {
+		fields = append(fields, useraffiliatereversal.FieldTotalRechargedAfter)
+	}
+	if m.snapshot_available != nil {
+		fields = append(fields, useraffiliatereversal.FieldSnapshotAvailable)
+	}
+	if m.reason != nil {
+		fields = append(fields, useraffiliatereversal.FieldReason)
+	}
+	if m.operator_user_id != nil {
+		fields = append(fields, useraffiliatereversal.FieldOperatorUserID)
+	}
+	if m.operation_key_hash != nil {
+		fields = append(fields, useraffiliatereversal.FieldOperationKeyHash)
+	}
+	if m.created_at != nil {
+		fields = append(fields, useraffiliatereversal.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, useraffiliatereversal.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserAffiliateReversalMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case useraffiliatereversal.FieldSourceLedgerID:
+		return m.SourceLedgerID()
+	case useraffiliatereversal.FieldSourceOrderID:
+		return m.SourceOrderID()
+	case useraffiliatereversal.FieldInviterUserID:
+		return m.InviterUserID()
+	case useraffiliatereversal.FieldInviteeUserID:
+		return m.InviteeUserID()
+	case useraffiliatereversal.FieldRebateAmount:
+		return m.RebateAmount()
+	case useraffiliatereversal.FieldFrozenQuotaDeducted:
+		return m.FrozenQuotaDeducted()
+	case useraffiliatereversal.FieldAvailableQuotaDeducted:
+		return m.AvailableQuotaDeducted()
+	case useraffiliatereversal.FieldBalanceDeducted:
+		return m.BalanceDeducted()
+	case useraffiliatereversal.FieldTotalRechargedDeducted:
+		return m.TotalRechargedDeducted()
+	case useraffiliatereversal.FieldBalanceBefore:
+		return m.BalanceBefore()
+	case useraffiliatereversal.FieldBalanceAfter:
+		return m.BalanceAfter()
+	case useraffiliatereversal.FieldAffQuotaBefore:
+		return m.AffQuotaBefore()
+	case useraffiliatereversal.FieldAffQuotaAfter:
+		return m.AffQuotaAfter()
+	case useraffiliatereversal.FieldAffFrozenQuotaBefore:
+		return m.AffFrozenQuotaBefore()
+	case useraffiliatereversal.FieldAffFrozenQuotaAfter:
+		return m.AffFrozenQuotaAfter()
+	case useraffiliatereversal.FieldAffHistoryQuotaBefore:
+		return m.AffHistoryQuotaBefore()
+	case useraffiliatereversal.FieldAffHistoryQuotaAfter:
+		return m.AffHistoryQuotaAfter()
+	case useraffiliatereversal.FieldTotalRechargedBefore:
+		return m.TotalRechargedBefore()
+	case useraffiliatereversal.FieldTotalRechargedAfter:
+		return m.TotalRechargedAfter()
+	case useraffiliatereversal.FieldSnapshotAvailable:
+		return m.SnapshotAvailable()
+	case useraffiliatereversal.FieldReason:
+		return m.Reason()
+	case useraffiliatereversal.FieldOperatorUserID:
+		return m.OperatorUserID()
+	case useraffiliatereversal.FieldOperationKeyHash:
+		return m.OperationKeyHash()
+	case useraffiliatereversal.FieldCreatedAt:
+		return m.CreatedAt()
+	case useraffiliatereversal.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserAffiliateReversalMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case useraffiliatereversal.FieldSourceLedgerID:
+		return m.OldSourceLedgerID(ctx)
+	case useraffiliatereversal.FieldSourceOrderID:
+		return m.OldSourceOrderID(ctx)
+	case useraffiliatereversal.FieldInviterUserID:
+		return m.OldInviterUserID(ctx)
+	case useraffiliatereversal.FieldInviteeUserID:
+		return m.OldInviteeUserID(ctx)
+	case useraffiliatereversal.FieldRebateAmount:
+		return m.OldRebateAmount(ctx)
+	case useraffiliatereversal.FieldFrozenQuotaDeducted:
+		return m.OldFrozenQuotaDeducted(ctx)
+	case useraffiliatereversal.FieldAvailableQuotaDeducted:
+		return m.OldAvailableQuotaDeducted(ctx)
+	case useraffiliatereversal.FieldBalanceDeducted:
+		return m.OldBalanceDeducted(ctx)
+	case useraffiliatereversal.FieldTotalRechargedDeducted:
+		return m.OldTotalRechargedDeducted(ctx)
+	case useraffiliatereversal.FieldBalanceBefore:
+		return m.OldBalanceBefore(ctx)
+	case useraffiliatereversal.FieldBalanceAfter:
+		return m.OldBalanceAfter(ctx)
+	case useraffiliatereversal.FieldAffQuotaBefore:
+		return m.OldAffQuotaBefore(ctx)
+	case useraffiliatereversal.FieldAffQuotaAfter:
+		return m.OldAffQuotaAfter(ctx)
+	case useraffiliatereversal.FieldAffFrozenQuotaBefore:
+		return m.OldAffFrozenQuotaBefore(ctx)
+	case useraffiliatereversal.FieldAffFrozenQuotaAfter:
+		return m.OldAffFrozenQuotaAfter(ctx)
+	case useraffiliatereversal.FieldAffHistoryQuotaBefore:
+		return m.OldAffHistoryQuotaBefore(ctx)
+	case useraffiliatereversal.FieldAffHistoryQuotaAfter:
+		return m.OldAffHistoryQuotaAfter(ctx)
+	case useraffiliatereversal.FieldTotalRechargedBefore:
+		return m.OldTotalRechargedBefore(ctx)
+	case useraffiliatereversal.FieldTotalRechargedAfter:
+		return m.OldTotalRechargedAfter(ctx)
+	case useraffiliatereversal.FieldSnapshotAvailable:
+		return m.OldSnapshotAvailable(ctx)
+	case useraffiliatereversal.FieldReason:
+		return m.OldReason(ctx)
+	case useraffiliatereversal.FieldOperatorUserID:
+		return m.OldOperatorUserID(ctx)
+	case useraffiliatereversal.FieldOperationKeyHash:
+		return m.OldOperationKeyHash(ctx)
+	case useraffiliatereversal.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case useraffiliatereversal.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserAffiliateReversal field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserAffiliateReversalMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case useraffiliatereversal.FieldSourceLedgerID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceLedgerID(v)
+		return nil
+	case useraffiliatereversal.FieldSourceOrderID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceOrderID(v)
+		return nil
+	case useraffiliatereversal.FieldInviterUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInviterUserID(v)
+		return nil
+	case useraffiliatereversal.FieldInviteeUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInviteeUserID(v)
+		return nil
+	case useraffiliatereversal.FieldRebateAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRebateAmount(v)
+		return nil
+	case useraffiliatereversal.FieldFrozenQuotaDeducted:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrozenQuotaDeducted(v)
+		return nil
+	case useraffiliatereversal.FieldAvailableQuotaDeducted:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvailableQuotaDeducted(v)
+		return nil
+	case useraffiliatereversal.FieldBalanceDeducted:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceDeducted(v)
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedDeducted:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalRechargedDeducted(v)
+		return nil
+	case useraffiliatereversal.FieldBalanceBefore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceBefore(v)
+		return nil
+	case useraffiliatereversal.FieldBalanceAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceAfter(v)
+		return nil
+	case useraffiliatereversal.FieldAffQuotaBefore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffQuotaBefore(v)
+		return nil
+	case useraffiliatereversal.FieldAffQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffQuotaAfter(v)
+		return nil
+	case useraffiliatereversal.FieldAffFrozenQuotaBefore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffFrozenQuotaBefore(v)
+		return nil
+	case useraffiliatereversal.FieldAffFrozenQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffFrozenQuotaAfter(v)
+		return nil
+	case useraffiliatereversal.FieldAffHistoryQuotaBefore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffHistoryQuotaBefore(v)
+		return nil
+	case useraffiliatereversal.FieldAffHistoryQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffHistoryQuotaAfter(v)
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedBefore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalRechargedBefore(v)
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalRechargedAfter(v)
+		return nil
+	case useraffiliatereversal.FieldSnapshotAvailable:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSnapshotAvailable(v)
+		return nil
+	case useraffiliatereversal.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case useraffiliatereversal.FieldOperatorUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOperatorUserID(v)
+		return nil
+	case useraffiliatereversal.FieldOperationKeyHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOperationKeyHash(v)
+		return nil
+	case useraffiliatereversal.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case useraffiliatereversal.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliateReversal field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserAffiliateReversalMutation) AddedFields() []string {
+	var fields []string
+	if m.addsource_ledger_id != nil {
+		fields = append(fields, useraffiliatereversal.FieldSourceLedgerID)
+	}
+	if m.addsource_order_id != nil {
+		fields = append(fields, useraffiliatereversal.FieldSourceOrderID)
+	}
+	if m.addinviter_user_id != nil {
+		fields = append(fields, useraffiliatereversal.FieldInviterUserID)
+	}
+	if m.addinvitee_user_id != nil {
+		fields = append(fields, useraffiliatereversal.FieldInviteeUserID)
+	}
+	if m.addrebate_amount != nil {
+		fields = append(fields, useraffiliatereversal.FieldRebateAmount)
+	}
+	if m.addfrozen_quota_deducted != nil {
+		fields = append(fields, useraffiliatereversal.FieldFrozenQuotaDeducted)
+	}
+	if m.addavailable_quota_deducted != nil {
+		fields = append(fields, useraffiliatereversal.FieldAvailableQuotaDeducted)
+	}
+	if m.addbalance_deducted != nil {
+		fields = append(fields, useraffiliatereversal.FieldBalanceDeducted)
+	}
+	if m.addtotal_recharged_deducted != nil {
+		fields = append(fields, useraffiliatereversal.FieldTotalRechargedDeducted)
+	}
+	if m.addbalance_before != nil {
+		fields = append(fields, useraffiliatereversal.FieldBalanceBefore)
+	}
+	if m.addbalance_after != nil {
+		fields = append(fields, useraffiliatereversal.FieldBalanceAfter)
+	}
+	if m.addaff_quota_before != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffQuotaBefore)
+	}
+	if m.addaff_quota_after != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffQuotaAfter)
+	}
+	if m.addaff_frozen_quota_before != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffFrozenQuotaBefore)
+	}
+	if m.addaff_frozen_quota_after != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffFrozenQuotaAfter)
+	}
+	if m.addaff_history_quota_before != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffHistoryQuotaBefore)
+	}
+	if m.addaff_history_quota_after != nil {
+		fields = append(fields, useraffiliatereversal.FieldAffHistoryQuotaAfter)
+	}
+	if m.addtotal_recharged_before != nil {
+		fields = append(fields, useraffiliatereversal.FieldTotalRechargedBefore)
+	}
+	if m.addtotal_recharged_after != nil {
+		fields = append(fields, useraffiliatereversal.FieldTotalRechargedAfter)
+	}
+	if m.addoperator_user_id != nil {
+		fields = append(fields, useraffiliatereversal.FieldOperatorUserID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserAffiliateReversalMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case useraffiliatereversal.FieldSourceLedgerID:
+		return m.AddedSourceLedgerID()
+	case useraffiliatereversal.FieldSourceOrderID:
+		return m.AddedSourceOrderID()
+	case useraffiliatereversal.FieldInviterUserID:
+		return m.AddedInviterUserID()
+	case useraffiliatereversal.FieldInviteeUserID:
+		return m.AddedInviteeUserID()
+	case useraffiliatereversal.FieldRebateAmount:
+		return m.AddedRebateAmount()
+	case useraffiliatereversal.FieldFrozenQuotaDeducted:
+		return m.AddedFrozenQuotaDeducted()
+	case useraffiliatereversal.FieldAvailableQuotaDeducted:
+		return m.AddedAvailableQuotaDeducted()
+	case useraffiliatereversal.FieldBalanceDeducted:
+		return m.AddedBalanceDeducted()
+	case useraffiliatereversal.FieldTotalRechargedDeducted:
+		return m.AddedTotalRechargedDeducted()
+	case useraffiliatereversal.FieldBalanceBefore:
+		return m.AddedBalanceBefore()
+	case useraffiliatereversal.FieldBalanceAfter:
+		return m.AddedBalanceAfter()
+	case useraffiliatereversal.FieldAffQuotaBefore:
+		return m.AddedAffQuotaBefore()
+	case useraffiliatereversal.FieldAffQuotaAfter:
+		return m.AddedAffQuotaAfter()
+	case useraffiliatereversal.FieldAffFrozenQuotaBefore:
+		return m.AddedAffFrozenQuotaBefore()
+	case useraffiliatereversal.FieldAffFrozenQuotaAfter:
+		return m.AddedAffFrozenQuotaAfter()
+	case useraffiliatereversal.FieldAffHistoryQuotaBefore:
+		return m.AddedAffHistoryQuotaBefore()
+	case useraffiliatereversal.FieldAffHistoryQuotaAfter:
+		return m.AddedAffHistoryQuotaAfter()
+	case useraffiliatereversal.FieldTotalRechargedBefore:
+		return m.AddedTotalRechargedBefore()
+	case useraffiliatereversal.FieldTotalRechargedAfter:
+		return m.AddedTotalRechargedAfter()
+	case useraffiliatereversal.FieldOperatorUserID:
+		return m.AddedOperatorUserID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserAffiliateReversalMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case useraffiliatereversal.FieldSourceLedgerID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceLedgerID(v)
+		return nil
+	case useraffiliatereversal.FieldSourceOrderID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceOrderID(v)
+		return nil
+	case useraffiliatereversal.FieldInviterUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInviterUserID(v)
+		return nil
+	case useraffiliatereversal.FieldInviteeUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInviteeUserID(v)
+		return nil
+	case useraffiliatereversal.FieldRebateAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRebateAmount(v)
+		return nil
+	case useraffiliatereversal.FieldFrozenQuotaDeducted:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFrozenQuotaDeducted(v)
+		return nil
+	case useraffiliatereversal.FieldAvailableQuotaDeducted:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAvailableQuotaDeducted(v)
+		return nil
+	case useraffiliatereversal.FieldBalanceDeducted:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceDeducted(v)
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedDeducted:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalRechargedDeducted(v)
+		return nil
+	case useraffiliatereversal.FieldBalanceBefore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceBefore(v)
+		return nil
+	case useraffiliatereversal.FieldBalanceAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceAfter(v)
+		return nil
+	case useraffiliatereversal.FieldAffQuotaBefore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffQuotaBefore(v)
+		return nil
+	case useraffiliatereversal.FieldAffQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffQuotaAfter(v)
+		return nil
+	case useraffiliatereversal.FieldAffFrozenQuotaBefore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffFrozenQuotaBefore(v)
+		return nil
+	case useraffiliatereversal.FieldAffFrozenQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffFrozenQuotaAfter(v)
+		return nil
+	case useraffiliatereversal.FieldAffHistoryQuotaBefore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffHistoryQuotaBefore(v)
+		return nil
+	case useraffiliatereversal.FieldAffHistoryQuotaAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffHistoryQuotaAfter(v)
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedBefore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalRechargedBefore(v)
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedAfter:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalRechargedAfter(v)
+		return nil
+	case useraffiliatereversal.FieldOperatorUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOperatorUserID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliateReversal numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserAffiliateReversalMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(useraffiliatereversal.FieldSourceLedgerID) {
+		fields = append(fields, useraffiliatereversal.FieldSourceLedgerID)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldFrozenQuotaDeducted) {
+		fields = append(fields, useraffiliatereversal.FieldFrozenQuotaDeducted)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldAvailableQuotaDeducted) {
+		fields = append(fields, useraffiliatereversal.FieldAvailableQuotaDeducted)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldBalanceDeducted) {
+		fields = append(fields, useraffiliatereversal.FieldBalanceDeducted)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldTotalRechargedDeducted) {
+		fields = append(fields, useraffiliatereversal.FieldTotalRechargedDeducted)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldBalanceBefore) {
+		fields = append(fields, useraffiliatereversal.FieldBalanceBefore)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldBalanceAfter) {
+		fields = append(fields, useraffiliatereversal.FieldBalanceAfter)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldAffQuotaBefore) {
+		fields = append(fields, useraffiliatereversal.FieldAffQuotaBefore)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldAffQuotaAfter) {
+		fields = append(fields, useraffiliatereversal.FieldAffQuotaAfter)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldAffFrozenQuotaBefore) {
+		fields = append(fields, useraffiliatereversal.FieldAffFrozenQuotaBefore)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldAffFrozenQuotaAfter) {
+		fields = append(fields, useraffiliatereversal.FieldAffFrozenQuotaAfter)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldAffHistoryQuotaBefore) {
+		fields = append(fields, useraffiliatereversal.FieldAffHistoryQuotaBefore)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldAffHistoryQuotaAfter) {
+		fields = append(fields, useraffiliatereversal.FieldAffHistoryQuotaAfter)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldTotalRechargedBefore) {
+		fields = append(fields, useraffiliatereversal.FieldTotalRechargedBefore)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldTotalRechargedAfter) {
+		fields = append(fields, useraffiliatereversal.FieldTotalRechargedAfter)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldOperatorUserID) {
+		fields = append(fields, useraffiliatereversal.FieldOperatorUserID)
+	}
+	if m.FieldCleared(useraffiliatereversal.FieldOperationKeyHash) {
+		fields = append(fields, useraffiliatereversal.FieldOperationKeyHash)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserAffiliateReversalMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserAffiliateReversalMutation) ClearField(name string) error {
+	switch name {
+	case useraffiliatereversal.FieldSourceLedgerID:
+		m.ClearSourceLedgerID()
+		return nil
+	case useraffiliatereversal.FieldFrozenQuotaDeducted:
+		m.ClearFrozenQuotaDeducted()
+		return nil
+	case useraffiliatereversal.FieldAvailableQuotaDeducted:
+		m.ClearAvailableQuotaDeducted()
+		return nil
+	case useraffiliatereversal.FieldBalanceDeducted:
+		m.ClearBalanceDeducted()
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedDeducted:
+		m.ClearTotalRechargedDeducted()
+		return nil
+	case useraffiliatereversal.FieldBalanceBefore:
+		m.ClearBalanceBefore()
+		return nil
+	case useraffiliatereversal.FieldBalanceAfter:
+		m.ClearBalanceAfter()
+		return nil
+	case useraffiliatereversal.FieldAffQuotaBefore:
+		m.ClearAffQuotaBefore()
+		return nil
+	case useraffiliatereversal.FieldAffQuotaAfter:
+		m.ClearAffQuotaAfter()
+		return nil
+	case useraffiliatereversal.FieldAffFrozenQuotaBefore:
+		m.ClearAffFrozenQuotaBefore()
+		return nil
+	case useraffiliatereversal.FieldAffFrozenQuotaAfter:
+		m.ClearAffFrozenQuotaAfter()
+		return nil
+	case useraffiliatereversal.FieldAffHistoryQuotaBefore:
+		m.ClearAffHistoryQuotaBefore()
+		return nil
+	case useraffiliatereversal.FieldAffHistoryQuotaAfter:
+		m.ClearAffHistoryQuotaAfter()
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedBefore:
+		m.ClearTotalRechargedBefore()
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedAfter:
+		m.ClearTotalRechargedAfter()
+		return nil
+	case useraffiliatereversal.FieldOperatorUserID:
+		m.ClearOperatorUserID()
+		return nil
+	case useraffiliatereversal.FieldOperationKeyHash:
+		m.ClearOperationKeyHash()
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliateReversal nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserAffiliateReversalMutation) ResetField(name string) error {
+	switch name {
+	case useraffiliatereversal.FieldSourceLedgerID:
+		m.ResetSourceLedgerID()
+		return nil
+	case useraffiliatereversal.FieldSourceOrderID:
+		m.ResetSourceOrderID()
+		return nil
+	case useraffiliatereversal.FieldInviterUserID:
+		m.ResetInviterUserID()
+		return nil
+	case useraffiliatereversal.FieldInviteeUserID:
+		m.ResetInviteeUserID()
+		return nil
+	case useraffiliatereversal.FieldRebateAmount:
+		m.ResetRebateAmount()
+		return nil
+	case useraffiliatereversal.FieldFrozenQuotaDeducted:
+		m.ResetFrozenQuotaDeducted()
+		return nil
+	case useraffiliatereversal.FieldAvailableQuotaDeducted:
+		m.ResetAvailableQuotaDeducted()
+		return nil
+	case useraffiliatereversal.FieldBalanceDeducted:
+		m.ResetBalanceDeducted()
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedDeducted:
+		m.ResetTotalRechargedDeducted()
+		return nil
+	case useraffiliatereversal.FieldBalanceBefore:
+		m.ResetBalanceBefore()
+		return nil
+	case useraffiliatereversal.FieldBalanceAfter:
+		m.ResetBalanceAfter()
+		return nil
+	case useraffiliatereversal.FieldAffQuotaBefore:
+		m.ResetAffQuotaBefore()
+		return nil
+	case useraffiliatereversal.FieldAffQuotaAfter:
+		m.ResetAffQuotaAfter()
+		return nil
+	case useraffiliatereversal.FieldAffFrozenQuotaBefore:
+		m.ResetAffFrozenQuotaBefore()
+		return nil
+	case useraffiliatereversal.FieldAffFrozenQuotaAfter:
+		m.ResetAffFrozenQuotaAfter()
+		return nil
+	case useraffiliatereversal.FieldAffHistoryQuotaBefore:
+		m.ResetAffHistoryQuotaBefore()
+		return nil
+	case useraffiliatereversal.FieldAffHistoryQuotaAfter:
+		m.ResetAffHistoryQuotaAfter()
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedBefore:
+		m.ResetTotalRechargedBefore()
+		return nil
+	case useraffiliatereversal.FieldTotalRechargedAfter:
+		m.ResetTotalRechargedAfter()
+		return nil
+	case useraffiliatereversal.FieldSnapshotAvailable:
+		m.ResetSnapshotAvailable()
+		return nil
+	case useraffiliatereversal.FieldReason:
+		m.ResetReason()
+		return nil
+	case useraffiliatereversal.FieldOperatorUserID:
+		m.ResetOperatorUserID()
+		return nil
+	case useraffiliatereversal.FieldOperationKeyHash:
+		m.ResetOperationKeyHash()
+		return nil
+	case useraffiliatereversal.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case useraffiliatereversal.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserAffiliateReversal field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserAffiliateReversalMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserAffiliateReversalMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserAffiliateReversalMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserAffiliateReversalMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserAffiliateReversalMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserAffiliateReversalMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserAffiliateReversalMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown UserAffiliateReversal unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserAffiliateReversalMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown UserAffiliateReversal edge %s", name)
 }
 
 // UserAllowedGroupMutation represents an operation that mutates the UserAllowedGroup nodes in the graph.

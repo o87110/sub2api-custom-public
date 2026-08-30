@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-167}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-171}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 167 ]]; then
+if [[ "$expected_count" -eq 171 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -129,8 +129,12 @@ if [[ "$expected_count" -eq 167 ]]; then
   assert_mapping $'backend/internal/handler/admin/system_handler.go\tbackend/internal/custom/updater/service.go'
   assert_mapping $'backend/internal/handler/admin/system_handler_test.go\tbackend/internal/custom/updater/service_test.go'
   assert_mapping $'backend/internal/handler/openai_gateway_handler.go\tbackend/internal/custom/moderation/cyber_policy.go|backend/internal/custom/groupmodelaccess/policy.go'
-  assert_mapping $'backend/internal/handler/wire.go\tbackend/internal/custom/updater/wire.go|backend/internal/custom/subscriptionbulkreset/service.go'
-  assert_mapping $'backend/internal/server/routes/admin.go\tbackend/internal/custom/subscriptionbulkreset/service.go'
+  assert_mapping $'backend/internal/handler/handler.go\tbackend/internal/custom/affiliatereversal/handler.go|backend/internal/custom/affiliatereversal/service.go'
+  assert_mapping $'backend/internal/handler/wire.go\tbackend/internal/custom/affiliatereversal/handler.go|backend/internal/custom/affiliatereversal/service.go|backend/internal/custom/updater/wire.go|backend/internal/custom/subscriptionbulkreset/service.go'
+  assert_mapping $'backend/internal/repository/affiliate_repo.go\tbackend/internal/custom/affiliatereversal/calculator.go|backend/internal/custom/affiliatereversal/list.go|backend/internal/custom/affiliatereversal/service.go'
+  assert_mapping $'backend/internal/server/routes/admin.go\tbackend/internal/custom/affiliatereversal/handler.go|backend/internal/custom/affiliatereversal/service.go|backend/internal/custom/subscriptionbulkreset/service.go'
+  assert_mapping $'frontend/src/components/common/DataTable.vue\tfrontend/src/custom/affiliate-reversal/AffiliateReversalActionBar.vue|frontend/src/custom/affiliate-reversal/AffiliateReversalDialog.vue'
+  assert_mapping $'frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue\tfrontend/src/custom/affiliate-reversal/AffiliateReversalActionBar.vue|frontend/src/custom/affiliate-reversal/AffiliateReversalDialog.vue'
   assert_mapping $'frontend/src/api/admin/subscriptions.ts\tfrontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue|frontend/src/custom/subscription-quota/ManualBulkResetEligibilityAction.vue|frontend/src/custom/subscription-quota/bulkReset.ts'
   assert_mapping $'frontend/src/types/payment.ts\tfrontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/subscription-plan-inventory/inventory.ts|frontend/src/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue'
   assert_mapping $'frontend/src/components/layout/AppSidebar.vue\tfrontend/src/custom/updater/components/VersionBadge.vue'
@@ -443,6 +447,7 @@ frontend/src/api/admin/riskControl.ts
 frontend/src/api/admin/settings.ts
 frontend/src/api/admin/subscriptions.ts
 frontend/src/api/admin/system.ts
+frontend/src/components/common/DataTable.vue
 frontend/src/components/common/SubscriptionProgressMini.vue
 frontend/src/components/common/VersionBadge.vue
 frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts
@@ -479,6 +484,7 @@ frontend/src/views/admin/orders/AdminPaymentPlansView.vue
 frontend/src/views/admin/orders/PlanEditDialog.vue
 frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts
 frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts
+frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue
 frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts
 frontend/src/views/user/KeysView.vue
 frontend/src/views/user/__tests__/KeysView.spec.ts
@@ -495,6 +501,7 @@ backend/internal/handler/gateway_handler_chat_completions.go
 backend/internal/handler/gateway_handler_responses.go
 backend/internal/handler/gateway_helper.go
 backend/internal/handler/gemini_v1beta_handler.go
+backend/internal/handler/handler.go
 backend/internal/handler/image_task_handler.go
 backend/internal/handler/no_account_error.go
 backend/internal/handler/openai_alpha_search.go
@@ -507,6 +514,7 @@ backend/internal/handler/openai_live.go
 backend/internal/server/middleware/api_key_auth_google.go
 backend/internal/server/middleware/api_key_auth.go
 backend/internal/server/routes/gateway.go
+backend/internal/repository/affiliate_repo.go
 backend/internal/service/antigravity_gateway_claude.go
 backend/internal/service/antigravity_gateway_compat.go
 backend/internal/service/antigravity_gateway_gemini.go

@@ -132,6 +132,15 @@ class ThinBridgeContractTests(unittest.TestCase):
         self.addCleanup(fixture.close)
         return fixture
 
+    def test_affiliate_reversal_routes_have_an_exact_two_post_call_budget(self) -> None:
+        calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+            "backend/internal/server/routes/admin.go"
+        ]
+        self.assertEqual(
+            calls.count(("registerAffiliateRoutes", "affiliates.POST")),
+            2,
+        )
+
     def test_accepts_an_exact_dto_contract(self) -> None:
         fixture = self.fixture()
         validator.validate(fixture.args())

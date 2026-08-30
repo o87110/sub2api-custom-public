@@ -93,6 +93,9 @@ sha256sum runtime/sub2api
 - PostgreSQL 数据库；
 - 涉及订阅周期 Migration 时，确认数据库备份明确包含 `user_subscriptions`、
   `user_subscription_cycles` 和 `subscription_plans`；
+- 涉及邀请返利撤销 Migration 时，确认备份包含 `user_affiliate_ledger`、
+  `user_affiliates`、`users`、`payment_audit_logs`、`payment_orders` 和
+  `schema_migrations`，并在升级后核验 `user_affiliate_reversals` 已创建；
 - `.env` 和配置文件；
 - `runtime/sub2api` 及 `.backup`；
 - 当前镜像 Tag 与 Digest；

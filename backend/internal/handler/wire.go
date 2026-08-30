@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom/affiliatereversal"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptionbulkreset"
 	customupdater "github.com/Wei-Shaw/sub2api/internal/custom/updater"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
@@ -47,6 +48,7 @@ func ProvideAdminHandlers(
 	promptAuditHandler *securityaudit.PromptAdminHandler,
 	paymentHandler *admin.PaymentHandler,
 	affiliateHandler *admin.AffiliateHandler,
+	affiliateReversalHandler *affiliatereversal.Handler,
 	complianceHandler *admin.ComplianceHandler,
 	auditLogHandler *admin.AuditLogHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
@@ -89,6 +91,7 @@ func ProvideAdminHandlers(
 		PromptAudit:            promptAuditHandler,
 		Payment:                paymentHandler,
 		Affiliate:              affiliateHandler,
+		AffiliateReversal:      affiliateReversalHandler,
 		Compliance:             complianceHandler,
 		AuditLog:               auditLogHandler,
 	}
@@ -227,6 +230,8 @@ func ProvideHandlers(
 
 // ProviderSet is the Wire provider set for all handlers
 var ProviderSet = wire.NewSet(
+	affiliatereversal.NewService,
+	affiliatereversal.NewHandler,
 	subscriptionbulkreset.NewService,
 	// Top-level handlers
 	NewAuthHandler,

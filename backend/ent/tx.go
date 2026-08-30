@@ -82,6 +82,12 @@ type Tx struct {
 	UsageLog *UsageLogClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// UserAffiliate is the client for interacting with the UserAffiliate builders.
+	UserAffiliate *UserAffiliateClient
+	// UserAffiliateLedger is the client for interacting with the UserAffiliateLedger builders.
+	UserAffiliateLedger *UserAffiliateLedgerClient
+	// UserAffiliateReversal is the client for interacting with the UserAffiliateReversal builders.
+	UserAffiliateReversal *UserAffiliateReversalClient
 	// UserAllowedGroup is the client for interacting with the UserAllowedGroup builders.
 	UserAllowedGroup *UserAllowedGroupClient
 	// UserAttributeDefinition is the client for interacting with the UserAttributeDefinition builders.
@@ -259,6 +265,9 @@ func (tx *Tx) init() {
 	tx.UsageCleanupTask = NewUsageCleanupTaskClient(tx.config)
 	tx.UsageLog = NewUsageLogClient(tx.config)
 	tx.User = NewUserClient(tx.config)
+	tx.UserAffiliate = NewUserAffiliateClient(tx.config)
+	tx.UserAffiliateLedger = NewUserAffiliateLedgerClient(tx.config)
+	tx.UserAffiliateReversal = NewUserAffiliateReversalClient(tx.config)
 	tx.UserAllowedGroup = NewUserAllowedGroupClient(tx.config)
 	tx.UserAttributeDefinition = NewUserAttributeDefinitionClient(tx.config)
 	tx.UserAttributeValue = NewUserAttributeValueClient(tx.config)

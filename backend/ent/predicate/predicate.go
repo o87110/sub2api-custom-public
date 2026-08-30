@@ -108,6 +108,15 @@ type UsageLog func(*sql.Selector)
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
 
+// UserAffiliate is the predicate function for useraffiliate builders.
+type UserAffiliate func(*sql.Selector)
+
+// UserAffiliateLedger is the predicate function for useraffiliateledger builders.
+type UserAffiliateLedger func(*sql.Selector)
+
+// UserAffiliateReversal is the predicate function for useraffiliatereversal builders.
+type UserAffiliateReversal func(*sql.Selector)
+
 // UserAllowedGroup is the predicate function for userallowedgroup builders.
 type UserAllowedGroup func(*sql.Selector)
 
