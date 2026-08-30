@@ -1,5 +1,5 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	4851357c68b01afe7f6cc62a5ba44ba23026d562	-	-	candidate-tree+targeted-CI	保护渠道监控倍率、最低余额、管理员迁移、支付、订阅周期与批量重置、内容审计缓存继承测试、Grok 继承测试修正、分组模型黑名单及发布路径
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	ff534f8b29ab06abd1d7f01739c0ce512f5be1d9	-	-	candidate-tree+targeted-CI	保护返利撤销后端、Migration、前端集成测试及渠道监控倍率、最低余额、管理员迁移、支付、订阅周期与批量重置、内容审计缓存继承测试、Grok 继承测试修正、分组模型黑名单及发布路径
 .github/audit-exceptions.yml	M	keep	M	fixed-path	6243f0fa7faa26a7c571955b1d5772e7dd4391cc	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	e1e2ed46430d1dcc616da0cb9ce1dcc84a6b5a61	-	-	database-boundary-unit+candidate-tree-test	登记返利聚合、流水、撤销 Ent 结构、缓存恢复只读查询、Migration 231 与准确候选数据库指纹
@@ -29,8 +29,8 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
 .github/workflows/release.yml	M	keep	M	fixed-path	abdfc9c81daafecefaea5b7184bab14205e785e8	fc9d57a34c6bc752e72b2898c40124097508e8bd	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	97357efde27a364ce6dcccad34141f2aa16a4418	1fc1fa808dfd146f499687499c64717da350d222	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	19135271b9584d2312152f7c62a1b0f8c09ae90d	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 OAuth 生图回归路径
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	f75d9a00aa4147c5a783fe2000eb4efdbf0d0f72	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
+.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	40241647678d6facd19060b9f9bf8a159cec7729	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、返利撤销后端、Migration 与前端集成测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 OAuth 生图回归路径
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	89b0e84e3abd446297d4bfd5e00fe27100699c97	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护返利撤销后端、Migration、前端集成测试及其他高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
 .gitignore	M	keep	M	fixed-path	20ed12275e874f7c728a322485ffc645df34a019	ca7c959ab9ff4452b19b3abd599e24c4b49ec4a3	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .goreleaser.yaml	M	keep	M	fixed-path	19adfdf6dc489acd4af4ed82bdf63f64e16b8e33	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 AGENTS.md	A	keep	A	custom-docs-ops	@absent	96e736e67995af280d711e30f828e9314da88800	-	-	documentation-consistency-review+candidate-tree-test	明确同 SHA CI 证据复用、Integration 登记、自动发布输入、前端 Artifact 与缓存信任边界

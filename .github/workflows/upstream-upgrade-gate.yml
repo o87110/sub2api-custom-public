@@ -595,6 +595,10 @@ jobs:
           protected_pattern="${protected_pattern}|^backend/internal/repository/http_upstream_http2_keepalive_test\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/repository/usage_log_repo_request_type_test\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/repository/auth_cache_invalidation_profit_integration_test\.go$"
+          protected_pattern="${protected_pattern}|^backend/internal/repository/affiliate_reversal_integration_test\.go$"
+          protected_pattern="${protected_pattern}|^backend/migrations/affiliate_reversals_migration_test\.go$"
+          protected_pattern="${protected_pattern}|^frontend/src/api/__tests__/admin\.affiliates\.reversal\.spec\.ts$"
+          protected_pattern="${protected_pattern}|^frontend/src/components/common/__tests__/DataTable\.spec\.ts$"
           protected_pattern="${protected_pattern}|^backend/internal/service/content_moderation_runtime_cache_test\.go$"
           protected_pattern="${protected_pattern}|^frontend/src/components/account/__tests__/CreateAccountModal\.grok\.spec\.ts$"
           group_model_access_protected_pattern='^(backend/internal/handler/(group_model_access_test|image_task_handler_test|no_account_error_test)\.go|backend/internal/server/routes/composite_platform_test\.go|backend/internal/service/(admin_service_composite_group_test|api_key_auth_cache_(profit|version)_test|gateway_model_availability_test|group_model_access_test|openai_images_test|openai_live_test)\.go|backend/internal/repository/(auth_cache_invalidation_profit_integration_test|group_usage_rollup_trigger_integration_test)\.go|backend/migrations/group_model_blocklist_auth_cache_invalidation_migration_test\.go|frontend/src/views/admin/__tests__/groupsModelsList\.spec\.ts)$'
