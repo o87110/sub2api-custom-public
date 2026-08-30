@@ -26,6 +26,13 @@ func TestAffiliateReversalService_StrictRecoveryIsAtomicAndIdempotent(t *testing
 		TotalRecharged: 10,
 		Concurrency:    5,
 	})
+	// mustCreateUser only persists the common user fields; set the cumulative
+	// recharge total explicitly because reversal validation uses it to guard the
+	// balance deduction path.
+	_, err := integrationEntClient.User.UpdateOneID(inviter.ID).
+		SetTotalRecharged(inviter.TotalRecharged).
+		Save(ctx)
+	require.NoError(t, err, "set inviter total recharged")
 	invitee := mustCreateUser(t, integrationEntClient, &service.User{
 		Email:        fmt.Sprintf("affiliate-reversal-invitee-%d@example.com", time.Now().UnixNano()),
 		PasswordHash: "hash",
@@ -35,7 +42,7 @@ func TestAffiliateReversalService_StrictRecoveryIsAtomicAndIdempotent(t *testing
 	})
 
 	now := time.Now().UTC()
-	_, err := integrationEntClient.ExecContext(ctx, `
+	_, err = integrationEntClient.ExecContext(ctx, `
 INSERT INTO user_affiliates (
     user_id, aff_code, inviter_id, aff_quota, aff_frozen_quota,
     aff_history_quota, created_at, updated_at
