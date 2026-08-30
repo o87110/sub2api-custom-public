@@ -40,6 +40,26 @@ func TestAffiliateReversalService_StrictRecoveryIsAtomicAndIdempotent(t *testing
 		Status:       service.StatusActive,
 		Concurrency:  5,
 	})
+	t.Cleanup(func() {
+		cleanupCtx := context.Background()
+		statements := []string{
+			`DELETE FROM payment_audit_logs WHERE order_id IN (
+				SELECT id::text FROM payment_orders WHERE user_id IN ($1, $2)
+			)`,
+			`DELETE FROM user_affiliate_reversals
+				WHERE inviter_user_id IN ($1, $2) OR invitee_user_id IN ($1, $2)`,
+			`DELETE FROM user_affiliate_ledger
+				WHERE user_id IN ($1, $2) OR source_user_id IN ($1, $2)`,
+			`DELETE FROM payment_orders WHERE user_id IN ($1, $2)`,
+			`DELETE FROM user_affiliates WHERE user_id IN ($1, $2)`,
+			`DELETE FROM users WHERE id IN ($1, $2)`,
+		}
+		for _, statement := range statements {
+			if _, cleanupErr := integrationEntClient.ExecContext(cleanupCtx, statement, inviter.ID, invitee.ID); cleanupErr != nil {
+				t.Errorf("cleanup affiliate reversal fixture: %v", cleanupErr)
+			}
+		}
+	})
 
 	now := time.Now().UTC()
 	_, err = integrationEntClient.ExecContext(ctx, `
