@@ -136,7 +136,7 @@ func FilterCodexModelsManifest(
 				continue
 			}
 		}
-		if policyEnabled && modelAccessBlocksOpenAIAccount(ctx, account, slug, false) {
+		if policyEnabled && (groupmodelaccess.BlocksContext(ctx, slug) || modelAccessBlocksOpenAIAccount(ctx, account, slug, false)) {
 			changed = true
 			continue
 		}
