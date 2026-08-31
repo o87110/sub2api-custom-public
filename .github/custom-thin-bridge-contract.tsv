@@ -1,5 +1,5 @@
 path	kind	shadow_required	approved_additions	approved_deletions	baseline_budget_overrides
-backend/cmd/server/wire.go	wire	true	28	2	e8cb019fabf8b55199436229044cbf9aa7a82564:30:2
+backend/cmd/server/wire.go	wire	true	28	2	e8cb019fabf8b55199436229044cbf9aa7a82564:30:2,e98ef32eb29aecd30d1def615912ec4dc93173f3:30:2
 backend/internal/domain/models_list_config.go	dto	false	5	3	-
 backend/internal/handler/admin/channel_monitor_handler.go	dto	false	124	112	75f88be5f75c27771836b586f7de1503afa0e3bc:124:112
 backend/internal/handler/admin/content_moderation_handler.go	dto	false	10	0	-
