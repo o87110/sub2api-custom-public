@@ -1548,6 +1548,60 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     ("UpdatePaymentConfig", "if req.ChannelSettings != nil {"),
     ("UpdatePaymentConfig", "if err != nil {"),
 )
+
+# Official v0.1.184 keeps these reviewed Vendor source Blobs unchanged from
+# v0.1.183. Copy only their exact baseline-bound Custom deltas; paths whose
+# official source changed are reviewed and registered separately below.
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/handler/gateway_web_search.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/handler/gateway_web_search.go",
+)]
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/handler/no_account_error.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/handler/no_account_error.go",
+)]
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/service/grok_audio.go",
+)] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/service/grok_audio.go",
+)]
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)]
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)]
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/service/payment_config_service.go",
+)] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/service/payment_config_service.go",
+)]
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/service/payment_config_service.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/service/payment_config_service.go",
+)]
+
 APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/handler/batch_image_handler.go": frozenset({}),
     "backend/internal/handler/gateway_handler.go": frozenset({}),
@@ -2222,6 +2276,41 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
     ),
 })
 
+_v0184_codex_models_calls = Counter(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/handler/openai_codex_models_handler.go"
+    ]
+)
+_v0184_codex_models_calls.subtract((
+    ("CodexModels", "apiKey.Group.CustomModelsListEnabled"),
+    ("CodexModels", "apiKey.Group.CustomModelsListEnabled"),
+    ("CodexModels", "c.Header"),
+))
+_v0184_codex_models_calls.update((
+    ("CodexModels", "c.Request.Context"),
+    ("CodexModels", "h.errorResponse"),
+    ("CodexModels", "service.FilterCodexModelsManifest"),
+))
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/handler/openai_codex_models_handler.go",
+)] = tuple(_v0184_codex_models_calls.elements())
+
+_v0184_openai_gateway_calls = Counter(
+    BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+        "e8cb019fabf8b55199436229044cbf9aa7a82564",
+        "backend/internal/handler/openai_gateway_handler.go",
+    )]
+)
+_v0184_openai_gateway_calls.subtract((
+    ("recordCyberPolicyIfMarked", "c.Request.Context"),
+    ("recordCyberPolicyIfMarked", "cmSvc.CyberPolicyGroupInScope"),
+))
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/handler/openai_gateway_handler.go",
+)] = tuple(_v0184_openai_gateway_calls.elements())
+
 APPROVED_DELEGATE_VIEW_CONTROL.update({
     "backend/internal/handler/batch_image_handler.go": (
         ("batchImageError", "if service.IsGroupModelBlockedError(err) {"),
@@ -2530,6 +2619,31 @@ APPROVED_DELEGATE_VIEW_CONTROL.update({
     "frontend/src/views/admin/groupsModelsList.ts": (
     ),
 })
+
+_v0184_codex_models_control = Counter(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/openai_codex_models_handler.go"
+    ]
+)
+_v0184_codex_models_control.subtract((
+    ("CodexModels", "if filterManifest {"),
+    ("CodexModels", 'if manifest.ETag != "" {'),
+    ("CodexModels", 'if manifest.ETag != "" {'),
+))
+_v0184_codex_models_control.update((
+    ("CodexModels", "if len(apiKey.Group.ModelsListConfig.BlockedModels) > 0 {"),
+    (
+        "CodexModels",
+        "if err := h.gatewayService.MergeGroupConfiguredCodexModels(c.Request.Context(), apiKey.Group, manifest, manifestIfNoneMatch); err != nil {",
+    ),
+    ("CodexModels", "if !manifest.NotModified {"),
+    ("CodexModels", "if filterErr != nil {"),
+    ("CodexModels", "if changed {"),
+))
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/handler/openai_codex_models_handler.go",
+)] = tuple(_v0184_codex_models_control.elements())
 
 APPROVED_DELEGATE_VIEW_ORCHESTRATION: dict[str, tuple[tuple[str, str], ...]] = {
     "backend/internal/handler/gemini_v1beta_handler.go": (
