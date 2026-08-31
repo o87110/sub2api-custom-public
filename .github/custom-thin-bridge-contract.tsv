@@ -40,6 +40,8 @@ backend/internal/handler/payment_handler.go	delegate	true	49	9	-
 backend/internal/handler/payment_handler_resume_test.go	compat-test	true	47	0	-
 backend/internal/handler/wire.go	wire	true	9	1	-
 backend/internal/payment/load_balancer.go	delegate	true	157	29	-
+backend/internal/payment/provider/easypay.go	delegate	true	7	10	-
+backend/internal/payment/provider/easypay_refund_test.go	compat-test	true	79	0	-
 backend/internal/payment/types.go	dto	false	6	5	-
 backend/internal/repository/api_key_minimum_balance_repo.go	persistence	false	11	0	-
 backend/internal/repository/api_key_repo.go	persistence	false	1	0	-
@@ -102,9 +104,11 @@ backend/internal/service/openai_gateway_scheduling.go	delegate	true	26	1	073e92d
 backend/internal/service/openai_images.go	delegate	true	3	0	-
 backend/internal/service/openai_images_responses.go	delegate	true	3	0	-
 backend/internal/service/openai_live.go	delegate	true	35	7	-
-backend/internal/service/payment_config_limits.go	delegate	true	97	0	-
-backend/internal/service/payment_config_limits_test.go	compat-test	true	265	0	-
+backend/internal/service/payment_config_limits.go	delegate	true	100	5	-
+backend/internal/service/payment_config_limits_test.go	compat-test	true	294	0	-
 backend/internal/service/payment_config_plans.go	delegate	true	35	38	-
+backend/internal/service/payment_config_providers.go	delegate	true	5	5	-
+backend/internal/service/payment_config_providers_test.go	compat-test	true	18	0	-
 backend/internal/service/payment_config_service.go	delegate	true	72	49	-
 backend/internal/service/payment_config_service_test.go	compat-test	true	307	0	-
 backend/internal/service/payment_fulfillment.go	delegate	true	13	5	-
@@ -132,7 +136,7 @@ frontend/src/components/common/SubscriptionProgressMini.vue	view	true	6	0	-
 frontend/src/components/common/__tests__/DataTable.spec.ts	compat-test	false	23	0	-
 frontend/src/components/layout/AppSidebar.vue	view	true	1	1	-
 frontend/src/components/payment/AmountInput.vue	view	true	22	7	-
-frontend/src/components/payment/PaymentProviderDialog.vue	view	true	3	0	-
+frontend/src/components/payment/PaymentProviderDialog.vue	view	true	9	5	-
 frontend/src/components/payment/SubscriptionPlanCard.vue	view	true	17	3	-
 frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts	compat-test	true	10	0	-
 frontend/src/components/payment/__tests__/paymentFlow.spec.ts	compat-test	true	18	0	-
@@ -141,11 +145,11 @@ frontend/src/components/user/monitor/MonitorCard.vue	view	true	18	7	-
 frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue	view	true	9	15	-
 frontend/src/i18n/locales/en/admin/channels.ts	dto	true	59	2	-
 frontend/src/i18n/locales/en/admin/overview.ts	dto	false	49	0	-
-frontend/src/i18n/locales/en/admin/settings.ts	dto	true	4	3	-
+frontend/src/i18n/locales/en/admin/settings.ts	dto	true	5	4	-
 frontend/src/i18n/locales/en/misc.ts	dto	true	32	0	-
 frontend/src/i18n/locales/zh/admin/channels.ts	dto	true	58	1	-
 frontend/src/i18n/locales/zh/admin/overview.ts	dto	false	49	0	-
-frontend/src/i18n/locales/zh/admin/settings.ts	dto	true	4	3	-
+frontend/src/i18n/locales/zh/admin/settings.ts	dto	true	5	4	-
 frontend/src/i18n/locales/zh/misc.ts	dto	true	32	0	-
 frontend/src/router/index.ts	wire	true	1	1	-
 frontend/src/types/index.ts	dto	false	15	0	-

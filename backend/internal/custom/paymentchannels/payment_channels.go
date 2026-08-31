@@ -213,21 +213,11 @@ func aggregateCurrency(instances []Instance) (string, bool) {
 }
 
 func aggregateDisplayName(paymentType string, instances []Instance) string {
-	displayName := ""
+	names := make([]string, 0, len(instances))
 	for _, instance := range instances {
-		next := strings.TrimSpace(instance.DisplayNames[paymentType])
-		if next == "" {
-			continue
-		}
-		if displayName == "" {
-			displayName = next
-			continue
-		}
-		if displayName != next {
-			return ""
-		}
+		names = append(names, instance.DisplayNames[paymentType])
 	}
-	return displayName
+	return AggregateDisplayName(names)
 }
 
 func aggregateAmountRanges(paymentType string, instances []Instance) []AmountRange {

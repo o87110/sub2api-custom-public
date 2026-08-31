@@ -383,6 +383,9 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('instanceCoordinator', {'lb.coordinatorOnce.Do': 1, 'paymentchannels.NewInstanceCoordinator': 1}),
         ('paymentInstanceRecord', {'fmt.Errorf': 1, 'lb.decryptConfig': 1}),
     ),
+    'backend/internal/payment/provider/easypay.go': _approved_call_deltas(
+        ('resolveCID', {'paymentchannels.ResolveEasyPayCID': 1}),
+    ),
     'backend/internal/service/admin_group.go': _approved_call_deltas(
         ('AdminUpdateAPIKeyGroupID', {'fmt.Errorf': 1, 's.apiKeyRepo.Update': 1, 's.authCacheInvalidator.InvalidateAuthCacheByKey': 1, 's.checkGroupMinimumBalanceForUser': 1}),
         ('CreateGroup', {'infraerrors.BadRequest': 1, 'math.IsInf': 1, 'math.IsNaN': 1}),
@@ -476,6 +479,10 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('HasConfiguredProviderPaymentType', {'All': 1, 'HasConfiguredSelection': 1, 'NormalizeVisibleMethod': 1, 'fmt.Errorf': 1, 's.entClient.PaymentProviderInstance.Query': 1, 's.pcPaymentProviderRecords': 1, 'strings.ToLower': 1, 'strings.TrimSpace': 1}),
         ('ValidateMethodProviderCurrencyConsistency', {'All': 1, 'NormalizeVisibleMethod': 1, 'ValidateCurrency': 1, 'Where': 1, 'WithMetadata': 1, 'fmt.Errorf': 1, 'infraerrors.ServiceUnavailable': 1, 'paymentproviderinstance.EnabledEQ': 1, 's.ValidateMethodCurrencyConsistency': 1, 's.entClient.PaymentProviderInstance.Query': 1, 's.pcPaymentProviderRecords': 1, 'strings.ToLower': 1, 'strings.TrimSpace': 1}),
         ('pcPaymentProviderRecords', {'append': 1, 'int64': 1, 'paymentProviderConfigCurrency': 1, 's.decryptConfig': 1}),
+        ('pcAggregateMethodDisplayName', {'append': 1, 'paymentchannels.AggregateDisplayName': 1}),
+    ),
+    'backend/internal/service/payment_config_providers.go': _approved_call_deltas(
+        ('validateEasyPayCustomMethods', {'infraerrors.BadRequest': 1, 'paymentchannels.ClassifyEasyPayCustomType': 1}),
     ),
     'backend/internal/service/payment_config_plans.go': _approved_call_deltas(
         ('CreatePlan', {'SetAllowBulkQuotaReset': 1, 'SetNillableRemainingQuantity': 1, 'SetSoldOutAction': 1, 'subscriptioninventory.NormalizeSoldOutAction': 1, 'subscriptioninventory.ValidateConfiguredQuantity': 1}),
@@ -598,6 +605,7 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     'frontend/src/components/payment/PaymentProviderDialog.vue': _approved_call_deltas(
         ('<top-level>', {'t': 1}),
+        ('validateEasyPayCustomMethods', {'classifyEasyPayCustomType': 1}),
     ),
     'frontend/src/components/payment/SubscriptionPlanCard.vue': _approved_call_deltas(
         ('<template:@click>', {'handleSelect': 1}),
@@ -1086,6 +1094,9 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
         ("pcPaymentProviderRecords", "if instance == nil {"),
         ("pcPaymentProviderRecords", "if decrypted, err := s.decryptConfig(instance.Config); err == nil && decrypted != nil {"),
     ),
+    "backend/internal/service/payment_config_providers.go": (
+        ("validateEasyPayCustomMethods", "switch paymentchannels.ClassifyEasyPayCustomType(method.Type) {"),
+    ),
     "backend/internal/service/payment_config_plans.go": (
         ("CreatePlan", "if err != nil {"),
         ("CreatePlan", "if err := subscriptioninventory.ValidateConfiguredQuantity(req.RemainingQuantity, soldOutAction); err != nil {"),
@@ -1165,6 +1176,9 @@ APPROVED_DELEGATE_VIEW_CONTROL: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "frontend/src/components/payment/AmountInput.vue": (
         ("handleInput", "if (!amountPattern.value.test(val)) return"),
+    ),
+    "frontend/src/components/payment/PaymentProviderDialog.vue": (
+        ("validateEasyPayCustomMethods", "switch (classifyEasyPayCustomType(method.type)) {"),
     ),
     "frontend/src/components/payment/paymentFlow.ts": (
         ("buildCreateOrderPayload", "if (input.providerKey?.trim()) {"),
