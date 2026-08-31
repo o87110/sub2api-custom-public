@@ -3,7 +3,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/audit-exceptions.yml	M	keep	M	fixed-path	6243f0fa7faa26a7c571955b1d5772e7dd4391cc	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	ad9fb7ff5aecf15664cd219b3dbd49291776769a	-	-	database-boundary-unit+candidate-tree-test	登记返利聚合、流水、撤销 Ent 结构、缓存恢复只读查询、Migration 231 与准确候选数据库指纹
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	f83c90331c50856fc44fb4d0f4771524f96bcb34	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记返利撤销 Handler、路由、余额前后快照 DTO、通用表格和管理页面官方薄桥精确预算及 EasyPay 薄桥
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	02fc1ee7c275fa1b34a9c2a0a172e9e7d6b24aad	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记返利撤销 Handler、路由、余额前后快照 DTO、通用表格和管理页面官方薄桥精确预算及 EasyPay 薄桥
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	38907c3d119bde7ce0f23a95140f6280724eb12f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	a8c207f39123fb0fac3cbb5875c0ba75a424c5ad	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -24,7 +24,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.1.179.md	A	keep	A	custom-docs-ops	@absent	6ed08ca567aaff20a30caadf9b93282ba3413d32	-	-	documentation-consistency-review+database-boundary-review	记录官方 v0.1.179 升级、数据库迁移 226/227/228、二改语义移植、发布阻断修复与当前门禁状态
 .github/upgrades/0.1.182.md	A	keep	A	custom-docs-ops	@absent	59765a6b547afa87ecd9ec9045c2f2bd0aae7448	-	-	documentation-consistency-review+database-boundary-review	记录官方 v0.1.183 升级、OpenAI/Kimi/Antigravity/邮箱/频道监控修复、数据库迁移 229/230 审核与发布阻断状态
 .github/upgrades/0.1.183.md	A	keep	A	custom-docs-ops	@absent	fa880946f4f8b343d0625687c8276a161b770d8c	-	-	documentation-consistency-review+database-boundary-review	记录官方 v0.1.183 升级、OpenAI/Kimi/Antigravity/邮箱/频道监控修复、数据库迁移 229/230 审核与发布阻断状态
-.github/upgrades/0.1.184.md	A	keep	A	custom-docs-ops	@absent	a3d273b497095da9ddb2eb1c797e7d4e5e13329d	-	-	documentation-consistency-review+database-boundary-review	记录官方 v0.1.184 升级、Codex/Composite/支付冲突语义移植、数据库迁移 231 审核与发布门禁状态
+.github/upgrades/0.1.184.md	A	keep	A	custom-docs-ops	@absent	17e3d01a745da5fa8821bf985bb19892cf4721b4	-	-	documentation-consistency-review+database-boundary-review	记录官方 v0.1.184 升级、Codex/Composite/支付冲突语义移植、数据库迁移 231 审核与发布门禁状态
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	52006700bdabf49f280b0b421784afa553f542b4	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记官方返利仓储、Handler、路由、表格与管理页面到 Custom 撤销实现及 EasyPay 策略的影子关系
 .github/workflows/backend-ci.yml	M	keep	M	fixed-path	2bac7259a9e445ee3674608aab8e47273bc193b9	42bce667dc0044b93209fb18cfc816c600f7c0d5	-	-	yaml-parse+action-pin+actionlint+container-safety	并行边界门禁、收窄 Integration 包并为准确 main SHA 产出前端 Release Artifact；集成 harness 保持 UTC，分组用量测试在事务内显式设置业务时区
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
@@ -593,5 +593,5 @@ frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	M	keep	M	official-
 frontend/src/views/user/paymentWechatResume.ts	M	keep	M	official-thin-bridge	8121bc56fc4bd590385ad4780422dc95584aa0b1	9e753cd42ca8b0672e7b793fbadadf9d4c208091	frontend/src/views/user/paymentWechatResume.ts	frontend/src/custom/payment-channels/paymentRecoveryRoute.ts	thin-bridge-review+go-test+candidate-tree-test	微信支付恢复查询的服务商薄适配
 tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	ab81129ad76566cede5f3edf8f1079b3ddcd2383	-	-	thin-bridge-contract-unit+candidate-tree-test	验证返利撤销路由精确两个 POST 调用及既有薄桥边界
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
-tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	68fccacb66962513548e070ea48525de8f0c3236	-	-	thin-bridge-contract-unit+candidate-tree-test	精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay 薄桥调用
+tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	7cbc7d00ff5bb85edecdbd8f971b974c25dbdfc0	-	-	thin-bridge-contract-unit+candidate-tree-test	精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay 薄桥调用
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
