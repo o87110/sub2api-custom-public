@@ -202,6 +202,7 @@ func TestEasyPayCustomMethodsUseConfiguredUpstreamType(t *testing.T) {
 		"notifyUrl":     "https://example.com/notify",
 		"returnUrl":     "https://example.com/return",
 		"paymentMode":   paymentModePopup,
+		"cidWxpay":      "cid-wxpay",
 		"customMethods": `[{"type":"ldc","upstreamType":"epay","displayName":"LDC"},{"type":"usdt_trc20","upstreamType":"usdt","displayName":"USDT-TRC20"}]`,
 	})
 	if err != nil {
@@ -223,6 +224,45 @@ func TestEasyPayCustomMethodsUseConfiguredUpstreamType(t *testing.T) {
 	}
 	if got := payURL.Query().Get("type"); got != "usdt" {
 		t.Fatalf("pay url type = %q, want usdt (%s)", got, resp.PayURL)
+	}
+	if got := payURL.Query().Get("cid"); got != "" {
+		t.Fatalf("pay url cid = %q, want no CID for non-Alipay/WeChat upstream type (%s)", got, resp.PayURL)
+	}
+}
+
+func TestEasyPayUSDTUsesGenericCIDOverWxpayCID(t *testing.T) {
+	t.Parallel()
+
+	provider, err := NewEasyPay("test-instance", map[string]string{
+		"pid":           "pid-1",
+		"pkey":          "pkey-1",
+		"apiBase":       "https://pay.example.com",
+		"notifyUrl":     "https://example.com/notify",
+		"returnUrl":     "https://example.com/return",
+		"paymentMode":   paymentModePopup,
+		"cid":           "cid-generic",
+		"cidWxpay":      "cid-wxpay",
+		"customMethods": `[{"type":"usdt_trc20","upstreamType":"usdt","displayName":"USDT-TRC20"}]`,
+	})
+	if err != nil {
+		t.Fatalf("NewEasyPay: %v", err)
+	}
+
+	resp, err := provider.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID:     "sub2-usdt-generic-cid",
+		Amount:      "1.00",
+		PaymentType: "usdt_trc20",
+		Subject:     "USDT Generic CID",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment: %v", err)
+	}
+	payURL, err := url.Parse(resp.PayURL)
+	if err != nil {
+		t.Fatalf("parse pay url: %v", err)
+	}
+	if got := payURL.Query().Get("cid"); got != "cid-generic" {
+		t.Fatalf("pay url cid = %q, want generic CID (%s)", got, resp.PayURL)
 	}
 }
 
@@ -262,6 +302,45 @@ func TestEasyPayCustomMethodsResolveCIDFromConfiguredUpstreamType(t *testing.T) 
 	}
 	if got := payURL.Query().Get("cid"); got != "cid-alipay" {
 		t.Fatalf("pay url cid = %q, want cid-alipay (%s)", got, resp.PayURL)
+	}
+}
+
+func TestEasyPayCustomMethodsResolveWxpayCIDFromConfiguredUpstreamType(t *testing.T) {
+	t.Parallel()
+
+	provider, err := NewEasyPay("test-instance", map[string]string{
+		"pid":           "pid-1",
+		"pkey":          "pkey-1",
+		"apiBase":       "https://pay.example.com",
+		"notifyUrl":     "https://example.com/notify",
+		"returnUrl":     "https://example.com/return",
+		"paymentMode":   paymentModePopup,
+		"cid":           "cid-generic",
+		"cidWxpay":      "cid-wxpay",
+		"customMethods": `[{"type":"wx_custom","upstreamType":"wxpay","displayName":"Custom WeChat"}]`,
+	})
+	if err != nil {
+		t.Fatalf("NewEasyPay: %v", err)
+	}
+
+	resp, err := provider.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID:     "sub2-custom-wxpay-cid",
+		Amount:      "1.00",
+		PaymentType: "wx_custom",
+		Subject:     "Custom EasyPay WeChat CID",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment: %v", err)
+	}
+	payURL, err := url.Parse(resp.PayURL)
+	if err != nil {
+		t.Fatalf("parse pay url: %v", err)
+	}
+	if got := payURL.Query().Get("type"); got != "wxpay" {
+		t.Fatalf("pay url type = %q, want wxpay (%s)", got, resp.PayURL)
+	}
+	if got := payURL.Query().Get("cid"); got != "cid-wxpay" {
+		t.Fatalf("pay url cid = %q, want cid-wxpay (%s)", got, resp.PayURL)
 	}
 }
 

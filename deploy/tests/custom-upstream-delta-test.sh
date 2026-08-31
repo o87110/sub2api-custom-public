@@ -219,6 +219,8 @@ thin_bridge_allowed() {
       backend/internal/handler/wire.go | \
       backend/internal/payment/load_balancer.go | \
       backend/internal/payment/types.go | \
+      backend/internal/payment/provider/easypay.go | \
+      backend/internal/payment/provider/easypay_refund_test.go | \
       backend/internal/repository/api_key_minimum_balance_repo.go | \
       backend/internal/repository/api_key_repo.go | \
       backend/internal/repository/channel_monitor_repo.go | \
@@ -283,6 +285,8 @@ thin_bridge_allowed() {
       backend/internal/service/payment_config_limits_test.go | \
       backend/internal/service/payment_config_limits.go | \
       backend/internal/service/payment_config_plans.go | \
+      backend/internal/service/payment_config_providers.go | \
+      backend/internal/service/payment_config_providers_test.go | \
       backend/internal/service/payment_config_service_test.go | \
       backend/internal/service/payment_config_service.go | \
       backend/internal/service/payment_fulfillment_test.go | \

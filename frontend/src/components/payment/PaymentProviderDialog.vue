@@ -317,6 +317,7 @@ import type { SelectOption } from '@/components/common/Select.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
 import type { ProviderInstance } from '@/types/payment'
 import type { EasyPayCustomMethod, TypeOption } from './providerConfig'
+import { classifyEasyPayCustomType } from '@/custom/payment-channels/easypayPolicy'
 import {
   PROVIDER_CONFIG_FIELDS,
   PROVIDER_SUPPORTED_TYPES,
@@ -765,11 +766,11 @@ function validateEasyPayCustomMethods(): string | null {
     if (!/^[a-z0-9_-]+$/.test(method.upstreamType)) {
       return t('admin.settings.payment.validationEasyPayCustomMethodUpstreamTypeInvalid')
     }
-    if ((PROVIDER_SUPPORTED_TYPES.easypay || []).includes(method.type)) {
-      return t('admin.settings.payment.validationEasyPayCustomMethodReserved')
-    }
-    if (method.type.startsWith('alipay') || method.type.startsWith('wxpay')) {
-      return t('admin.settings.payment.validationEasyPayCustomMethodPrefixReserved')
+    switch (classifyEasyPayCustomType(method.type)) {
+      case 'exact_reserved':
+        return t('admin.settings.payment.validationEasyPayCustomMethodReserved')
+      case 'prefix_reserved':
+        return t('admin.settings.payment.validationEasyPayCustomMethodPrefixReserved')
     }
     if (seen.has(method.type)) {
       return t('admin.settings.payment.validationEasyPayCustomMethodDuplicate')

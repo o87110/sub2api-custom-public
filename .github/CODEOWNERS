@@ -85,6 +85,8 @@
 /backend/internal/server/routes/admin.go @o87110
 /backend/internal/server/routes/composite_platform_test.go @o87110
 /backend/internal/payment/load_balancer.go @o87110
+/backend/internal/payment/provider/easypay.go @o87110
+/backend/internal/payment/provider/easypay_refund_test.go @o87110
 /backend/internal/payment/types.go @o87110
 /frontend/src/api/__tests__/admin.affiliates.reversal.spec.ts @o87110
 /frontend/src/components/common/__tests__/DataTable.spec.ts @o87110
@@ -125,6 +127,8 @@
 /backend/internal/service/payment_config_limits.go @o87110
 /backend/internal/service/payment_config_limits_test.go @o87110
 /backend/internal/service/payment_config_plans.go @o87110
+/backend/internal/service/payment_config_providers.go @o87110
+/backend/internal/service/payment_config_providers_test.go @o87110
 /backend/internal/service/payment_config_service.go @o87110
 /backend/internal/service/payment_config_service_test.go @o87110
 /backend/internal/service/payment_fulfillment.go @o87110

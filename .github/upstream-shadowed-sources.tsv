@@ -36,6 +36,8 @@ backend/internal/handler/payment_handler_resume_test.go	backend/internal/custom/
 backend/internal/handler/wire.go	backend/internal/custom/affiliatereversal/handler.go|backend/internal/custom/affiliatereversal/service.go|backend/internal/custom/updater/wire.go|backend/internal/custom/subscriptionbulkreset/service.go
 backend/internal/payment/load_balancer.go	backend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/revalidation.go|backend/internal/custom/paymentchannels/instance_coordinator.go
 backend/internal/payment/load_balancer_test.go	backend/internal/custom/paymentchannels/instance_coordinator_test.go
+backend/internal/payment/provider/easypay.go	backend/internal/custom/paymentchannels/easypay_policy.go
+backend/internal/payment/provider/easypay_refund_test.go	backend/internal/custom/paymentchannels/easypay_policy_test.go
 backend/internal/repository/affiliate_repo.go	backend/internal/custom/affiliatereversal/calculator.go|backend/internal/custom/affiliatereversal/list.go|backend/internal/custom/affiliatereversal/service.go
 backend/internal/repository/content_moderation_repo.go	backend/internal/custom/moderation/violation_counter.go
 backend/internal/repository/content_moderation_repo_test.go	backend/internal/custom/moderation/violation_counter_test.go
@@ -92,9 +94,11 @@ backend/internal/service/openai_gateway_scheduling.go	backend/internal/custom/gr
 backend/internal/service/openai_images.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/service/openai_images_responses.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/service/openai_live.go	backend/internal/custom/groupmodelaccess/policy.go
-backend/internal/service/payment_config_limits.go	backend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/paymentchannels/catalog.go
-backend/internal/service/payment_config_limits_test.go	backend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/paymentchannels/catalog_test.go
+backend/internal/service/payment_config_limits.go	backend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/paymentchannels/catalog.go|backend/internal/custom/paymentchannels/easypay_policy.go
+backend/internal/service/payment_config_limits_test.go	backend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/paymentchannels/catalog_test.go|backend/internal/custom/paymentchannels/easypay_policy_test.go
 backend/internal/service/payment_config_plans.go	backend/internal/custom/subscriptioninventory/inventory.go|backend/internal/custom/subscriptionbulkreset/service.go
+backend/internal/service/payment_config_providers.go	backend/internal/custom/paymentchannels/easypay_policy.go
+backend/internal/service/payment_config_providers_test.go	backend/internal/custom/paymentchannels/easypay_policy_test.go
 backend/internal/service/payment_config_service.go	backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/subscriptioninventory/inventory.go|backend/internal/custom/subscriptionbulkreset/service.go
 backend/internal/service/payment_config_service_test.go	backend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/subscriptioninventory/inventory_test.go|backend/internal/custom/subscriptionbulkreset/service_test.go
 backend/internal/service/payment_fulfillment.go	backend/internal/custom/subscriptioninventory/inventory.go|backend/internal/custom/subscriptionquota/cycle.go
@@ -127,7 +131,7 @@ frontend/src/components/common/VersionBadge.vue	frontend/src/custom/updater/comp
 frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts|@removed	frontend/src/custom/updater/components/__tests__/VersionBadge.rollback.spec.ts
 frontend/src/components/layout/AppSidebar.vue	frontend/src/custom/updater/components/VersionBadge.vue
 frontend/src/components/payment/AmountInput.vue	frontend/src/custom/payment-channels/paymentMoney.ts
-frontend/src/components/payment/PaymentProviderDialog.vue	frontend/src/custom/payment-channels/PaymentChannelSettings.vue
+frontend/src/components/payment/PaymentProviderDialog.vue	frontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/payment-channels/easypayPolicy.ts
 frontend/src/components/payment/PaymentQRDialog.vue	frontend/src/custom/payment-channels/usePaymentOrderRecovery.ts
 frontend/src/components/payment/PaymentStatusPanel.vue	frontend/src/custom/payment-channels/usePaymentOrderRecovery.ts
 frontend/src/components/payment/SubscriptionPlanCard.vue	frontend/src/custom/subscription-plan-inventory/inventory.ts

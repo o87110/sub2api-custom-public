@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 )
 
@@ -488,16 +489,12 @@ func summarizeEasyPayResponse(body []byte) string {
 }
 
 func (e *EasyPay) resolveCID(paymentType string) string {
-	if strings.HasPrefix(paymentType, "alipay") {
-		if v := e.config["cidAlipay"]; v != "" {
-			return v
-		}
-		return e.config["cid"]
-	}
-	if v := e.config["cidWxpay"]; v != "" {
-		return v
-	}
-	return e.config["cid"]
+	return paymentchannels.ResolveEasyPayCID(
+		paymentType,
+		e.config["cid"],
+		e.config["cidAlipay"],
+		e.config["cidWxpay"],
+	)
 }
 
 func (e *EasyPay) post(ctx context.Context, endpoint string, params map[string]string) ([]byte, error) {

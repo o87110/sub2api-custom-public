@@ -273,13 +273,11 @@ func (s *PaymentConfigService) pcAggregateMethodDisplayName(pt string, instances
 	if pt == "" {
 		return ""
 	}
+	names := make([]string, 0, len(instances))
 	for _, inst := range instances {
-		displayName := s.pcInstanceEasyPayCustomMethodDisplayName(inst, pt)
-		if displayName != "" {
-			return displayName
-		}
+		names = append(names, s.pcInstanceEasyPayCustomMethodDisplayName(inst, pt))
 	}
-	return ""
+	return paymentchannels.AggregateDisplayName(names)
 }
 
 func (s *PaymentConfigService) pcInstanceEasyPayCustomMethodDisplayName(inst *dbent.PaymentProviderInstance, pt string) string {

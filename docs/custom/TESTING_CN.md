@@ -251,6 +251,13 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
   仍按全局默认费率计算；
 - 充值和订阅默认选择易支付，点击官方后载荷正确；失败不自动跨渠道重试，只显示
   手动备用提示；
+- EasyPay CID 单元测试必须覆盖 `usdt_trc20 -> usdt` 不继承 `cidWxpay`、通用 CID
+  优先级、`alipay*`/`wxpay*` 专用 CID 及空专用 CID 回退；公开创建路径至少覆盖
+  一条 USDT 回归；
+- EasyPay 自定义类型后端和前端必须同步拒绝 `stripe`、`card`、`link`、内置
+  `alipay`/`wxpay` 及其保留前缀，同时保留 `easypay`、`airwallex` 和普通自定义类型；
+- 旧版 `methods`/`GetMethodLimits` 与新版 `method_options` 的展示名聚合必须覆盖
+  全空、单个非空、全部相同和出现不同名称四种情况；
 - 金额或套餐变化导致当前渠道不适用时可以重选可用渠道；移动支付回退只在相同
   `payment_type/provider_key` 下创建桌面二维码订单，不能变成跨渠道自动重试；
 - 旧 `methods` 接口、旧恢复快照、375px/桌面、亮色/暗色、键盘焦点、

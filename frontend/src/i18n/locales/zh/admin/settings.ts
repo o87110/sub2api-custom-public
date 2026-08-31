@@ -747,7 +747,7 @@ export default {
         validationEasyPayCustomMethodRequired: '每个易支付自定义方式都必须填写支付方式和上游 type',
         validationEasyPayCustomMethodTypeInvalid: '易支付自定义支付方式只能包含小写字母、数字、下划线和短横线',
         validationEasyPayCustomMethodUpstreamTypeInvalid: '易支付上游 type 只能包含小写字母、数字、下划线和短横线',
-        validationEasyPayCustomMethodReserved: '易支付自定义支付方式不能使用内置的 alipay 或 wxpay',
+        validationEasyPayCustomMethodReserved: '易支付自定义支付方式不能使用内置的 alipay、wxpay、stripe、card 或 link',
         validationEasyPayCustomMethodPrefixReserved: '易支付自定义支付方式不能以 alipay 或 wxpay 开头',
         validationEasyPayCustomMethodDuplicate: '易支付自定义支付方式不能重复',
         field_apiBase: 'API 基础地址',

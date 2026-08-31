@@ -12,6 +12,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/payment/provider"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -256,7 +257,10 @@ func validateEasyPayCustomMethods(config map[string]string, supportedTypes strin
 		if !easyPayCustomMethodCodePattern.MatchString(method.UpstreamType) {
 			return infraerrors.BadRequest("VALIDATION_ERROR", "customMethods upstreamType may only contain lowercase letters, digits, underscores, and hyphens")
 		}
-		if easyPayCustomMethodTypeConflictsWithBuiltin(method.Type) {
+		switch paymentchannels.ClassifyEasyPayCustomType(method.Type) {
+		case paymentchannels.EasyPayCustomTypeExactReserved:
+			return infraerrors.BadRequest("VALIDATION_ERROR", "customMethods type cannot use built-in alipay, wxpay, stripe, card, or link")
+		case paymentchannels.EasyPayCustomTypePrefixReserved:
 			return infraerrors.BadRequest("VALIDATION_ERROR", "customMethods type cannot start with alipay or wxpay")
 		}
 		if _, exists := customTypes[method.Type]; exists {
@@ -278,10 +282,6 @@ func validateEasyPayCustomMethods(config map[string]string, supportedTypes strin
 		}
 	}
 	return nil
-}
-
-func easyPayCustomMethodTypeConflictsWithBuiltin(methodType string) bool {
-	return strings.HasPrefix(methodType, payment.TypeAlipay) || strings.HasPrefix(methodType, payment.TypeWxpay)
 }
 
 // UpdateProviderInstance updates a provider instance by ID (patch semantics).
