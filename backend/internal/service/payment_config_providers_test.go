@@ -171,6 +171,24 @@ func TestValidateEasyPayCustomMethods(t *testing.T) {
 			wantErr:        "customMethods type cannot start with alipay or wxpay",
 		},
 		{
+			name:           "custom type uses exact stripe builtin",
+			config:         map[string]string{"customMethods": `[{"type":"stripe","upstreamType":"stripe"}]`},
+			supportedTypes: "alipay,wxpay,stripe",
+			wantErr:        "customMethods type cannot use built-in alipay, wxpay, stripe, card, or link",
+		},
+		{
+			name:           "custom type uses exact card builtin",
+			config:         map[string]string{"customMethods": `[{"type":"card","upstreamType":"card"}]`},
+			supportedTypes: "alipay,wxpay,card",
+			wantErr:        "customMethods type cannot use built-in alipay, wxpay, stripe, card, or link",
+		},
+		{
+			name:           "custom type uses exact link builtin",
+			config:         map[string]string{"customMethods": `[{"type":"link","upstreamType":"link"}]`},
+			supportedTypes: "alipay,wxpay,link",
+			wantErr:        "customMethods type cannot use built-in alipay, wxpay, stripe, card, or link",
+		},
+		{
 			name:           "supported custom type missing mapping",
 			config:         map[string]string{"customMethods": `[{"type":"ldc","upstreamType":"epay"}]`},
 			supportedTypes: "alipay,wxpay,ldc,usdt_trc20",

@@ -278,6 +278,35 @@ func TestGetAvailableMethodLimitsIncludesEasyPayCustomMethodDisplayName(t *testi
 	require.Equal(t, "LDC Pay", limits.DisplayName)
 }
 
+func TestGetAvailableMethodLimitsClearsConflictingEasyPayDisplayNames(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	for _, instance := range []struct {
+		name        string
+		displayName string
+	}{
+		{name: "EasyPay USDT A", displayName: "USDT-TRC20"},
+		{name: "EasyPay USDT B", displayName: "Tether"},
+	} {
+		_, err := client.PaymentProviderInstance.Create().
+			SetProviderKey(payment.TypeEasyPay).
+			SetName(instance.name).
+			SetConfig(`{"customMethods":"[{\"type\":\"usdt_trc20\",\"upstreamType\":\"usdt\",\"displayName\":\"` + instance.displayName + `\"}]"}`).
+			SetSupportedTypes("usdt_trc20").
+			SetEnabled(true).
+			Save(ctx)
+		require.NoError(t, err)
+	}
+
+	svc := &PaymentConfigService{entClient: client}
+	resp, err := svc.GetAvailableMethodLimits(ctx)
+	require.NoError(t, err)
+	limits, ok := resp.Methods["usdt_trc20"]
+	require.True(t, ok, "expected custom EasyPay method limits to be visible")
+	require.Empty(t, limits.DisplayName)
+}
+
 func TestPcComputeGlobalRange(t *testing.T) {
 	t.Parallel()
 

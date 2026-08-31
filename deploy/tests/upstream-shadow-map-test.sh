@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-171}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-175}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 171 ]]; then
+if [[ "$expected_count" -eq 175 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -102,6 +102,10 @@ if [[ "$expected_count" -eq 171 ]]; then
   assert_mapping $'frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts\tfrontend/src/custom/subscription-plan-inventory/__tests__/inventory.spec.ts|frontend/src/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue'
   assert_mapping $'backend/internal/payment/load_balancer.go\tbackend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/revalidation.go|backend/internal/custom/paymentchannels/instance_coordinator.go'
   assert_mapping $'backend/internal/payment/load_balancer_test.go\tbackend/internal/custom/paymentchannels/instance_coordinator_test.go'
+  assert_mapping $'backend/internal/payment/provider/easypay.go\tbackend/internal/custom/paymentchannels/easypay_policy.go'
+  assert_mapping $'backend/internal/payment/provider/easypay_refund_test.go\tbackend/internal/custom/paymentchannels/easypay_policy_test.go'
+  assert_mapping $'backend/internal/service/payment_config_providers.go\tbackend/internal/custom/paymentchannels/easypay_policy.go'
+  assert_mapping $'backend/internal/service/payment_config_providers_test.go\tbackend/internal/custom/paymentchannels/easypay_policy_test.go'
   assert_mapping $'backend/internal/service/payment_resume_service_test.go\tbackend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/paymentchannels/resume_policy_test.go'
   assert_mapping $'frontend/src/components/payment/AmountInput.vue\tfrontend/src/custom/payment-channels/paymentMoney.ts'
   assert_mapping $'frontend/src/views/user/PaymentView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/paymentMoney.ts|frontend/src/custom/payment-channels/usePaymentChannelPricing.ts|frontend/src/custom/payment-channels/usePaymentChannelRecovery.ts|frontend/src/custom/payment-channels/paymentRecoveryRoute.ts|frontend/src/custom/subscription-plan-inventory/inventory.ts'
@@ -109,7 +113,7 @@ if [[ "$expected_count" -eq 171 ]]; then
   assert_mapping $'frontend/src/views/admin/SettingsView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/payment-channels/adminPaymentChannels.ts'
   assert_mapping $'frontend/src/views/admin/__tests__/SettingsView.spec.ts\tfrontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.spec.ts|frontend/src/custom/payment-channels/adminPaymentChannels.spec.ts'
   assert_mapping $'frontend/src/api/admin/payment.ts\tfrontend/src/custom/payment-channels/PaymentChannelSettings.vue'
-  assert_mapping $'frontend/src/components/payment/PaymentProviderDialog.vue\tfrontend/src/custom/payment-channels/PaymentChannelSettings.vue'
+  assert_mapping $'frontend/src/components/payment/PaymentProviderDialog.vue\tfrontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/payment-channels/easypayPolicy.ts'
   assert_mapping $'frontend/src/components/payment/PaymentQRDialog.vue\tfrontend/src/custom/payment-channels/usePaymentOrderRecovery.ts'
   assert_mapping $'frontend/src/components/payment/PaymentStatusPanel.vue\tfrontend/src/custom/payment-channels/usePaymentOrderRecovery.ts'
   assert_mapping $'frontend/src/components/payment/SubscriptionPlanCard.vue\tfrontend/src/custom/subscription-plan-inventory/inventory.ts'
@@ -419,6 +423,8 @@ backend/internal/service/batch_image_public.go
 backend/internal/service/billing_cache_service.go
 backend/internal/service/payment_config_limits.go
 backend/internal/service/payment_config_limits_test.go
+backend/internal/service/payment_config_providers.go
+backend/internal/service/payment_config_providers_test.go
 backend/internal/service/payment_config_service.go
 backend/internal/service/payment_config_service_test.go
 backend/internal/service/payment_config_plans.go
@@ -454,6 +460,8 @@ frontend/src/components/common/__tests__/VersionBadge.rollback.spec.ts
 frontend/src/components/layout/AppSidebar.vue
 frontend/src/components/payment/AmountInput.vue
 frontend/src/components/payment/PaymentProviderDialog.vue
+backend/internal/payment/provider/easypay.go
+backend/internal/payment/provider/easypay_refund_test.go
 frontend/src/components/payment/PaymentQRDialog.vue
 frontend/src/components/payment/PaymentStatusPanel.vue
 frontend/src/components/payment/SubscriptionPlanCard.vue

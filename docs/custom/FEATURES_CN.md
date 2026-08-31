@@ -246,6 +246,16 @@ frontend/src/views/user/KeysView.vue
   使用全局默认费率，旧恢复令牌没有费率字段时继续按旧逻辑计算；
 - 未知但格式合法、当前无实例的渠道配置会保留，渠道重新创建后恢复生效；非法
   ID、名称、费率或畸形持久化 JSON 严格拒绝；
+- EasyPay 支持通过自定义类型映射接入额外方式，例如 `usdt_trc20 -> usdt`；CID
+  按映射后的上游 `type` 选择，只有 `alipay*`/`wxpay*` 使用专用 CID，其他类型
+  只使用通用 CID；
+- EasyPay 自定义 `type` 禁止 `alipay`、`wxpay`、`stripe`、`card`、`link` 及
+  `alipay*`/`wxpay*` 前缀，避免与内置渠道归一化和实例路由冲突；`easypay`、
+  `airwallex` 不在本次禁止范围内；
+- 同一旧版支付方式的多个 EasyPay 实例仅在所有非空展示名一致时返回该名称，
+  出现冲突时返回空名称；该规则与新版 `method_options` 一致；
+- EasyPay 的 USDT 方式仍是外部兼容服务的自定义类型映射，不提供原生 TRC20
+  钱包地址生成、交易哈希查询、区块确认或链上到账监听；
 - 本功能不新增 Migration、Schema、实体字段或 SQL。
 
 主要实现：
