@@ -15,9 +15,9 @@ import (
 // Codex CLI and the Codex desktop app refresh their model picker from
 // GET {base_url}/models?client_version=... (custom provider mode) or
 // GET /backend-api/codex/models (chatgpt_base_url mode). Both routes land
-// here. ChatGPT manifests are proxied verbatim; custom API key manifests receive
-// provider-compatibility normalization and use a short-lived, asynchronously
-// revalidated cache to tolerate canceled client requests.
+// here. Groups with explicit account model mappings are generated locally;
+// otherwise ChatGPT manifests are proxied verbatim and custom API key manifests
+// receive provider-compatibility normalization plus short-lived caching.
 func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 	if c.Request.Context().Err() != nil {
 		return
@@ -32,6 +32,44 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 		return
 	}
 
+	ifNoneMatch := c.GetHeader("If-None-Match")
+	manifestIfNoneMatch := ifNoneMatch
+	if len(apiKey.Group.ModelsListConfig.BlockedModels) > 0 {
+		// The source ETag does not include the custom final-model policy.
+		manifestIfNoneMatch = ""
+	}
+	configuredManifest, configured, err := h.gatewayService.BuildGroupConfiguredCodexModelsManifest(
+		c.Request.Context(),
+		apiKey.Group,
+		manifestIfNoneMatch,
+	)
+	if err != nil {
+		if c.Request.Context().Err() != nil {
+			return
+		}
+		h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to build Codex models manifest")
+		return
+	}
+	if configured {
+		filteredBody, changed, filterErr := service.FilterCodexModelsManifest(
+			c.Request.Context(),
+			nil,
+			configuredManifest.Body,
+			nil,
+			false,
+		)
+		if filterErr != nil {
+			h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Invalid models manifest")
+			return
+		}
+		if changed {
+			configuredManifest.Body = filteredBody
+			configuredManifest.ETag = ""
+		}
+		writeCodexModelsManifestResponse(c, configuredManifest)
+		return
+	}
+
 	maxAccountSwitches := h.maxAccountSwitches
 	if maxAccountSwitches <= 0 {
 		maxAccountSwitches = 3
@@ -39,12 +77,6 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 	failedAccountIDs := make(map[int64]struct{})
 	switchCount := 0
 	var lastUpstreamErr error
-	filterManifest := apiKey.Group.CustomModelsListEnabled() || len(apiKey.Group.ModelsListConfig.BlockedModels) > 0
-	ifNoneMatch := c.GetHeader("If-None-Match")
-	if filterManifest {
-		// The upstream ETag does not include local group policy changes.
-		ifNoneMatch = ""
-	}
 
 	for {
 		account, err := h.gatewayService.SelectAccountForModelWithExclusions(c.Request.Context(), apiKey.GroupID, "", "", failedAccountIDs)
@@ -62,7 +94,9 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 		// 让 ops 错误日志携带实际选中的上游账号，便于定位失效账号（#4544）。
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		manifest, err := h.gatewayService.FetchCodexModelsManifest(c.Request.Context(), account, c.Query("client_version"), ifNoneMatch)
+		// The client ETag represents the final group-specific body, so fetch the
+		// source manifest before applying local filtering and alias metadata.
+		manifest, err := h.gatewayService.FetchCodexModelsManifest(c.Request.Context(), account, c.Query("client_version"), "")
 		if err != nil {
 			if c.Request.Context().Err() != nil {
 				return
@@ -76,36 +110,48 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 			h.errorResponse(c, infraerrors.Code(err), "upstream_error", infraerrors.Message(err))
 			return
 		}
+		if err := h.gatewayService.CompleteAPIKeyCodexModelsManifestForClient(manifest, account); err != nil {
+			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to complete Codex models manifest")
+			return
+		}
+		if err := h.gatewayService.MergeGroupConfiguredCodexModels(c.Request.Context(), apiKey.Group, manifest, manifestIfNoneMatch); err != nil {
+			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to build Codex models manifest")
+			return
+		}
 		if c.Request.Context().Err() != nil {
 			return
 		}
 
-		if manifest.NotModified {
-			if manifest.ETag != "" {
-				c.Header("ETag", manifest.ETag)
+		if !manifest.NotModified {
+			filteredBody, changed, filterErr := service.FilterCodexModelsManifest(
+				c.Request.Context(),
+				account,
+				manifest.Body,
+				nil,
+				false,
+			)
+			if filterErr != nil {
+				h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Invalid models manifest")
+				return
 			}
-			c.Status(http.StatusNotModified)
-			return
+			if changed {
+				manifest.Body = filteredBody
+				manifest.ETag = ""
+			}
 		}
-		filteredBody, changed, filterErr := service.FilterCodexModelsManifest(
-			c.Request.Context(),
-			account,
-			manifest.Body,
-			apiKey.Group.ModelsListConfig.Models,
-			apiKey.Group.CustomModelsListEnabled(),
-		)
-		if filterErr != nil {
-			h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Invalid models manifest")
-			return
-		}
-		if changed {
-			manifest.Body = filteredBody
-			manifest.ETag = ""
-		}
-		if manifest.ETag != "" {
-			c.Header("ETag", manifest.ETag)
-		}
-		c.Data(http.StatusOK, "application/json", manifest.Body)
+		writeCodexModelsManifestResponse(c, manifest)
 		return
 	}
+}
+
+func writeCodexModelsManifestResponse(c *gin.Context, manifest *service.CodexModelsManifest) {
+	if manifest.ETag != "" {
+		c.Header("ETag", manifest.ETag)
+	}
+	if manifest.NotModified {
+		c.Status(http.StatusNotModified)
+		c.Writer.WriteHeaderNow()
+		return
+	}
+	c.Data(http.StatusOK, "application/json", manifest.Body)
 }

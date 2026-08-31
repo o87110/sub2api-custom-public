@@ -164,6 +164,20 @@ func TestFilterCodexModelsManifestKeepsSolAndRemovesOnlyBlockedLuna(t *testing.T
 	require.Equal(t, []string{"gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra"}, slugs)
 }
 
+func TestFilterCodexModelsManifestRemovesBlockedPublicSlugWithoutSelectedAccount(t *testing.T) {
+	ctx := WithCurrentGroupModelAccess(context.Background(), &Group{ModelsListConfig: GroupModelsListConfig{
+		BlockedModels: []string{"public-blocked"},
+	}})
+	body := []byte(`{"models":[{"slug":"public-blocked"},{"slug":"public-allowed"}],"version":1}`)
+
+	filtered, changed, err := FilterCodexModelsManifest(ctx, nil, body, nil, false)
+
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.NotContains(t, string(filtered), "public-blocked")
+	require.Contains(t, string(filtered), "public-allowed")
+}
+
 func TestGeminiAndAntigravityFinalGuardsBlockMappedTargets(t *testing.T) {
 	ctx := WithCurrentGroupModelAccess(context.Background(), &Group{ModelsListConfig: GroupModelsListConfig{
 		BlockedModels: []string{"gemini-3.1-pro"},
