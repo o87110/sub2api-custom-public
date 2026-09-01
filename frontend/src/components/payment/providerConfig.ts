@@ -27,6 +27,15 @@ export interface EasyPayCustomMethod {
   displayName: string
 }
 
+export const EASYPAY_PROTOCOL_RAINBOW = 'rainbow_epay'
+export const EASYPAY_PROTOCOL_BEPUSDT = 'bepusdt_native'
+export const BEPUSDT_NETWORK_OPTIONS: TypeOption[] = [
+  { value: 'bep20', label: 'BEP20' },
+  { value: 'trc20', label: 'TRC20' },
+  { value: 'polygon', label: 'Polygon' },
+  { value: 'plasma', label: 'Plasma' },
+]
+
 /** Callback URL paths for a provider. */
 export interface CallbackPaths {
   notifyUrl?: string
@@ -48,7 +57,7 @@ export const PROVIDER_SUPPORTED_TYPES: Record<string, string[]> = {
 export const EASYPAY_PAYMENT_MODES = ['qrcode', 'popup'] as const
 
 /** Fixed display order for user-facing payment methods */
-export const METHOD_ORDER = ['alipay', 'alipay_direct', 'wxpay', 'wxpay_direct', 'stripe', 'airwallex'] as const
+export const METHOD_ORDER = ['alipay', 'alipay_direct', 'wxpay', 'wxpay_direct', 'usdt', 'stripe', 'airwallex'] as const
 
 export function isBuiltInAlipayMethod(type: string): boolean {
   return type === 'alipay' || type === 'alipay_direct'
@@ -128,6 +137,7 @@ export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
   easypay: [
     { key: 'pid', label: 'PID', sensitive: false },
     { key: 'pkey', label: 'PKey', sensitive: true },
+    { key: 'apiToken', label: '', sensitive: true, optional: true },
     { key: 'apiBase', label: '', sensitive: false },
     { key: 'cidAlipay', label: '', sensitive: false, optional: true },
     { key: 'cidWxpay', label: '', sensitive: false, optional: true },

@@ -387,6 +387,22 @@ describe('buildCreateOrderPayload', () => {
       is_mobile: true,
     })
   })
+
+  it('passes the selected USDT network only after the channel dialog confirms it', () => {
+    expect(buildCreateOrderPayload({
+      amount: 50,
+      paymentType: 'usdt',
+      providerKey: 'easypay',
+      paymentNetwork: 'BEP20',
+      orderType: 'balance',
+      isMobile: false,
+      isWechatBrowser: false,
+    })).toMatchObject({
+      payment_type: 'usdt',
+      provider_key: 'easypay',
+      payment_network: 'bep20',
+    })
+  })
 })
 
 describe('readPaymentRecoverySnapshot', () => {

@@ -49,6 +49,7 @@ export interface PaymentRecoverySnapshot {
   payAmount: number
   orderType: OrderType | ''
   paymentMode: string
+  paymentNetwork?: string
   resumeToken: string
   alipayMobilePrecreateDeepLink?: boolean
   createdAt: number
@@ -93,6 +94,7 @@ export interface BuildCreateOrderPayloadInput {
   forceQRCode?: boolean
   /** When true, keep the real mobile signal so the backend can select precreate */
   mobilePrecreateDeepLink?: boolean
+  paymentNetwork?: string
 }
 
 type CreateOrderFlowResult = CreateOrderResult & {
@@ -140,6 +142,9 @@ export function buildCreateOrderPayload(input: BuildCreateOrderPayloadInput): Cr
       ? 'wechat_in_app_resume'
       : 'hosted_redirect',
   }
+  if (input.paymentNetwork?.trim()) {
+    payload.payment_network = input.paymentNetwork.trim().toLowerCase()
+  }
   if (input.providerKey?.trim()) {
     payload.provider_key = input.providerKey.trim().toLowerCase()
   }
@@ -177,6 +182,7 @@ export function decidePaymentLaunch(
     payAmount: result.pay_amount,
     orderType: context.orderType,
     paymentMode: (result.payment_mode || '').trim(),
+    paymentNetwork: (result.payment_network || '').trim().toLowerCase(),
     resumeToken: result.resume_token || '',
     alipayMobilePrecreateDeepLink: result.alipay_mobile_precreate_deep_link === true,
   }, context.now)
@@ -306,6 +312,7 @@ export function readPaymentRecoverySnapshot(
       || (parsed.paymentEnv != null && typeof parsed.paymentEnv !== 'string')
       || typeof parsed.payAmount !== 'number'
       || typeof parsed.paymentMode !== 'string'
+      || (parsed.paymentNetwork != null && typeof parsed.paymentNetwork !== 'string')
       || typeof parsed.resumeToken !== 'string'
       || (parsed.alipayMobilePrecreateDeepLink != null && typeof parsed.alipayMobilePrecreateDeepLink !== 'boolean')
       || typeof parsed.createdAt !== 'number'
@@ -340,6 +347,7 @@ export function readPaymentRecoverySnapshot(
       payAmount: parsed.payAmount,
       orderType: parsed.orderType === 'subscription' ? 'subscription' : 'balance',
       paymentMode: parsed.paymentMode,
+      paymentNetwork: parsed.paymentNetwork || '',
       resumeToken: parsed.resumeToken,
       alipayMobilePrecreateDeepLink: parsed.alipayMobilePrecreateDeepLink === true,
       createdAt: parsed.createdAt,

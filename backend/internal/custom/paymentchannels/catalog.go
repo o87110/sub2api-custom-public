@@ -83,7 +83,7 @@ func (ProviderCatalog) HasConfiguredSelection(records []ProviderRecord, paymentT
 func projectProviderRecords(records []ProviderRecord) []Instance {
 	result := make([]Instance, 0, len(records))
 	for _, record := range records {
-		paymentTypes := visiblePaymentTypes(record.ProviderKey, record.SupportedTypes)
+		paymentTypes := visiblePaymentTypes(record.ProviderKey, record.SupportedTypes, record.Config)
 		limits := make(map[string]Limits)
 		displayNames := make(map[string]string)
 		for _, paymentType := range paymentTypes {
@@ -94,23 +94,28 @@ func projectProviderRecords(records []ProviderRecord) []Instance {
 				displayNames[paymentType] = displayName
 			}
 		}
+		networkOptions := []NetworkOption(nil)
+		if normalize(record.ProviderKey) == ProviderEasyPay && IsBepusdtNativeConfig(record.Config) && containsString(paymentTypes, BepusdtPaymentType) {
+			networkOptions = BepusdtNetworkOptions(record.Config)
+		}
 		currency := strings.ToUpper(strings.TrimSpace(record.Currency))
 		if currency == "" {
 			currency = DefaultCurrency
 		}
 		result = append(result, Instance{
-			ID:           record.ID,
-			ProviderKey:  record.ProviderKey,
-			PaymentTypes: paymentTypes,
-			Currency:     currency,
-			Limits:       limits,
-			DisplayNames: displayNames,
+			ID:             record.ID,
+			ProviderKey:    record.ProviderKey,
+			PaymentTypes:   paymentTypes,
+			Currency:       currency,
+			Limits:         limits,
+			DisplayNames:   displayNames,
+			NetworkOptions: networkOptions,
 		})
 	}
 	return result
 }
 
-func visiblePaymentTypes(providerKey, supportedTypes string) []string {
+func visiblePaymentTypes(providerKey, supportedTypes string, config map[string]string) []string {
 	providerKey = normalize(providerKey)
 	if providerKey == ProviderStripe {
 		return []string{MethodStripe}
@@ -133,6 +138,15 @@ func visiblePaymentTypes(providerKey, supportedTypes string) []string {
 		result = append(result, method)
 	}
 	return result
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func enabledVisibleMethodsForProvider(providerKey, supportedTypes string) []string {

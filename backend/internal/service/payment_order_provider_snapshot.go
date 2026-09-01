@@ -18,6 +18,9 @@ type paymentOrderProviderSnapshot struct {
 	MerchantAppID      string
 	MerchantID         string
 	Currency           string
+	Protocol           string
+	PaymentNetwork     string
+	UpstreamTradeType  string
 }
 
 func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSnapshot {
@@ -33,6 +36,9 @@ func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSna
 		MerchantAppID:      psSnapshotStringValue(order.ProviderSnapshot["merchant_app_id"]),
 		MerchantID:         psSnapshotStringValue(order.ProviderSnapshot["merchant_id"]),
 		Currency:           psSnapshotStringValue(order.ProviderSnapshot["currency"]),
+		Protocol:           psSnapshotStringValue(order.ProviderSnapshot["protocol"]),
+		PaymentNetwork:     psSnapshotStringValue(order.ProviderSnapshot["payment_network"]),
+		UpstreamTradeType:  psSnapshotStringValue(order.ProviderSnapshot["upstream_trade_type"]),
 	}
 	if snapshot.SchemaVersion == 0 &&
 		snapshot.ProviderInstanceID == "" &&
@@ -40,7 +46,10 @@ func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSna
 		snapshot.PaymentMode == "" &&
 		snapshot.MerchantAppID == "" &&
 		snapshot.MerchantID == "" &&
-		snapshot.Currency == "" {
+		snapshot.Currency == "" &&
+		snapshot.Protocol == "" &&
+		snapshot.PaymentNetwork == "" &&
+		snapshot.UpstreamTradeType == "" {
 		return nil
 	}
 	return snapshot

@@ -40,6 +40,7 @@ type InstanceSelectionRequest struct {
 	Strategy         string
 	OrderAmount      float64
 	WeChatJSAPIAppID string
+	PaymentNetwork   string
 }
 
 type InstanceSelectionResult struct {
@@ -73,7 +74,7 @@ func (c *InstanceCoordinator) Select(ctx context.Context, loader InstanceLoader,
 	if err != nil {
 		return nil, err
 	}
-	records = matchingInstanceRecords(records, request.PaymentType, request.WeChatJSAPIAppID)
+	records = matchingInstanceRecords(records, request.ProviderKey, request.PaymentType, request.WeChatJSAPIAppID, request.PaymentNetwork)
 	if len(records) == 0 {
 		return nil, fmt.Errorf("%w for payment type %s", ErrNoEnabledInstance, request.PaymentType)
 	}
@@ -151,9 +152,12 @@ func (c *InstanceCoordinator) pick(candidates []instanceCandidate, strategy stri
 	return candidates[index]
 }
 
-func matchingInstanceRecords(records []InstanceRecord, paymentType, expectedAppID string) []InstanceRecord {
+func matchingInstanceRecords(records []InstanceRecord, providerKey, paymentType, expectedAppID, paymentNetwork string) []InstanceRecord {
 	matched := make([]InstanceRecord, 0, len(records))
 	for _, record := range records {
+		if strings.TrimSpace(paymentNetwork) != "" && strings.TrimSpace(providerKey) == "" && strings.EqualFold(strings.TrimSpace(paymentType), BepusdtPaymentType) && normalize(record.ProviderKey) != ProviderEasyPay {
+			continue
+		}
 		if normalizeVisibleMethod(paymentType) == MethodStripe {
 			if normalize(record.ProviderKey) == ProviderStripe {
 				matched = append(matched, record)
@@ -162,6 +166,11 @@ func matchingInstanceRecords(records []InstanceRecord, paymentType, expectedAppI
 		}
 		if !instanceSupportsType(record.SupportedTypes, paymentType) {
 			continue
+		}
+		if strings.TrimSpace(paymentNetwork) != "" && normalize(record.ProviderKey) == ProviderEasyPay {
+			if !IsBepusdtNativeConfig(record.Config) || ValidateBepusdtPaymentNetwork(record.Config, paymentType, paymentNetwork) != nil {
+				continue
+			}
 		}
 		if strings.TrimSpace(expectedAppID) != "" && normalizeVisibleMethod(paymentType) == MethodWxpay && normalize(record.ProviderKey) == ProviderWxpay && resolveWeChatJSAPIAppID(record.Config) != strings.TrimSpace(expectedAppID) {
 			continue

@@ -11,6 +11,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -317,7 +318,14 @@ func paymentOrderQueryReference(order *dbent.PaymentOrder, prov payment.Provider
 	}
 
 	switch payment.GetBasePaymentType(providerKey) {
-	case payment.TypeAlipay, payment.TypeEasyPay, payment.TypeWxpay:
+	case payment.TypeEasyPay:
+		if snapshot := psOrderProviderSnapshot(order); snapshot != nil && snapshot.Protocol == paymentchannels.EasyPayProtocolBepusdt {
+			if tradeNo := strings.TrimSpace(order.PaymentTradeNo); tradeNo != "" {
+				return tradeNo
+			}
+		}
+		return strings.TrimSpace(order.OutTradeNo)
+	case payment.TypeAlipay, payment.TypeWxpay:
 		return strings.TrimSpace(order.OutTradeNo)
 	default:
 		if tradeNo := strings.TrimSpace(order.PaymentTradeNo); tradeNo != "" {

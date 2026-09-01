@@ -19,6 +19,10 @@ export interface PaymentChannelOption {
   }>
   available: boolean
   capabilities?: string[]
+  network_options?: Array<{
+    code: string
+    display_name: string
+  }>
   legacy?: boolean
 }
 
@@ -29,6 +33,7 @@ const CHANNEL_ORDER = [
   'easypay_wxpay',
   'official_wxpay',
   'wxpay',
+  'easypay_usdt',
   'stripe',
   'airwallex',
 ] as const
@@ -152,7 +157,21 @@ function normalizeApiOption(raw: PaymentMethodOption): PaymentChannelOption | nu
     capabilities: Array.isArray(raw.capabilities)
       ? raw.capabilities.filter((capability): capability is string => typeof capability === 'string')
       : undefined,
+    network_options: normalizeNetworkOptions(raw.network_options),
   }
+}
+
+function normalizeNetworkOptions(value: PaymentMethodOption['network_options']): PaymentChannelOption['network_options'] {
+  if (!Array.isArray(value)) return undefined
+  const seen = new Set<string>()
+  const result = value
+    .filter(item => !!item && typeof item === 'object')
+    .map(item => ({
+      code: String(item.code || '').trim().toLowerCase(),
+      display_name: String(item.display_name || '').trim(),
+    }))
+    .filter(item => item.code && item.display_name && !seen.has(item.code) && seen.add(item.code))
+  return result.length > 0 ? result : undefined
 }
 
 function normalizeAmountRanges(
