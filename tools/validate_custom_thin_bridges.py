@@ -1559,11 +1559,27 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     "e8cb019fabf8b55199436229044cbf9aa7a82564",
     "backend/internal/handler/gateway_web_search.go",
 )]
+# Official v0.1.185 keeps the reviewed Grok search source unchanged; bind the
+# same exact Custom control-flow delta to the new Vendor identity.
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "2ac784c51a5d0925b324efef2ba6b3446c364781",
+    "backend/internal/handler/gateway_web_search.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/handler/gateway_web_search.go",
+)]
 BASELINE_DELEGATE_VIEW_CONTROL[(
     "e98ef32eb29aecd30d1def615912ec4dc93173f3",
     "backend/internal/handler/no_account_error.go",
 )] = BASELINE_DELEGATE_VIEW_CONTROL[(
     "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/handler/no_account_error.go",
+)]
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "2ac784c51a5d0925b324efef2ba6b3446c364781",
+    "backend/internal/handler/no_account_error.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
     "backend/internal/handler/no_account_error.go",
 )]
 BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
@@ -1574,10 +1590,24 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     "backend/internal/service/grok_audio.go",
 )]
 BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "2ac784c51a5d0925b324efef2ba6b3446c364781",
+    "backend/internal/service/grok_audio.go",
+)] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/service/grok_audio.go",
+)]
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     "e98ef32eb29aecd30d1def615912ec4dc93173f3",
     "backend/internal/service/openai_gateway_scheduling.go",
 )] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)]
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "2ac784c51a5d0925b324efef2ba6b3446c364781",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
     "backend/internal/service/openai_gateway_scheduling.go",
 )]
 BASELINE_DELEGATE_VIEW_CONTROL[(
@@ -1585,6 +1615,13 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     "backend/internal/service/openai_gateway_scheduling.go",
 )] = BASELINE_DELEGATE_VIEW_CONTROL[(
     "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)]
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "2ac784c51a5d0925b324efef2ba6b3446c364781",
+    "backend/internal/service/openai_gateway_scheduling.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
     "backend/internal/service/openai_gateway_scheduling.go",
 )]
 BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
@@ -1599,6 +1636,20 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     "backend/internal/service/payment_config_service.go",
 )] = BASELINE_DELEGATE_VIEW_CONTROL[(
     "e8cb019fabf8b55199436229044cbf9aa7a82564",
+    "backend/internal/service/payment_config_service.go",
+)]
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "2ac784c51a5d0925b324efef2ba6b3446c364781",
+    "backend/internal/service/payment_config_service.go",
+)] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/service/payment_config_service.go",
+)]
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "2ac784c51a5d0925b324efef2ba6b3446c364781",
+    "backend/internal/service/payment_config_service.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
     "backend/internal/service/payment_config_service.go",
 )]
 
@@ -2295,6 +2346,13 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     "e98ef32eb29aecd30d1def615912ec4dc93173f3",
     "backend/internal/handler/openai_codex_models_handler.go",
 )] = tuple(_v0184_codex_models_calls.elements())
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "2ac784c51a5d0925b324efef2ba6b3446c364781",
+    "backend/internal/handler/openai_codex_models_handler.go",
+)] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/handler/openai_codex_models_handler.go",
+)]
 
 _v0184_openai_gateway_calls = Counter(
     BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
@@ -2310,6 +2368,13 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     "e98ef32eb29aecd30d1def615912ec4dc93173f3",
     "backend/internal/handler/openai_gateway_handler.go",
 )] = tuple(_v0184_openai_gateway_calls.elements())
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "2ac784c51a5d0925b324efef2ba6b3446c364781",
+    "backend/internal/handler/openai_gateway_handler.go",
+)] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/handler/openai_gateway_handler.go",
+)]
 
 APPROVED_DELEGATE_VIEW_CONTROL.update({
     "backend/internal/handler/batch_image_handler.go": (
@@ -2644,6 +2709,13 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     "e98ef32eb29aecd30d1def615912ec4dc93173f3",
     "backend/internal/handler/openai_codex_models_handler.go",
 )] = tuple(_v0184_codex_models_control.elements())
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    "2ac784c51a5d0925b324efef2ba6b3446c364781",
+    "backend/internal/handler/openai_codex_models_handler.go",
+)] = BASELINE_DELEGATE_VIEW_CONTROL[(
+    "e98ef32eb29aecd30d1def615912ec4dc93173f3",
+    "backend/internal/handler/openai_codex_models_handler.go",
+)]
 
 APPROVED_DELEGATE_VIEW_ORCHESTRATION: dict[str, tuple[tuple[str, str], ...]] = {
     "backend/internal/handler/gemini_v1beta_handler.go": (
