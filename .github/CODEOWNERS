@@ -37,6 +37,8 @@
 /backend/internal/handler/admin/group_handler.go @o87110
 /backend/internal/handler/admin/system_handler.go @o87110
 /backend/internal/handler/admin/setting_handler.go @o87110
+/backend/internal/handler/admin/setting_handler_audit.go @o87110
+/backend/internal/handler/admin/setting_handler_partial_payload_test.go @o87110
 /backend/internal/handler/admin/setting_handler_update.go @o87110
 /backend/internal/handler/admin/payment_handler.go @o87110
 /backend/internal/handler/admin/payment_handler_test.go @o87110
@@ -108,6 +110,8 @@
 /backend/internal/service/admin_service.go @o87110
 /backend/internal/service/admin_service_group_test.go @o87110
 /backend/internal/service/admin_service_composite_group_test.go @o87110
+/backend/internal/service/affiliate_service.go @o87110
+/backend/internal/service/affiliate_subscription_rebate_test.go @o87110
 /backend/internal/service/api_key_auth_cache.go @o87110
 /backend/internal/service/api_key_auth_cache_impl.go @o87110
 /backend/internal/service/api_key_auth_cache_profit_test.go @o87110
@@ -119,6 +123,7 @@
 /backend/internal/service/batch_image_public_test.go @o87110
 /backend/internal/service/billing_cache_service.go @o87110
 /backend/internal/service/billing_cache_service_balance_test.go @o87110
+/backend/internal/service/domain_constants.go @o87110
 /backend/internal/service/group.go @o87110
 /backend/internal/service/gateway_model_availability_test.go @o87110
 /backend/internal/service/group_model_access_test.go @o87110
@@ -146,6 +151,11 @@
 /backend/internal/service/idempotency.go @o87110
 /backend/internal/service/idempotency_test.go @o87110
 /backend/internal/service/redeem_service.go @o87110
+/backend/internal/service/setting_features.go @o87110
+/backend/internal/service/setting_parse.go @o87110
+/backend/internal/service/setting_service_update_test.go @o87110
+/backend/internal/service/setting_update.go @o87110
+/backend/internal/service/settings_view.go @o87110
 /backend/internal/service/subscription_assign_idempotency_test.go @o87110
 /backend/internal/service/subscription_cycle_stats_test.go @o87110
 /backend/internal/service/subscription_reset_quota_test.go @o87110
