@@ -75,6 +75,8 @@ export default {
           enabledHint: '关闭后用户菜单中的邀请页面入口隐藏、注册时忽略邀请码、新充值不再产生返利。已有返利额度仍可转入余额。',
           adminRechargeRebate: '管理员充值参与返利',
           adminRechargeRebateHint: '开启后，通过“用户管理 > 充值”增加的余额会产生邀请返利；设置余额和扣款不参与返利。',
+          subscriptionRebate: '订阅参与返利',
+          subscriptionRebateHint: '开启后，被邀请用户购买订阅会产生邀请返利；关闭后仅停止后续订阅订单返利，余额充值和已有返利不受影响。',
           rebateRate: '全局返利比例',
           rebateRateHint: '充值后返给邀请人的默认比例（0-100%，例如填写 10 表示返利 10%）。',
           freezeHours: '返利冻结期（小时）',

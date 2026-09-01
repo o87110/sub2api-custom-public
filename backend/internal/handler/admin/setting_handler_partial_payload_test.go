@@ -39,6 +39,22 @@ func TestUpdateSettingsPartialPayloadKeepsUnsentKeys(t *testing.T) {
 	require.Equal(t, "true", repo.values[service.SettingKeyTurnstileEnabled])
 }
 
+func TestUpdateSettingsSubscriptionRebateOmittedPreservesAndExplicitFalsePersists(t *testing.T) {
+	h, repo := newStepUpSwitchTestHandler(t, map[string]string{
+		service.SettingKeyAffiliateSubscriptionRebateEnabled: "true",
+	})
+
+	omitted := doUpdateSettings(t, h, map[string]any{"risk_control_enabled": true}, nil)
+	require.Equal(t, http.StatusOK, omitted.Code)
+	require.Equal(t, "true", repo.values[service.SettingKeyAffiliateSubscriptionRebateEnabled])
+
+	disabled := doUpdateSettings(t, h, map[string]any{
+		"affiliate_subscription_rebate_enabled": false,
+	}, nil)
+	require.Equal(t, http.StatusOK, disabled.Code)
+	require.Equal(t, "false", repo.values[service.SettingKeyAffiliateSubscriptionRebateEnabled])
+}
+
 // A full payload keeps whole-document semantics: fields explicitly set to their
 // zero value are still cleared.
 func TestUpdateSettingsFullPayloadStillClearsSentEmptyFields(t *testing.T) {

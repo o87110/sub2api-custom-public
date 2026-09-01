@@ -285,7 +285,7 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         }),
     ),
     'backend/internal/handler/admin/setting_handler_update.go': _approved_call_deltas(
-        ('UpdateSettings', {'response.ErrorFrom': 1}),
+        ('UpdateSettings', {'boolValueOrDefault': 1, 'response.ErrorFrom': 1}),
     ),
     'backend/internal/handler/admin/system_handler.go': _approved_call_deltas(
         ('Rollback', {'response.Error': 1}),
@@ -495,6 +495,9 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS: dict[str, tuple[tuple[str, str], ...]] = {
         ('UpdatePaymentConfig', {'err.Error': 1, 'infraerrors.BadRequest': 1, 'paymentchannels.SerializeChannelSettings': 1, 'setPaymentConfigValue': 26}),
     ),
     'backend/internal/service/payment_fulfillment.go': _approved_call_deltas(
+        ('applyAffiliateRebateForOrder', {
+            's.affiliateService.AccrueInviteRebateForPaymentOrder': 1,
+        }),
         ('ensurePaymentSubscriptionAssigned', {
             'fmt.Errorf': 1,
             'strconv.FormatInt': 1,

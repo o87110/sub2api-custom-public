@@ -428,7 +428,21 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
   Trigger 函数定义，直改 `models_list_config` 必须入队且无实际变化不得入队；数据库边界
   检查必须确认无新增表、列、Schema 字段或数据回写，发布前仍需人工审核 Migration。
 
-## 15. 管理端批量撤销邀请返利
+## 15. 邀请返利订阅开关与批量撤销
+
+### 订阅订单参与返利开关
+
+- 设置读取缺少 `affiliate_subscription_rebate_enabled` 时默认开启，显式 `false` 时关闭，
+  更新接口能保存 `true/false`，旧客户端省略字段不会覆盖已保存值；
+- 开关开启时支付订阅订单按现有比例产生返利；关闭时订阅仍完成发放，邀请返利仓储不被调用，
+  且支付审计写入 `AFFILIATE_REBATE_SKIPPED` 和
+  `subscription_rebate_disabled`；
+- 订阅开关关闭时余额充值仍可返利；重复履约或重复执行返利逻辑不会重复写入流水或审计；
+- 已有订阅返利不被撤销，兑换码订阅流程保持既有行为；
+- 管理端总开关关闭时隐藏该子开关，开启时正确回显并在保存 payload 中传递
+  `affiliate_subscription_rebate_enabled`，中英文文案均需覆盖。
+
+### 管理端批量撤销邀请返利
 
 - 冻结返利只扣 `aff_frozen_quota`；已解冻返利先扣 `aff_quota`，不足部分扣余额并允许
   变负；只有余额扣减同步减少 `total_recharged`，历史返利按目标总额减少；
