@@ -173,7 +173,7 @@
                   </div>
                 </div>
               </div>
-              <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmitSubscription || submitting || isPlanSoldOut(selectedPlan)" @click="confirmSubscribe">
+              <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmitSubscription || submitting || !isPlanPurchasable(selectedPlan)" @click="confirmSubscribe">
                 <span v-if="submitting" class="flex items-center justify-center gap-2">
                   <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
                   {{ t('common.processing') }}
@@ -295,7 +295,7 @@ import {
 } from '@/custom/payment-channels/paymentChannels'
 import { usePaymentChannelPricing } from '@/custom/payment-channels/usePaymentChannelPricing'
 import {
-  isPlanSoldOut,
+  isPlanPurchasable,
   planAvailabilityError,
   synchronizePlanAvailability,
 } from '@/custom/subscription-plan-inventory/inventory'
@@ -599,7 +599,7 @@ function planPeakRateLabel(plan: SubscriptionPlan): string {
 }
 
 function selectPlan(plan: SubscriptionPlan) {
-  if (isPlanSoldOut(plan)) {
+  if (!isPlanPurchasable(plan)) {
     appStore.showWarning(t('payment.soldOut'))
     return
   }
@@ -608,7 +608,7 @@ function selectPlan(plan: SubscriptionPlan) {
 }
 
 function selectPlanFromModal(plan: SubscriptionPlan) {
-  if (isPlanSoldOut(plan)) {
+  if (!isPlanPurchasable(plan)) {
     appStore.showWarning(t('payment.soldOut'))
     return
   }
@@ -630,7 +630,7 @@ async function handleSubmitRecharge() {
 
 async function confirmSubscribe() {
   if (!selectedPlan.value || submitting.value) return
-  if (isPlanSoldOut(selectedPlan.value)) {
+  if (!isPlanPurchasable(selectedPlan.value)) {
     appStore.showWarning(t('payment.soldOut'))
     return
   }
@@ -640,7 +640,7 @@ async function confirmSubscribe() {
 async function createOrder(orderAmount: number, orderType: OrderType, planId?: number, options: CreateOrderOptions = {}) {
   if (orderType === 'subscription' && !options.isResume) {
     const plan = checkout.value.plans.find(candidate => candidate.id === planId)
-    if (!plan || isPlanSoldOut(plan)) {
+    if (!isPlanPurchasable(plan)) {
       appStore.showWarning(t('payment.soldOut'))
       return
     }
@@ -968,7 +968,7 @@ onMounted(async () => {
       if (route.query.group) {
         const groupId = Number(route.query.group)
         const groupPlans = checkout.value.plans.filter(p => p.group_id === groupId)
-        const purchasablePlans = groupPlans.filter(plan => !isPlanSoldOut(plan))
+        const purchasablePlans = groupPlans.filter(isPlanPurchasable)
         if (purchasablePlans.length === 1) {
           selectedPlan.value = purchasablePlans[0]
         } else if (groupPlans.length > 0) {

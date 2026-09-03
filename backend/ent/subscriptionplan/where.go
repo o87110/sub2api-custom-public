@@ -129,6 +129,16 @@ func SoldOutAction(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldSoldOutAction, v))
 }
 
+// AllowExistingUserRenewal applies equality check predicate on the "allow_existing_user_renewal" field. It's identical to AllowExistingUserRenewalEQ.
+func AllowExistingUserRenewal(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldAllowExistingUserRenewal, v))
+}
+
+// RenewalGraceDays applies equality check predicate on the "renewal_grace_days" field. It's identical to RenewalGraceDaysEQ.
+func RenewalGraceDays(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldRenewalGraceDays, v))
+}
+
 // SortOrder applies equality check predicate on the "sort_order" field. It's identical to SortOrderEQ.
 func SortOrder(v int) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldSortOrder, v))
@@ -847,6 +857,56 @@ func SoldOutActionEqualFold(v string) predicate.SubscriptionPlan {
 // SoldOutActionContainsFold applies the ContainsFold predicate on the "sold_out_action" field.
 func SoldOutActionContainsFold(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldSoldOutAction, v))
+}
+
+// AllowExistingUserRenewalEQ applies the EQ predicate on the "allow_existing_user_renewal" field.
+func AllowExistingUserRenewalEQ(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldAllowExistingUserRenewal, v))
+}
+
+// AllowExistingUserRenewalNEQ applies the NEQ predicate on the "allow_existing_user_renewal" field.
+func AllowExistingUserRenewalNEQ(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldAllowExistingUserRenewal, v))
+}
+
+// RenewalGraceDaysEQ applies the EQ predicate on the "renewal_grace_days" field.
+func RenewalGraceDaysEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldRenewalGraceDays, v))
+}
+
+// RenewalGraceDaysNEQ applies the NEQ predicate on the "renewal_grace_days" field.
+func RenewalGraceDaysNEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldRenewalGraceDays, v))
+}
+
+// RenewalGraceDaysIn applies the In predicate on the "renewal_grace_days" field.
+func RenewalGraceDaysIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldRenewalGraceDays, vs...))
+}
+
+// RenewalGraceDaysNotIn applies the NotIn predicate on the "renewal_grace_days" field.
+func RenewalGraceDaysNotIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldRenewalGraceDays, vs...))
+}
+
+// RenewalGraceDaysGT applies the GT predicate on the "renewal_grace_days" field.
+func RenewalGraceDaysGT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldRenewalGraceDays, v))
+}
+
+// RenewalGraceDaysGTE applies the GTE predicate on the "renewal_grace_days" field.
+func RenewalGraceDaysGTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldRenewalGraceDays, v))
+}
+
+// RenewalGraceDaysLT applies the LT predicate on the "renewal_grace_days" field.
+func RenewalGraceDaysLT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldRenewalGraceDays, v))
+}
+
+// RenewalGraceDaysLTE applies the LTE predicate on the "renewal_grace_days" field.
+func RenewalGraceDaysLTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldRenewalGraceDays, v))
 }
 
 // SortOrderEQ applies the EQ predicate on the "sort_order" field.

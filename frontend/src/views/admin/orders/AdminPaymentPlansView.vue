@@ -47,6 +47,12 @@
         <template #cell-sold_out_action="{ value }">
           <SoldOutActionCell :action="value" />
         </template>
+        <template #cell-renewal_policy="{ row }">
+          <RenewalPolicyCell
+            :enabled="row.allow_existing_user_renewal ?? false"
+            :grace-days="row.renewal_grace_days ?? 0"
+          />
+        </template>
         <template #cell-for_sale="{ value, row }">
           <button
             type="button"
@@ -108,6 +114,7 @@ import { currencySymbol } from '@/components/payment/currency'
 import { platformTextClass } from '@/utils/platformColors'
 import InventoryQuantityCell from '@/custom/subscription-plan-inventory/InventoryQuantityCell.vue'
 import SoldOutActionCell from '@/custom/subscription-plan-inventory/SoldOutActionCell.vue'
+import RenewalPolicyCell from '@/custom/subscription-plan-inventory/RenewalPolicyCell.vue'
 import { canListSoldOutPlan, isPlanSoldOut } from '@/custom/subscription-plan-inventory/inventory'
 
 const { t } = useI18n()
@@ -166,6 +173,7 @@ const planColumns = computed((): Column[] => [
   { key: 'validity_days', label: t('payment.admin.validity') },
   { key: 'remaining_quantity', label: t('payment.admin.remainingQuantity') },
   { key: 'sold_out_action', label: t('payment.admin.soldOutAction') },
+  { key: 'renewal_policy', label: t('payment.admin.renewalPolicy') },
   { key: 'for_sale', label: t('payment.admin.forSale') },
   { key: 'sort_order', label: t('payment.admin.sortOrder') },
   { key: 'actions', label: t('common.actions') },

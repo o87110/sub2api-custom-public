@@ -41,7 +41,7 @@ func TestCreateOrderInTxReservesLimitedInventoryAndLeavesUnlimitedUntracked(t *t
 		SetForSale(true).
 		Save(ctx)
 	require.NoError(t, err)
-	order, err := svc.createOrderInTx(ctx, req, user, limited, cfg, 10, 10, 0, 10, nil)
+	order, err := svc.createOrderInTx(ctx, req, user, limited, false, cfg, 10, 10, 0, 10, nil)
 	require.NoError(t, err)
 	require.Equal(t, subscriptioninventory.StateReserved, order.PlanInventoryState)
 	limited, err = client.SubscriptionPlan.Get(ctx, limited.ID)
@@ -49,7 +49,7 @@ func TestCreateOrderInTxReservesLimitedInventoryAndLeavesUnlimitedUntracked(t *t
 	require.Equal(t, 0, *limited.RemainingQuantity)
 	require.False(t, limited.ForSale)
 
-	_, err = svc.createOrderInTx(ctx, req, user, limited, cfg, 10, 10, 0, 10, nil)
+	_, err = svc.createOrderInTx(ctx, req, user, limited, false, cfg, 10, 10, 0, 10, nil)
 	require.Error(t, err)
 	require.Equal(t, "PLAN_SOLD_OUT", infraerrors.Reason(err))
 
@@ -60,7 +60,7 @@ func TestCreateOrderInTxReservesLimitedInventoryAndLeavesUnlimitedUntracked(t *t
 		SetForSale(true).
 		Save(ctx)
 	require.NoError(t, err)
-	order, err = svc.createOrderInTx(ctx, req, user, unlimited, cfg, 10, 10, 0, 10, nil)
+	order, err = svc.createOrderInTx(ctx, req, user, unlimited, false, cfg, 10, 10, 0, 10, nil)
 	require.NoError(t, err)
 	require.Equal(t, subscriptioninventory.StateUntracked, order.PlanInventoryState)
 }

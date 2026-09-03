@@ -381,9 +381,18 @@ frontend/src/custom/group-access/
 `NULL`，不会因升级改变销售行为。每个套餐可选择 `delist`（自动下架，默认）或
 `disable_purchase`（保留展示并禁用购买）作为售罄处理方式。
 
-- 创建待支付订阅订单时在同一数据库事务内预占一份库存；条件更新保证并发请求不能
+套餐还可独立开启 `allow_existing_user_renewal`，并设置 `0-30` 天的
+`renewal_grace_days`。两项默认分别为关闭和 `0`，升级后不会自动放开历史套餐。
+续费资格按套餐所属分组判断：有效订阅始终符合；已过期订阅仅在
+`expires_at + renewal_grace_days`（含截止时刻）之前符合；暂停、撤销和软删除订阅
+均不符合。
+
+- 新用户创建待支付订阅订单时在同一数据库事务内预占一份库存；条件更新保证并发请求不能
   把数量扣成负数。最后一份被预占后，`delist` 套餐自动下架，
-  `disable_purchase` 套餐保持展示但不能继续购买或续费；
+  `disable_purchase` 套餐停止向新用户返回；
+- 已开启续费策略且符合资格的用户可看到并续费同分组的下架或售罄套餐，公共接口只
+  返回派生的 `renewal_available`。订单事务会再次锁定套餐和订阅复核资格，续费订单
+  记录为 `untracked`，不预占、消费或归还“剩余可买数量”；
 - 订单取消、超时或支付单创建失败时，仅将 `reserved` 预占释放一次。由售罄自动
   下架的套餐恢复上架，管理员手动下架的套餐保持下架；
 - 支付成功并发放订阅时在同一事务内将预占转为 `consumed`，履约重试不重复扣减；
@@ -395,14 +404,16 @@ frontend/src/custom/group-access/
 - 自动下架套餐补货、改为不限量或在售罄时切换为 `disable_purchase` 后自动恢复展示；
   `disable_purchase` 售罄套餐切换为 `delist` 时立即自动下架。管理员手动下架始终
   优先，不因补货或策略切换自动恢复；
-- 管理表格显示“无限制”、正整数或“0 / 已售罄”，并区分自动下架与禁用购买。
-  用户接口只暴露派生的 `sold_out`，不公开精确正数库存；售罄可见卡片显示“已售罄”
-  且购买/续费按钮不可操作。页面加载后若库存被并发抢空，前端识别
+- 管理表格显示“无限制”、正整数或“0 / 已售罄”，并区分自动下架、禁用购买与老用户
+  续费策略。用户接口只暴露派生的 `sold_out` 和用户级 `renewal_available`，不公开
+  精确库存或续费配置；无续费资格时售罄卡片不可操作，具备资格时显示续费操作。
+  页面加载后若库存被并发抢空或续费资格失效，前端识别
   `PLAN_SOLD_OUT`/`PLAN_NOT_AVAILABLE`，重新获取权威套餐列表并清除失效选择；刷新失败
   时也会本地禁用或移除对应套餐。后端原子预占继续阻止绕过前端的超卖请求；
 - 本功能新增 Migration `194_subscription_plan_inventory.sql` 和
-  `195_subscription_plan_sold_out_action.sql`、Ent Schema 字段及生成代码。Migration
-  195 默认 `delist`，历史套餐行为不变。发布前必须人工审核 Migration、备份
+  `195_subscription_plan_sold_out_action.sql`、`232_subscription_plan_renewal_policy.sql`、
+  Ent Schema 字段及生成代码。Migration 195 默认 `delist`；Migration 232 默认关闭续费
+  且宽限为 `0`，历史套餐行为不变。发布前必须人工审核 Migration、备份
   `subscription_plans`/`payment_orders` 并通过数据库边界门禁；开发和测试过程不得
   连接或修改生产数据库。
 

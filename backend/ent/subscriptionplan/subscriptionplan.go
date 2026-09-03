@@ -43,6 +43,10 @@ const (
 	FieldInventoryAutoDelisted = "inventory_auto_delisted"
 	// FieldSoldOutAction holds the string denoting the sold_out_action field in the database.
 	FieldSoldOutAction = "sold_out_action"
+	// FieldAllowExistingUserRenewal holds the string denoting the allow_existing_user_renewal field in the database.
+	FieldAllowExistingUserRenewal = "allow_existing_user_renewal"
+	// FieldRenewalGraceDays holds the string denoting the renewal_grace_days field in the database.
+	FieldRenewalGraceDays = "renewal_grace_days"
 	// FieldSortOrder holds the string denoting the sort_order field in the database.
 	FieldSortOrder = "sort_order"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -71,6 +75,8 @@ var Columns = []string{
 	FieldRemainingQuantity,
 	FieldInventoryAutoDelisted,
 	FieldSoldOutAction,
+	FieldAllowExistingUserRenewal,
+	FieldRenewalGraceDays,
 	FieldSortOrder,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -117,6 +123,12 @@ var (
 	DefaultSoldOutAction string
 	// SoldOutActionValidator is a validator for the "sold_out_action" field. It is called by the builders before save.
 	SoldOutActionValidator func(string) error
+	// DefaultAllowExistingUserRenewal holds the default value on creation for the "allow_existing_user_renewal" field.
+	DefaultAllowExistingUserRenewal bool
+	// DefaultRenewalGraceDays holds the default value on creation for the "renewal_grace_days" field.
+	DefaultRenewalGraceDays int
+	// RenewalGraceDaysValidator is a validator for the "renewal_grace_days" field. It is called by the builders before save.
+	RenewalGraceDaysValidator func(int) error
 	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
 	DefaultSortOrder int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -208,6 +220,16 @@ func ByInventoryAutoDelisted(opts ...sql.OrderTermOption) OrderOption {
 // BySoldOutAction orders the results by the sold_out_action field.
 func BySoldOutAction(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSoldOutAction, opts...).ToFunc()
+}
+
+// ByAllowExistingUserRenewal orders the results by the allow_existing_user_renewal field.
+func ByAllowExistingUserRenewal(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAllowExistingUserRenewal, opts...).ToFunc()
+}
+
+// ByRenewalGraceDays orders the results by the renewal_grace_days field.
+func ByRenewalGraceDays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRenewalGraceDays, opts...).ToFunc()
 }
 
 // BySortOrder orders the results by the sort_order field.

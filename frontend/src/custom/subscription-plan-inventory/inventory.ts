@@ -33,6 +33,14 @@ export function isPlanSoldOut(plan?: { sold_out?: boolean; remaining_quantity?: 
   return plan?.sold_out === true || plan?.remaining_quantity === 0
 }
 
+export function isPlanPurchasable(plan?: {
+  sold_out?: boolean
+  remaining_quantity?: number | null
+  renewal_available?: boolean
+} | null): boolean {
+  return !!plan && (!isPlanSoldOut(plan) || plan.renewal_available === true)
+}
+
 export function canListSoldOutPlan(plan: {
   sold_out_action?: SoldOutAction
   remaining_quantity?: number | null

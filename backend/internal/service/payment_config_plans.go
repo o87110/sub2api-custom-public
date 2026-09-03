@@ -69,6 +69,11 @@ func validatePlanPatch(req UpdatePlanRequest) error {
 	if req.OriginalPrice != nil && *req.OriginalPrice < 0 {
 		return infraerrors.BadRequest("PLAN_ORIGINAL_PRICE_INVALID", "original price must be >= 0")
 	}
+	if req.RenewalGraceDays != nil {
+		if err := subscriptioninventory.ValidateRenewalGraceDays(*req.RenewalGraceDays); err != nil {
+			return err
+		}
+	}
 	if err := subscriptioninventory.ValidateSoldOutActionPatch(req.SoldOutAction); err != nil {
 		return err
 	}
@@ -147,6 +152,9 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 	if err := subscriptioninventory.ValidateConfiguredQuantity(req.RemainingQuantity, soldOutAction); err != nil {
 		return nil, err
 	}
+	if err := subscriptioninventory.ValidateRenewalGraceDays(req.RenewalGraceDays); err != nil {
+		return nil, err
+	}
 	currency, err := normalizePlanCurrency(req.Currency)
 	if err != nil {
 		return nil, err
@@ -157,7 +165,10 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 		SetFeatures(req.Features).SetProductName(req.ProductName).
 		SetForSale(req.ForSale).SetAllowBulkQuotaReset(req.AllowBulkQuotaReset).
 		SetNillableRemainingQuantity(req.RemainingQuantity).
-		SetSoldOutAction(soldOutAction).SetSortOrder(req.SortOrder)
+		SetSoldOutAction(soldOutAction).
+		SetAllowExistingUserRenewal(req.AllowExistingUserRenewal).
+		SetRenewalGraceDays(req.RenewalGraceDays).
+		SetSortOrder(req.SortOrder)
 	if req.OriginalPrice != nil {
 		b.SetOriginalPrice(*req.OriginalPrice)
 	}
@@ -181,21 +192,23 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id int64, req Upd
 	}
 
 	return subscriptioninventory.UpdateAdminPlan(ctx, s.entClient, id, subscriptioninventory.AdminPlanPatch{
-		GroupID:             req.GroupID,
-		Name:                req.Name,
-		Description:         req.Description,
-		Price:               req.Price,
-		OriginalPrice:       req.OriginalPrice,
-		Currency:            normalizedCurrency,
-		ValidityDays:        req.ValidityDays,
-		ValidityUnit:        req.ValidityUnit,
-		Features:            req.Features,
-		ProductName:         req.ProductName,
-		ForSale:             req.ForSale,
-		AllowBulkQuotaReset: req.AllowBulkQuotaReset,
-		RemainingQuantity:   req.RemainingQuantity,
-		SoldOutAction:       req.SoldOutAction,
-		SortOrder:           req.SortOrder,
+		GroupID:                  req.GroupID,
+		Name:                     req.Name,
+		Description:              req.Description,
+		Price:                    req.Price,
+		OriginalPrice:            req.OriginalPrice,
+		Currency:                 normalizedCurrency,
+		ValidityDays:             req.ValidityDays,
+		ValidityUnit:             req.ValidityUnit,
+		Features:                 req.Features,
+		ProductName:              req.ProductName,
+		ForSale:                  req.ForSale,
+		AllowBulkQuotaReset:      req.AllowBulkQuotaReset,
+		RemainingQuantity:        req.RemainingQuantity,
+		SoldOutAction:            req.SoldOutAction,
+		AllowExistingUserRenewal: req.AllowExistingUserRenewal,
+		RenewalGraceDays:         req.RenewalGraceDays,
+		SortOrder:                req.SortOrder,
 	})
 }
 

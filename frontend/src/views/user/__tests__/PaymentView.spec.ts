@@ -356,6 +356,22 @@ describe('PaymentView subscription plan grid', () => {
     expect(createOrder).not.toHaveBeenCalled()
   })
 
+  it('auto-selects and submits a sold-out plan when renewal is available', async () => {
+    const wrapper = await mountSubscriptionConfirm({ plan: { sold_out: true, renewal_available: true } })
+    createOrder.mockRejectedValueOnce(new Error('stop after request'))
+
+    expect(wrapper.findComponent(PaymentChannelSelector).exists()).toBe(true)
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit).toBeTruthy()
+    await submit!.trigger('click')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({
+      order_type: 'subscription',
+      plan_id: 7,
+    }))
+  })
+
   it.each([
     { reason: 'PLAN_SOLD_OUT', remainsVisible: true },
     { reason: 'PLAN_NOT_AVAILABLE', remainsVisible: false },

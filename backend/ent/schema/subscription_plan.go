@@ -69,6 +69,12 @@ func (SubscriptionPlan) Fields() []ent.Field {
 		field.String("sold_out_action").
 			MaxLen(32).
 			Default("delist"),
+		field.Bool("allow_existing_user_renewal").
+			Default(false),
+		field.Int("renewal_grace_days").
+			Default(0).
+			Min(0).
+			Max(30),
 		field.Int("sort_order").
 			Default(0),
 		field.Time("created_at").

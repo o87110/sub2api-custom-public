@@ -249,6 +249,71 @@ describe('PlanEditDialog', () => {
     expect(createPlan.mock.calls[0][0]).toMatchObject({ allow_bulk_quota_reset: true })
   })
 
+  it('defaults renewal off and submits an enabled policy with grace days', async () => {
+    const group = groupFixture({})
+    const wrapper = mountDialog({ groups: [group] })
+
+    expect(wrapper.find('[data-test="renewal-grace-days"]').exists()).toBe(false)
+    await wrapper.get('[data-test="renewal-policy-toggle"]').trigger('click')
+    await wrapper.get('[data-test="renewal-grace-days"]').setValue('5')
+    await wrapper.find('input[type="text"]').setValue('Renewal plan')
+    await wrapper.find('select').setValue(String(group.id))
+    await wrapper.find('textarea').setValue('Renewal plan description')
+    await wrapper.findAll('input[type="number"]')[0].setValue('10')
+    await wrapper.find('form').trigger('submit')
+
+    expect(createPlan.mock.calls[0][0]).toMatchObject({
+      allow_existing_user_renewal: true,
+      renewal_grace_days: 5,
+    })
+  })
+
+  it('rejects renewal grace days outside the 0 to 30 range', async () => {
+    const group = groupFixture({})
+    const wrapper = mountDialog({ groups: [group] })
+    await wrapper.get('[data-test="renewal-policy-toggle"]').trigger('click')
+    await wrapper.get('[data-test="renewal-grace-days"]').setValue('31')
+    await wrapper.find('input[type="text"]').setValue('Invalid renewal plan')
+    await wrapper.find('select').setValue(String(group.id))
+    await wrapper.find('textarea').setValue('Invalid renewal plan description')
+    await wrapper.findAll('input[type="number"]')[0].setValue('10')
+    await wrapper.find('form').trigger('submit')
+
+    expect(createPlan).not.toHaveBeenCalled()
+    expect(showError).toHaveBeenCalledWith('payment.admin.renewalGraceDaysInvalid')
+  })
+
+  it('patches renewal policy fields only when they change', async () => {
+    const plan: SubscriptionPlan = {
+      id: 6,
+      group_id: 1,
+      name: 'Renewal policy plan',
+      description: '',
+      price: 10,
+      currency: '',
+      validity_days: 30,
+      validity_unit: 'days',
+      features: [],
+      for_sale: false,
+      allow_existing_user_renewal: false,
+      renewal_grace_days: 0,
+      sort_order: 0,
+    }
+    const wrapper = mountDialog({ groups: [groupFixture({})], plan })
+    await wrapper.find('form').trigger('submit')
+    expect(updatePlan.mock.calls[0][1]).not.toHaveProperty('allow_existing_user_renewal')
+    expect(updatePlan.mock.calls[0][1]).not.toHaveProperty('renewal_grace_days')
+
+    updatePlan.mockReset()
+    await wrapper.get('[data-test="renewal-policy-toggle"]').trigger('click')
+    await wrapper.get('[data-test="renewal-grace-days"]').setValue('7')
+    await wrapper.find('form').trigger('submit')
+    expect(updatePlan.mock.calls[0][1]).toMatchObject({
+      allow_existing_user_renewal: true,
+      renewal_grace_days: 7,
+    })
+  })
+
   it('rejects zero, negative, decimal, and unsafe inventory values', async () => {
     const group = groupFixture({})
     const wrapper = mountDialog({ groups: [group] })

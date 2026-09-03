@@ -43,6 +43,7 @@ const DataTableStub = {
         <slot name="cell-price" :value="row.price" :row="row" />
         <slot name="cell-remaining_quantity" :value="row.remaining_quantity" :row="row" />
         <slot name="cell-sold_out_action" :value="row.sold_out_action" :row="row" />
+        <slot name="cell-renewal_policy" :row="row" />
         <slot name="cell-for_sale" :value="row.for_sale" :row="row" />
       </div>
     </div>
@@ -117,6 +118,8 @@ describe('AdminPaymentPlansView', () => {
           remaining_quantity: 0,
           inventory_auto_delisted: false,
           sold_out_action: 'disable_purchase',
+          allow_existing_user_renewal: true,
+          renewal_grace_days: 5,
           features: [],
         },
       ],
@@ -169,6 +172,8 @@ describe('AdminPaymentPlansView', () => {
     expect(wrapper.text()).toContain('payment.admin.inventoryPurchaseDisabled')
     expect(wrapper.text()).toContain('payment.admin.soldOutActionDelist')
     expect(wrapper.text()).toContain('payment.admin.soldOutActionDisablePurchase')
+    expect(wrapper.text()).toContain('payment.admin.renewalEnabled')
+    expect(wrapper.text()).toContain('payment.admin.renewalGraceDaysValue')
     expect(wrapper.find('button[disabled]').exists()).toBe(true)
   })
 })
