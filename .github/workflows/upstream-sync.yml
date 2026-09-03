@@ -473,6 +473,11 @@ jobs:
           protected_pattern="${protected_pattern}|${group_model_access_protected_pattern}"
           protected_pattern="${protected_pattern}|^backend/internal/payment/provider/easypay_refund_test\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/service/payment_config_providers_test\.go$"
+          protected_pattern="${protected_pattern}|^backend/internal/handler/payment_plan_renewal_test\.go$"
+          protected_pattern="${protected_pattern}|^backend/internal/service/payment_plan_renewal(_test)?\.go$"
+          protected_pattern="${protected_pattern}|^backend/internal/service/payment_order_provider_snapshot_test\.go$"
+          protected_pattern="${protected_pattern}|^backend/migrations/(232_subscription_plan_renewal_policy\.sql|subscription_plan_renewal_policy_migration_test\.go)$"
+          protected_pattern="${protected_pattern}|^frontend/src/views/user/__tests__/SubscriptionsView\.spec\.ts$"
           grep -E "$protected_pattern" /tmp/overlap-files.txt > /tmp/protected-overlap.txt || true
           cat /tmp/protected-overlap.txt /tmp/shadowed-source-changes.txt |
             sort -u > /tmp/protected-review-files.txt
