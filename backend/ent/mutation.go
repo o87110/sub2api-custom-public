@@ -40862,37 +40862,40 @@ func (m *SettingMutation) ResetEdge(name string) error {
 // SubscriptionPlanMutation represents an operation that mutates the SubscriptionPlan nodes in the graph.
 type SubscriptionPlanMutation struct {
 	config
-	op                      Op
-	typ                     string
-	id                      *int64
-	group_id                *int64
-	addgroup_id             *int64
-	name                    *string
-	description             *string
-	price                   *float64
-	addprice                *float64
-	original_price          *float64
-	addoriginal_price       *float64
-	currency                *string
-	validity_days           *int
-	addvalidity_days        *int
-	validity_unit           *string
-	features                *string
-	product_name            *string
-	for_sale                *bool
-	allow_bulk_quota_reset  *bool
-	remaining_quantity      *int
-	addremaining_quantity   *int
-	inventory_auto_delisted *bool
-	sold_out_action         *string
-	sort_order              *int
-	addsort_order           *int
-	created_at              *time.Time
-	updated_at              *time.Time
-	clearedFields           map[string]struct{}
-	done                    bool
-	oldValue                func(context.Context) (*SubscriptionPlan, error)
-	predicates              []predicate.SubscriptionPlan
+	op                          Op
+	typ                         string
+	id                          *int64
+	group_id                    *int64
+	addgroup_id                 *int64
+	name                        *string
+	description                 *string
+	price                       *float64
+	addprice                    *float64
+	original_price              *float64
+	addoriginal_price           *float64
+	currency                    *string
+	validity_days               *int
+	addvalidity_days            *int
+	validity_unit               *string
+	features                    *string
+	product_name                *string
+	for_sale                    *bool
+	allow_bulk_quota_reset      *bool
+	remaining_quantity          *int
+	addremaining_quantity       *int
+	inventory_auto_delisted     *bool
+	sold_out_action             *string
+	allow_existing_user_renewal *bool
+	renewal_grace_days          *int
+	addrenewal_grace_days       *int
+	sort_order                  *int
+	addsort_order               *int
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	clearedFields               map[string]struct{}
+	done                        bool
+	oldValue                    func(context.Context) (*SubscriptionPlan, error)
+	predicates                  []predicate.SubscriptionPlan
 }
 
 var _ ent.Mutation = (*SubscriptionPlanMutation)(nil)
@@ -41661,6 +41664,98 @@ func (m *SubscriptionPlanMutation) ResetSoldOutAction() {
 	m.sold_out_action = nil
 }
 
+// SetAllowExistingUserRenewal sets the "allow_existing_user_renewal" field.
+func (m *SubscriptionPlanMutation) SetAllowExistingUserRenewal(b bool) {
+	m.allow_existing_user_renewal = &b
+}
+
+// AllowExistingUserRenewal returns the value of the "allow_existing_user_renewal" field in the mutation.
+func (m *SubscriptionPlanMutation) AllowExistingUserRenewal() (r bool, exists bool) {
+	v := m.allow_existing_user_renewal
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAllowExistingUserRenewal returns the old "allow_existing_user_renewal" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldAllowExistingUserRenewal(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAllowExistingUserRenewal is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAllowExistingUserRenewal requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAllowExistingUserRenewal: %w", err)
+	}
+	return oldValue.AllowExistingUserRenewal, nil
+}
+
+// ResetAllowExistingUserRenewal resets all changes to the "allow_existing_user_renewal" field.
+func (m *SubscriptionPlanMutation) ResetAllowExistingUserRenewal() {
+	m.allow_existing_user_renewal = nil
+}
+
+// SetRenewalGraceDays sets the "renewal_grace_days" field.
+func (m *SubscriptionPlanMutation) SetRenewalGraceDays(i int) {
+	m.renewal_grace_days = &i
+	m.addrenewal_grace_days = nil
+}
+
+// RenewalGraceDays returns the value of the "renewal_grace_days" field in the mutation.
+func (m *SubscriptionPlanMutation) RenewalGraceDays() (r int, exists bool) {
+	v := m.renewal_grace_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRenewalGraceDays returns the old "renewal_grace_days" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldRenewalGraceDays(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRenewalGraceDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRenewalGraceDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRenewalGraceDays: %w", err)
+	}
+	return oldValue.RenewalGraceDays, nil
+}
+
+// AddRenewalGraceDays adds i to the "renewal_grace_days" field.
+func (m *SubscriptionPlanMutation) AddRenewalGraceDays(i int) {
+	if m.addrenewal_grace_days != nil {
+		*m.addrenewal_grace_days += i
+	} else {
+		m.addrenewal_grace_days = &i
+	}
+}
+
+// AddedRenewalGraceDays returns the value that was added to the "renewal_grace_days" field in this mutation.
+func (m *SubscriptionPlanMutation) AddedRenewalGraceDays() (r int, exists bool) {
+	v := m.addrenewal_grace_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRenewalGraceDays resets all changes to the "renewal_grace_days" field.
+func (m *SubscriptionPlanMutation) ResetRenewalGraceDays() {
+	m.renewal_grace_days = nil
+	m.addrenewal_grace_days = nil
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (m *SubscriptionPlanMutation) SetSortOrder(i int) {
 	m.sort_order = &i
@@ -41823,7 +41918,7 @@ func (m *SubscriptionPlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SubscriptionPlanMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 20)
 	if m.group_id != nil {
 		fields = append(fields, subscriptionplan.FieldGroupID)
 	}
@@ -41868,6 +41963,12 @@ func (m *SubscriptionPlanMutation) Fields() []string {
 	}
 	if m.sold_out_action != nil {
 		fields = append(fields, subscriptionplan.FieldSoldOutAction)
+	}
+	if m.allow_existing_user_renewal != nil {
+		fields = append(fields, subscriptionplan.FieldAllowExistingUserRenewal)
+	}
+	if m.renewal_grace_days != nil {
+		fields = append(fields, subscriptionplan.FieldRenewalGraceDays)
 	}
 	if m.sort_order != nil {
 		fields = append(fields, subscriptionplan.FieldSortOrder)
@@ -41916,6 +42017,10 @@ func (m *SubscriptionPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.InventoryAutoDelisted()
 	case subscriptionplan.FieldSoldOutAction:
 		return m.SoldOutAction()
+	case subscriptionplan.FieldAllowExistingUserRenewal:
+		return m.AllowExistingUserRenewal()
+	case subscriptionplan.FieldRenewalGraceDays:
+		return m.RenewalGraceDays()
 	case subscriptionplan.FieldSortOrder:
 		return m.SortOrder()
 	case subscriptionplan.FieldCreatedAt:
@@ -41961,6 +42066,10 @@ func (m *SubscriptionPlanMutation) OldField(ctx context.Context, name string) (e
 		return m.OldInventoryAutoDelisted(ctx)
 	case subscriptionplan.FieldSoldOutAction:
 		return m.OldSoldOutAction(ctx)
+	case subscriptionplan.FieldAllowExistingUserRenewal:
+		return m.OldAllowExistingUserRenewal(ctx)
+	case subscriptionplan.FieldRenewalGraceDays:
+		return m.OldRenewalGraceDays(ctx)
 	case subscriptionplan.FieldSortOrder:
 		return m.OldSortOrder(ctx)
 	case subscriptionplan.FieldCreatedAt:
@@ -42081,6 +42190,20 @@ func (m *SubscriptionPlanMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetSoldOutAction(v)
 		return nil
+	case subscriptionplan.FieldAllowExistingUserRenewal:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAllowExistingUserRenewal(v)
+		return nil
+	case subscriptionplan.FieldRenewalGraceDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRenewalGraceDays(v)
+		return nil
 	case subscriptionplan.FieldSortOrder:
 		v, ok := value.(int)
 		if !ok {
@@ -42125,6 +42248,9 @@ func (m *SubscriptionPlanMutation) AddedFields() []string {
 	if m.addremaining_quantity != nil {
 		fields = append(fields, subscriptionplan.FieldRemainingQuantity)
 	}
+	if m.addrenewal_grace_days != nil {
+		fields = append(fields, subscriptionplan.FieldRenewalGraceDays)
+	}
 	if m.addsort_order != nil {
 		fields = append(fields, subscriptionplan.FieldSortOrder)
 	}
@@ -42146,6 +42272,8 @@ func (m *SubscriptionPlanMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedValidityDays()
 	case subscriptionplan.FieldRemainingQuantity:
 		return m.AddedRemainingQuantity()
+	case subscriptionplan.FieldRenewalGraceDays:
+		return m.AddedRenewalGraceDays()
 	case subscriptionplan.FieldSortOrder:
 		return m.AddedSortOrder()
 	}
@@ -42191,6 +42319,13 @@ func (m *SubscriptionPlanMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddRemainingQuantity(v)
+		return nil
+	case subscriptionplan.FieldRenewalGraceDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRenewalGraceDays(v)
 		return nil
 	case subscriptionplan.FieldSortOrder:
 		v, ok := value.(int)
@@ -42285,6 +42420,12 @@ func (m *SubscriptionPlanMutation) ResetField(name string) error {
 		return nil
 	case subscriptionplan.FieldSoldOutAction:
 		m.ResetSoldOutAction()
+		return nil
+	case subscriptionplan.FieldAllowExistingUserRenewal:
+		m.ResetAllowExistingUserRenewal()
+		return nil
+	case subscriptionplan.FieldRenewalGraceDays:
+		m.ResetRenewalGraceDays()
 		return nil
 	case subscriptionplan.FieldSortOrder:
 		m.ResetSortOrder()

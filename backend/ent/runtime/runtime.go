@@ -1898,16 +1898,40 @@ func init() {
 	subscriptionplan.DefaultSoldOutAction = subscriptionplanDescSoldOutAction.Default.(string)
 	// subscriptionplan.SoldOutActionValidator is a validator for the "sold_out_action" field. It is called by the builders before save.
 	subscriptionplan.SoldOutActionValidator = subscriptionplanDescSoldOutAction.Validators[0].(func(string) error)
+	// subscriptionplanDescAllowExistingUserRenewal is the schema descriptor for allow_existing_user_renewal field.
+	subscriptionplanDescAllowExistingUserRenewal := subscriptionplanFields[15].Descriptor()
+	// subscriptionplan.DefaultAllowExistingUserRenewal holds the default value on creation for the allow_existing_user_renewal field.
+	subscriptionplan.DefaultAllowExistingUserRenewal = subscriptionplanDescAllowExistingUserRenewal.Default.(bool)
+	// subscriptionplanDescRenewalGraceDays is the schema descriptor for renewal_grace_days field.
+	subscriptionplanDescRenewalGraceDays := subscriptionplanFields[16].Descriptor()
+	// subscriptionplan.DefaultRenewalGraceDays holds the default value on creation for the renewal_grace_days field.
+	subscriptionplan.DefaultRenewalGraceDays = subscriptionplanDescRenewalGraceDays.Default.(int)
+	// subscriptionplan.RenewalGraceDaysValidator is a validator for the "renewal_grace_days" field. It is called by the builders before save.
+	subscriptionplan.RenewalGraceDaysValidator = func() func(int) error {
+		validators := subscriptionplanDescRenewalGraceDays.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(renewal_grace_days int) error {
+			for _, fn := range fns {
+				if err := fn(renewal_grace_days); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// subscriptionplanDescSortOrder is the schema descriptor for sort_order field.
-	subscriptionplanDescSortOrder := subscriptionplanFields[15].Descriptor()
+	subscriptionplanDescSortOrder := subscriptionplanFields[17].Descriptor()
 	// subscriptionplan.DefaultSortOrder holds the default value on creation for the sort_order field.
 	subscriptionplan.DefaultSortOrder = subscriptionplanDescSortOrder.Default.(int)
 	// subscriptionplanDescCreatedAt is the schema descriptor for created_at field.
-	subscriptionplanDescCreatedAt := subscriptionplanFields[16].Descriptor()
+	subscriptionplanDescCreatedAt := subscriptionplanFields[18].Descriptor()
 	// subscriptionplan.DefaultCreatedAt holds the default value on creation for the created_at field.
 	subscriptionplan.DefaultCreatedAt = subscriptionplanDescCreatedAt.Default.(func() time.Time)
 	// subscriptionplanDescUpdatedAt is the schema descriptor for updated_at field.
-	subscriptionplanDescUpdatedAt := subscriptionplanFields[17].Descriptor()
+	subscriptionplanDescUpdatedAt := subscriptionplanFields[19].Descriptor()
 	// subscriptionplan.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	subscriptionplan.DefaultUpdatedAt = subscriptionplanDescUpdatedAt.Default.(func() time.Time)
 	// subscriptionplan.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

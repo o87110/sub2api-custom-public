@@ -158,4 +158,15 @@ describe("SubscriptionPlanCard", () => {
     await button.trigger("click");
     expect(wrapper.emitted("select")).toBeUndefined();
   });
+
+  it("allows an eligible existing user to renew a sold-out plan", async () => {
+    const plan = { sold_out: true, renewal_available: true };
+    const wrapper = mountPlanCard("openai", plan);
+    const button = wrapper.get("button");
+
+    expect(button.attributes("disabled")).toBeUndefined();
+    expect(button.text()).toBe("payment.renewNow");
+    await button.trigger("click");
+    expect(wrapper.emitted("select")?.[0]?.[0]).toEqual(expect.objectContaining(plan));
+  });
 });

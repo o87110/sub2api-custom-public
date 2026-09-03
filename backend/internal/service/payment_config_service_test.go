@@ -392,13 +392,15 @@ func TestSubscriptionPlanInventoryCreateUpdateAndSaleFiltering(t *testing.T) {
 
 	quantity := 5
 	plan, err := svc.CreatePlan(ctx, CreatePlanRequest{
-		GroupID:           1,
-		Name:              "Limited plan",
-		Price:             10,
-		ValidityDays:      30,
-		ValidityUnit:      "days",
-		ForSale:           true,
-		RemainingQuantity: &quantity,
+		GroupID:                  1,
+		Name:                     "Limited plan",
+		Price:                    10,
+		ValidityDays:             30,
+		ValidityUnit:             "days",
+		ForSale:                  true,
+		RemainingQuantity:        &quantity,
+		AllowExistingUserRenewal: true,
+		RenewalGraceDays:         7,
 	})
 	if err != nil {
 		t.Fatalf("CreatePlan returned error: %v", err)
@@ -408,6 +410,9 @@ func TestSubscriptionPlanInventoryCreateUpdateAndSaleFiltering(t *testing.T) {
 	}
 	if plan.SoldOutAction != subscriptioninventory.SoldOutActionDelist {
 		t.Fatalf("sold_out_action = %q, want default %q", plan.SoldOutAction, subscriptioninventory.SoldOutActionDelist)
+	}
+	if !plan.AllowExistingUserRenewal || plan.RenewalGraceDays != 7 {
+		t.Fatalf("renewal policy = enabled:%v grace:%d, want true/7", plan.AllowExistingUserRenewal, plan.RenewalGraceDays)
 	}
 	if plan.AllowBulkQuotaReset {
 		t.Fatal("allow_bulk_quota_reset default = true, want false")
@@ -419,6 +424,11 @@ func TestSubscriptionPlanInventoryCreateUpdateAndSaleFiltering(t *testing.T) {
 	}
 	if !plan.AllowBulkQuotaReset {
 		t.Fatal("allow_bulk_quota_reset was not persisted")
+	}
+	invalidGrace := 31
+	_, err = svc.UpdatePlan(ctx, plan.ID, UpdatePlanRequest{RenewalGraceDays: &invalidGrace})
+	if err == nil || infraerrors.Reason(err) != "PLAN_RENEWAL_GRACE_INVALID" {
+		t.Fatalf("invalid renewal grace error = %v, want PLAN_RENEWAL_GRACE_INVALID", err)
 	}
 
 	zero := 0

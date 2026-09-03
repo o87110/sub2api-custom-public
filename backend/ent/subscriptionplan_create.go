@@ -208,6 +208,34 @@ func (_c *SubscriptionPlanCreate) SetNillableSoldOutAction(v *string) *Subscript
 	return _c
 }
 
+// SetAllowExistingUserRenewal sets the "allow_existing_user_renewal" field.
+func (_c *SubscriptionPlanCreate) SetAllowExistingUserRenewal(v bool) *SubscriptionPlanCreate {
+	_c.mutation.SetAllowExistingUserRenewal(v)
+	return _c
+}
+
+// SetNillableAllowExistingUserRenewal sets the "allow_existing_user_renewal" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableAllowExistingUserRenewal(v *bool) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetAllowExistingUserRenewal(*v)
+	}
+	return _c
+}
+
+// SetRenewalGraceDays sets the "renewal_grace_days" field.
+func (_c *SubscriptionPlanCreate) SetRenewalGraceDays(v int) *SubscriptionPlanCreate {
+	_c.mutation.SetRenewalGraceDays(v)
+	return _c
+}
+
+// SetNillableRenewalGraceDays sets the "renewal_grace_days" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableRenewalGraceDays(v *int) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetRenewalGraceDays(*v)
+	}
+	return _c
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_c *SubscriptionPlanCreate) SetSortOrder(v int) *SubscriptionPlanCreate {
 	_c.mutation.SetSortOrder(v)
@@ -325,6 +353,14 @@ func (_c *SubscriptionPlanCreate) defaults() {
 		v := subscriptionplan.DefaultSoldOutAction
 		_c.mutation.SetSoldOutAction(v)
 	}
+	if _, ok := _c.mutation.AllowExistingUserRenewal(); !ok {
+		v := subscriptionplan.DefaultAllowExistingUserRenewal
+		_c.mutation.SetAllowExistingUserRenewal(v)
+	}
+	if _, ok := _c.mutation.RenewalGraceDays(); !ok {
+		v := subscriptionplan.DefaultRenewalGraceDays
+		_c.mutation.SetRenewalGraceDays(v)
+	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		v := subscriptionplan.DefaultSortOrder
 		_c.mutation.SetSortOrder(v)
@@ -403,6 +439,17 @@ func (_c *SubscriptionPlanCreate) check() error {
 	if v, ok := _c.mutation.SoldOutAction(); ok {
 		if err := subscriptionplan.SoldOutActionValidator(v); err != nil {
 			return &ValidationError{Name: "sold_out_action", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.sold_out_action": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AllowExistingUserRenewal(); !ok {
+		return &ValidationError{Name: "allow_existing_user_renewal", err: errors.New(`ent: missing required field "SubscriptionPlan.allow_existing_user_renewal"`)}
+	}
+	if _, ok := _c.mutation.RenewalGraceDays(); !ok {
+		return &ValidationError{Name: "renewal_grace_days", err: errors.New(`ent: missing required field "SubscriptionPlan.renewal_grace_days"`)}
+	}
+	if v, ok := _c.mutation.RenewalGraceDays(); ok {
+		if err := subscriptionplan.RenewalGraceDaysValidator(v); err != nil {
+			return &ValidationError{Name: "renewal_grace_days", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.renewal_grace_days": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
@@ -500,6 +547,14 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.SoldOutAction(); ok {
 		_spec.SetField(subscriptionplan.FieldSoldOutAction, field.TypeString, value)
 		_node.SoldOutAction = value
+	}
+	if value, ok := _c.mutation.AllowExistingUserRenewal(); ok {
+		_spec.SetField(subscriptionplan.FieldAllowExistingUserRenewal, field.TypeBool, value)
+		_node.AllowExistingUserRenewal = value
+	}
+	if value, ok := _c.mutation.RenewalGraceDays(); ok {
+		_spec.SetField(subscriptionplan.FieldRenewalGraceDays, field.TypeInt, value)
+		_node.RenewalGraceDays = value
 	}
 	if value, ok := _c.mutation.SortOrder(); ok {
 		_spec.SetField(subscriptionplan.FieldSortOrder, field.TypeInt, value)
@@ -784,6 +839,36 @@ func (u *SubscriptionPlanUpsert) SetSoldOutAction(v string) *SubscriptionPlanUps
 // UpdateSoldOutAction sets the "sold_out_action" field to the value that was provided on create.
 func (u *SubscriptionPlanUpsert) UpdateSoldOutAction() *SubscriptionPlanUpsert {
 	u.SetExcluded(subscriptionplan.FieldSoldOutAction)
+	return u
+}
+
+// SetAllowExistingUserRenewal sets the "allow_existing_user_renewal" field.
+func (u *SubscriptionPlanUpsert) SetAllowExistingUserRenewal(v bool) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldAllowExistingUserRenewal, v)
+	return u
+}
+
+// UpdateAllowExistingUserRenewal sets the "allow_existing_user_renewal" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateAllowExistingUserRenewal() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldAllowExistingUserRenewal)
+	return u
+}
+
+// SetRenewalGraceDays sets the "renewal_grace_days" field.
+func (u *SubscriptionPlanUpsert) SetRenewalGraceDays(v int) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldRenewalGraceDays, v)
+	return u
+}
+
+// UpdateRenewalGraceDays sets the "renewal_grace_days" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateRenewalGraceDays() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldRenewalGraceDays)
+	return u
+}
+
+// AddRenewalGraceDays adds v to the "renewal_grace_days" field.
+func (u *SubscriptionPlanUpsert) AddRenewalGraceDays(v int) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldRenewalGraceDays, v)
 	return u
 }
 
@@ -1118,6 +1203,41 @@ func (u *SubscriptionPlanUpsertOne) SetSoldOutAction(v string) *SubscriptionPlan
 func (u *SubscriptionPlanUpsertOne) UpdateSoldOutAction() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateSoldOutAction()
+	})
+}
+
+// SetAllowExistingUserRenewal sets the "allow_existing_user_renewal" field.
+func (u *SubscriptionPlanUpsertOne) SetAllowExistingUserRenewal(v bool) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetAllowExistingUserRenewal(v)
+	})
+}
+
+// UpdateAllowExistingUserRenewal sets the "allow_existing_user_renewal" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateAllowExistingUserRenewal() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateAllowExistingUserRenewal()
+	})
+}
+
+// SetRenewalGraceDays sets the "renewal_grace_days" field.
+func (u *SubscriptionPlanUpsertOne) SetRenewalGraceDays(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetRenewalGraceDays(v)
+	})
+}
+
+// AddRenewalGraceDays adds v to the "renewal_grace_days" field.
+func (u *SubscriptionPlanUpsertOne) AddRenewalGraceDays(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddRenewalGraceDays(v)
+	})
+}
+
+// UpdateRenewalGraceDays sets the "renewal_grace_days" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateRenewalGraceDays() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateRenewalGraceDays()
 	})
 }
 
@@ -1623,6 +1743,41 @@ func (u *SubscriptionPlanUpsertBulk) SetSoldOutAction(v string) *SubscriptionPla
 func (u *SubscriptionPlanUpsertBulk) UpdateSoldOutAction() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateSoldOutAction()
+	})
+}
+
+// SetAllowExistingUserRenewal sets the "allow_existing_user_renewal" field.
+func (u *SubscriptionPlanUpsertBulk) SetAllowExistingUserRenewal(v bool) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetAllowExistingUserRenewal(v)
+	})
+}
+
+// UpdateAllowExistingUserRenewal sets the "allow_existing_user_renewal" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateAllowExistingUserRenewal() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateAllowExistingUserRenewal()
+	})
+}
+
+// SetRenewalGraceDays sets the "renewal_grace_days" field.
+func (u *SubscriptionPlanUpsertBulk) SetRenewalGraceDays(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetRenewalGraceDays(v)
+	})
+}
+
+// AddRenewalGraceDays adds v to the "renewal_grace_days" field.
+func (u *SubscriptionPlanUpsertBulk) AddRenewalGraceDays(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddRenewalGraceDays(v)
+	})
+}
+
+// UpdateRenewalGraceDays sets the "renewal_grace_days" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateRenewalGraceDays() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateRenewalGraceDays()
 	})
 }
 

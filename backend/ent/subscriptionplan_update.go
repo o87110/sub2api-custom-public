@@ -285,6 +285,41 @@ func (_u *SubscriptionPlanUpdate) SetNillableSoldOutAction(v *string) *Subscript
 	return _u
 }
 
+// SetAllowExistingUserRenewal sets the "allow_existing_user_renewal" field.
+func (_u *SubscriptionPlanUpdate) SetAllowExistingUserRenewal(v bool) *SubscriptionPlanUpdate {
+	_u.mutation.SetAllowExistingUserRenewal(v)
+	return _u
+}
+
+// SetNillableAllowExistingUserRenewal sets the "allow_existing_user_renewal" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableAllowExistingUserRenewal(v *bool) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetAllowExistingUserRenewal(*v)
+	}
+	return _u
+}
+
+// SetRenewalGraceDays sets the "renewal_grace_days" field.
+func (_u *SubscriptionPlanUpdate) SetRenewalGraceDays(v int) *SubscriptionPlanUpdate {
+	_u.mutation.ResetRenewalGraceDays()
+	_u.mutation.SetRenewalGraceDays(v)
+	return _u
+}
+
+// SetNillableRenewalGraceDays sets the "renewal_grace_days" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableRenewalGraceDays(v *int) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetRenewalGraceDays(*v)
+	}
+	return _u
+}
+
+// AddRenewalGraceDays adds value to the "renewal_grace_days" field.
+func (_u *SubscriptionPlanUpdate) AddRenewalGraceDays(v int) *SubscriptionPlanUpdate {
+	_u.mutation.AddRenewalGraceDays(v)
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *SubscriptionPlanUpdate) SetSortOrder(v int) *SubscriptionPlanUpdate {
 	_u.mutation.ResetSortOrder()
@@ -380,6 +415,11 @@ func (_u *SubscriptionPlanUpdate) check() error {
 			return &ValidationError{Name: "sold_out_action", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.sold_out_action": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RenewalGraceDays(); ok {
+		if err := subscriptionplan.RenewalGraceDaysValidator(v); err != nil {
+			return &ValidationError{Name: "renewal_grace_days", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.renewal_grace_days": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -460,6 +500,15 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.SoldOutAction(); ok {
 		_spec.SetField(subscriptionplan.FieldSoldOutAction, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AllowExistingUserRenewal(); ok {
+		_spec.SetField(subscriptionplan.FieldAllowExistingUserRenewal, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RenewalGraceDays(); ok {
+		_spec.SetField(subscriptionplan.FieldRenewalGraceDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRenewalGraceDays(); ok {
+		_spec.AddField(subscriptionplan.FieldRenewalGraceDays, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(subscriptionplan.FieldSortOrder, field.TypeInt, value)
@@ -747,6 +796,41 @@ func (_u *SubscriptionPlanUpdateOne) SetNillableSoldOutAction(v *string) *Subscr
 	return _u
 }
 
+// SetAllowExistingUserRenewal sets the "allow_existing_user_renewal" field.
+func (_u *SubscriptionPlanUpdateOne) SetAllowExistingUserRenewal(v bool) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetAllowExistingUserRenewal(v)
+	return _u
+}
+
+// SetNillableAllowExistingUserRenewal sets the "allow_existing_user_renewal" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableAllowExistingUserRenewal(v *bool) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetAllowExistingUserRenewal(*v)
+	}
+	return _u
+}
+
+// SetRenewalGraceDays sets the "renewal_grace_days" field.
+func (_u *SubscriptionPlanUpdateOne) SetRenewalGraceDays(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.ResetRenewalGraceDays()
+	_u.mutation.SetRenewalGraceDays(v)
+	return _u
+}
+
+// SetNillableRenewalGraceDays sets the "renewal_grace_days" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableRenewalGraceDays(v *int) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetRenewalGraceDays(*v)
+	}
+	return _u
+}
+
+// AddRenewalGraceDays adds value to the "renewal_grace_days" field.
+func (_u *SubscriptionPlanUpdateOne) AddRenewalGraceDays(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.AddRenewalGraceDays(v)
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *SubscriptionPlanUpdateOne) SetSortOrder(v int) *SubscriptionPlanUpdateOne {
 	_u.mutation.ResetSortOrder()
@@ -855,6 +939,11 @@ func (_u *SubscriptionPlanUpdateOne) check() error {
 			return &ValidationError{Name: "sold_out_action", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.sold_out_action": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RenewalGraceDays(); ok {
+		if err := subscriptionplan.RenewalGraceDaysValidator(v); err != nil {
+			return &ValidationError{Name: "renewal_grace_days", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.renewal_grace_days": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -952,6 +1041,15 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	}
 	if value, ok := _u.mutation.SoldOutAction(); ok {
 		_spec.SetField(subscriptionplan.FieldSoldOutAction, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AllowExistingUserRenewal(); ok {
+		_spec.SetField(subscriptionplan.FieldAllowExistingUserRenewal, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RenewalGraceDays(); ok {
+		_spec.SetField(subscriptionplan.FieldRenewalGraceDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRenewalGraceDays(); ok {
+		_spec.AddField(subscriptionplan.FieldRenewalGraceDays, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(subscriptionplan.FieldSortOrder, field.TypeInt, value)

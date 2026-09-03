@@ -53,21 +53,23 @@ func TestAdminSubscriptionPlansForResponseIncludesCompositeGroupInfo(t *testing.
 	now := time.Now()
 	plans := []*dbent.SubscriptionPlan{
 		{
-			ID:            11,
-			GroupID:       7,
-			Name:          "All models",
-			Description:   "Composite access",
-			Price:         19.99,
-			Currency:      "CNY",
-			ValidityDays:  30,
-			ValidityUnit:  "days",
-			Features:      "OpenAI\nClaude\nGemini\nGrok",
-			ProductName:   "Sub2API",
-			ForSale:       true,
-			SoldOutAction: "disable_purchase",
-			SortOrder:     1,
-			CreatedAt:     now,
-			UpdatedAt:     now,
+			ID:                       11,
+			GroupID:                  7,
+			Name:                     "All models",
+			Description:              "Composite access",
+			Price:                    19.99,
+			Currency:                 "CNY",
+			ValidityDays:             30,
+			ValidityUnit:             "days",
+			Features:                 "OpenAI\nClaude\nGemini\nGrok",
+			ProductName:              "Sub2API",
+			ForSale:                  true,
+			SoldOutAction:            "disable_purchase",
+			AllowExistingUserRenewal: true,
+			RenewalGraceDays:         5,
+			SortOrder:                1,
+			CreatedAt:                now,
+			UpdatedAt:                now,
 		},
 	}
 	groupInfo := map[int64]service.PlanGroupInfo{
@@ -104,6 +106,9 @@ func TestAdminSubscriptionPlansForResponseIncludesCompositeGroupInfo(t *testing.
 	}
 	if got[0].SoldOutAction != "disable_purchase" {
 		t.Fatalf("expected sold_out_action to be preserved, got %q", got[0].SoldOutAction)
+	}
+	if !got[0].AllowExistingUserRenewal || got[0].RenewalGraceDays != 5 {
+		t.Fatalf("expected renewal policy to be preserved, got enabled:%v grace:%d", got[0].AllowExistingUserRenewal, got[0].RenewalGraceDays)
 	}
 	if !got[0].CreatedAt.Equal(now) || !got[0].UpdatedAt.Equal(now) {
 		t.Fatalf("expected created_at/updated_at to be preserved, got %v / %v", got[0].CreatedAt, got[0].UpdatedAt)
