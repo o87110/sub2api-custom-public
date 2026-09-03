@@ -259,8 +259,10 @@ func FilterPlansForUser(
 				break
 			}
 		}
-		if !public && !(renewal && plan.AllowExistingUserRenewal) {
-			continue
+		if !public {
+			if !renewal || !plan.AllowExistingUserRenewal {
+				continue
+			}
 		}
 		result = append(result, PlanForUser{Plan: plan, RenewalAvailable: renewal})
 	}
