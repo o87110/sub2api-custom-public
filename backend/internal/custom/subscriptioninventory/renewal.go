@@ -232,8 +232,11 @@ func SplitPlansForUser(plans []PlanForUser) ([]*dbent.SubscriptionPlan, map[int6
 	return result, renewalAvailable
 }
 
-// FilterPlansForUser returns normal sale plans plus unavailable plans from
-// groups for which the current user has an eligible existing subscription.
+// FilterPlansForUser returns normal sale plans and every sold-out plan. Sold-out
+// plans remain visible so users can understand the catalog, but only an
+// eligible user may select one when the plan's renewal policy is enabled.
+// Other unavailable (manually delisted, non-sold-out) plans remain restricted
+// to eligible renewals.
 func FilterPlansForUser(
 	plans []*dbent.SubscriptionPlan,
 	renewalSubscriptions map[int64][]ExistingSubscriptionSnapshot,
@@ -245,7 +248,7 @@ func FilterPlansForUser(
 			continue
 		}
 		public := IsPlanPubliclyPurchasable(plan)
-		renewal := false
+		eligible := false
 		for i := range renewalSubscriptions[plan.GroupID] {
 			if public {
 				break
@@ -255,16 +258,20 @@ func FilterPlansForUser(
 				&renewalSubscriptions[plan.GroupID][i],
 				now,
 			) {
-				renewal = true
+				eligible = true
 				break
 			}
 		}
+		renewalAvailable := plan.AllowExistingUserRenewal && eligible
 		if !public {
-			if !renewal || !plan.AllowExistingUserRenewal {
+			// Sold-out visibility is independent from purchase/renewal
+			// authorization. A sold-out card is rendered disabled unless the
+			// derived renewal capability is true.
+			if !IsSoldOut(plan) && !renewalAvailable {
 				continue
 			}
 		}
-		result = append(result, PlanForUser{Plan: plan, RenewalAvailable: renewal})
+		result = append(result, PlanForUser{Plan: plan, RenewalAvailable: renewalAvailable})
 	}
 	return result
 }

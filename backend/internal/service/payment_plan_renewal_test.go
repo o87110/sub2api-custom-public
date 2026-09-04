@@ -36,7 +36,7 @@ func (r *renewalPolicyUserSubRepo) GetByUserIDAndGroupID(_ context.Context, user
 	return nil, ErrSubscriptionNotFound
 }
 
-func TestListPlansForUserIncludesRenewalOnlyPlansForEligibleUser(t *testing.T) {
+func TestListPlansForUserShowsSoldOutPlansAndMarksRenewalCapability(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
 	public, err := client.SubscriptionPlan.Create().
@@ -66,9 +66,11 @@ func TestListPlansForUserIncludesRenewalOnlyPlansForEligibleUser(t *testing.T) {
 
 	plans, renewalAvailable, err = svc.ListPlansForUser(ctx, 8)
 	require.NoError(t, err)
-	require.Len(t, plans, 1)
+	require.Len(t, plans, 2)
 	require.Equal(t, public.ID, plans[0].ID)
+	require.Equal(t, renewalOnly.ID, plans[1].ID)
 	require.False(t, renewalAvailable[public.ID])
+	require.False(t, renewalAvailable[renewalOnly.ID])
 }
 
 func TestValidateSubOrderAllowsEligibleRenewalButRejectsOutOfGraceUser(t *testing.T) {
