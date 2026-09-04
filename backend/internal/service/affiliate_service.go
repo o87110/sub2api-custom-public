@@ -228,6 +228,16 @@ func (s *AffiliateService) IsEnabled(ctx context.Context) bool {
 	return s.settingService.IsAffiliateEnabled(ctx)
 }
 
+// IsSubscriptionRebateEnabled reports whether paid subscription orders should
+// participate in affiliate rebates. A missing setting service keeps the
+// legacy enabled behavior for callers that construct the service in isolation.
+func (s *AffiliateService) IsSubscriptionRebateEnabled(ctx context.Context) bool {
+	if s == nil || s.settingService == nil {
+		return SubscriptionRebateEnabledDefault
+	}
+	return s.settingService.IsAffiliateSubscriptionRebateEnabled(ctx)
+}
+
 func (s *AffiliateService) EnsureUserAffiliate(ctx context.Context, userID int64) (*AffiliateSummary, error) {
 	if userID <= 0 {
 		return nil, infraerrors.BadRequest("INVALID_USER", "invalid user")
@@ -313,6 +323,25 @@ func (s *AffiliateService) BindInviterByCode(ctx context.Context, userID int64, 
 
 func (s *AffiliateService) AccrueInviteRebate(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64) (float64, error) {
 	return s.AccrueInviteRebateForOrder(ctx, inviteeUserID, baseRechargeAmount, nil)
+}
+
+// AccrueInviteRebateForPaymentOrder applies the payment-order-specific
+// subscription gate while preserving the existing generic accrual path.
+// The skip reason is returned for payment audit records when no rebate is
+// accrued.
+func (s *AffiliateService) AccrueInviteRebateForPaymentOrder(ctx context.Context, inviteeUserID int64, baseAmount float64, isSubscriptionOrder bool, sourceOrderID *int64) (float64, string, error) {
+	if isSubscriptionOrder && !s.IsSubscriptionRebateEnabled(ctx) {
+		return 0, "subscription_rebate_disabled", nil
+	}
+
+	rebate, err := s.AccrueInviteRebateForOrder(ctx, inviteeUserID, baseAmount, sourceOrderID)
+	if err != nil {
+		return 0, "", err
+	}
+	if rebate <= 0 {
+		return 0, "no inviter bound or rebate amount <= 0", nil
+	}
+	return rebate, "", nil
 }
 
 func (s *AffiliateService) AccrueInviteRebateForOrder(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64, sourceOrderID *int64) (float64, error) {

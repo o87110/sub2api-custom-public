@@ -467,6 +467,8 @@ jobs:
           protected_pattern="${protected_pattern}|^frontend/src/components/common/__tests__/DataTable\.spec\.ts$"
           protected_pattern="${protected_pattern}|^backend/internal/service/content_moderation_runtime_cache_test\.go$"
           protected_pattern="${protected_pattern}|^frontend/src/components/account/__tests__/CreateAccountModal\.grok\.spec\.ts$"
+          protected_pattern="${protected_pattern}|^backend/internal/handler/admin/setting_handler_(audit|partial_payload_test)\.go$"
+          protected_pattern="${protected_pattern}|^backend/internal/service/(affiliate_service|affiliate_subscription_rebate_test|domain_constants|setting_(features|parse|service_update_test|update)|settings_view)\.go$"
           group_model_access_protected_pattern='^(backend/internal/handler/(group_model_access_test|image_task_handler_test|no_account_error_test)\.go|backend/internal/server/routes/composite_platform_test\.go|backend/internal/service/(admin_service_composite_group_test|api_key_auth_cache_(profit|version)_test|gateway_model_availability_test|group_model_access_test|openai_images_test|openai_live_test)\.go|backend/internal/repository/(auth_cache_invalidation_profit_integration_test|group_usage_rollup_trigger_integration_test)\.go|backend/migrations/group_model_blocklist_auth_cache_invalidation_migration_test\.go|frontend/src/views/admin/__tests__/groupsModelsList\.spec\.ts)$'
           protected_pattern="${protected_pattern}|${group_model_access_protected_pattern}"
           protected_pattern="${protected_pattern}|^backend/internal/payment/provider/easypay_refund_test\.go$"
@@ -474,6 +476,11 @@ jobs:
           protected_pattern="${protected_pattern}|^backend/internal/handler/payment_webhook_handler_test\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/service/payment_order_provider_snapshot_test\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/service/payment_config_providers_test\.go$"
+          protected_pattern="${protected_pattern}|^backend/internal/handler/payment_plan_renewal_test\.go$"
+          protected_pattern="${protected_pattern}|^backend/internal/service/payment_plan_renewal(_test)?\.go$"
+          protected_pattern="${protected_pattern}|^backend/internal/service/payment_order_provider_snapshot_test\.go$"
+          protected_pattern="${protected_pattern}|^backend/migrations/(232_subscription_plan_renewal_policy\.sql|subscription_plan_renewal_policy_migration_test\.go)$"
+          protected_pattern="${protected_pattern}|^frontend/src/views/user/__tests__/SubscriptionsView\.spec\.ts$"
           grep -E "$protected_pattern" /tmp/overlap-files.txt > /tmp/protected-overlap.txt || true
           cat /tmp/protected-overlap.txt /tmp/shadowed-source-changes.txt |
             sort -u > /tmp/protected-review-files.txt

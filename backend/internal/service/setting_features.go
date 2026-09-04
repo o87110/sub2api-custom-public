@@ -98,6 +98,17 @@ func (s *SettingService) IsAffiliateAdminRechargeEnabled(ctx context.Context) bo
 	return value == "true"
 }
 
+// IsAffiliateSubscriptionRebateEnabled reports whether paid subscription
+// orders should participate in the affiliate rebate program. Missing or
+// unreadable values default to enabled to preserve the legacy behavior.
+func (s *SettingService) IsAffiliateSubscriptionRebateEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyAffiliateSubscriptionRebateEnabled)
+	if err != nil {
+		return SubscriptionRebateEnabledDefault
+	}
+	return !isFalseSettingValue(value)
+}
+
 // GetAffiliateRebateRatePercent 读取并 clamp 全局返利比例。
 // 解析失败、缺失或越界都回退到 AffiliateRebateRateDefault — 该比例从不抛错，
 // 调用方只关心一个可用的数值。

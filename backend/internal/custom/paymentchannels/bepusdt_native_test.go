@@ -46,6 +46,26 @@ func TestProviderCatalogBuildsBepusdtNetworkOptions(t *testing.T) {
 	}
 }
 
+func TestProviderCatalogUnionsBepusdtNetworkOptionsAcrossInstances(t *testing.T) {
+	options := (ProviderCatalog{}).BuildOptions([]ProviderRecord{
+		{ID: 1, ProviderKey: ProviderEasyPay, SupportedTypes: BepusdtPaymentType, Config: map[string]string{
+			EasyPayProtocolConfigKey: EasyPayProtocolBepusdt, BepusdtNetworksConfigKey: "bep20",
+		}},
+		{ID: 2, ProviderKey: ProviderEasyPay, SupportedTypes: BepusdtPaymentType, Config: map[string]string{
+			EasyPayProtocolConfigKey: EasyPayProtocolBepusdt, BepusdtNetworksConfigKey: "trc20",
+		}},
+	}, 0, nil, false)
+	if len(options) != 1 {
+		t.Fatalf("options = %+v", options)
+	}
+	if got := options[0].NetworkOptions; len(got) != 2 || got[0].Code != "bep20" || got[1].Code != "trc20" {
+		t.Fatalf("network options = %+v, want BEP20 and TRC20", got)
+	}
+	if !options[0].Available {
+		t.Fatal("channel should remain available when different instances cover different networks")
+	}
+}
+
 func TestInstanceCoordinatorFiltersBepusdtNetwork(t *testing.T) {
 	loader := &stubInstanceLoader{records: []InstanceRecord{
 		{ID: 1, ProviderKey: ProviderEasyPay, SupportedTypes: BepusdtPaymentType, Config: map[string]string{

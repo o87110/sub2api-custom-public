@@ -179,12 +179,9 @@ func (e *EasyPay) createBepusdtPayment(ctx context.Context, req payment.CreatePa
 	if timeout < 120 {
 		timeout = 1800
 	}
-	notifyURL := strings.TrimSpace(req.NotifyURL)
-	if notifyURL == "" {
-		notifyURL = strings.TrimSpace(e.config["notifyUrl"])
-	}
+	notifyURL, returnURL := e.resolveURLs(req)
 	response, err := client.CreateTransaction(ctx, paymentchannels.BepusdtCreateRequest{
-		OrderID: req.OrderID, NotifyURL: notifyURL, RedirectURL: req.ReturnURL,
+		OrderID: req.OrderID, NotifyURL: notifyURL, RedirectURL: returnURL,
 		Amount: amount, Fiat: paymentchannels.BepusdtFiat, TradeType: network.UpstreamType,
 		Name: req.Subject, Timeout: timeout,
 	})

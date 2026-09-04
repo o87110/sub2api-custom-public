@@ -238,17 +238,10 @@ func aggregateNetworkOptions(instances []Instance) []NetworkOption {
 		return nil
 	}
 	allowed := make(map[string]NetworkOption)
-	for _, option := range instances[0].NetworkOptions {
-		allowed[option.Code] = option
-	}
-	for _, instance := range instances[1:] {
-		present := make(map[string]struct{}, len(instance.NetworkOptions))
+	for _, instance := range instances {
 		for _, option := range instance.NetworkOptions {
-			present[option.Code] = struct{}{}
-		}
-		for code := range allowed {
-			if _, ok := present[code]; !ok {
-				delete(allowed, code)
+			if _, exists := allowed[option.Code]; !exists {
+				allowed[option.Code] = option
 			}
 		}
 	}

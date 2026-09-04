@@ -47,6 +47,10 @@ type SubscriptionPlan struct {
 	InventoryAutoDelisted bool `json:"inventory_auto_delisted,omitempty"`
 	// SoldOutAction holds the value of the "sold_out_action" field.
 	SoldOutAction string `json:"sold_out_action,omitempty"`
+	// AllowExistingUserRenewal holds the value of the "allow_existing_user_renewal" field.
+	AllowExistingUserRenewal bool `json:"allow_existing_user_renewal,omitempty"`
+	// RenewalGraceDays holds the value of the "renewal_grace_days" field.
+	RenewalGraceDays int `json:"renewal_grace_days,omitempty"`
 	// SortOrder holds the value of the "sort_order" field.
 	SortOrder int `json:"sort_order,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -61,11 +65,11 @@ func (*SubscriptionPlan) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case subscriptionplan.FieldForSale, subscriptionplan.FieldAllowBulkQuotaReset, subscriptionplan.FieldInventoryAutoDelisted:
+		case subscriptionplan.FieldForSale, subscriptionplan.FieldAllowBulkQuotaReset, subscriptionplan.FieldInventoryAutoDelisted, subscriptionplan.FieldAllowExistingUserRenewal:
 			values[i] = new(sql.NullBool)
 		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice:
 			values[i] = new(sql.NullFloat64)
-		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldRemainingQuantity, subscriptionplan.FieldSortOrder:
+		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldRemainingQuantity, subscriptionplan.FieldRenewalGraceDays, subscriptionplan.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
 		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName, subscriptionplan.FieldSoldOutAction:
 			values[i] = new(sql.NullString)
@@ -184,6 +188,18 @@ func (_m *SubscriptionPlan) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.SoldOutAction = value.String
 			}
+		case subscriptionplan.FieldAllowExistingUserRenewal:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field allow_existing_user_renewal", values[i])
+			} else if value.Valid {
+				_m.AllowExistingUserRenewal = value.Bool
+			}
+		case subscriptionplan.FieldRenewalGraceDays:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field renewal_grace_days", values[i])
+			} else if value.Valid {
+				_m.RenewalGraceDays = int(value.Int64)
+			}
 		case subscriptionplan.FieldSortOrder:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field sort_order", values[i])
@@ -286,6 +302,12 @@ func (_m *SubscriptionPlan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("sold_out_action=")
 	builder.WriteString(_m.SoldOutAction)
+	builder.WriteString(", ")
+	builder.WriteString("allow_existing_user_renewal=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AllowExistingUserRenewal))
+	builder.WriteString(", ")
+	builder.WriteString("renewal_grace_days=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RenewalGraceDays))
 	builder.WriteString(", ")
 	builder.WriteString("sort_order=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SortOrder))

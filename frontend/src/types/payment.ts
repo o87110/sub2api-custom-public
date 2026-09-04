@@ -164,6 +164,12 @@ export interface SubscriptionPlan {
   inventory_auto_delisted?: boolean
   sold_out_action?: import('@/custom/subscription-plan-inventory/inventory').SoldOutAction
   sold_out?: boolean
+	/** Admin configuration; omitted from public plan APIs. */
+	allow_existing_user_renewal?: boolean
+	/** Admin configuration; omitted from public plan APIs. */
+	renewal_grace_days?: number
+	/** User-scoped derived capability returned by public plan APIs. */
+	renewal_available?: boolean
   sort_order: number
 }
 

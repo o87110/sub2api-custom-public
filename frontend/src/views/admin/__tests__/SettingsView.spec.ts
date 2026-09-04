@@ -380,6 +380,13 @@ const baseSettingsResponse = {
   default_balance: 0,
   default_concurrency: 1,
   default_subscriptions: [],
+  affiliate_rebate_rate: 20,
+  affiliate_rebate_freeze_hours: 0,
+  affiliate_rebate_duration_days: 0,
+  affiliate_rebate_per_invitee_cap: 0,
+  affiliate_admin_recharge_enabled: false,
+  affiliate_subscription_rebate_enabled: true,
+  affiliate_enabled: false,
   site_name: "Sub2API",
   site_logo: "",
   site_subtitle: "",
@@ -1122,6 +1129,41 @@ describe("admin SettingsView payment visible method controls", () => {
       expect.objectContaining({
         affiliate_admin_recharge_enabled: true,
       }),
+    );
+  });
+
+  it("submits the subscription affiliate rebate setting", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      affiliate_enabled: true,
+      affiliate_subscription_rebate_enabled: false,
+    });
+
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        affiliate_subscription_rebate_enabled: false,
+      }),
+    );
+  });
+
+  it("hides the subscription affiliate rebate setting when affiliate is disabled", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      affiliate_enabled: false,
+    });
+
+    const wrapper = mountView();
+
+    await flushPromises();
+    expect(wrapper.text()).not.toContain(
+      "admin.settings.features.affiliate.subscriptionRebate",
     );
   });
 

@@ -322,6 +322,7 @@ done <<'EOF'
 backend/internal/handler/admin/channel_monitor_handler.go
 backend/internal/handler/admin/payment_handler.go
 backend/internal/handler/admin/setting_handler.go
+backend/internal/handler/admin/setting_handler_audit.go
 backend/internal/handler/admin/setting_handler_update.go
 backend/internal/handler/auth_wechat_oauth.go
 backend/internal/handler/channel_monitor_user_handler.go
@@ -334,6 +335,12 @@ backend/internal/service/channel_monitor_aggregator.go
 backend/internal/service/channel_monitor_const.go
 backend/internal/service/channel_monitor_service.go
 backend/internal/service/channel_monitor_types.go
+backend/internal/service/affiliate_service.go
+backend/internal/service/domain_constants.go
+backend/internal/service/setting_features.go
+backend/internal/service/setting_parse.go
+backend/internal/service/setting_update.go
+backend/internal/service/settings_view.go
 backend/internal/service/payment_config_limits.go
 backend/internal/service/payment_config_service.go
 backend/internal/service/payment_order.go

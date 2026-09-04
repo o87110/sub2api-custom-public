@@ -26,6 +26,12 @@ func TestEasyPayBepusdtNativeCreateQueryAndCancel(t *testing.T) {
 			if body["trade_type"] != "usdt.polygon" {
 				t.Errorf("trade_type = %v", body["trade_type"])
 			}
+			if body["notify_url"] != "https://sub.example/notify" {
+				t.Errorf("notify_url = %v", body["notify_url"])
+			}
+			if body["redirect_url"] != "https://sub.example/result" {
+				t.Errorf("redirect_url = %v", body["redirect_url"])
+			}
 			_, _ = w.Write([]byte(`{"status_code":200,"message":"success","data":{"trade_id":"native-trade","amount":"12.34","payment_url":"https://pay.example/native"}}`))
 		case "/api/v1/pay/info":
 			_, _ = w.Write([]byte(`{"status_code":200,"message":"success","data":{"trade_id":"native-trade","money":"12.34","status":2}}`))

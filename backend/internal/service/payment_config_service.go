@@ -168,39 +168,43 @@ type UpdateProviderInstanceRequest struct {
 	AllowUserRefund *bool             `json:"allow_user_refund"`
 }
 type CreatePlanRequest struct {
-	GroupID             int64    `json:"group_id"`
-	Name                string   `json:"name"`
-	Description         string   `json:"description"`
-	Price               float64  `json:"price"`
-	OriginalPrice       *float64 `json:"original_price"`
-	Currency            string   `json:"currency"`
-	ValidityDays        int      `json:"validity_days"`
-	ValidityUnit        string   `json:"validity_unit"`
-	Features            string   `json:"features"`
-	ProductName         string   `json:"product_name"`
-	ForSale             bool     `json:"for_sale"`
-	AllowBulkQuotaReset bool     `json:"allow_bulk_quota_reset"`
-	RemainingQuantity   *int     `json:"remaining_quantity"`
-	SoldOutAction       string   `json:"sold_out_action"`
-	SortOrder           int      `json:"sort_order"`
+	GroupID                  int64    `json:"group_id"`
+	Name                     string   `json:"name"`
+	Description              string   `json:"description"`
+	Price                    float64  `json:"price"`
+	OriginalPrice            *float64 `json:"original_price"`
+	Currency                 string   `json:"currency"`
+	ValidityDays             int      `json:"validity_days"`
+	ValidityUnit             string   `json:"validity_unit"`
+	Features                 string   `json:"features"`
+	ProductName              string   `json:"product_name"`
+	ForSale                  bool     `json:"for_sale"`
+	AllowBulkQuotaReset      bool     `json:"allow_bulk_quota_reset"`
+	RemainingQuantity        *int     `json:"remaining_quantity"`
+	SoldOutAction            string   `json:"sold_out_action"`
+	AllowExistingUserRenewal bool     `json:"allow_existing_user_renewal"`
+	RenewalGraceDays         int      `json:"renewal_grace_days"`
+	SortOrder                int      `json:"sort_order"`
 }
 
 type UpdatePlanRequest struct {
-	GroupID             *int64                                   `json:"group_id"`
-	Name                *string                                  `json:"name"`
-	Description         *string                                  `json:"description"`
-	Price               *float64                                 `json:"price"`
-	OriginalPrice       *float64                                 `json:"original_price"`
-	Currency            *string                                  `json:"currency"`
-	ValidityDays        *int                                     `json:"validity_days"`
-	ValidityUnit        *string                                  `json:"validity_unit"`
-	Features            *string                                  `json:"features"`
-	ProductName         *string                                  `json:"product_name"`
-	ForSale             *bool                                    `json:"for_sale"`
-	AllowBulkQuotaReset *bool                                    `json:"allow_bulk_quota_reset"`
-	RemainingQuantity   subscriptioninventory.QuantityPatch      `json:"remaining_quantity"`
-	SoldOutAction       subscriptioninventory.SoldOutActionPatch `json:"sold_out_action"`
-	SortOrder           *int                                     `json:"sort_order"`
+	GroupID                  *int64                                   `json:"group_id"`
+	Name                     *string                                  `json:"name"`
+	Description              *string                                  `json:"description"`
+	Price                    *float64                                 `json:"price"`
+	OriginalPrice            *float64                                 `json:"original_price"`
+	Currency                 *string                                  `json:"currency"`
+	ValidityDays             *int                                     `json:"validity_days"`
+	ValidityUnit             *string                                  `json:"validity_unit"`
+	Features                 *string                                  `json:"features"`
+	ProductName              *string                                  `json:"product_name"`
+	ForSale                  *bool                                    `json:"for_sale"`
+	AllowBulkQuotaReset      *bool                                    `json:"allow_bulk_quota_reset"`
+	RemainingQuantity        subscriptioninventory.QuantityPatch      `json:"remaining_quantity"`
+	SoldOutAction            subscriptioninventory.SoldOutActionPatch `json:"sold_out_action"`
+	AllowExistingUserRenewal *bool                                    `json:"allow_existing_user_renewal"`
+	RenewalGraceDays         *int                                     `json:"renewal_grace_days"`
+	SortOrder                *int                                     `json:"sort_order"`
 }
 
 // PaymentConfigService manages payment configuration and CRUD for

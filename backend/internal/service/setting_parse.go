@@ -207,8 +207,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyPluginManagementEnabled: "false",
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
-		SettingKeyAffiliateEnabled:              "false",
-		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
+		SettingKeyAffiliateEnabled:                   "false",
+		SettingKeyAffiliateAdminRechargeEnabled:      strconv.FormatBool(AdminRechargeRebateEnabledDefault),
+		SettingKeyAffiliateSubscriptionRebateEnabled: strconv.FormatBool(SubscriptionRebateEnabledDefault),
 
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
@@ -414,6 +415,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.AffiliateRebatePerInviteeCap = perInviteeCap
 	}
 	result.AdminRechargeRebateEnabled = settings[SettingKeyAffiliateAdminRechargeEnabled] == "true"
+	result.SubscriptionRebateEnabled = !isFalseSettingValue(settings[SettingKeyAffiliateSubscriptionRebateEnabled])
 	result.DefaultSubscriptions = parseDefaultSubscriptions(settings[SettingKeyDefaultSubscriptions])
 
 	// 敏感信息直接返回，方便测试连接时使用

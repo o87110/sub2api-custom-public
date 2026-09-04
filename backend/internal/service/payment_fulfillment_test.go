@@ -1034,9 +1034,10 @@ func TestExecuteSubscriptionFulfillmentAppliesAffiliateRebate(t *testing.T) {
 		},
 	}
 	settingSvc := NewSettingService(&paymentFulfillmentSettingRepoStub{values: map[string]string{
-		SettingKeyAffiliateEnabled:           "true",
-		SettingKeyAffiliateRebateRate:        "15",
-		SettingKeyAffiliateRebateFreezeHours: "0",
+		SettingKeyAffiliateEnabled:                   "true",
+		SettingKeyAffiliateRebateRate:                "15",
+		SettingKeyAffiliateRebateFreezeHours:         "0",
+		SettingKeyAffiliateSubscriptionRebateEnabled: "true",
 	}}, nil)
 	subRepo := newSubscriptionUserSubRepoStub()
 	subscriptionSvc := NewSubscriptionService(&subscriptionGroupRepoStub{
