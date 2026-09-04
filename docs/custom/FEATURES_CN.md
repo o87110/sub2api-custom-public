@@ -254,8 +254,16 @@ frontend/src/views/user/KeysView.vue
   `airwallex` 不在本次禁止范围内；
 - 同一旧版支付方式的多个 EasyPay 实例仅在所有非空展示名一致时返回该名称，
   出现冲突时返回空名称；该规则与新版 `method_options` 一致；
-- EasyPay 的 USDT 方式仍是外部兼容服务的自定义类型映射，不提供原生 TRC20
-  钱包地址生成、交易哈希查询、区块确认或链上到账监听；
+- EasyPay 保留旧 Rainbow 自定义类型映射兼容；新增 `bepusdt_native` 协议后，USDT
+  使用 BEpusdt 原生 `/api/v1/order/create-transaction`，支持 `usdt.trc20`、
+  `usdt.bep20`、`usdt.polygon`、`usdt.plasma` 四种固定交易类型；
+- native USDT 在用户确认网络后才创建订单，货币固定为 USDT，默认网络为 BEP20，
+  未启用时回退到第一个已配置网络；桌面端打开 BEpusdt 收银台，移动端使用同窗口
+  跳转；
+- native 查询使用 `/api/v1/pay/info` 和 `payment_trade_no`，取消使用
+  `/api/v1/order/cancel-transaction`，不调用旧 `/api.php`、`/mapi.php`，且不提供退款；
+- BEpusdt 负责钱包地址生成、交易哈希查询、区块确认和链上到账监听，Sub2API 只负责
+  订单金额、签名、回调验签和最终履约；
 - 本功能不新增 Migration、Schema、实体字段或 SQL。
 
 主要实现：

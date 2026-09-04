@@ -263,6 +263,12 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
 - 旧 `methods` 接口、旧恢复快照、375px/桌面、亮色/暗色、键盘焦点、
   `aria-pressed` 和禁用状态均有回归；
 - 候选树数据库边界检查必须确认无 Migration、Schema、实体字段或 SQL 变化。
+- BEpusdt native 测试必须覆盖四种网络到完整 `trade_type` 的固定映射、BEP20 默认
+  选择、网络失效拒绝、JSON 签名、`create-transaction` 创建、`pay/info` 查询、
+  `cancel-transaction` 取消及 status `1/2/3` 回调；native 路径不得访问 `/api.php`
+  或 `/mapi.php`，不得启用退款；
+- 前端测试必须确认 USDT 弹窗只展示 USDT、取消不创建订单、确认后才发送
+  `payment_network`，桌面弹窗和移动端跳转均保存恢复快照；
 
 ## 10. 渠道监控分组名称与展示倍率
 

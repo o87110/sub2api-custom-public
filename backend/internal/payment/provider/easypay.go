@@ -48,11 +48,33 @@ type easyPayCustomMethod struct {
 }
 
 // NewEasyPay creates a new EasyPay provider.
-// config keys: pid, pkey, apiBase, notifyUrl, returnUrl, cid, cidAlipay, cidWxpay
+// Rainbow config keys: pid, pkey, apiBase, notifyUrl, returnUrl, cid, cidAlipay, cidWxpay.
+// BEpusdt native config keys: apiBase, apiToken, notifyUrl, returnUrl, easypayProtocol, bepusdtNetworks.
 func NewEasyPay(instanceID string, config map[string]string) (*EasyPay, error) {
-	for _, k := range []string{"pid", "pkey", "apiBase", "notifyUrl", "returnUrl"} {
-		if strings.TrimSpace(config[k]) == "" {
-			return nil, fmt.Errorf("easypay config missing required key: %s", k)
+	protocol, err := paymentchannels.NormalizeEasyPayProtocol(config[paymentchannels.EasyPayProtocolConfigKey])
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(config["apiBase"]) == "" {
+		return nil, fmt.Errorf("easypay config missing required key: apiBase")
+	}
+	if protocol == paymentchannels.EasyPayProtocolBepusdt {
+		if strings.TrimSpace(config[paymentchannels.EasyPayAPITokenConfigKey]) == "" {
+			return nil, fmt.Errorf("easypay config missing required key: apiToken")
+		}
+		for _, k := range []string{"notifyUrl", "returnUrl"} {
+			if strings.TrimSpace(config[k]) == "" {
+				return nil, fmt.Errorf("easypay config missing required key: %s", k)
+			}
+		}
+		if _, err := paymentchannels.ParseBepusdtNetworks(config[paymentchannels.BepusdtNetworksConfigKey]); err != nil {
+			return nil, err
+		}
+	} else {
+		for _, k := range []string{"pid", "pkey", "notifyUrl", "returnUrl"} {
+			if strings.TrimSpace(config[k]) == "" {
+				return nil, fmt.Errorf("easypay config missing required key: %s", k)
+			}
 		}
 	}
 	cfg := make(map[string]string, len(config))
@@ -60,6 +82,7 @@ func NewEasyPay(instanceID string, config map[string]string) (*EasyPay, error) {
 		cfg[k] = v
 	}
 	cfg["apiBase"] = normalizeEasyPayAPIBase(cfg["apiBase"])
+	cfg[paymentchannels.EasyPayProtocolConfigKey] = protocol
 	return &EasyPay{
 		instanceID: instanceID,
 		config:     cfg,
@@ -103,6 +126,9 @@ func (e *EasyPay) apiBase() string {
 func (e *EasyPay) Name() string        { return "EasyPay" }
 func (e *EasyPay) ProviderKey() string { return payment.TypeEasyPay }
 func (e *EasyPay) SupportedTypes() []payment.PaymentType {
+	if paymentchannels.IsBepusdtNativeConfig(e.config) {
+		return []payment.PaymentType{paymentchannels.BepusdtPaymentType}
+	}
 	types := []payment.PaymentType{payment.TypeAlipay, payment.TypeWxpay}
 	for _, method := range e.customMethods() {
 		if method.Type != "" {
@@ -124,6 +150,9 @@ func (e *EasyPay) MerchantIdentityMetadata() map[string]string {
 }
 
 func (e *EasyPay) CreatePayment(ctx context.Context, req payment.CreatePaymentRequest) (*payment.CreatePaymentResponse, error) {
+	if paymentchannels.IsBepusdtNativeConfig(e.config) {
+		return e.createBepusdtPayment(ctx, req)
+	}
 	// Payment mode determined by instance config, not payment type.
 	// "popup" → hosted page (submit.php); "qrcode"/default → API call (mapi.php).
 	mode := e.config["paymentMode"]
@@ -131,6 +160,35 @@ func (e *EasyPay) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 		return e.createRedirectPayment(req)
 	}
 	return e.createAPIPayment(ctx, req)
+}
+
+func (e *EasyPay) createBepusdtPayment(ctx context.Context, req payment.CreatePaymentRequest) (*payment.CreatePaymentResponse, error) {
+	if err := paymentchannels.ValidateBepusdtPaymentNetwork(e.config, req.PaymentType, req.PaymentNetwork); err != nil {
+		return nil, err
+	}
+	amount, err := strconv.ParseFloat(strings.TrimSpace(req.Amount), 64)
+	if err != nil || amount <= 0 {
+		return nil, fmt.Errorf("invalid BEpusdt payment amount")
+	}
+	client, err := paymentchannels.NewBepusdtClient(e.apiBase(), e.config[paymentchannels.EasyPayAPITokenConfigKey])
+	if err != nil {
+		return nil, err
+	}
+	network, _ := paymentchannels.BepusdtNetworkByCode(req.PaymentNetwork)
+	timeout := req.TimeoutSeconds
+	if timeout < 120 {
+		timeout = 1800
+	}
+	notifyURL, returnURL := e.resolveURLs(req)
+	response, err := client.CreateTransaction(ctx, paymentchannels.BepusdtCreateRequest{
+		OrderID: req.OrderID, NotifyURL: notifyURL, RedirectURL: returnURL,
+		Amount: amount, Fiat: paymentchannels.BepusdtFiat, TradeType: network.UpstreamType,
+		Name: req.Subject, Timeout: timeout,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("bepusdt create: %w", err)
+	}
+	return &payment.CreatePaymentResponse{TradeNo: response.TradeID, PayURL: response.PayURL}, nil
 }
 
 // createRedirectPayment builds a submit.php URL for browser redirect.
@@ -302,6 +360,28 @@ func (e *EasyPay) upstreamPaymentType(paymentType string) string {
 }
 
 func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.QueryOrderResponse, error) {
+	if paymentchannels.IsBepusdtNativeConfig(e.config) {
+		client, err := paymentchannels.NewBepusdtClient(e.apiBase(), e.config[paymentchannels.EasyPayAPITokenConfigKey])
+		if err != nil {
+			return nil, err
+		}
+		response, err := client.Info(ctx, tradeNo)
+		if err != nil {
+			return nil, fmt.Errorf("bepusdt query: %w", err)
+		}
+		var status string
+		switch response.Status {
+		case 2:
+			status = payment.ProviderStatusPaid
+		case 3, 4, 6:
+			status = payment.ProviderStatusFailed
+		case 1, 5:
+			status = payment.ProviderStatusPending
+		default:
+			return nil, fmt.Errorf("bepusdt query returned unsupported status")
+		}
+		return &payment.QueryOrderResponse{TradeNo: response.TradeID, Status: status, Amount: response.Money}, nil
+	}
 	params := map[string]string{
 		"act": "order", "pid": e.config["pid"],
 		"key": e.config["pkey"], "out_trade_no": tradeNo,
@@ -370,6 +450,22 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 }
 
 func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[string]string) (*payment.PaymentNotification, error) {
+	if paymentchannels.IsBepusdtNativeConfig(e.config) {
+		notification, err := paymentchannels.ParseBepusdtNotification(rawBody, e.config[paymentchannels.EasyPayAPITokenConfigKey])
+		if err != nil {
+			return nil, err
+		}
+		status := payment.ProviderStatusFailed
+		if notification.Status == 2 {
+			status = payment.ProviderStatusSuccess
+		}
+		return &payment.PaymentNotification{
+			TradeNo: notification.TradeID, OrderID: notification.OrderID,
+			Amount: notification.Amount, Status: status,
+			RawData:  rawBody,
+			Metadata: map[string]string{"protocol": paymentchannels.EasyPayProtocolBepusdt},
+		}, nil
+	}
 	values, err := url.ParseQuery(rawBody)
 	if err != nil {
 		return nil, fmt.Errorf("parse notify: %w", err)
@@ -406,6 +502,9 @@ func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[st
 }
 
 func (e *EasyPay) Refund(ctx context.Context, req payment.RefundRequest) (*payment.RefundResponse, error) {
+	if paymentchannels.IsBepusdtNativeConfig(e.config) {
+		return nil, fmt.Errorf("bepusdt native mode does not support refunds")
+	}
 	attempts := e.refundAttempts(req)
 	if len(attempts) == 0 {
 		return nil, fmt.Errorf("easypay refund missing order identifier")
@@ -428,6 +527,17 @@ func (e *EasyPay) Refund(ctx context.Context, req payment.RefundRequest) (*payme
 		return &payment.RefundResponse{RefundID: attempt.refundID, Status: payment.ProviderStatusSuccess}, nil
 	}
 	return nil, firstErr
+}
+
+func (e *EasyPay) CancelPayment(ctx context.Context, tradeNo string) error {
+	if !paymentchannels.IsBepusdtNativeConfig(e.config) {
+		return nil
+	}
+	client, err := paymentchannels.NewBepusdtClient(e.apiBase(), e.config[paymentchannels.EasyPayAPITokenConfigKey])
+	if err != nil {
+		return err
+	}
+	return client.Cancel(ctx, tradeNo)
 }
 
 type easyPayRefundAttempt struct {

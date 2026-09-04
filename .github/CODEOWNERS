@@ -90,6 +90,11 @@
 /backend/internal/payment/load_balancer.go @o87110
 /backend/internal/payment/provider/easypay.go @o87110
 /backend/internal/payment/provider/easypay_refund_test.go @o87110
+/backend/internal/payment/provider/easypay_bepusdt_test.go @o87110
+/backend/internal/handler/payment_webhook_handler.go @o87110
+/backend/internal/handler/payment_webhook_handler_test.go @o87110
+/backend/internal/service/payment_order_provider_snapshot.go @o87110
+/backend/internal/service/payment_order_provider_snapshot_test.go @o87110
 /backend/internal/payment/types.go @o87110
 /frontend/src/api/__tests__/admin.affiliates.reversal.spec.ts @o87110
 /frontend/src/components/common/__tests__/DataTable.spec.ts @o87110

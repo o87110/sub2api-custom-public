@@ -112,6 +112,8 @@ type CreatePaymentRequest struct {
 	// alipay.trade.precreate instead of alipay.trade.wap.pay.
 	AlipayMobilePrecreate bool
 	InstanceSubMethods    string // Comma-separated sub-methods from instance supported_types (for Stripe)
+	PaymentNetwork        string // Fixed network code for BEpusdt native USDT
+	TimeoutSeconds        int64  // Requested upstream timeout in seconds
 }
 
 // CreatePaymentResultType describes the shape of the create-payment result.

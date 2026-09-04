@@ -70,6 +70,10 @@ export interface PaymentMethodOption {
   }>
   available: boolean
   capabilities?: string[]
+  network_options?: Array<{
+    code: string
+    display_name: string
+  }>
 }
 
 /** Response from /payment/limits API */
@@ -210,6 +214,7 @@ export interface CreateOrderRequest {
   openid?: string
   wechat_resume_token?: string
   is_mobile?: boolean
+  payment_network?: string
 }
 
 export type CreateOrderResultType = 'order_created' | 'oauth_required' | 'jsapi_ready'
@@ -250,6 +255,7 @@ export interface CreateOrderResult {
   provider_key?: string
   out_trade_no?: string
   payment_mode?: string
+  payment_network?: string
   resume_token?: string
   alipay_mobile_precreate_deep_link?: boolean
   oauth?: WechatOAuthInfo

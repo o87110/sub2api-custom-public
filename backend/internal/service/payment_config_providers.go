@@ -112,7 +112,7 @@ var pendingOrderStatuses = []string{
 // Key matching is case-insensitive. Non-listed keys (e.g. appId, notifyUrl,
 // stripe publishableKey) are returned in plaintext by the admin GET API.
 var providerSensitiveConfigFields = map[string]map[string]struct{}{
-	payment.TypeEasyPay:   {"pkey": {}},
+	payment.TypeEasyPay:   {"pkey": {}, "apitoken": {}},
 	payment.TypeAlipay:    {"privatekey": {}, "publickey": {}, "alipaypublickey": {}},
 	payment.TypeWxpay:     {"privatekey": {}, "apiv3key": {}, "publickey": {}},
 	payment.TypeStripe:    {"secretkey": {}, "webhooksecret": {}},
@@ -124,7 +124,7 @@ var providerSensitiveConfigFields = map[string]map[string]struct{}{
 // all provider identity fields that are snapshotted into orders or used by
 // webhook/refund verification.
 var providerPendingOrderProtectedConfigFields = map[string]map[string]struct{}{
-	payment.TypeEasyPay:   {"pkey": {}, "pid": {}},
+	payment.TypeEasyPay:   {"pkey": {}, "pid": {}, "apitoken": {}, "apibase": {}, "easypayprotocol": {}, "bepusdtnetworks": {}},
 	payment.TypeAlipay:    {"privatekey": {}, "publickey": {}, "alipaypublickey": {}, "appid": {}},
 	payment.TypeWxpay:     {"privatekey": {}, "apiv3key": {}, "publickey": {}, "appid": {}, "mpappid": {}, "mchid": {}, "publickeyid": {}, "certserial": {}},
 	payment.TypeStripe:    {"secretkey": {}, "webhooksecret": {}, "currency": {}},
@@ -191,6 +191,9 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 		if err := validateEasyPayCustomMethods(req.Config, typesStr); err != nil {
 			return nil, err
 		}
+		if err := validateEasyPayNativeInstance(req.Config, typesStr, req.PaymentMode, req.RefundEnabled); err != nil {
+			return nil, err
+		}
 	}
 	if err := s.validateVisibleMethodEnablementConflicts(ctx, 0, req.ProviderKey, typesStr, req.Enabled); err != nil {
 		return nil, err
@@ -236,6 +239,14 @@ func validateEasyPayCustomMethods(config map[string]string, supportedTypes strin
 	if config == nil {
 		config = map[string]string{}
 	}
+	protocol, err := paymentchannels.NormalizeEasyPayProtocol(config[paymentchannels.EasyPayProtocolConfigKey])
+	if err != nil {
+		return infraerrors.BadRequest("VALIDATION_ERROR", err.Error())
+	}
+	isNative := protocol == paymentchannels.EasyPayProtocolBepusdt
+	if isNative && strings.TrimSpace(config["customMethods"]) != "" {
+		return infraerrors.BadRequest("VALIDATION_ERROR", "BEpusdt native mode does not accept customMethods")
+	}
 	raw := strings.TrimSpace(config["customMethods"])
 	methods := make([]easyPayCustomMethodConfig, 0)
 	if raw != "" {
@@ -272,6 +283,9 @@ func validateEasyPayCustomMethods(config map[string]string, supportedTypes strin
 	for _, supportedType := range splitTypes(supportedTypes) {
 		supportedType = strings.TrimSpace(supportedType)
 		if supportedType == "" || supportedType == payment.TypeAlipay || supportedType == payment.TypeWxpay {
+			continue
+		}
+		if isNative && strings.EqualFold(supportedType, paymentchannels.BepusdtPaymentType) {
 			continue
 		}
 		if !easyPayCustomMethodCodePattern.MatchString(supportedType) {
@@ -355,6 +369,17 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 	}
 	if current.ProviderKey == payment.TypeEasyPay {
 		if err := validateEasyPayCustomMethods(configToValidate, nextSupportedTypes); err != nil {
+			return nil, err
+		}
+		nextPaymentMode := current.PaymentMode
+		if req.PaymentMode != nil {
+			nextPaymentMode = *req.PaymentMode
+		}
+		nextRefundEnabled := current.RefundEnabled
+		if req.RefundEnabled != nil {
+			nextRefundEnabled = *req.RefundEnabled
+		}
+		if err := validateEasyPayNativeInstance(configToValidate, nextSupportedTypes, nextPaymentMode, nextRefundEnabled); err != nil {
 			return nil, err
 		}
 	}
@@ -447,6 +472,13 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 		u.SetPaymentMode(*req.PaymentMode)
 	}
 	return u.Save(ctx)
+}
+
+func validateEasyPayNativeInstance(config map[string]string, supportedTypes, paymentMode string, refundEnabled bool) error {
+	if err := paymentchannels.ValidateBepusdtProviderMode(config, supportedTypes, paymentMode, refundEnabled); err != nil {
+		return infraerrors.BadRequest("VALIDATION_ERROR", err.Error())
+	}
+	return nil
 }
 
 // GetUserRefundEligibleInstanceIDs returns provider instance IDs that allow user refund.

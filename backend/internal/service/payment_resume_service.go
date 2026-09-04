@@ -204,6 +204,27 @@ func (lb *visibleMethodLoadBalancer) SelectInstance(ctx context.Context, provide
 	return lb.inner.SelectInstance(ctx, inst.ProviderKey, paymentType, strategy, orderAmount)
 }
 
+func (lb *visibleMethodLoadBalancer) SelectInstanceForNetwork(ctx context.Context, providerKey string, paymentType payment.PaymentType, strategy payment.Strategy, orderAmount float64, network string) (*payment.InstanceSelection, error) {
+	visibleMethod := NormalizeVisibleMethod(paymentType)
+	if providerKey != "" || (visibleMethod != payment.TypeAlipay && visibleMethod != payment.TypeWxpay) {
+		if networkAware, ok := lb.inner.(payment.NetworkAwareLoadBalancer); ok {
+			return networkAware.SelectInstanceForNetwork(ctx, providerKey, paymentType, strategy, orderAmount, network)
+		}
+		return lb.inner.SelectInstance(ctx, providerKey, paymentType, strategy, orderAmount)
+	}
+	inst, err := lb.configService.resolveEnabledVisibleMethodInstance(ctx, visibleMethod)
+	if err != nil {
+		return nil, err
+	}
+	if inst == nil {
+		return nil, fmt.Errorf("visible payment method %s has no enabled provider instance", visibleMethod)
+	}
+	if networkAware, ok := lb.inner.(payment.NetworkAwareLoadBalancer); ok {
+		return networkAware.SelectInstanceForNetwork(ctx, inst.ProviderKey, paymentType, strategy, orderAmount, network)
+	}
+	return lb.inner.SelectInstance(ctx, inst.ProviderKey, paymentType, strategy, orderAmount)
+}
+
 func visibleMethodEnabledSettingKey(method string) string {
 	switch NormalizeVisibleMethod(method) {
 	case payment.TypeAlipay:

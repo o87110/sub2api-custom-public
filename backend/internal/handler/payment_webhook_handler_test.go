@@ -187,6 +187,12 @@ func TestExtractOutTradeNo(t *testing.T) {
 	}
 }
 
+func TestExtractOutTradeNoSupportsBepusdtJSON(t *testing.T) {
+	if got := extractOutTradeNo(`{"trade_id":"trade-1","order_id":"sub2_order-1","status":2}`, payment.TypeEasyPay); got != "sub2_order-1" {
+		t.Fatalf("extractOutTradeNo() = %q, want sub2_order-1", got)
+	}
+}
+
 func TestVerifyNotificationWithProvidersReturnsMatchedProvider(t *testing.T) {
 	firstErr := errors.New("wrong provider")
 	providers := []payment.Provider{

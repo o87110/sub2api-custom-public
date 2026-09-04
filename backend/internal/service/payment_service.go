@@ -88,6 +88,7 @@ type CreateOrderRequest struct {
 	OrderType       string
 	PlanID          int64
 	Locale          string
+	PaymentNetwork  string
 }
 
 type CreateOrderResponse struct {
@@ -112,6 +113,7 @@ type CreateOrderResponse struct {
 	JSAPIPayload                  *payment.WechatJSAPIPayload     `json:"jsapi_payload,omitempty"`
 	ExpiresAt                     time.Time                       `json:"expires_at"`
 	PaymentMode                   string                          `json:"payment_mode,omitempty"`
+	PaymentNetwork                string                          `json:"payment_network,omitempty"`
 	ResumeToken                   string                          `json:"resume_token,omitempty"`
 	AlipayMobilePrecreateDeepLink bool                            `json:"alipay_mobile_precreate_deep_link,omitempty"`
 }

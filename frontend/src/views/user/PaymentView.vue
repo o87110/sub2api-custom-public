@@ -253,6 +253,12 @@
         </div>
       </Transition>
     </Teleport>
+    <BepusdtNetworkDialog
+      :show="showBepusdtNetworkDialog"
+      :networks="selectedChannel?.network_options || []"
+      @cancel="cancelBepusdtNetworkSelection"
+      @confirm="confirmBepusdtNetworkSelection"
+    />
   </AppLayout>
 </template>
 
@@ -288,6 +294,7 @@ import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { planValiditySuffix as validitySuffixOf } from '@/components/payment/validity'
 import PaymentChannelSelector from '@/custom/payment-channels/PaymentChannelSelector.vue'
+import BepusdtNetworkDialog from '@/custom/payment-channels/BepusdtNetworkDialog.vue'
 import {
   ALIPAY_MOBILE_PRECREATE_DEEP_LINK,
   findPaymentChannel,
@@ -351,6 +358,7 @@ interface CreateOrderOptions {
   paymentChannelId?: string
   isResume?: boolean
   mobileQrFallbackAttempted?: boolean
+  paymentNetwork?: string
 }
 
 interface WeixinJSBridgeLike {
@@ -380,6 +388,7 @@ function emptyPaymentState(): PaymentRecoverySnapshot {
     payAmount: 0,
     orderType: '',
     paymentMode: '',
+    paymentNetwork: '',
     resumeToken: '',
     alipayMobilePrecreateDeepLink: false,
     createdAt: 0,
@@ -625,7 +634,7 @@ function closeRenewalModal() {
 
 async function handleSubmitRecharge() {
   if (!canSubmit.value || submitting.value) return
-  await createOrder(validAmount.value, 'balance')
+  await beginOrder(validAmount.value, 'balance')
 }
 
 async function confirmSubscribe() {
@@ -634,7 +643,39 @@ async function confirmSubscribe() {
     appStore.showWarning(t('payment.soldOut'))
     return
   }
-  await createOrder(selectedPlan.value.price, 'subscription', selectedPlan.value.id)
+  await beginOrder(selectedPlan.value.price, 'subscription', selectedPlan.value.id)
+}
+
+const showBepusdtNetworkDialog = ref(false)
+const pendingBepusdtOrder = ref<{ amount: number; orderType: OrderType; planId?: number } | null>(null)
+
+function isBepusdtNativeChannel(channel = selectedChannel.value): boolean {
+  return channel?.payment_type === 'usdt'
+    && channel.provider_key === 'easypay'
+    && Array.isArray(channel.network_options)
+    && channel.network_options.length > 0
+}
+
+async function beginOrder(orderAmount: number, orderType: OrderType, planId?: number) {
+  if (isBepusdtNativeChannel()) {
+    pendingBepusdtOrder.value = { amount: orderAmount, orderType, planId }
+    showBepusdtNetworkDialog.value = true
+    return
+  }
+  await createOrder(orderAmount, orderType, planId)
+}
+
+function cancelBepusdtNetworkSelection() {
+  showBepusdtNetworkDialog.value = false
+  pendingBepusdtOrder.value = null
+}
+
+async function confirmBepusdtNetworkSelection(network: string) {
+  const pending = pendingBepusdtOrder.value
+  showBepusdtNetworkDialog.value = false
+  pendingBepusdtOrder.value = null
+  if (!pending) return
+  await createOrder(pending.amount, pending.orderType, pending.planId, { paymentNetwork: network })
 }
 
 async function createOrder(orderAmount: number, orderType: OrderType, planId?: number, options: CreateOrderOptions = {}) {
@@ -678,6 +719,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
       forceQRCode: !!(checkout.value.alipay_force_qrcode && normalizeVisibleMethod(requestType) === 'alipay'),
       mobilePrecreateDeepLink,
+      paymentNetwork: options.paymentNetwork,
     })
     if (options.openid) {
       payload.openid = options.openid

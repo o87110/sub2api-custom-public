@@ -307,6 +307,13 @@ export default {
       link: 'Link',
       alipay_direct: 'Alipay (Direct)',
       wxpay_direct: 'WeChat Pay (Direct)',
+      usdt: 'USDT',
+    },
+    bepusdt: {
+      networkDialogTitle: 'Choose USDT Payment Network',
+      currency: 'Payment Currency',
+      network: 'Payment Network',
+      noNetworks: 'No USDT networks are currently available',
     },
     channels: {
       easypayAlipay: 'EasyPay Alipay',
@@ -440,6 +447,7 @@ export default {
       NO_AVAILABLE_INSTANCE: 'No payment channel available right now.',
       PAYMENT_PROVIDER_MISCONFIGURED: 'Payment provider misconfigured. Please contact an administrator.',
       INVALID_PAYMENT_PROVIDER_SELECTION: 'The selected payment channel is invalid. Refresh the page and try again.',
+      INVALID_PAYMENT_NETWORK: 'The selected USDT network is unavailable. Refresh the page and try again.',
       WXPAY_CONFIG_MISSING_KEY: 'WeChat Pay config missing required key: {key}.',
       WXPAY_CONFIG_INVALID_KEY_LENGTH: 'WeChat Pay {key} length is invalid (expected {expected} bytes, got {actual}).',
       WXPAY_CONFIG_INVALID_KEY: 'WeChat Pay {key} is malformed. Make sure you copied the full PEM content.',

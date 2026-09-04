@@ -40,6 +40,13 @@ type LoadBalancer interface {
 	RevalidateSelection(ctx context.Context, selection *InstanceSelection, paymentType PaymentType, orderAmount float64) (bool, error)
 }
 
+// NetworkAwareLoadBalancer optionally filters provider instances by a
+// user-selected network. Existing load balancers may omit this interface for
+// legacy payment types.
+type NetworkAwareLoadBalancer interface {
+	SelectInstanceForNetwork(ctx context.Context, providerKey string, paymentType PaymentType, strategy Strategy, orderAmount float64, network string) (*InstanceSelection, error)
+}
+
 // DefaultLoadBalancer implements LoadBalancer using database queries.
 type DefaultLoadBalancer struct {
 	db              *dbent.Client
@@ -104,6 +111,39 @@ func (lb *DefaultLoadBalancer) SelectInstance(
 		Strategy:         string(strategy),
 		OrderAmount:      orderAmount,
 		WeChatJSAPIAppID: wxpayJSAPIAppIDFromContext(ctx),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.UsageLoadError != nil {
+		slog.Warn("batch daily usage query failed, treating all as zero", "error", result.UsageLoadError)
+	}
+	for _, rejection := range result.LimitRejections {
+		slog.Info("payment instance rejected by custom limit policy",
+			"instance_id", rejection.InstanceID,
+			"reason", rejection.Reason,
+			"used", rejection.DailyUsed,
+			"order", orderAmount,
+			"limit", rejection.Limit)
+	}
+	return paymentSelectionFromCustom(result.Selection), nil
+}
+
+func (lb *DefaultLoadBalancer) SelectInstanceForNetwork(
+	ctx context.Context,
+	providerKey string,
+	paymentType PaymentType,
+	strategy Strategy,
+	orderAmount float64,
+	network string,
+) (*InstanceSelection, error) {
+	result, err := lb.instanceCoordinator().Select(ctx, lb, paymentchannels.InstanceSelectionRequest{
+		ProviderKey:      providerKey,
+		PaymentType:      paymentType,
+		Strategy:         string(strategy),
+		OrderAmount:      orderAmount,
+		WeChatJSAPIAppID: wxpayJSAPIAppIDFromContext(ctx),
+		PaymentNetwork:   network,
 	})
 	if err != nil {
 		return nil, err

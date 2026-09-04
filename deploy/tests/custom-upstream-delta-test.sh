@@ -216,6 +216,7 @@ thin_bridge_allowed() {
       backend/internal/handler/openai_live.go | \
       backend/internal/handler/payment_handler_resume_test.go | \
       backend/internal/handler/payment_handler.go | \
+      backend/internal/handler/payment_webhook_handler.go | \
       backend/internal/handler/wire.go | \
       backend/internal/payment/load_balancer.go | \
       backend/internal/payment/types.go | \
