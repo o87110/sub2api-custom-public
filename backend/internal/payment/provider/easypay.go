@@ -369,7 +369,7 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 		if err != nil {
 			return nil, fmt.Errorf("bepusdt query: %w", err)
 		}
-		status := payment.ProviderStatusPending
+		var status string
 		switch response.Status {
 		case 2:
 			status = payment.ProviderStatusPaid

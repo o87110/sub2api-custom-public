@@ -348,16 +348,11 @@ func BepusdtSign(values map[string]any, token string) string {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	var builder strings.Builder
-	for index, key := range keys {
-		if index > 0 {
-			builder.WriteByte('&')
-		}
-		builder.WriteString(key)
-		builder.WriteByte('=')
-		builder.WriteString(fmt.Sprintf("%v", values[key]))
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, key+"="+fmt.Sprintf("%v", values[key]))
 	}
-	digest := md5.Sum([]byte(builder.String() + token))
+	digest := md5.Sum([]byte(strings.Join(parts, "&") + token))
 	return hex.EncodeToString(digest[:])
 }
 
