@@ -1973,8 +1973,10 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
     "backend/internal/handler/gemini_v1beta_handler.go": _approved_call_deltas(
         ("GeminiV1BetaListModels", {
             "apiKey.Group.CustomModelsListEnabled": 2,
+            "c.JSON": 1,
             "c.Data": 1,
             "c.Request.Context": 2,
+            "customGeminiModelsList": 1,
             "filterAndWriteModels": 3,
             "googleError": 3,
             "h.gatewayService.FilterGeminiModelsResponse": 2,
