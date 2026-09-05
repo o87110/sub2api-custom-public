@@ -1805,7 +1805,9 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
         "enforceGroupModelAccess",
         "withGroupModelAccessChannelMapping",
     }),
-    "backend/internal/handler/gemini_v1beta_handler.go": frozenset({}),
+    "backend/internal/handler/gemini_v1beta_handler.go": frozenset({
+        "customGeminiModelsList",
+    }),
     "backend/internal/handler/gateway_web_search.go": frozenset({}),
     "backend/internal/handler/image_task_handler.go": frozenset({
         "refreshGroupModelAccessBeforeRun",
