@@ -3463,7 +3463,10 @@ def validate_delegate_view_structure(
         line = lines[line_number - 1]
         block = containing_function(blocks, line_number)
         function_name = block.name if block else "<top-level>"
-        if DELEGATE_VIEW_CONTROL_FLOW_RE.search(line):
+        # Explicitly reviewed helpers restored from the official increment
+        # may contain their own control flow. The bridge contract still checks
+        # approved orchestration markers inside those helpers.
+        if function_name not in approved_new and DELEGATE_VIEW_CONTROL_FLOW_RE.search(line):
             actual_control[(function_name, line.strip())] += 1
         if ORCHESTRATION_RE.search(line):
             actual_orchestration[(function_name, line.strip())] += 1
