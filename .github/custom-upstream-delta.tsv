@@ -3,7 +3,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/audit-exceptions.yml	M	keep	M	fixed-path	6243f0fa7faa26a7c571955b1d5772e7dd4391cc	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	b455841d45afdb18e78db54024b6b3af04fe6894	-	-	database-boundary-unit+candidate-tree-test	登记返利聚合、流水、撤销 Ent 结构、缓存恢复只读查询、Migration 231 与准确候选数据库指纹
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	7da11328e4938ee6e327576cce6a08d9b18bb5cd	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记返利撤销 Handler、路由、余额前后快照 DTO、通用表格和管理页面官方薄桥精确预算及 EasyPay 薄桥
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	966c01a36d8a37dab9f73f1f2f8caa0b139763c3	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记返利撤销 Handler、路由、余额前后快照 DTO、通用表格和管理页面官方薄桥精确预算及 EasyPay 薄桥
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	38907c3d119bde7ce0f23a95140f6280724eb12f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	4f8feb472453fc6e7dea900dece141a45b283dda	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
