@@ -761,10 +761,11 @@ function handleSave() {
     }
     syncEasyPayCustomMethods()
   }
-  // Validate required config fields — all non-optional fields must be filled.
+  // Validate only fields visible for the selected protocol. Native BEpusdt
+  // intentionally hides Rainbow-only PID/PKey/CID fields.
   // In edit mode, sensitive fields may be left blank to preserve the stored
   // value (backend merges blanks by preserving the existing secret).
-  for (const f of PROVIDER_CONFIG_FIELDS[form.provider_key] || []) {
+  for (const f of resolvedFields.value) {
     if (f.optional) continue
     if (props.editing && f.sensitive) continue
     const val = (config[f.key] || '').trim()
@@ -826,6 +827,10 @@ function handleSave() {
 
 function syncEasyPayCustomMethods(): string[] {
   if (form.provider_key !== 'easypay') return []
+  if (isBepusdtNative.value) {
+    form.supported_types = ['usdt']
+    return []
+  }
   const baseTypes = new Set(PROVIDER_SUPPORTED_TYPES.easypay || [])
   const customTypes: string[] = []
   const seen = new Set<string>()
