@@ -51,7 +51,7 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 			googleError(c, http.StatusInternalServerError, "Failed to build models response")
 			return false
 		}
-		displayEnabled := apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled()
+		displayEnabled := forcePlatform != service.PlatformAntigravity && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled()
 		var displayModels []string
 		if apiKey.Group != nil {
 			displayModels = apiKey.Group.ModelsListConfig.Models
@@ -68,6 +68,11 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 	// 强制 antigravity 模式：返回 antigravity 支持的模型列表
 	if forcePlatform == service.PlatformAntigravity {
 		filterAndWriteModels(antigravity.FallbackGeminiModelsList(), service.PlatformAntigravity)
+		return
+	}
+
+	if models, ok := customGeminiModelsList(apiKey.Group); ok {
+		c.JSON(http.StatusOK, models)
 		return
 	}
 
@@ -108,6 +113,17 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		res.Body = filtered
 	}
 	writeUpstreamResponse(c, res)
+}
+
+func customGeminiModelsList(group *service.Group) (gemini.ModelsListResponse, bool) {
+	if group == nil || !group.CustomModelsListEnabled() {
+		return gemini.ModelsListResponse{}, false
+	}
+	models := make([]gemini.Model, 0, len(group.ModelsListConfig.Models))
+	for _, modelID := range group.ModelsListConfig.Models {
+		models = append(models, gemini.FallbackModel(modelID))
+	}
+	return gemini.ModelsListResponse{Models: models}, true
 }
 
 // GeminiV1BetaGetModel proxies:

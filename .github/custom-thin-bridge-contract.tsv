@@ -24,7 +24,7 @@ backend/internal/handler/gateway_handler_chat_completions.go	delegate	true	10	6	
 backend/internal/handler/gateway_handler_responses.go	delegate	true	6	0	-
 backend/internal/handler/gateway_helper.go	delegate	true	42	0	-
 backend/internal/handler/gateway_web_search.go	delegate	true	28	56	e803e3851c0a7e222cfadeafad7b8636ab959d11:28:56,073e92d17178a1ccdb0a27017f572f10c9c7ab62:28:56,e0c48a19ed794a565e3858662520afe0a1f9f0ba:28:56,75f88be5f75c27771836b586f7de1503afa0e3bc:28:56,e8cb019fabf8b55199436229044cbf9aa7a82564:28:56,e98ef32eb29aecd30d1def615912ec4dc93173f3:28:56,2ac784c51a5d0925b324efef2ba6b3446c364781:28:56,aa236488351eb71e120fc2b6fb32e36b0374c918:28:56
-backend/internal/handler/gemini_v1beta_handler.go	delegate	true	42	3	-
+backend/internal/handler/gemini_v1beta_handler.go	delegate	true	58	3	-
 backend/internal/handler/handler.go	dto	true	2	0	-
 backend/internal/handler/image_task_handler.go	delegate	true	34	0	-
 backend/internal/handler/no_account_error.go	delegate	true	16	10	75f88be5f75c27771836b586f7de1503afa0e3bc:16:10,e8cb019fabf8b55199436229044cbf9aa7a82564:16:10,e98ef32eb29aecd30d1def615912ec4dc93173f3:16:10,2ac784c51a5d0925b324efef2ba6b3446c364781:16:10
@@ -155,7 +155,7 @@ frontend/src/i18n/locales/zh/misc.ts	dto	true	50	0	-
 frontend/src/router/index.ts	wire	true	1	1	-
 frontend/src/types/index.ts	dto	false	15	0	-
 frontend/src/types/payment.ts	dto	true	41	0	-
-frontend/src/views/admin/GroupsView.vue	view	true	61	12	2ac784c51a5d0925b324efef2ba6b3446c364781:49:0
+frontend/src/views/admin/GroupsView.vue	view	true	67	16	2ac784c51a5d0925b324efef2ba6b3446c364781:49:0
 frontend/src/views/admin/SettingsView.vue	view	true	43	130	-
 frontend/src/views/admin/SubscriptionsView.vue	view	true	42	5	-
 frontend/src/views/admin/__tests__/SettingsView.spec.ts	compat-test	true	143	0	-
