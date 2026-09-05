@@ -562,8 +562,10 @@ jobs:
             exit 1
           fi
           git update-ref "refs/tags/${VENDOR_TAG}" "$official_commit"
-          /bin/bash deploy/tests/custom-upstream-delta-test.sh \
-            --candidate-tree "$candidate_tree"
+          CUSTOM_THIN_BRIDGE_CUSTOM_BASELINE="$custom_tree" \
+            CUSTOM_THIN_BRIDGE_EXPECTED_TREE="$expected_tree" \
+            /bin/bash deploy/tests/custom-upstream-delta-test.sh \
+              --candidate-tree "$candidate_tree"
           /bin/bash deploy/tests/custom-database-boundary-test.sh \
             --mode final \
             --candidate-tree "$candidate_tree"

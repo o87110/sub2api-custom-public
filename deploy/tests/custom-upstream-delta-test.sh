@@ -445,10 +445,25 @@ if ! command -v "$python_bin" >/dev/null 2>&1; then
   python_bin=python3
 fi
 command -v "$python_bin" >/dev/null 2>&1 || fail "python is required for thin bridge validation"
+thin_bridge_args=(
+  --repo-root "$repo_root"
+  --baseline "$CUSTOM_UPSTREAM_BASE_COMMIT"
+  --candidate-tree "$candidate_tree"
+)
+if [[ -n "${CUSTOM_THIN_BRIDGE_CUSTOM_BASELINE:-}" ]]; then
+  git -C "$repo_root" rev-parse --verify \
+    "${CUSTOM_THIN_BRIDGE_CUSTOM_BASELINE}^{commit}" >/dev/null ||
+    fail "custom thin bridge baseline does not resolve: ${CUSTOM_THIN_BRIDGE_CUSTOM_BASELINE}"
+  thin_bridge_args+=(--custom-baseline "$CUSTOM_THIN_BRIDGE_CUSTOM_BASELINE")
+fi
+if [[ -n "${CUSTOM_THIN_BRIDGE_EXPECTED_TREE:-}" ]]; then
+  git -C "$repo_root" cat-file -e \
+    "${CUSTOM_THIN_BRIDGE_EXPECTED_TREE}^{tree}" ||
+    fail "expected thin bridge merge tree does not exist: ${CUSTOM_THIN_BRIDGE_EXPECTED_TREE}"
+  thin_bridge_args+=(--expected-tree "$CUSTOM_THIN_BRIDGE_EXPECTED_TREE")
+fi
 "$python_bin" "$thin_bridge_validator" \
-  --repo-root "$repo_root" \
-  --baseline "$CUSTOM_UPSTREAM_BASE_COMMIT" \
-  --candidate-tree "$candidate_tree" \
+  "${thin_bridge_args[@]}" \
   --contract "$thin_bridge_contract" \
   --ledger "$ledger" \
   --shadow-map "$shadow_map"
