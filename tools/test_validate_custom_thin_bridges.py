@@ -329,6 +329,40 @@ class ThinBridgeContractTests(unittest.TestCase):
             current_control,
         )
 
+    def test_v020_reuses_only_unchanged_v0185_baseline_bindings(self) -> None:
+        previous = "2ac784c51a5d0925b324efef2ba6b3446c364781"
+        current = "aa236488351eb71e120fc2b6fb32e36b0374c918"
+
+        for path in (
+            "backend/internal/handler/gateway_web_search.go",
+            "backend/internal/handler/openai_codex_models_handler.go",
+            "backend/internal/service/openai_gateway_scheduling.go",
+            "backend/internal/service/payment_config_service.go",
+        ):
+            self.assertEqual(
+                validator.BASELINE_DELEGATE_VIEW_CONTROL[(previous, path)],
+                validator.BASELINE_DELEGATE_VIEW_CONTROL[(current, path)],
+            )
+        for path in (
+            "backend/internal/handler/openai_codex_models_handler.go",
+            "backend/internal/service/grok_audio.go",
+            "backend/internal/service/openai_gateway_scheduling.go",
+            "backend/internal/service/payment_config_service.go",
+        ):
+            self.assertEqual(
+                validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[(previous, path)],
+                validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[(current, path)],
+            )
+
+        self.assertNotIn(
+            (current, "backend/internal/handler/no_account_error.go"),
+            validator.BASELINE_DELEGATE_VIEW_CONTROL,
+        )
+        self.assertNotIn(
+            (current, "backend/internal/handler/openai_gateway_handler.go"),
+            validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS,
+        )
+
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
         fixture = self.fixture(candidate_content="if (enabled) { value = 2 }\n", kind="dto")
         with self.assertRaisesRegex(validator.ContractError, "introduces control flow"):
