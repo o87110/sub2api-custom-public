@@ -3393,6 +3393,11 @@ def validate_delegate_view_structure(
         (baseline_commit, row.path),
         APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()),
     ))
+    # The structural baseline may be the trusted Custom main tree during an
+    # official upgrade. Calls already present there are historical Custom
+    # behavior and must not be reclassified as upgrade additions.
+    approved_calls.subtract(delegate_view_call_surface(baseline_content))
+    approved_calls += Counter()
     if (
         baseline_commit == "29009f0b2ea14edf3b11ae2564fb617ff91a03b4"
         and row.path == "backend/internal/service/openai_gateway_scheduling.go"
