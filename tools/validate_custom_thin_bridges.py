@@ -3387,11 +3387,13 @@ def validate_delegate_view_structure(
     # adapter surface themselves. Their internal calls are official
     # implementation detail; only the calls that cross from existing bridge
     # functions into those helpers belong in this exact Custom call ledger.
-    if approved_new:
+    approved_call_functions = {function_name for function_name, _ in approved_calls}
+    approved_new_helpers = approved_new - approved_call_functions
+    if approved_new_helpers:
         added_calls = Counter(
             (function_name, call)
             for (function_name, call), count in added_calls.items()
-            if function_name not in approved_new and call not in approved_new
+            if function_name not in approved_new_helpers
             for _ in range(count)
         )
     unexpected_calls = added_calls - approved_calls
@@ -3401,6 +3403,15 @@ def validate_delegate_view_structure(
             f"{sorted(unexpected_calls.elements())}"
         )
     missing_calls = approved_calls - added_calls
+    if approved_new_helpers:
+        content_calls = delegate_view_call_surface(content)
+        missing_calls = Counter(
+            (function_name, call)
+            for (function_name, call), count in missing_calls.items()
+            if (function_name, call) in content_calls
+            or call.rsplit(".", 1)[-1] not in approved_new_helpers
+            for _ in range(count)
+        )
     if missing_calls:
         raise ContractError(
             f"{row.kind} bridge is missing an approved executable call in {row.path}: "
