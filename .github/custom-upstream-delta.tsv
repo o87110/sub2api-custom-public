@@ -6,7 +6,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	494b28696de1794d9d75bb54a2b67be249063721	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记返利撤销 Handler、路由、余额前后快照 DTO、通用表格和管理页面官方薄桥精确预算及 EasyPay 薄桥
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	38907c3d119bde7ce0f23a95140f6280724eb12f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	ec4e1dd85a7e03ba201eb6378283032af680b34f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
-.github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	f27359ad541fcd52c446a6f7b3603d763d224efd	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+.github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/upgrades/0.1.162.md	A	keep	A	custom-docs-ops	@absent	a873781565b70fa65a9ed5e2f88ddb762faeb81b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 .github/upgrades/0.1.164.md	A	keep	A	custom-docs-ops	@absent	81ea0d2f32358597dc9a4c91f487d3b74760dac7	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 .github/upgrades/0.1.165.md	A	keep	A	custom-docs-ops	@absent	c9f7a078a051aa1f8da541d78815349437ab9dd5	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.1.165 升级、数据库评审、冲突解决与验证证据
@@ -628,5 +628,6 @@ tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	51b4e484
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
 tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	6bc3fd3afd62a8f6a6b4c49aa3ad454a4b7aee94	-	-	thin-bridge-contract-unit+candidate-tree-test	精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay native 薄桥调用；精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay 薄桥调用；精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay native 薄桥调用
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+
 
 
