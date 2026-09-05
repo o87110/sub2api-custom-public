@@ -329,7 +329,7 @@ class ThinBridgeContractTests(unittest.TestCase):
             current_control,
         )
 
-    def test_v020_reuses_only_unchanged_v0185_baseline_bindings(self) -> None:
+    def test_v020_binds_unchanged_and_reviewed_changed_sources(self) -> None:
         previous = "2ac784c51a5d0925b324efef2ba6b3446c364781"
         current = "aa236488351eb71e120fc2b6fb32e36b0374c918"
 
@@ -354,13 +354,38 @@ class ThinBridgeContractTests(unittest.TestCase):
                 validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[(current, path)],
             )
 
-        self.assertNotIn(
-            (current, "backend/internal/handler/no_account_error.go"),
-            validator.BASELINE_DELEGATE_VIEW_CONTROL,
+        self.assertEqual(
+            (
+                ("classifyNoAccountErrorFromGin", "if c != nil {"),
+                ("classifyNoAccountErrorFromGin", "if classification.LocalPolicyDenied {"),
+                ("classifyNoAccountErrorFromGin", "} else if classification.ModelNotFound {"),
+            ),
+            validator.BASELINE_DELEGATE_VIEW_CONTROL[
+                (current, "backend/internal/handler/no_account_error.go")
+            ],
         )
-        self.assertNotIn(
-            (current, "backend/internal/handler/openai_gateway_handler.go"),
-            validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS,
+        self.assertEqual(
+            validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+                (previous, "backend/internal/handler/openai_gateway_handler.go")
+            ],
+            validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+                (current, "backend/internal/handler/openai_gateway_handler.go")
+            ],
+        )
+        self.assertEqual(
+            (("forwardAsChatCompletions", "enforceResolvedModelAccess"),),
+            validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+                (current, "backend/internal/service/openai_gateway_chat_completions.go")
+            ],
+        )
+        self.assertEqual(
+            ((
+                "forwardAsChatCompletions",
+                "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {",
+            ),),
+            validator.BASELINE_DELEGATE_VIEW_CONTROL[
+                (current, "backend/internal/service/openai_gateway_chat_completions.go")
+            ],
         )
 
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
