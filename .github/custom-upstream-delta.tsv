@@ -33,7 +33,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/workflows/release.yml	M	keep	M	fixed-path	abdfc9c81daafecefaea5b7184bab14205e785e8	fc9d57a34c6bc752e72b2898c40124097508e8bd	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	97357efde27a364ce6dcccad34141f2aa16a4418	1fc1fa808dfd146f499687499c64717da350d222	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	6e0151e6a9f85b6ff1d9aabe78f021a73df98406	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、返利撤销后端、Migration 与前端集成测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 EasyPay 回归测试
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	c30713de51c7f011636f4e51ece5d7d952991974	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护返利撤销后端、Migration、前端集成测试及其他高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	937092ae653f462f345dfdb4ae5907680879d0a8	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护返利撤销后端、Migration、前端集成测试及其他高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
 .gitignore	M	keep	M	fixed-path	20ed12275e874f7c728a322485ffc645df34a019	ca7c959ab9ff4452b19b3abd599e24c4b49ec4a3	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .goreleaser.yaml	M	keep	M	fixed-path	19adfdf6dc489acd4af4ed82bdf63f64e16b8e33	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 AGENTS.md	A	keep	A	custom-docs-ops	@absent	96e736e67995af280d711e30f828e9314da88800	-	-	documentation-consistency-review+candidate-tree-test	明确同 SHA CI 证据复用、Integration 登记、自动发布输入、前端 Artifact 与缓存信任边界
@@ -458,7 +458,7 @@ deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	7e
 deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad7233c21340ce3dd1969db55ed51	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
 deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	361e16b491ff71d305c566795628c7c796694739	-	-	goreleaser-check+release-safety+runtime-resource-test	验证发布输入分类、同 SHA 门禁复用、前端来源、Manifest 兼容、缓存与耗时契约
-deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	a6a26b5f0ab5a16f95cb99e37f2a4bfe785d4b26	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记返利 Handler、路由、DTO、通用表格、EasyPay 和 BEpusdt native 薄桥允许路径
+deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	170824f597a7cd15a4434bc4c2b2e17ff1034415	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记返利 Handler、路由、DTO、通用表格、EasyPay 和 BEpusdt native 薄桥允许路径
 deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
 deploy/tests/docker-runtime-resources-test.sh	M	keep	M	custom-test	4e7480d4d59c6edda9bbd3259f47c0db4fc7e5aa	4752f88556f2706ef283163c6524b64f90368f6d	-	-	runtime-resource-test+release-safety	验证官方及 Custom 镜像构建链路均携带定价 fallback resources
 deploy/tests/frontend-dist-safety-test.sh	A	keep	A	custom-test	@absent	a79c40721355a3b9c0dad1ce1ab43fd46caaa1f3	-	-	frontend-artifact-fixtures+release-safety	验证前端 Artifact 复用、失败关闭及 v1 内容哈希不依赖 GNU tar
@@ -626,7 +626,7 @@ frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	M	keep	M	official-
 frontend/src/views/user/paymentWechatResume.ts	M	keep	M	official-thin-bridge	8121bc56fc4bd590385ad4780422dc95584aa0b1	9e753cd42ca8b0672e7b793fbadadf9d4c208091	frontend/src/views/user/paymentWechatResume.ts	frontend/src/custom/payment-channels/paymentRecoveryRoute.ts	thin-bridge-review+go-test+candidate-tree-test	微信支付恢复查询的服务商薄适配
 tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	51b4e4840b9e7ec819bd46eed898cfcf498d8d88	-	-	thin-bridge-contract-unit+candidate-tree-test	验证返利撤销路由精确两个 POST 调用及既有薄桥边界
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
-tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	6bc3fd3afd62a8f6a6b4c49aa3ad454a4b7aee94	-	-	thin-bridge-contract-unit+candidate-tree-test	精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay native 薄桥调用；精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay 薄桥调用；精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay native 薄桥调用
+tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	58e1d060adf3b0dc0be726c52b66b7fb84f9ace1	-	-	thin-bridge-contract-unit+candidate-tree-test	精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay native 薄桥调用；精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay 薄桥调用；精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay native 薄桥调用
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 
 
