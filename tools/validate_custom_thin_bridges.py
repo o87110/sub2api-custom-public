@@ -2855,6 +2855,31 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     "backend/internal/handler/openai_codex_models_handler.go",
 )]
 
+# Official v0.2.0 leaves these exact Vendor sources unchanged from v0.1.185.
+# Reuse only their already-reviewed baseline-bound deltas. Sources changed by
+# v0.2.0, including no_account_error.go and openai_gateway_handler.go, are
+# intentionally excluded so the new Vendor cannot inherit stale approvals.
+_v0185_vendor_commit = "2ac784c51a5d0925b324efef2ba6b3446c364781"
+_v020_vendor_commit = "aa236488351eb71e120fc2b6fb32e36b0374c918"
+for _path in (
+    "backend/internal/handler/gateway_web_search.go",
+    "backend/internal/handler/openai_codex_models_handler.go",
+    "backend/internal/service/openai_gateway_scheduling.go",
+    "backend/internal/service/payment_config_service.go",
+):
+    BASELINE_DELEGATE_VIEW_CONTROL[(_v020_vendor_commit, _path)] = (
+        BASELINE_DELEGATE_VIEW_CONTROL[(_v0185_vendor_commit, _path)]
+    )
+for _path in (
+    "backend/internal/handler/openai_codex_models_handler.go",
+    "backend/internal/service/grok_audio.go",
+    "backend/internal/service/openai_gateway_scheduling.go",
+    "backend/internal/service/payment_config_service.go",
+):
+    BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v020_vendor_commit, _path)] = (
+        BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v0185_vendor_commit, _path)]
+    )
+
 APPROVED_DELEGATE_VIEW_ORCHESTRATION: dict[str, tuple[tuple[str, str], ...]] = {
     "backend/internal/handler/gemini_v1beta_handler.go": (
         (
