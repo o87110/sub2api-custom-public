@@ -3371,6 +3371,8 @@ def validate_delegate_view_structure(
     baseline_content: str,
     content: str,
     changed_lines: set[int],
+    *,
+    custom_baseline: bool = False,
 ) -> None:
     if row.kind not in {"delegate", "view"}:
         return
@@ -3403,6 +3405,11 @@ def validate_delegate_view_structure(
             for _ in range(count)
         )
     added_calls = delegate_view_call_surface(content) - delegate_view_call_surface(baseline_content)
+    if custom_baseline:
+        # During an official upgrade, the trusted main tree already contains
+        # historical Custom calls. Restrict approvals to calls truly added by
+        # this candidate so old entries are not reclassified as upgrade work.
+        approved_calls &= added_calls
     # Reviewed helpers restored from an official Vendor increment are the
     # adapter surface themselves. Their internal calls are official
     # implementation detail; only the calls that cross from existing bridge
@@ -3593,6 +3600,7 @@ def validate(args: argparse.Namespace) -> None:
                     baseline_content,
                     content,
                     added_line_numbers(repo, structure_baseline, args.candidate_tree, row.path),
+                    custom_baseline=custom_baseline_commit is not None,
                 )
             if row.kind in {"dto", "wire", "persistence"} and CONTROL_FLOW_RE.search(code):
                 raise ContractError(f"{row.kind} bridge introduces a loop or watcher: {row.path}")
