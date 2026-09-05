@@ -62,6 +62,7 @@
 /backend/internal/handler/gateway_handler.go @o87110
 /backend/internal/handler/gateway_handler_billing_error_test.go @o87110
 /backend/internal/handler/group_model_access_test.go @o87110
+/backend/internal/handler/gemini_v1beta_handler_test.go @o87110
 /backend/internal/handler/image_task_handler_test.go @o87110
 /backend/internal/handler/no_account_error_test.go @o87110
 /backend/internal/repository/api_key_minimum_balance_repo.go @o87110
@@ -263,6 +264,7 @@
 /frontend/src/views/admin/__tests__/GroupsView.columnSettings.spec.ts @o87110
 /frontend/src/views/admin/__tests__/GroupsView.duplicate.spec.ts @o87110
 /frontend/src/views/admin/__tests__/groupsModelsList.spec.ts @o87110
+/frontend/src/views/admin/__tests__/groupsModelsListLayout.spec.ts @o87110
 /frontend/src/views/admin/__tests__/SettingsView.spec.ts @o87110
 /frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts @o87110
 /frontend/src/views/user/KeysView.vue @o87110
