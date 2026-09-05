@@ -2857,8 +2857,8 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
 
 # Official v0.2.0 leaves these exact Vendor sources unchanged from v0.1.185.
 # Reuse only their already-reviewed baseline-bound deltas. Sources changed by
-# v0.2.0, including no_account_error.go and openai_gateway_handler.go, are
-# intentionally excluded so the new Vendor cannot inherit stale approvals.
+# v0.2.0 are reviewed and bound separately below so the new Vendor cannot
+# inherit stale approvals implicitly.
 _v0185_vendor_commit = "2ac784c51a5d0925b324efef2ba6b3446c364781"
 _v020_vendor_commit = "aa236488351eb71e120fc2b6fb32e36b0374c918"
 for _path in (
@@ -2879,6 +2879,36 @@ for _path in (
     BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v020_vendor_commit, _path)] = (
         BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v0185_vendor_commit, _path)]
     )
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v020_vendor_commit,
+    "backend/internal/handler/no_account_error.go",
+)] = (
+    ("classifyNoAccountErrorFromGin", "if c != nil {"),
+    ("classifyNoAccountErrorFromGin", "if classification.LocalPolicyDenied {"),
+    ("classifyNoAccountErrorFromGin", "} else if classification.ModelNotFound {"),
+)
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v020_vendor_commit,
+    "backend/internal/handler/openai_gateway_handler.go",
+)] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v0185_vendor_commit,
+    "backend/internal/handler/openai_gateway_handler.go",
+)]
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v020_vendor_commit,
+    "backend/internal/service/openai_gateway_chat_completions.go",
+)] = (
+    ("forwardAsChatCompletions", "enforceResolvedModelAccess"),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v020_vendor_commit,
+    "backend/internal/service/openai_gateway_chat_completions.go",
+)] = (
+    (
+        "forwardAsChatCompletions",
+        "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {",
+    ),
+)
 
 APPROVED_DELEGATE_VIEW_ORCHESTRATION: dict[str, tuple[tuple[str, str], ...]] = {
     "backend/internal/handler/gemini_v1beta_handler.go": (
