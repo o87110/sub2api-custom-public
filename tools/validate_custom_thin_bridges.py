@@ -1821,6 +1821,7 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
         "advanceOpenAIWSCyberBlockState",
         "openAIChannelForwardModel",
         "clearCyberPolicyAttemptState",
+        "validCodexAutomationHeartbeat",
     }),
     "backend/internal/handler/openai_images.go": frozenset({}),
     "backend/internal/handler/openai_live.go": frozenset({}),
@@ -2084,6 +2085,22 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
             "fmt.Sprintf": 1,
             "json.Marshal": 1,
             "strings.TrimSpace": 1,
+        }),
+        ("acquireOpenAIAccountSlot", {
+            "h.handleStreamingAwareErrorWithCode": 1,
+        }),
+        ("clearCyberPolicyTurnState", {
+            "clearCyberPolicyAttemptState": 1,
+        }),
+        ("handleConcurrencyError", {
+            "h.handleStreamingAwareErrorWithCode": 1,
+        }),
+        ("isCodexAutomationCandidate", {
+            "validCodexAutomationHeartbeat": 1,
+        }),
+        ("normalizeCodexCallOutputBootstrap", {
+            "stringField": 2,
+            "strings.TrimSpace": 4,
         }),
     ),
     "backend/internal/handler/openai_images.go": _approved_call_deltas(
@@ -2542,6 +2559,9 @@ APPROVED_DELEGATE_VIEW_CONTROL.update({
         ("AntigravityModels", "for _, model := range models {"),
         ("AntigravityModels", "if _, ok := allowed[model.ID]; ok {"),
         ("errorResponse", "if status == http.StatusNotFound && errType == \"model_not_found\" {"),
+        ("errorResponseWithCode", "if code != \"\" {"),
+        ("handleStreamingAwareErrorWithCode", "if code != \"\" {"),
+        ("handleStreamingAwareErrorWithCode", "if writeResponsesFailedSSE(c, errType, code, message) {"),
         ("billingErrorDetails", "if pkgerrors.Reason(err) == groupaccess.MinimumBalanceNotMetReason {"),
     ),
     "backend/internal/handler/gateway_handler_chat_completions.go": (
@@ -3404,6 +3424,9 @@ def validate_delegate_view_structure(
         )
     missing_calls = approved_calls - added_calls
     if approved_new_helpers:
+        # Calls that target a reviewed helper may be absent when the helper is
+        # not present in this candidate tree; all other approved calls remain
+        # exact and must be present.
         content_calls = delegate_view_call_surface(content)
         missing_calls = Counter(
             (function_name, call)
