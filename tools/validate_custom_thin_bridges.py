@@ -1879,7 +1879,9 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/service/openai_live.go": frozenset({
         "liveRequestModel",
     }),
-    "frontend/src/views/admin/GroupsView.vue": frozenset({}),
+    "frontend/src/views/admin/GroupsView.vue": frozenset({
+        "modelsListEndpoint",
+    }),
     "frontend/src/views/admin/groupsModelsList.ts": frozenset({}),
 })
 
@@ -1975,6 +1977,7 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
             "apiKey.Group.CustomModelsListEnabled": 2,
             "c.Data": 1,
             "c.Request.Context": 2,
+            "customGeminiModelsList": 1,
             "filterAndWriteModels": 3,
             "googleError": 3,
             "h.gatewayService.FilterGeminiModelsResponse": 2,
@@ -2465,6 +2468,7 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
             "blockAllModelsListItems": 2,
             "invertModelsBlocklistSelection": 2,
             "minimumBalanceFormValue": 2,
+            "modelsListEndpoint": 4,
             "ref": 2,
             "toggleModelsBlocklistItem": 2,
         }),
@@ -2589,6 +2593,7 @@ APPROVED_DELEGATE_VIEW_CONTROL.update({
         ("GeminiV1BetaListModels", "if apiKey.Group != nil {"),
         ("GeminiV1BetaListModels", "if filterErr != nil {"),
         ("GeminiV1BetaListModels", "if changed {"),
+        ("GeminiV1BetaListModels", "if models, ok := customGeminiModelsList(apiKey.Group); ok {"),
         ("GeminiV1BetaModels", "if !bindGroupModelAccessChannelMapping(c, channelMapping) {"),
         ("GeminiV1BetaGetModel", "if !enforceGroupModelAccess(c, modelName) {"),
     ),
@@ -2969,6 +2974,10 @@ APPROVED_DELEGATE_VIEW_ORCHESTRATION: dict[str, tuple[tuple[str, str], ...]] = {
         (
             "GeminiV1BetaListModels",
             "filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)",
+        ),
+        (
+            "customGeminiModelsList",
+            "models = append(models, gemini.FallbackModel(modelID))",
         ),
     ),
     "backend/internal/service/openai_gateway_scheduling.go": (
