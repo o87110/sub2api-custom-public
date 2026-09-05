@@ -51,7 +51,9 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 			googleError(c, http.StatusInternalServerError, "Failed to build models response")
 			return false
 		}
-		displayEnabled := apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled()
+		// The forced Antigravity endpoint exposes the platform's static model
+		// catalog. A native Gemini display list must not hide those models.
+		displayEnabled := forcePlatform != service.PlatformAntigravity && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled()
 		var displayModels []string
 		if apiKey.Group != nil {
 			displayModels = apiKey.Group.ModelsListConfig.Models
