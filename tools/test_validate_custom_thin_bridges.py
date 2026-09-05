@@ -388,6 +388,66 @@ class ThinBridgeContractTests(unittest.TestCase):
             ],
         )
 
+    def test_v021_gateway_approvals_exclude_official_error_helpers(self) -> None:
+        current = "578785ee7fb35030b094b69624efe25670a36f5f"
+        calls = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+            (current, "backend/internal/handler/gateway_handler.go")
+        ]
+
+        self.assertNotIn(("errorResponse", "h.errorResponseWithCode"), calls)
+        self.assertNotIn(
+            ("handleConcurrencyError", "h.handleStreamingAwareErrorWithCode"),
+            calls,
+        )
+        self.assertNotIn(
+            ("handleStreamingAwareError", "h.handleStreamingAwareErrorWithCode"),
+            calls,
+        )
+        self.assertIn(
+            ("Messages", "service.ContextWithSelectionGroupModelAccess"),
+            calls,
+        )
+
+    def test_v021_binds_unchanged_and_reviewed_changed_sources(self) -> None:
+        previous = "aa236488351eb71e120fc2b6fb32e36b0374c918"
+        current = "578785ee7fb35030b094b69624efe25670a36f5f"
+        for path in (
+            "backend/internal/service/openai_gateway_scheduling.go",
+            "backend/internal/service/payment_config_service.go",
+        ):
+            self.assertEqual(
+                validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[(previous, path)],
+                validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[(current, path)],
+            )
+        for path in (
+            "backend/internal/handler/gateway_web_search.go",
+            "backend/internal/handler/no_account_error.go",
+            "backend/internal/service/openai_gateway_scheduling.go",
+            "backend/internal/service/payment_config_service.go",
+        ):
+            self.assertEqual(
+                validator.BASELINE_DELEGATE_VIEW_CONTROL[(previous, path)],
+                validator.BASELINE_DELEGATE_VIEW_CONTROL[(current, path)],
+            )
+
+        gemini_path = "backend/internal/handler/gemini_v1beta_handler.go"
+        official_orchestration = (
+            "customGeminiModelsList",
+            "models = append(models, gemini.FallbackModel(modelID))",
+        )
+        self.assertIn(
+            official_orchestration,
+            validator.APPROVED_DELEGATE_VIEW_ORCHESTRATION[gemini_path],
+        )
+        self.assertNotIn(
+            official_orchestration,
+            validator.BASELINE_DELEGATE_VIEW_ORCHESTRATION[(current, gemini_path)],
+        )
+        self.assertNotIn(
+            ("GeminiV1BetaListModels", "customGeminiModelsList"),
+            validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[(current, gemini_path)],
+        )
+
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
         fixture = self.fixture(candidate_content="if (enabled) { value = 2 }\n", kind="dto")
         with self.assertRaisesRegex(validator.ContractError, "introduces control flow"):

@@ -2961,6 +2961,251 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     ),
 )
 
+# Official v0.2.1 owns some previously Custom calls and rewrites several
+# protected sources. Bind the reviewed remainder to the exact new Vendor
+# commit instead of letting an older baseline approval apply implicitly.
+_v021_vendor_commit = "578785ee7fb35030b094b69624efe25670a36f5f"
+
+
+def _reviewed_baseline_delta(
+    entries: tuple[tuple[str, str], ...],
+    *,
+    remove: tuple[tuple[str, str], ...] = (),
+    add: tuple[tuple[str, str], ...] = (),
+) -> tuple[tuple[str, str], ...]:
+    reviewed = Counter(entries)
+    reviewed.subtract(remove)
+    if any(count < 0 for count in reviewed.values()):
+        raise ValueError("baseline delta removes an entry that is not approved")
+    reviewed.update(add)
+    return tuple(reviewed.elements())
+
+
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v021_vendor_commit,
+    "backend/internal/handler/gateway_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/handler/gateway_handler.go"
+    ],
+    remove=(
+        ("errorResponse", "h.errorResponseWithCode"),
+        ("handleConcurrencyError", "h.handleStreamingAwareErrorWithCode"),
+        ("handleStreamingAwareError", "h.handleStreamingAwareErrorWithCode"),
+    ),
+)
+for _path in (
+    "backend/internal/service/openai_gateway_scheduling.go",
+    "backend/internal/service/payment_config_service.go",
+):
+    BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v021_vendor_commit, _path)] = (
+        BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v020_vendor_commit, _path)]
+    )
+for _path in (
+    "backend/internal/handler/gateway_web_search.go",
+    "backend/internal/handler/no_account_error.go",
+    "backend/internal/service/openai_gateway_scheduling.go",
+    "backend/internal/service/payment_config_service.go",
+):
+    BASELINE_DELEGATE_VIEW_CONTROL[(_v021_vendor_commit, _path)] = (
+        BASELINE_DELEGATE_VIEW_CONTROL[(_v020_vendor_commit, _path)]
+    )
+
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v021_vendor_commit,
+    "backend/internal/handler/gemini_v1beta_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/handler/gemini_v1beta_handler.go"
+    ],
+    remove=(("GeminiV1BetaListModels", "customGeminiModelsList"),),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v021_vendor_commit,
+    "backend/internal/handler/gemini_v1beta_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/gemini_v1beta_handler.go"
+    ],
+    remove=((
+        "GeminiV1BetaListModels",
+        "if models, ok := customGeminiModelsList(apiKey.Group); ok {",
+    ),),
+)
+
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v021_vendor_commit,
+    "backend/internal/handler/openai_codex_models_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/handler/openai_codex_models_handler.go"
+    ],
+    remove=(
+        ("CodexModels", "apiKey.Group.CustomModelsListEnabled"),
+        ("CodexModels", "apiKey.Group.CustomModelsListEnabled"),
+        ("CodexModels", "c.Header"),
+    ),
+    add=(
+        ("CodexModels", "c.Request.Context"),
+        ("CodexModels", "h.errorResponse"),
+        ("CodexModels", "service.FilterCodexModelsManifest"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v021_vendor_commit,
+    "backend/internal/handler/openai_codex_models_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/openai_codex_models_handler.go"
+    ],
+    remove=(
+        ("CodexModels", "if filterManifest {"),
+        ("CodexModels", 'if manifest.ETag != "" {'),
+        ("CodexModels", 'if manifest.ETag != "" {'),
+    ),
+    add=(
+        ("CodexModels", "if !manifest.NotModified {"),
+        ("CodexModels", "if changed {"),
+        (
+            "CodexModels",
+            "if err := h.gatewayService.MergeGroupConfiguredCodexModels(c.Request.Context(), apiKey.Group, manifest, manifestIfNoneMatch); err != nil {",
+        ),
+        ("CodexModels", "if filterErr != nil {"),
+        (
+            "CodexModels",
+            "if len(apiKey.Group.ModelsListConfig.BlockedModels) > 0 {",
+        ),
+    ),
+)
+
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v021_vendor_commit,
+    "backend/internal/handler/openai_gateway_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/handler/openai_gateway_handler.go"
+    ],
+    remove=(
+        ("acquireOpenAIAccountSlot", "h.handleStreamingAwareErrorWithCode"),
+        ("clearCyberPolicyTurnState", "clearCyberPolicyAttemptState"),
+        ("handleConcurrencyError", "h.handleStreamingAwareErrorWithCode"),
+        ("isCodexAutomationCandidate", "validCodexAutomationHeartbeat"),
+        ("normalizeCodexCallOutputBootstrap", "stringField"),
+        ("normalizeCodexCallOutputBootstrap", "stringField"),
+        ("normalizeCodexCallOutputBootstrap", "strings.TrimSpace"),
+        ("normalizeCodexCallOutputBootstrap", "strings.TrimSpace"),
+        ("normalizeCodexCallOutputBootstrap", "strings.TrimSpace"),
+        ("normalizeCodexCallOutputBootstrap", "strings.TrimSpace"),
+        ("recordCyberPolicyIfMarked", "c.Request.Context"),
+        ("recordCyberPolicyIfMarked", "cmSvc.CyberPolicyGroupInScope"),
+    ),
+    add=(
+        ("ResponsesWebSocket", "clearCyberPolicyTurnState"),
+        ("ResponsesWebSocket", "strings.TrimSpace"),
+        ("ResponsesWebSocket", "strings.TrimSpace"),
+        ("acquireImageGenerationSlot", "h.handleStreamingAwareError"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v021_vendor_commit,
+    "backend/internal/handler/openai_gateway_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/openai_gateway_handler.go"
+    ],
+    remove=(
+        (
+            "errorResponse",
+            'if writeResponsesFailedSSE(c, errType, "", message) {',
+        ),
+        (
+            "handleStreamingAwareErrorWithCode",
+            "if writeResponsesFailedSSE(c, errType, code, message) {",
+        ),
+        (
+            "normalizeCodexCallOutputBootstrap",
+            'if !ok || (!allowHistoricalContext && strings.TrimSpace(value) != "") {',
+        ),
+        (
+            "normalizeCodexCallOutputBootstrap",
+            'if allowHistoricalContext && strings.TrimSpace(stringField(item, "call_id")) != "" {',
+        ),
+        (
+            "normalizeCodexCallOutputBootstrap",
+            'if allowHistoricalContext && strings.TrimSpace(stringField(item, "id")) != "" {',
+        ),
+        ("normalizeCodexCallOutputBootstrap", "if isCandidate(item) {"),
+        (
+            "normalizeCodexCallOutputBootstrap",
+            'if strings.HasSuffix(typ, "_call") || isResponsesCallOutputType(typ) {',
+        ),
+        (
+            "normalizeCodexCallOutputBootstrap",
+            'if typ == "item_reference" {',
+        ),
+        (
+            "recordCyberPolicyIfMarked",
+            'if cyberPolicyInScope && gwSvc != nil && cyberBlockKey != "" {',
+        ),
+        (
+            "rejectIfCyberSessionBlocked",
+            'if writeResponsesFailedSSE(c, "permission_error", "", cyberSessionBlockedClientMsg) {',
+        ),
+        ("writeGroupModelBlockedWSError", "if conn == nil {"),
+        ("writeGroupModelBlockedWSError", "if ctx == nil {"),
+        ("writeGroupModelBlockedWSError", "if err != nil {"),
+    ),
+    add=(
+        ("Responses", "if channelMapping.Mapped {"),
+        (
+            "ResponsesWebSocket",
+            'if channelMappingWS.Mapped && strings.TrimSpace(channelMappingWS.MappedModel) != "" {',
+        ),
+        (
+            "ResponsesWebSocket",
+            "if service.GetOpsCyberPolicy(c) != nil {",
+        ),
+    ),
+)
+
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v021_vendor_commit,
+    "backend/internal/service/grok_audio.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/service/grok_audio.go"
+    ],
+    add=(("ProxyGrokRealtime", "firstNonEmpty"),),
+)
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v021_vendor_commit,
+    "backend/internal/service/openai_gateway_chat_completions.go",
+)] = (("forwardAsChatCompletions", "enforceResolvedModelAccess"),)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v021_vendor_commit,
+    "backend/internal/service/openai_gateway_chat_completions.go",
+)] = ((
+    "forwardAsChatCompletions",
+    "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {",
+),)
+
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v021_vendor_commit,
+    "frontend/src/views/admin/GroupsView.vue",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "frontend/src/views/admin/GroupsView.vue"
+    ],
+    remove=(
+        ("<top-level>", "modelsListEndpoint"),
+        ("<top-level>", "modelsListEndpoint"),
+        ("<top-level>", "modelsListEndpoint"),
+        ("<top-level>", "modelsListEndpoint"),
+        ("handleUpdateGroup", "appStore.showError"),
+        ("handleUpdateGroup", "t"),
+    ),
+)
+
 APPROVED_DELEGATE_VIEW_ORCHESTRATION: dict[str, tuple[tuple[str, str], ...]] = {
     "backend/internal/handler/gemini_v1beta_handler.go": (
         (
@@ -2985,6 +3230,23 @@ APPROVED_DELEGATE_VIEW_ORCHESTRATION: dict[str, tuple[tuple[str, str], ...]] = {
             "resolveOpenAIAccountModelForAccess",
             "upstreamModel := resolveOpenAIForwardModel(account, baseModel, groupmodelaccess.FallbackModel(ctx))",
         ),
+    ),
+}
+
+BASELINE_DELEGATE_VIEW_ORCHESTRATION: dict[
+    tuple[str, str], tuple[tuple[str, str], ...]
+] = {
+    (
+        _v021_vendor_commit,
+        "backend/internal/handler/gemini_v1beta_handler.go",
+    ): _reviewed_baseline_delta(
+        APPROVED_DELEGATE_VIEW_ORCHESTRATION[
+            "backend/internal/handler/gemini_v1beta_handler.go"
+        ],
+        remove=((
+            "customGeminiModelsList",
+            "models = append(models, gemini.FallbackModel(modelID))",
+        ),),
     ),
 }
 
@@ -3472,9 +3734,10 @@ def validate_delegate_view_structure(
         (baseline_commit, row.path),
         APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()),
     ))
-    approved_orchestration = Counter(
-        APPROVED_DELEGATE_VIEW_ORCHESTRATION.get(row.path, ())
-    )
+    approved_orchestration = Counter(BASELINE_DELEGATE_VIEW_ORCHESTRATION.get(
+        (baseline_commit, row.path),
+        APPROVED_DELEGATE_VIEW_ORCHESTRATION.get(row.path, ()),
+    ))
     actual_control: Counter[tuple[str, str]] = Counter()
     actual_orchestration: Counter[tuple[str, str]] = Counter()
     for line_number in sorted(changed_lines):
