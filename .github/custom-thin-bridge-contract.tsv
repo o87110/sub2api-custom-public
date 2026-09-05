@@ -137,7 +137,7 @@ frontend/src/components/common/SubscriptionProgressMini.vue	view	true	6	0	-
 frontend/src/components/common/__tests__/DataTable.spec.ts	compat-test	false	23	0	-
 frontend/src/components/layout/AppSidebar.vue	view	true	1	1	-
 frontend/src/components/payment/AmountInput.vue	view	true	22	7	-
-frontend/src/components/payment/PaymentProviderDialog.vue	compat-test	true	119	8	-
+frontend/src/components/payment/PaymentProviderDialog.vue	compat-test	true	126	10	-
 frontend/src/components/payment/SubscriptionPlanCard.vue	view	true	20	4	-
 frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts	compat-test	true	21	0	-
 frontend/src/components/payment/__tests__/paymentFlow.spec.ts	compat-test	true	34	0	-

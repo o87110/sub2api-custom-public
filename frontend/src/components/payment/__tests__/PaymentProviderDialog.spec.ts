@@ -209,6 +209,89 @@ describe('PaymentProviderDialog payment guide', () => {
     expect(payload.supported_types).toEqual(['alipay', 'wxpay', 'ldc'])
   })
 
+  it('saves BEpusdt native mode with only usdt and without Rainbow credentials', async () => {
+    const provider = providerFactory({
+      provider_key: 'easypay',
+      name: 'BEpusdt USDT',
+      config: {
+        apiToken: 'native-token',
+        apiBase: 'https://bepusdt.example.com',
+        easypayProtocol: 'bepusdt_native',
+        bepusdtNetworks: 'bep20',
+        notifyUrl: 'https://example.com/api/v1/payment/webhook/easypay',
+        returnUrl: 'https://example.com/payment/result',
+      },
+      supported_types: ['usdt'],
+      payment_mode: 'popup',
+      refund_enabled: false,
+    })
+    const wrapper = mountDialog()
+
+    ;(wrapper.vm as unknown as { loadProvider: (provider: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    await wrapper.find('form').trigger('submit.prevent')
+
+    const payload = wrapper.emitted('save')?.[0]?.[0] as {
+      config: Record<string, string>
+      supported_types: string[]
+      payment_mode: string
+      refund_enabled: boolean
+    }
+    expect(payload.supported_types).toEqual(['usdt'])
+    expect(payload.payment_mode).toBe('popup')
+    expect(payload.refund_enabled).toBe(false)
+    expect(payload.config.easypayProtocol).toBe('bepusdt_native')
+    expect(payload.config.bepusdtNetworks).toBe('bep20')
+    expect(payload.config.customMethods).toBeUndefined()
+  })
+
+  it('rejects a new native provider without an API token', async () => {
+    const provider = providerFactory({
+      provider_key: 'easypay',
+      name: 'BEpusdt USDT',
+      config: {
+        apiBase: 'https://bepusdt.example.com',
+        easypayProtocol: 'bepusdt_native',
+        bepusdtNetworks: 'bep20',
+        notifyUrl: 'https://example.com/api/v1/payment/webhook/easypay',
+        returnUrl: 'https://example.com/payment/result',
+      },
+      supported_types: ['usdt'],
+      payment_mode: 'popup',
+    })
+    const wrapper = mountDialog()
+
+    ;(wrapper.vm as unknown as { loadProvider: (provider: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    await wrapper.find('form').trigger('submit.prevent')
+
+    expect(wrapper.emitted('save')).toBeUndefined()
+  })
+
+  it('allows an edited native provider to preserve a masked API token', async () => {
+    const provider = providerFactory({
+      provider_key: 'easypay',
+      name: 'BEpusdt USDT',
+      config: {
+        apiBase: 'https://bepusdt.example.com',
+        easypayProtocol: 'bepusdt_native',
+        bepusdtNetworks: 'bep20',
+        notifyUrl: 'https://example.com/api/v1/payment/webhook/easypay',
+        returnUrl: 'https://example.com/payment/result',
+      },
+      supported_types: ['usdt'],
+      payment_mode: 'popup',
+      refund_enabled: false,
+    })
+    const wrapper = mountDialog({ editing: provider })
+
+    ;(wrapper.vm as unknown as { loadProvider: (provider: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    await wrapper.find('form').trigger('submit.prevent')
+
+    expect(wrapper.emitted('save')).toHaveLength(1)
+  })
+
   it('rejects custom EasyPay method types with built-in payment prefixes', async () => {
     const provider = providerFactory({
       provider_key: 'easypay',

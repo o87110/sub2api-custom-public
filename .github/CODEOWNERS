@@ -235,6 +235,7 @@
 /frontend/src/components/payment/paymentFlow.ts @o87110
 /frontend/src/components/payment/__tests__/paymentFlow.spec.ts @o87110
 /frontend/src/components/payment/PaymentProviderDialog.vue @o87110
+/frontend/src/components/payment/__tests__/PaymentProviderDialog.spec.ts @o87110
 /frontend/src/components/payment/PaymentQRDialog.vue @o87110
 /frontend/src/components/payment/PaymentStatusPanel.vue @o87110
 /frontend/src/components/payment/SubscriptionPlanCard.vue @o87110
