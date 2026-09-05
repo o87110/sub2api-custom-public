@@ -19,7 +19,7 @@ backend/internal/handler/channel_monitor_user_handler.go	delegate	true	59	26	75f
 backend/internal/handler/dto/mappers.go	dto	false	28	22	-
 backend/internal/handler/dto/settings.go	dto	true	19	16	-
 backend/internal/handler/dto/types.go	dto	false	8	0	-
-backend/internal/handler/gateway_handler.go	delegate	true	49	15	-
+backend/internal/handler/gateway_handler.go	delegate	true	49	15	578785ee7fb35030b094b69624efe25670a36f5f:51:66
 backend/internal/handler/gateway_handler_chat_completions.go	delegate	true	10	6	-
 backend/internal/handler/gateway_handler_responses.go	delegate	true	6	0	-
 backend/internal/handler/gateway_helper.go	delegate	true	42	0	-
@@ -33,7 +33,7 @@ backend/internal/handler/openai_chat_completions.go	delegate	true	3	0	-
 backend/internal/handler/openai_codex_models_handler.go	delegate	true	39	2	e98ef32eb29aecd30d1def615912ec4dc93173f3:39:2,2ac784c51a5d0925b324efef2ba6b3446c364781:39:2,aa236488351eb71e120fc2b6fb32e36b0374c918:39:2
 backend/internal/handler/openai_embeddings.go	delegate	true	3	0	-
 backend/internal/handler/openai_gateway_count_tokens.go	delegate	true	4	0	-
-backend/internal/handler/openai_gateway_handler.go	delegate	true	86	8	e8cb019fabf8b55199436229044cbf9aa7a82564:86:8,e98ef32eb29aecd30d1def615912ec4dc93173f3:86:8,2ac784c51a5d0925b324efef2ba6b3446c364781:86:8
+backend/internal/handler/openai_gateway_handler.go	delegate	true	86	8	e8cb019fabf8b55199436229044cbf9aa7a82564:86:8,e98ef32eb29aecd30d1def615912ec4dc93173f3:86:8,2ac784c51a5d0925b324efef2ba6b3446c364781:86:8,578785ee7fb35030b094b69624efe25670a36f5f:119:44
 backend/internal/handler/openai_images.go	delegate	true	3	0	-
 backend/internal/handler/openai_live.go	delegate	true	16	0	-
 backend/internal/handler/payment_handler.go	delegate	true	64	13	-
