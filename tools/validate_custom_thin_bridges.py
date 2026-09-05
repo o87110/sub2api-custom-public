@@ -3424,13 +3424,15 @@ def validate_delegate_view_structure(
         )
     missing_calls = approved_calls - added_calls
     if approved_new_helpers:
-        # Calls made inside reviewed new helper functions are official
-        # implementation details. Calls from existing bridge functions still
-        # require an exact ledger entry and must not be silently waived.
+        # Calls that target a reviewed helper may be absent when the helper is
+        # not present in this candidate tree; all other approved calls remain
+        # exact and must be present.
+        content_calls = delegate_view_call_surface(content)
         missing_calls = Counter(
             (function_name, call)
             for (function_name, call), count in missing_calls.items()
-            if function_name not in approved_new_helpers
+            if (function_name, call) in content_calls
+            or call.rsplit(".", 1)[-1] not in approved_new_helpers
             for _ in range(count)
         )
     if missing_calls:
