@@ -1793,7 +1793,10 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
 
 APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/handler/batch_image_handler.go": frozenset({}),
-    "backend/internal/handler/gateway_handler.go": frozenset({}),
+    "backend/internal/handler/gateway_handler.go": frozenset({
+        "handleStreamingAwareErrorWithCode",
+        "errorResponseWithCode",
+    }),
     "backend/internal/handler/gateway_handler_chat_completions.go": frozenset({}),
     "backend/internal/handler/gateway_handler_responses.go": frozenset({}),
     "backend/internal/handler/gateway_helper.go": frozenset({
@@ -1815,6 +1818,9 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/handler/openai_gateway_count_tokens.go": frozenset({}),
     "backend/internal/handler/openai_gateway_handler.go": frozenset({
         "writeGroupModelBlockedWSError",
+        "advanceOpenAIWSCyberBlockState",
+        "openAIChannelForwardModel",
+        "clearCyberPolicyAttemptState",
     }),
     "backend/internal/handler/openai_images.go": frozenset({}),
     "backend/internal/handler/openai_live.go": frozenset({}),
@@ -1910,6 +1916,15 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
         ("billingErrorDetails", {
             "pkgerrors.Message": 1,
             "pkgerrors.Reason": 1,
+        }),
+        ("errorResponse", {
+            "h.errorResponseWithCode": 1,
+        }),
+        ("handleConcurrencyError", {
+            "h.handleStreamingAwareErrorWithCode": 1,
+        }),
+        ("handleStreamingAwareError", {
+            "h.handleStreamingAwareErrorWithCode": 1,
         }),
     ),
     "backend/internal/handler/gateway_handler_chat_completions.go": _approved_call_deltas(
@@ -3368,6 +3383,17 @@ def validate_delegate_view_structure(
             for _ in range(count)
         )
     added_calls = delegate_view_call_surface(content) - delegate_view_call_surface(baseline_content)
+    # Reviewed helpers restored from an official Vendor increment are the
+    # adapter surface themselves. Their internal calls are official
+    # implementation detail; only the calls that cross from existing bridge
+    # functions into those helpers belong in this exact Custom call ledger.
+    if approved_new:
+        added_calls = Counter(
+            (function_name, call)
+            for (function_name, call), count in added_calls.items()
+            if function_name not in approved_new and call not in approved_new
+            for _ in range(count)
+        )
     unexpected_calls = added_calls - approved_calls
     if unexpected_calls:
         raise ContractError(
