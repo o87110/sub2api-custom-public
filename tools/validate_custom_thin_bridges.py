@@ -3463,6 +3463,12 @@ def validate_delegate_view_structure(
         line = lines[line_number - 1]
         block = containing_function(blocks, line_number)
         function_name = block.name if block else "<top-level>"
+        # Explicitly reviewed helpers restored from the official increment
+        # may contain their own control flow. The bridge contract applies to
+        # the surrounding adapter, while calls entering the helper remain
+        # covered by the exact call ledger above.
+        if function_name in approved_new:
+            continue
         if DELEGATE_VIEW_CONTROL_FLOW_RE.search(line):
             actual_control[(function_name, line.strip())] += 1
         if ORCHESTRATION_RE.search(line):
