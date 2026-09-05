@@ -80,6 +80,7 @@ func TestCreateOrderInTx_WritesProviderSnapshot(t *testing.T) {
 			Username: user.Username,
 		},
 		nil,
+		false,
 		&PaymentConfig{
 			MaxPendingOrders: 3,
 			OrderTimeoutMin:  30,
@@ -162,6 +163,22 @@ func TestBuildPaymentOrderProviderSnapshot_IncludesEasyPayMerchantIdentity(t *te
 
 	require.Equal(t, "easypay-merchant-66", snapshot["merchant_id"])
 	require.NotContains(t, snapshot, "pkey")
+}
+
+func TestBuildPaymentOrderProviderSnapshot_IncludesBepusdtNetwork(t *testing.T) {
+	snapshot := buildPaymentOrderProviderSnapshot(&payment.InstanceSelection{
+		InstanceID:  "67",
+		ProviderKey: payment.TypeEasyPay,
+		Config: map[string]string{
+			"easypayProtocol": "bepusdt_native",
+			"bepusdtNetworks": "bep20",
+		},
+		PaymentMode: "popup",
+	}, CreateOrderRequest{PaymentType: "usdt", PaymentNetwork: "bep20"})
+
+	require.Equal(t, "bepusdt_native", snapshot["protocol"])
+	require.Equal(t, "bep20", snapshot["payment_network"])
+	require.Equal(t, "usdt.bep20", snapshot["upstream_trade_type"])
 }
 
 func TestBuildPaymentOrderProviderSnapshot_IncludesProviderCurrency(t *testing.T) {

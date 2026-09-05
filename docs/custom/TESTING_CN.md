@@ -263,6 +263,12 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
 - 旧 `methods` 接口、旧恢复快照、375px/桌面、亮色/暗色、键盘焦点、
   `aria-pressed` 和禁用状态均有回归；
 - 候选树数据库边界检查必须确认无 Migration、Schema、实体字段或 SQL 变化。
+- BEpusdt native 测试必须覆盖四种网络到完整 `trade_type` 的固定映射、BEP20 默认
+  选择、网络失效拒绝、JSON 签名、`create-transaction` 创建、`pay/info` 查询、
+  `cancel-transaction` 取消及 status `1/2/3` 回调；native 路径不得访问 `/api.php`
+  或 `/mapi.php`，不得启用退款；
+- 前端测试必须确认 USDT 弹窗只展示 USDT、取消不创建订单、确认后才发送
+  `payment_network`，桌面弹窗和移动端跳转均保存恢复快照；
 
 ## 10. 渠道监控分组名称与展示倍率
 
@@ -334,20 +340,25 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
 - 表格覆盖“无限制”、正整数、“0 / 已售罄”、自动下架与禁用购买标识；快速上架仅在
   `disable_purchase` 售罄模式允许，补货、改为不限量及策略切换遵守自动/手动下架
   恢复差异；
-- 用户卡片、普通选择、续费弹窗与 URL 自动选择覆盖售罄可见但不可购买；页面加载后
+- 续费策略覆盖默认关闭、创建/编辑回填、独立 PATCH、`0-30` 整数校验和管理表格展示；
+  有效订阅、过期 `0/3/5/7` 天边界、超出宽限、暂停、撤销、软删除及无历史订阅均需
+  定向测试，资格按分组而非原套餐判定；
+- 用户卡片、普通选择、续费弹窗与 URL 自动选择覆盖所有用户可见但无资格售罄不可购买、
+  符合资格时下架/售罄套餐可见可续费，以及过期订阅续费入口；页面加载后
   并发售罄返回 `PLAN_SOLD_OUT`/`PLAN_NOT_AVAILABLE` 时必须刷新套餐、清除失效选择并
-  使用本地化错误，第二次点击不得再创建订单；公开接口只返回 `sold_out`，不泄露
-  精确正数库存；
+  使用本地化错误，第二次点击不得再创建订单；公开接口只返回 `sold_out` 和派生的
+  `renewal_available`，不泄露精确库存、续费开关或宽限天数；
 - 后端覆盖不限量兼容、两种最后一份处理、两种策略并发预占不超卖、直接 API 防绕过、
   取消/超时/支付创建失败释放且幂等、履约消费幂等、延迟支付重新预占与补货重试，
-  以及退款不归还；
+  退款不归还，以及事务内续费资格复核、策略失效拒绝和续费订单保持 `untracked`；
 - PostgreSQL 真并发使用 `go test -tags integration ./internal/custom/subscriptioninventory -run
   TestSubscriptionPlanInventoryPostgresConcurrentReservations`，必须让 12 个显式事务同时
   占用多个连接，并分别断言两种策略仅成功库存份数、数量归零且状态正确；本地无 Docker
   时只能完成编译并跳过执行，必须交由具备 Docker/PostgreSQL 的 Linux CI 或数据库环境；
 - `go generate ./ent` 二次生成后必须无漂移；Migration `194` 的可空默认、非负约束和
-  订单状态约束，以及 Migration `195` 的默认 `delist` 与枚举约束必须回归；
-- 发布前人工审核 Migration 195，并备份 `subscription_plans`。
+  订单状态约束、Migration `195` 的默认 `delist` 与枚举约束，以及 Migration `232` 的
+  默认关闭、默认 `0` 和 `0-30` 约束必须回归；
+- 发布前人工审核 Migration 195/232，并备份 `subscription_plans`。
 - Candidate Tree 数据库边界检查必须识别 Migration、Schema 和生成实体变化，并与
   `.github/custom-database-exceptions.tsv` 的人工审核指纹完全一致；
 - 桌面和窄屏下检查表格横向滚动、输入错误提示、暗色样式、自动下架徽标和保存加载

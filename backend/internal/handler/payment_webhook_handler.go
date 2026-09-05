@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -94,7 +95,11 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 			c.String(http.StatusBadRequest, "verify failed")
 			return
 		}
-		writeSuccessResponse(c, providerKey)
+		if providerKey == payment.TypeEasyPay && strings.HasPrefix(strings.TrimSpace(rawBody), "{") {
+			c.String(http.StatusOK, "ok")
+		} else {
+			writeSuccessResponse(c, providerKey)
+		}
 		return
 	}
 
@@ -140,6 +145,10 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 		c.String(http.StatusInternalServerError, "handle failed")
 		return
 	}
+	if notification != nil && notification.Metadata["protocol"] == paymentchannels.EasyPayProtocolBepusdt {
+		c.String(http.StatusOK, "ok")
+		return
+	}
 
 	writeSuccessResponse(c, resolvedProviderKey)
 }
@@ -151,7 +160,15 @@ func extractOutTradeNo(rawBody, providerKey string) string {
 	case payment.TypeEasyPay, payment.TypeAlipay:
 		values, err := url.ParseQuery(rawBody)
 		if err == nil {
-			return values.Get("out_trade_no")
+			if outTradeNo := values.Get("out_trade_no"); outTradeNo != "" {
+				return outTradeNo
+			}
+		}
+		var payload struct {
+			OrderID string `json:"order_id"`
+		}
+		if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {
+			return strings.TrimSpace(payload.OrderID)
 		}
 	case payment.TypeAirwallex:
 		var payload struct {

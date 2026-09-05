@@ -98,12 +98,12 @@
       <!-- Subscribe Button -->
       <button
         type="button"
-        :disabled="soldOut"
-        :aria-disabled="soldOut"
+        :disabled="purchaseDisabled"
+        :aria-disabled="purchaseDisabled"
         :class="['w-full rounded-xl py-2.5 text-sm font-semibold transition-all active:scale-[0.98]', btnClass]"
         @click="handleSelect"
       >
-        {{ soldOut ? t('payment.soldOut') : isRenewal ? t('payment.renewNow') : t('payment.subscribeNow') }}
+        {{ purchaseDisabled ? t('payment.soldOut') : isRenewal ? t('payment.renewNow') : t('payment.subscribeNow') }}
       </button>
     </div>
   </div>
@@ -118,7 +118,7 @@ import { useAppStore } from '@/stores/app'
 import { hasPeakRate as groupHasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import { planValiditySuffix } from './validity'
 import { currencySymbol } from '@/components/payment/currency'
-import { isPlanSoldOut } from '@/custom/subscription-plan-inventory/inventory'
+import { isPlanPurchasable, isPlanSoldOut } from '@/custom/subscription-plan-inventory/inventory'
 import {
   platformAccentBarClass,
   platformBadgeLightClass,
@@ -136,9 +136,11 @@ const { t } = useI18n()
 
 const platform = computed(() => props.plan.group_platform || '')
 const isRenewal = computed(() =>
-  props.activeSubscriptions?.some(s => s.group_id === props.plan.group_id && s.status === 'active') ?? false
+  props.plan.renewal_available === true
+  || (props.activeSubscriptions?.some(s => s.group_id === props.plan.group_id && s.status === 'active') ?? false)
 )
 const soldOut = computed(() => isPlanSoldOut(props.plan))
+const purchaseDisabled = computed(() => !isPlanPurchasable(props.plan))
 
 // Derived color classes from central config
 const accentClass = computed(() => platformAccentBarClass(platform.value))
@@ -146,7 +148,7 @@ const borderClass = computed(() => platformBorderClass(platform.value))
 const badgeLightClass = computed(() => platformBadgeLightClass(platform.value))
 const textClass = computed(() => platformTextClass(platform.value))
 const iconClass = computed(() => platformIconClass(platform.value))
-const btnClass = computed(() => soldOut.value
+const btnClass = computed(() => purchaseDisabled.value
   ? 'cursor-not-allowed bg-gray-200 text-gray-500 opacity-80 dark:bg-dark-600 dark:text-dark-300'
   : platformButtonClass(platform.value))
 const discountClass = computed(() => platformDiscountClass(platform.value))
@@ -188,7 +190,7 @@ const modelScopeLabels = computed(() => {
 const validitySuffix = computed(() => planValiditySuffix(props.plan, t))
 
 function handleSelect() {
-  if (soldOut.value) return
+  if (purchaseDisabled.value) return
   emit('select', props.plan)
 }
 </script>

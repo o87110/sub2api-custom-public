@@ -75,6 +75,13 @@
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.featuresHint') }}</p>
       </div>
       <BulkQuotaResetEligibilityToggle v-model="planForm.allow_bulk_quota_reset" />
+      <RenewalPolicyFields
+        :enabled="planForm.allow_existing_user_renewal"
+        :grace-days="planForm.renewal_grace_days"
+        :error="renewalGraceDaysError"
+        @update:enabled="handleRenewalEnabled"
+        @update:grace-days="planForm.renewal_grace_days = $event"
+      />
       <div class="flex items-center gap-3">
         <label class="text-sm text-gray-700 dark:text-gray-300">{{ t('payment.admin.forSale') }}</label>
         <button
@@ -119,6 +126,7 @@ import { platformTextClass } from '@/utils/platformColors'
 import InventoryQuantityInput from '@/custom/subscription-plan-inventory/InventoryQuantityInput.vue'
 import SoldOutActionSelect from '@/custom/subscription-plan-inventory/SoldOutActionSelect.vue'
 import BulkQuotaResetEligibilityToggle from '@/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue'
+import RenewalPolicyFields from '@/custom/subscription-plan-inventory/RenewalPolicyFields.vue'
 import {
   SOLD_OUT_ACTION_DELIST,
   SOLD_OUT_ACTION_DISABLE_PURCHASE,
@@ -155,6 +163,8 @@ const planForm = reactive({
   sort_order: 0,
   for_sale: true,
   allow_bulk_quota_reset: false,
+  allow_existing_user_renewal: false,
+  renewal_grace_days: 0,
   sold_out_action: SOLD_OUT_ACTION_DELIST as SoldOutAction,
 })
 const planFeaturesText = ref('')
@@ -162,6 +172,8 @@ const remainingQuantityInput = ref('')
 const remainingQuantityDirty = ref(false)
 const forSaleDirty = ref(false)
 const initialSoldOutAction = ref<SoldOutAction>(SOLD_OUT_ACTION_DELIST)
+const initialAllowExistingUserRenewal = ref(false)
+const initialRenewalGraceDays = ref(0)
 
 const isUnchangedSoldOutQuantity = computed(() =>
   props.plan?.remaining_quantity === 0 && !remainingQuantityDirty.value && remainingQuantityInput.value.trim() === '0',
@@ -174,6 +186,12 @@ const remainingQuantityError = computed(() => {
   return t(allowZero
     ? 'payment.admin.remainingQuantityInvalidAllowZero'
     : 'payment.admin.remainingQuantityInvalid')
+})
+
+const renewalGraceDaysError = computed(() => {
+  const value = planForm.renewal_grace_days
+  if (Number.isInteger(value) && value >= 0 && value <= 30) return ''
+  return t('payment.admin.renewalGraceDaysInvalid')
 })
 
 const validityUnitOptions = computed(() => [
@@ -227,15 +245,19 @@ watch(() => props.show, (visible) => {
   if (!visible) return
   if (props.plan) {
     const soldOutAction = props.plan.sold_out_action || SOLD_OUT_ACTION_DELIST
-    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price, original_price: props.plan.original_price || 0, currency: props.plan.currency || '', validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale, allow_bulk_quota_reset: props.plan.allow_bulk_quota_reset ?? false, sold_out_action: soldOutAction })
+    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price, original_price: props.plan.original_price || 0, currency: props.plan.currency || '', validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale, allow_bulk_quota_reset: props.plan.allow_bulk_quota_reset ?? false, allow_existing_user_renewal: props.plan.allow_existing_user_renewal ?? false, renewal_grace_days: props.plan.renewal_grace_days ?? 0, sold_out_action: soldOutAction })
     planFeaturesText.value = (props.plan.features || []).join('\n')
     remainingQuantityInput.value = props.plan.remaining_quantity == null ? '' : String(props.plan.remaining_quantity)
     initialSoldOutAction.value = soldOutAction
+    initialAllowExistingUserRenewal.value = props.plan.allow_existing_user_renewal ?? false
+    initialRenewalGraceDays.value = props.plan.renewal_grace_days ?? 0
   } else {
-    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true, allow_bulk_quota_reset: false, sold_out_action: SOLD_OUT_ACTION_DELIST })
+    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true, allow_bulk_quota_reset: false, allow_existing_user_renewal: false, renewal_grace_days: 0, sold_out_action: SOLD_OUT_ACTION_DELIST })
     planFeaturesText.value = ''
     remainingQuantityInput.value = ''
     initialSoldOutAction.value = SOLD_OUT_ACTION_DELIST
+    initialAllowExistingUserRenewal.value = false
+    initialRenewalGraceDays.value = 0
   }
   remainingQuantityDirty.value = false
   forSaleDirty.value = false
@@ -244,6 +266,13 @@ watch(() => props.show, (visible) => {
 function handleRemainingQuantityInput(value: string) {
   remainingQuantityInput.value = value
   remainingQuantityDirty.value = true
+}
+
+function handleRenewalEnabled(enabled: boolean) {
+  planForm.allow_existing_user_renewal = enabled
+  if (!enabled && renewalGraceDaysError.value) {
+    planForm.renewal_grace_days = 0
+  }
 }
 
 function togglePlanForSale() {
@@ -277,10 +306,14 @@ function buildPlanPayload() {
     payload.for_sale = planForm.for_sale
     payload.remaining_quantity = inventoryQuantityValue(remainingQuantityInput.value)
     payload.sold_out_action = planForm.sold_out_action
+    payload.allow_existing_user_renewal = planForm.allow_existing_user_renewal
+    payload.renewal_grace_days = planForm.renewal_grace_days
   } else {
     if (forSaleDirty.value) payload.for_sale = planForm.for_sale
     if (remainingQuantityDirty.value) payload.remaining_quantity = inventoryQuantityValue(remainingQuantityInput.value)
     if (planForm.sold_out_action !== initialSoldOutAction.value) payload.sold_out_action = planForm.sold_out_action
+    if (planForm.allow_existing_user_renewal !== initialAllowExistingUserRenewal.value) payload.allow_existing_user_renewal = planForm.allow_existing_user_renewal
+    if (planForm.renewal_grace_days !== initialRenewalGraceDays.value) payload.renewal_grace_days = planForm.renewal_grace_days
   }
   return payload
 }
@@ -300,6 +333,10 @@ async function handleSavePlan() {
   }
   if (remainingQuantityError.value) {
     appStore.showError(remainingQuantityError.value)
+    return
+  }
+  if (renewalGraceDaysError.value) {
+    appStore.showError(renewalGraceDaysError.value)
     return
   }
   saving.value = true

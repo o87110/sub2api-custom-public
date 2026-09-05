@@ -173,7 +173,7 @@
                   </div>
                 </div>
               </div>
-              <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmitSubscription || submitting || isPlanSoldOut(selectedPlan)" @click="confirmSubscribe">
+              <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmitSubscription || submitting || !isPlanPurchasable(selectedPlan)" @click="confirmSubscribe">
                 <span v-if="submitting" class="flex items-center justify-center gap-2">
                   <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
                   {{ t('common.processing') }}
@@ -253,6 +253,12 @@
         </div>
       </Transition>
     </Teleport>
+    <BepusdtNetworkDialog
+      :show="showBepusdtNetworkDialog"
+      :networks="selectedChannel?.network_options || []"
+      @cancel="cancelBepusdtNetworkSelection"
+      @confirm="confirmBepusdtNetworkSelection"
+    />
   </AppLayout>
 </template>
 
@@ -288,6 +294,7 @@ import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { planValiditySuffix as validitySuffixOf } from '@/components/payment/validity'
 import PaymentChannelSelector from '@/custom/payment-channels/PaymentChannelSelector.vue'
+import BepusdtNetworkDialog from '@/custom/payment-channels/BepusdtNetworkDialog.vue'
 import {
   ALIPAY_MOBILE_PRECREATE_DEEP_LINK,
   findPaymentChannel,
@@ -295,7 +302,7 @@ import {
 } from '@/custom/payment-channels/paymentChannels'
 import { usePaymentChannelPricing } from '@/custom/payment-channels/usePaymentChannelPricing'
 import {
-  isPlanSoldOut,
+  isPlanPurchasable,
   planAvailabilityError,
   synchronizePlanAvailability,
 } from '@/custom/subscription-plan-inventory/inventory'
@@ -351,6 +358,7 @@ interface CreateOrderOptions {
   paymentChannelId?: string
   isResume?: boolean
   mobileQrFallbackAttempted?: boolean
+  paymentNetwork?: string
 }
 
 interface WeixinJSBridgeLike {
@@ -380,6 +388,7 @@ function emptyPaymentState(): PaymentRecoverySnapshot {
     payAmount: 0,
     orderType: '',
     paymentMode: '',
+    paymentNetwork: '',
     resumeToken: '',
     alipayMobilePrecreateDeepLink: false,
     createdAt: 0,
@@ -599,7 +608,7 @@ function planPeakRateLabel(plan: SubscriptionPlan): string {
 }
 
 function selectPlan(plan: SubscriptionPlan) {
-  if (isPlanSoldOut(plan)) {
+  if (!isPlanPurchasable(plan)) {
     appStore.showWarning(t('payment.soldOut'))
     return
   }
@@ -608,7 +617,7 @@ function selectPlan(plan: SubscriptionPlan) {
 }
 
 function selectPlanFromModal(plan: SubscriptionPlan) {
-  if (isPlanSoldOut(plan)) {
+  if (!isPlanPurchasable(plan)) {
     appStore.showWarning(t('payment.soldOut'))
     return
   }
@@ -625,22 +634,54 @@ function closeRenewalModal() {
 
 async function handleSubmitRecharge() {
   if (!canSubmit.value || submitting.value) return
-  await createOrder(validAmount.value, 'balance')
+  await beginOrder(validAmount.value, 'balance')
 }
 
 async function confirmSubscribe() {
   if (!selectedPlan.value || submitting.value) return
-  if (isPlanSoldOut(selectedPlan.value)) {
+  if (!isPlanPurchasable(selectedPlan.value)) {
     appStore.showWarning(t('payment.soldOut'))
     return
   }
-  await createOrder(selectedPlan.value.price, 'subscription', selectedPlan.value.id)
+  await beginOrder(selectedPlan.value.price, 'subscription', selectedPlan.value.id)
+}
+
+const showBepusdtNetworkDialog = ref(false)
+const pendingBepusdtOrder = ref<{ amount: number; orderType: OrderType; planId?: number } | null>(null)
+
+function isBepusdtNativeChannel(channel = selectedChannel.value): boolean {
+  return channel?.payment_type === 'usdt'
+    && channel.provider_key === 'easypay'
+    && Array.isArray(channel.network_options)
+    && channel.network_options.length > 0
+}
+
+async function beginOrder(orderAmount: number, orderType: OrderType, planId?: number) {
+  if (isBepusdtNativeChannel()) {
+    pendingBepusdtOrder.value = { amount: orderAmount, orderType, planId }
+    showBepusdtNetworkDialog.value = true
+    return
+  }
+  await createOrder(orderAmount, orderType, planId)
+}
+
+function cancelBepusdtNetworkSelection() {
+  showBepusdtNetworkDialog.value = false
+  pendingBepusdtOrder.value = null
+}
+
+async function confirmBepusdtNetworkSelection(network: string) {
+  const pending = pendingBepusdtOrder.value
+  showBepusdtNetworkDialog.value = false
+  pendingBepusdtOrder.value = null
+  if (!pending) return
+  await createOrder(pending.amount, pending.orderType, pending.planId, { paymentNetwork: network })
 }
 
 async function createOrder(orderAmount: number, orderType: OrderType, planId?: number, options: CreateOrderOptions = {}) {
   if (orderType === 'subscription' && !options.isResume) {
     const plan = checkout.value.plans.find(candidate => candidate.id === planId)
-    if (!plan || isPlanSoldOut(plan)) {
+    if (!isPlanPurchasable(plan)) {
       appStore.showWarning(t('payment.soldOut'))
       return
     }
@@ -678,6 +719,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
       forceQRCode: !!(checkout.value.alipay_force_qrcode && normalizeVisibleMethod(requestType) === 'alipay'),
       mobilePrecreateDeepLink,
+      paymentNetwork: options.paymentNetwork,
     })
     if (options.openid) {
       payload.openid = options.openid
@@ -968,7 +1010,7 @@ onMounted(async () => {
       if (route.query.group) {
         const groupId = Number(route.query.group)
         const groupPlans = checkout.value.plans.filter(p => p.group_id === groupId)
-        const purchasablePlans = groupPlans.filter(plan => !isPlanSoldOut(plan))
+        const purchasablePlans = groupPlans.filter(isPlanPurchasable)
         if (purchasablePlans.length === 1) {
           selectedPlan.value = purchasablePlans[0]
         } else if (groupPlans.length > 0) {

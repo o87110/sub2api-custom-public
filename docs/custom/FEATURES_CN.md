@@ -254,8 +254,16 @@ frontend/src/views/user/KeysView.vue
   `airwallex` 不在本次禁止范围内；
 - 同一旧版支付方式的多个 EasyPay 实例仅在所有非空展示名一致时返回该名称，
   出现冲突时返回空名称；该规则与新版 `method_options` 一致；
-- EasyPay 的 USDT 方式仍是外部兼容服务的自定义类型映射，不提供原生 TRC20
-  钱包地址生成、交易哈希查询、区块确认或链上到账监听；
+- EasyPay 保留旧 Rainbow 自定义类型映射兼容；新增 `bepusdt_native` 协议后，USDT
+  使用 BEpusdt 原生 `/api/v1/order/create-transaction`，支持 `usdt.trc20`、
+  `usdt.bep20`、`usdt.polygon`、`usdt.plasma` 四种固定交易类型；
+- native USDT 在用户确认网络后才创建订单，货币固定为 USDT，默认网络为 BEP20，
+  未启用时回退到第一个已配置网络；桌面端打开 BEpusdt 收银台，移动端使用同窗口
+  跳转；
+- native 查询使用 `/api/v1/pay/info` 和 `payment_trade_no`，取消使用
+  `/api/v1/order/cancel-transaction`，不调用旧 `/api.php`、`/mapi.php`，且不提供退款；
+- BEpusdt 负责钱包地址生成、交易哈希查询、区块确认和链上到账监听，Sub2API 只负责
+  订单金额、签名、回调验签和最终履约；
 - 本功能不新增 Migration、Schema、实体字段或 SQL。
 
 主要实现：
@@ -381,9 +389,19 @@ frontend/src/custom/group-access/
 `NULL`，不会因升级改变销售行为。每个套餐可选择 `delist`（自动下架，默认）或
 `disable_purchase`（保留展示并禁用购买）作为售罄处理方式。
 
-- 创建待支付订阅订单时在同一数据库事务内预占一份库存；条件更新保证并发请求不能
+套餐还可独立开启 `allow_existing_user_renewal`，并设置 `0-30` 天的
+`renewal_grace_days`。两项默认分别为关闭和 `0`，升级后不会自动放开历史套餐。
+续费资格按套餐所属分组判断：有效订阅始终符合；已过期订阅仅在
+`expires_at + renewal_grace_days`（含截止时刻）之前符合；暂停、撤销和软删除订阅
+均不符合。
+
+- 新用户创建待支付订阅订单时在同一数据库事务内预占一份库存；条件更新保证并发请求不能
   把数量扣成负数。最后一份被预占后，`delist` 套餐自动下架，
-  `disable_purchase` 套餐保持展示但不能继续购买或续费；
+  售罄套餐在公共列表中继续展示，但停止普通购买；
+- 售罄展示与续费资格相互独立：所有用户都可看到售罄套餐，卡片对无资格用户保持禁用；
+  已开启续费策略且符合资格的用户可续费同分组的售罄或下架套餐。公共接口只返回派生的
+  `renewal_available`。订单事务会再次锁定套餐和订阅复核资格，续费订单记录为
+  `untracked`，不预占、消费或归还“剩余可买数量”；
 - 订单取消、超时或支付单创建失败时，仅将 `reserved` 预占释放一次。由售罄自动
   下架的套餐恢复上架，管理员手动下架的套餐保持下架；
 - 支付成功并发放订阅时在同一事务内将预占转为 `consumed`，履约重试不重复扣减；
@@ -395,14 +413,17 @@ frontend/src/custom/group-access/
 - 自动下架套餐补货、改为不限量或在售罄时切换为 `disable_purchase` 后自动恢复展示；
   `disable_purchase` 售罄套餐切换为 `delist` 时立即自动下架。管理员手动下架始终
   优先，不因补货或策略切换自动恢复；
-- 管理表格显示“无限制”、正整数或“0 / 已售罄”，并区分自动下架与禁用购买。
-  用户接口只暴露派生的 `sold_out`，不公开精确正数库存；售罄可见卡片显示“已售罄”
-  且购买/续费按钮不可操作。页面加载后若库存被并发抢空，前端识别
+- 管理表格显示“无限制”、正整数或“0 / 已售罄”，并区分自动下架、禁用购买与老用户
+  续费策略。用户接口只暴露派生的 `sold_out` 和用户级 `renewal_available`，不公开
+  精确库存或续费配置；所有用户均可看到售罄卡片，无续费资格时不可操作，具备资格时
+  显示续费操作。
+  页面加载后若库存被并发抢空或续费资格失效，前端识别
   `PLAN_SOLD_OUT`/`PLAN_NOT_AVAILABLE`，重新获取权威套餐列表并清除失效选择；刷新失败
   时也会本地禁用或移除对应套餐。后端原子预占继续阻止绕过前端的超卖请求；
 - 本功能新增 Migration `194_subscription_plan_inventory.sql` 和
-  `195_subscription_plan_sold_out_action.sql`、Ent Schema 字段及生成代码。Migration
-  195 默认 `delist`，历史套餐行为不变。发布前必须人工审核 Migration、备份
+  `195_subscription_plan_sold_out_action.sql`、`232_subscription_plan_renewal_policy.sql`、
+  Ent Schema 字段及生成代码。Migration 195 默认 `delist`；Migration 232 默认关闭续费
+  且宽限为 `0`，历史套餐行为不变。发布前必须人工审核 Migration、备份
   `subscription_plans`/`payment_orders` 并通过数据库边界门禁；开发和测试过程不得
   连接或修改生产数据库。
 

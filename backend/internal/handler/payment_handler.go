@@ -47,7 +47,8 @@ func (h *PaymentHandler) GetPaymentConfig(c *gin.Context) {
 // GetPlans returns subscription plans available for sale.
 // GET /api/v1/payment/plans
 func (h *PaymentHandler) GetPlans(c *gin.Context) {
-	plans, err := h.configService.ListPlansForSale(c.Request.Context())
+	subject, _ := middleware2.GetAuthSubjectFromContext(c)
+	plans, renewalAvailable, err := h.paymentService.ListPlansForUser(c.Request.Context(), subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -74,6 +75,7 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 		ProductName        string   `json:"product_name"`
 		ForSale            bool     `json:"for_sale"`
 		SoldOut            bool     `json:"sold_out"`
+		RenewalAvailable   bool     `json:"renewal_available"`
 		SortOrder          int      `json:"sort_order"`
 	}
 	groupInfo := h.configService.GetGroupInfoMap(c.Request.Context(), plans)
@@ -89,7 +91,7 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: p.Features,
 			ProductName: p.ProductName, ForSale: p.ForSale,
-			SoldOut: subscriptioninventory.IsSoldOut(p), SortOrder: p.SortOrder,
+			SoldOut: subscriptioninventory.IsSoldOut(p), RenewalAvailable: renewalAvailable[p.ID], SortOrder: p.SortOrder,
 		})
 	}
 	response.Success(c, result)
@@ -100,6 +102,7 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 // GET /api/v1/payment/checkout-info
 func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 	ctx := c.Request.Context()
+	subject, _ := middleware2.GetAuthSubjectFromContext(c)
 
 	// Fetch limits (methods + global range)
 	limitsResp, err := h.configService.GetAvailableMethodLimits(ctx)
@@ -134,7 +137,11 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 	}
 
 	// Fetch plans with group info
-	plans, _ := h.configService.ListPlansForSale(ctx)
+	plans, renewalAvailable, err := h.paymentService.ListPlansForUser(ctx, subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	groupInfo := h.configService.GetGroupInfoMap(ctx, plans)
 	planList := make([]checkoutPlan, 0, len(plans))
 	for _, p := range plans {
@@ -151,8 +158,9 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 			Name:        p.Name, Description: p.Description, Price: p.Price, OriginalPrice: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: parseFeatures(p.Features),
-			ProductName: p.ProductName,
-			SoldOut:     subscriptioninventory.IsSoldOut(p),
+			ProductName:      p.ProductName,
+			SoldOut:          subscriptioninventory.IsSoldOut(p),
+			RenewalAvailable: renewalAvailable[p.ID],
 		})
 	}
 
@@ -215,6 +223,7 @@ type checkoutPlan struct {
 	Features           []string `json:"features"`
 	ProductName        string   `json:"product_name"`
 	SoldOut            bool     `json:"sold_out"`
+	RenewalAvailable   bool     `json:"renewal_available"`
 }
 
 // parseFeatures splits a newline-separated features string into a string slice.
@@ -260,7 +269,8 @@ type CreateOrderRequest struct {
 	// IsMobile lets the frontend declare its mobile status directly. When
 	// nil we fall back to User-Agent heuristics (which miss iPadOS / some
 	// embedded browsers that strip the "Mobile" keyword).
-	IsMobile *bool `json:"is_mobile,omitempty"`
+	IsMobile       *bool  `json:"is_mobile,omitempty"`
+	PaymentNetwork string `json:"payment_network,omitempty"`
 }
 
 // CreateOrder creates a new payment order.
@@ -308,6 +318,7 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 		PaymentSource:   req.PaymentSource,
 		OrderType:       req.OrderType,
 		PlanID:          req.PlanID,
+		PaymentNetwork:  req.PaymentNetwork,
 		Locale:          c.GetHeader("Accept-Language"),
 	})
 	if err != nil {

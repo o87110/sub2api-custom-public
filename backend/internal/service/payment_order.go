@@ -31,6 +31,10 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if normalized := NormalizeVisibleMethod(req.PaymentType); normalized != "" {
 		req.PaymentType = normalized
 	}
+	req.PaymentNetwork = strings.ToLower(strings.TrimSpace(req.PaymentNetwork))
+	if req.PaymentNetwork != "" && req.PaymentType != paymentchannels.BepusdtPaymentType {
+		return nil, infraerrors.BadRequest("INVALID_PAYMENT_NETWORK", "payment network is only supported for USDT")
+	}
 	cfg, err := s.configService.GetPaymentConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get payment config: %w", err)
@@ -38,7 +42,7 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if !cfg.Enabled {
 		return nil, infraerrors.Forbidden("PAYMENT_DISABLED", "payment system is disabled")
 	}
-	plan, err := s.validateOrderInput(ctx, req, cfg)
+	plan, isRenewal, err := s.validateOrderInput(ctx, req, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +83,7 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if preparation.OAuth != nil {
 		return buildOrderOAuthResponse(req, limitAmount, preparation), nil
 	}
-	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, sel)
+	order, err := s.createOrderInTx(ctx, req, user, plan, isRenewal, cfg, orderAmount, limitAmount, feeRate, payAmount, sel)
 	if err != nil {
 		return nil, err
 	}
@@ -93,42 +97,50 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	return resp, nil
 }
 
-func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig) (*dbent.SubscriptionPlan, error) {
+func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig) (*dbent.SubscriptionPlan, bool, error) {
 	if req.OrderType == payment.OrderTypeBalance && cfg.BalanceDisabled {
-		return nil, infraerrors.Forbidden("BALANCE_PAYMENT_DISABLED", "balance recharge has been disabled")
+		return nil, false, infraerrors.Forbidden("BALANCE_PAYMENT_DISABLED", "balance recharge has been disabled")
 	}
 	if req.OrderType == payment.OrderTypeSubscription {
 		return s.validateSubOrder(ctx, req)
 	}
 	if math.IsNaN(req.Amount) || math.IsInf(req.Amount, 0) || req.Amount <= 0 {
-		return nil, infraerrors.BadRequest("INVALID_AMOUNT", "amount must be a positive number")
+		return nil, false, infraerrors.BadRequest("INVALID_AMOUNT", "amount must be a positive number")
 	}
 	if (cfg.MinAmount > 0 && req.Amount < cfg.MinAmount) || (cfg.MaxAmount > 0 && req.Amount > cfg.MaxAmount) {
-		return nil, infraerrors.BadRequest("INVALID_AMOUNT", "amount out of range").
+		return nil, false, infraerrors.BadRequest("INVALID_AMOUNT", "amount out of range").
 			WithMetadata(map[string]string{"min": fmt.Sprintf("%.2f", cfg.MinAmount), "max": fmt.Sprintf("%.2f", cfg.MaxAmount)})
 	}
-	return nil, nil
+	return nil, false, nil
 }
 
-func (s *PaymentService) validateSubOrder(ctx context.Context, req CreateOrderRequest) (*dbent.SubscriptionPlan, error) {
+func (s *PaymentService) validateSubOrder(ctx context.Context, req CreateOrderRequest) (*dbent.SubscriptionPlan, bool, error) {
 	if req.PlanID == 0 {
-		return nil, infraerrors.BadRequest("INVALID_INPUT", "subscription order requires a plan")
+		return nil, false, infraerrors.BadRequest("INVALID_INPUT", "subscription order requires a plan")
 	}
 	plan, err := s.configService.GetPlan(ctx, req.PlanID)
-	if err != nil || !plan.ForSale {
-		return nil, infraerrors.NotFound("PLAN_NOT_AVAILABLE", "plan not found or not for sale")
+	if err != nil {
+		return nil, false, infraerrors.NotFound("PLAN_NOT_AVAILABLE", "plan not found or not for sale")
 	}
 	group, err := s.groupRepo.GetByID(ctx, plan.GroupID)
 	if err != nil || group.Status != payment.EntityStatusActive {
-		return nil, infraerrors.NotFound("GROUP_NOT_FOUND", "subscription group is no longer available")
+		return nil, false, infraerrors.NotFound("GROUP_NOT_FOUND", "subscription group is no longer available")
 	}
 	if !group.IsSubscriptionType() {
-		return nil, infraerrors.BadRequest("GROUP_TYPE_MISMATCH", "group is not a subscription type")
+		return nil, false, infraerrors.BadRequest("GROUP_TYPE_MISMATCH", "group is not a subscription type")
 	}
-	return plan, nil
+
+	renewal, err := subscriptioninventory.AuthorizePlanForOrder(
+		ctx,
+		plan,
+		req.UserID,
+		paymentRenewalSubscriptionLoader{service: s},
+		time.Now(),
+	)
+	return plan, renewal, err
 }
 
-func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderRequest, user *User, plan *dbent.SubscriptionPlan, cfg *PaymentConfig, orderAmount, limitAmount, feeRate, payAmount float64, sel *payment.InstanceSelection) (*dbent.PaymentOrder, error) {
+func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderRequest, user *User, plan *dbent.SubscriptionPlan, isRenewal bool, cfg *PaymentConfig, orderAmount, limitAmount, feeRate, payAmount float64, sel *payment.InstanceSelection) (*dbent.PaymentOrder, error) {
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -142,7 +154,7 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	}
 	inventoryState := subscriptioninventory.StateUntracked
 	if plan != nil {
-		inventoryState, err = subscriptioninventory.ReserveForOrder(ctx, tx.Client(), plan.ID, true)
+		plan, inventoryState, err = subscriptioninventory.PrepareOrderInventory(ctx, tx.Client(), req.UserID, plan.ID, isRenewal, time.Now())
 		if err != nil {
 			return nil, err
 		}
@@ -284,6 +296,17 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 		if merchantID := strings.TrimSpace(sel.Config["pid"]); merchantID != "" {
 			snapshot["merchant_id"] = merchantID
 		}
+		if protocol, err := paymentchannels.NormalizeEasyPayProtocol(sel.Config[paymentchannels.EasyPayProtocolConfigKey]); err == nil {
+			snapshot["protocol"] = protocol
+			if protocol == paymentchannels.EasyPayProtocolBepusdt {
+				if network := strings.TrimSpace(req.PaymentNetwork); network != "" {
+					snapshot["payment_network"] = network
+					if mapped, ok := paymentchannels.BepusdtNetworkByCode(network); ok {
+						snapshot["upstream_trade_type"] = mapped.UpstreamType
+					}
+				}
+			}
+		}
 	}
 	if providerKey == payment.TypeStripe {
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
@@ -354,6 +377,7 @@ func customOrderPreparationRequest(req CreateOrderRequest, cfg *PaymentConfig, l
 		OpenID:                   req.OpenID,
 		PlanID:                   req.PlanID,
 		SourceURL:                req.SrcURL,
+		PaymentNetwork:           req.PaymentNetwork,
 	}
 }
 
@@ -379,13 +403,18 @@ func (loader paymentOrderLoader) SelectOrderInstance(ctx context.Context, reques
 	if request.WeChatJSAPIAppID != "" {
 		ctx = payment.WithWxpayJSAPIAppID(ctx, request.WeChatJSAPIAppID)
 	}
-	selection, err := loader.service.loadBalancer.SelectInstance(
-		ctx,
-		request.ProviderKey,
-		request.PaymentType,
-		payment.Strategy(request.Strategy),
-		request.PayAmount,
-	)
+	var selection *payment.InstanceSelection
+	var err error
+	strategy := payment.Strategy(request.Strategy)
+	if network := strings.TrimSpace(request.PaymentNetwork); network != "" {
+		if networkAware, ok := loader.service.loadBalancer.(payment.NetworkAwareLoadBalancer); ok {
+			selection, err = networkAware.SelectInstanceForNetwork(ctx, request.ProviderKey, request.PaymentType, strategy, request.PayAmount, network)
+		} else {
+			selection, err = loader.service.loadBalancer.SelectInstance(ctx, request.ProviderKey, request.PaymentType, strategy, request.PayAmount)
+		}
+	} else {
+		selection, err = loader.service.loadBalancer.SelectInstance(ctx, request.ProviderKey, request.PaymentType, strategy, request.PayAmount)
+	}
 	return customOrderSelection(selection), err
 }
 
@@ -536,12 +565,14 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 		return nil, err
 	}
 	providerReq := buildProviderCreatePaymentRequest(CreateOrderRequest{
-		PaymentType: req.PaymentType,
-		OpenID:      req.OpenID,
-		ClientIP:    req.ClientIP,
-		IsMobile:    req.IsMobile,
-		ReturnURL:   providerReturnURL,
+		PaymentType:    req.PaymentType,
+		PaymentNetwork: req.PaymentNetwork,
+		OpenID:         req.OpenID,
+		ClientIP:       req.ClientIP,
+		IsMobile:       req.IsMobile,
+		ReturnURL:      providerReturnURL,
 	}, sel, outTradeNo, payAmountStr, subject)
+	providerReq.TimeoutSeconds = int64(cfg.OrderTimeoutMin) * 60
 	providerReq.AlipayMobilePrecreate = shouldUseAlipayMobilePrecreate(req, cfg, sel)
 	finishProviderCall := servertiming.ObserveDependency(ctx, "payment")
 	pr, err := prov.CreatePayment(ctx, providerReq)
@@ -571,6 +602,7 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 		"paymentType":    req.PaymentType,
 		"orderType":      req.OrderType,
 		"paymentSource":  NormalizePaymentSource(req.PaymentSource),
+		"paymentNetwork": req.PaymentNetwork,
 	})
 	resultType := pr.ResultType
 	if resultType == "" {
@@ -611,6 +643,7 @@ func buildProviderCreatePaymentRequest(req CreateOrderRequest, sel *payment.Inst
 		OrderID:            orderID,
 		Amount:             amount,
 		PaymentType:        req.PaymentType,
+		PaymentNetwork:     req.PaymentNetwork,
 		Subject:            subject,
 		ReturnURL:          req.ReturnURL,
 		OpenID:             strings.TrimSpace(req.OpenID),
@@ -803,27 +836,28 @@ func classifyCreatePaymentError(req CreateOrderRequest, providerKey string, err 
 
 func buildCreateOrderResponse(order *dbent.PaymentOrder, req CreateOrderRequest, payAmount float64, sel *payment.InstanceSelection, pr *payment.CreatePaymentResponse, resultType payment.CreatePaymentResultType) *CreateOrderResponse {
 	return &CreateOrderResponse{
-		OrderID:      order.ID,
-		Amount:       order.Amount,
-		PayAmount:    payAmount,
-		FeeRate:      order.FeeRate,
-		Status:       OrderStatusPending,
-		ResultType:   resultType,
-		PaymentType:  req.PaymentType,
-		ProviderKey:  sel.ProviderKey,
-		OutTradeNo:   order.OutTradeNo,
-		PayURL:       pr.PayURL,
-		QRCode:       pr.QRCode,
-		ClientSecret: pr.ClientSecret,
-		IntentID:     pr.IntentID,
-		Currency:     pr.Currency,
-		CountryCode:  pr.CountryCode,
-		PaymentEnv:   pr.PaymentEnv,
-		OAuth:        pr.OAuth,
-		JSAPI:        pr.JSAPI,
-		JSAPIPayload: pr.JSAPI,
-		ExpiresAt:    order.ExpiresAt,
-		PaymentMode:  sel.PaymentMode,
+		OrderID:        order.ID,
+		Amount:         order.Amount,
+		PayAmount:      payAmount,
+		FeeRate:        order.FeeRate,
+		Status:         OrderStatusPending,
+		ResultType:     resultType,
+		PaymentType:    req.PaymentType,
+		ProviderKey:    sel.ProviderKey,
+		OutTradeNo:     order.OutTradeNo,
+		PayURL:         pr.PayURL,
+		QRCode:         pr.QRCode,
+		ClientSecret:   pr.ClientSecret,
+		IntentID:       pr.IntentID,
+		Currency:       pr.Currency,
+		CountryCode:    pr.CountryCode,
+		PaymentEnv:     pr.PaymentEnv,
+		PaymentNetwork: req.PaymentNetwork,
+		OAuth:          pr.OAuth,
+		JSAPI:          pr.JSAPI,
+		JSAPIPayload:   pr.JSAPI,
+		ExpiresAt:      order.ExpiresAt,
+		PaymentMode:    sel.PaymentMode,
 	}
 }
 

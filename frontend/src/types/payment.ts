@@ -70,6 +70,10 @@ export interface PaymentMethodOption {
   }>
   available: boolean
   capabilities?: string[]
+  network_options?: Array<{
+    code: string
+    display_name: string
+  }>
 }
 
 /** Response from /payment/limits API */
@@ -160,6 +164,12 @@ export interface SubscriptionPlan {
   inventory_auto_delisted?: boolean
   sold_out_action?: import('@/custom/subscription-plan-inventory/inventory').SoldOutAction
   sold_out?: boolean
+	/** Admin configuration; omitted from public plan APIs. */
+	allow_existing_user_renewal?: boolean
+	/** Admin configuration; omitted from public plan APIs. */
+	renewal_grace_days?: number
+	/** User-scoped derived capability returned by public plan APIs. */
+	renewal_available?: boolean
   sort_order: number
 }
 
@@ -204,6 +214,7 @@ export interface CreateOrderRequest {
   openid?: string
   wechat_resume_token?: string
   is_mobile?: boolean
+  payment_network?: string
 }
 
 export type CreateOrderResultType = 'order_created' | 'oauth_required' | 'jsapi_ready'
@@ -244,6 +255,7 @@ export interface CreateOrderResult {
   provider_key?: string
   out_trade_no?: string
   payment_mode?: string
+  payment_network?: string
   resume_token?: string
   alipay_mobile_precreate_deep_link?: boolean
   oauth?: WechatOAuthInfo

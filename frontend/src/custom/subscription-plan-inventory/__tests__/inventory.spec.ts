@@ -8,6 +8,7 @@ import {
   inventoryQuantityValue,
   isInventoryQuantity,
   isPlanSoldOut,
+  isPlanPurchasable,
   isPositiveInventoryQuantity,
   planAvailabilityError,
   reconcilePlanAvailability,
@@ -32,6 +33,9 @@ describe('subscription plan inventory helpers', () => {
     expect(isPlanSoldOut({ remaining_quantity: null })).toBe(false)
     expect(isPlanSoldOut({ sold_out: true })).toBe(true)
     expect(isPlanSoldOut({ sold_out: false })).toBe(false)
+    expect(isPlanPurchasable({ sold_out: true })).toBe(false)
+    expect(isPlanPurchasable({ sold_out: true, renewal_available: true })).toBe(true)
+    expect(isPlanPurchasable({ sold_out: false })).toBe(true)
   })
 
   it('allows zero only for disable-purchase plans', () => {

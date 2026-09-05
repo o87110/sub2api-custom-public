@@ -35,9 +35,10 @@
       <!-- Toggles + Payment mode + Supported types (single row) -->
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
         <ToggleSwitch :label="t('common.enabled')" :checked="form.enabled" @toggle="form.enabled = !form.enabled" />
-        <ToggleSwitch :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
+        <ToggleSwitch v-if="!isBepusdtNative" :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
+        <span v-else class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.validationBepusdtMode') }}</span>
         <ToggleSwitch v-if="form.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="form.allow_user_refund" @toggle="form.allow_user_refund = !form.allow_user_refund" />
-        <div v-if="supportsPaymentMode" class="flex items-center gap-2">
+        <div v-if="supportsPaymentMode && !isBepusdtNative" class="flex items-center gap-2">
           <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.paymentMode') }}</span>
           <div class="flex gap-1.5">
             <button
@@ -69,6 +70,34 @@
                   : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:border-dark-500',
               ]"
             >{{ pt.label }}</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="form.provider_key === 'easypay'" class="space-y-3 rounded-lg border border-gray-100 p-3 dark:border-dark-700">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.easypayProtocol') }}</span>
+          <div class="flex gap-1.5">
+            <button
+              v-for="protocol in easypayProtocolOptions"
+              :key="protocol.value"
+              type="button"
+              class="rounded-lg border px-2.5 py-1 text-xs font-medium transition-all"
+              :class="config.easypayProtocol === protocol.value ? 'border-primary-500 bg-primary-500 text-white' : 'border-gray-300 bg-white text-gray-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300'"
+              @click="setEasyPayProtocol(protocol.value)"
+            >{{ protocol.label }}</button>
+          </div>
+        </div>
+        <div v-if="isBepusdtNative" class="space-y-3">
+          <div>
+            <label class="input-label">{{ t('admin.settings.payment.bepusdtNetworks') }}</label>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <label v-for="network in BEPUSDT_NETWORK_OPTIONS" :key="network.value" class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-dark-600">
+                <input v-model="bepusdtNetworkSelection" type="checkbox" :value="network.value" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                <span>{{ network.label }}</span>
+              </label>
+            </div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.bepusdtNetworksHint') }}</p>
           </div>
         </div>
       </div>
@@ -319,6 +348,9 @@ import type { ProviderInstance } from '@/types/payment'
 import type { EasyPayCustomMethod, TypeOption } from './providerConfig'
 import { classifyEasyPayCustomType } from '@/custom/payment-channels/easypayPolicy'
 import {
+  BEPUSDT_NETWORK_OPTIONS,
+  EASYPAY_PROTOCOL_BEPUSDT,
+  EASYPAY_PROTOCOL_RAINBOW,
   PROVIDER_CONFIG_FIELDS,
   PROVIDER_SUPPORTED_TYPES,
   PROVIDER_CALLBACK_PATHS,
@@ -415,6 +447,7 @@ const returnBaseUrl = ref('')
 const limitsExpanded = ref(false)
 const visibleFields = reactive<Record<string, boolean>>({})
 const easyPayCustomMethods = reactive<EasyPayCustomMethod[]>([])
+const bepusdtNetworkSelection = ref<string[]>([])
 
 // --- Computed ---
 const defaultBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
@@ -436,6 +469,11 @@ const providerWebhookHint = computed(() =>
 const callbackPaths = computed(() => PROVIDER_CALLBACK_PATHS[form.provider_key] || null)
 
 const supportsPaymentMode = computed(() => providerSupportsPaymentMode(form.provider_key))
+const isBepusdtNative = computed(() => form.provider_key === 'easypay' && config.easypayProtocol === EASYPAY_PROTOCOL_BEPUSDT)
+const easypayProtocolOptions = computed(() => [
+  { value: EASYPAY_PROTOCOL_RAINBOW, label: t('admin.settings.payment.easypayProtocolRainbow') },
+  { value: EASYPAY_PROTOCOL_BEPUSDT, label: t('admin.settings.payment.easypayProtocolBepusdt') },
+])
 
 const paymentModeOptions = computed(() => {
   if (form.provider_key === 'alipay') {
@@ -453,6 +491,9 @@ const paymentModeOptions = computed(() => {
 })
 
 const availableTypes = computed(() => {
+  if (isBepusdtNative.value) {
+    return [{ value: 'usdt', label: t('payment.methods.usdt', 'USDT') }]
+  }
   const base = getAvailableTypes(form.provider_key, props.allPaymentTypes, props.redirectLabel)
   if (form.provider_key === 'easypay') {
     for (const method of normalizedEasyPayCustomMethods()) {
@@ -474,7 +515,11 @@ const availableTypes = computed(() => {
 
 const resolvedFields = computed(() => {
   const fields = PROVIDER_CONFIG_FIELDS[form.provider_key] || []
-  return fields.map(f => ({
+  return fields.filter((field) => {
+    if (form.provider_key !== 'easypay') return true
+    if (isBepusdtNative.value) return !['pid', 'pkey', 'cidAlipay', 'cidWxpay'].includes(field.key)
+    return field.key !== 'apiToken'
+  }).map(f => ({
     ...f,
     label: f.label || t(`admin.settings.payment.field_${f.key}`),
   }))
@@ -546,6 +591,9 @@ const paymentGuide = computed<PaymentGuide | null>(() => {
 })
 
 const limitableTypes = computed(() => {
+  if (isBepusdtNative.value) {
+    return [{ value: 'usdt', label: t('payment.methods.usdt', 'USDT') }]
+  }
   // Stripe: single "stripe" entry (one set of shared limits)
   if (form.provider_key === 'stripe') {
     return [{ value: 'stripe', label: 'Stripe' }]
@@ -599,6 +647,25 @@ function onKeyChange() {
   applyDefaults()
 }
 
+function setEasyPayProtocol(protocol: string) {
+  config.easypayProtocol = protocol === EASYPAY_PROTOCOL_BEPUSDT
+    ? EASYPAY_PROTOCOL_BEPUSDT
+    : EASYPAY_PROTOCOL_RAINBOW
+  if (config.easypayProtocol === EASYPAY_PROTOCOL_BEPUSDT) {
+    form.supported_types = ['usdt']
+    form.payment_mode = PAYMENT_MODE_POPUP
+    form.refund_enabled = false
+    form.allow_user_refund = false
+    easyPayCustomMethods.splice(0, easyPayCustomMethods.length)
+    if (bepusdtNetworkSelection.value.length === 0) {
+      bepusdtNetworkSelection.value = ['bep20']
+    }
+  } else {
+    form.supported_types = [...(PROVIDER_SUPPORTED_TYPES.easypay || [])]
+    form.payment_mode = defaultPaymentMode(form.provider_key)
+  }
+}
+
 function clearConfig() {
   Object.keys(config).forEach(k => delete config[k])
   Object.keys(limits).forEach(k => delete limits[k])
@@ -607,11 +674,15 @@ function clearConfig() {
   returnBaseUrl.value = ''
   limitsExpanded.value = false
   easyPayCustomMethods.splice(0, easyPayCustomMethods.length)
+  bepusdtNetworkSelection.value = []
 }
 
 function applyDefaults() {
   for (const f of PROVIDER_CONFIG_FIELDS[form.provider_key] || []) {
     if (f.defaultValue && !config[f.key]) config[f.key] = f.defaultValue
+  }
+  if (form.provider_key === 'easypay' && !config.easypayProtocol) {
+    config.easypayProtocol = EASYPAY_PROTOCOL_RAINBOW
   }
 }
 
@@ -665,6 +736,24 @@ function handleSave() {
     return
   }
   if (form.provider_key === 'easypay') {
+    if (isBepusdtNative.value) {
+      if (!bepusdtNetworkSelection.value.length) {
+        emitValidationError(t('admin.settings.payment.validationBepusdtNetworkRequired'))
+        return
+      }
+      if (!props.editing && !(config.apiToken || '').trim()) {
+        emitValidationError(t('admin.settings.payment.validationBepusdtTokenRequired'))
+        return
+      }
+      config.bepusdtNetworks = BEPUSDT_NETWORK_OPTIONS
+        .map(option => option.value)
+        .filter(code => bepusdtNetworkSelection.value.includes(code))
+        .join(',')
+      form.supported_types = ['usdt']
+      form.payment_mode = PAYMENT_MODE_POPUP
+      form.refund_enabled = false
+      form.allow_user_refund = false
+    }
     const validationError = validateEasyPayCustomMethods()
     if (validationError) {
       emitValidationError(validationError)
@@ -703,6 +792,11 @@ function handleSave() {
   }
   if (form.provider_key === 'easypay') {
     filteredConfig.customMethods = serializeEasyPayCustomMethods(normalizedEasyPayCustomMethods())
+    if (isBepusdtNative.value) {
+      delete filteredConfig.customMethods
+      filteredConfig.easypayProtocol = EASYPAY_PROTOCOL_BEPUSDT
+      filteredConfig.bepusdtNetworks = config.bepusdtNetworks || ''
+    }
   }
 
   // Inject computed callback URLs (each URL = independent base + fixed path)
@@ -834,6 +928,19 @@ function loadProvider(provider: ProviderInstance) {
     }
     if (paths?.returnUrl && provider.config['returnUrl']) {
       returnBaseUrl.value = extractBaseUrl(provider.config['returnUrl'], paths.returnUrl)
+    }
+  }
+  if (provider.provider_key === 'easypay') {
+    config.easypayProtocol = config.easypayProtocol || EASYPAY_PROTOCOL_RAINBOW
+    bepusdtNetworkSelection.value = (config.bepusdtNetworks || '')
+      .split(',')
+      .map(value => value.trim().toLowerCase())
+      .filter(value => BEPUSDT_NETWORK_OPTIONS.some(option => option.value === value))
+    if (config.easypayProtocol === EASYPAY_PROTOCOL_BEPUSDT) {
+      form.supported_types = ['usdt']
+      form.payment_mode = PAYMENT_MODE_POPUP
+      form.refund_enabled = false
+      form.allow_user_refund = false
     }
   }
   applyDefaults()

@@ -114,21 +114,23 @@ type AdminAvailability struct {
 // AdminPlanPatch keeps the official plan DTO at the bridge while allowing all
 // fields to be committed atomically with inventory availability.
 type AdminPlanPatch struct {
-	GroupID             *int64
-	Name                *string
-	Description         *string
-	Price               *float64
-	OriginalPrice       *float64
-	Currency            *string
-	ValidityDays        *int
-	ValidityUnit        *string
-	Features            *string
-	ProductName         *string
-	ForSale             *bool
-	AllowBulkQuotaReset *bool
-	RemainingQuantity   QuantityPatch
-	SoldOutAction       SoldOutActionPatch
-	SortOrder           *int
+	GroupID                  *int64
+	Name                     *string
+	Description              *string
+	Price                    *float64
+	OriginalPrice            *float64
+	Currency                 *string
+	ValidityDays             *int
+	ValidityUnit             *string
+	Features                 *string
+	ProductName              *string
+	ForSale                  *bool
+	AllowBulkQuotaReset      *bool
+	RemainingQuantity        QuantityPatch
+	SoldOutAction            SoldOutActionPatch
+	AllowExistingUserRenewal *bool
+	RenewalGraceDays         *int
+	SortOrder                *int
 }
 
 // lockPlanForAdminUpdate acquires the plan row's write lock inside the
@@ -176,10 +178,15 @@ func IsSoldOut(plan *dbent.SubscriptionPlan) bool {
 // commits the entire PATCH atomically so non-inventory fields cannot be left in
 // a partial state if inventory validation or persistence fails.
 func UpdateAdminPlan(ctx context.Context, entClient *dbent.Client, planID int64, patch AdminPlanPatch) (*dbent.SubscriptionPlan, error) {
+	if patch.RenewalGraceDays != nil {
+		if err := ValidateRenewalGraceDays(*patch.RenewalGraceDays); err != nil {
+			return nil, err
+		}
+	}
 	client := entClient
 	opCtx := ctx
 	var tx *dbent.Tx
-	if patch.RemainingQuantity.Present || patch.SoldOutAction.Present || patch.ForSale != nil {
+	if patch.RemainingQuantity.Present || patch.SoldOutAction.Present || patch.ForSale != nil || patch.AllowExistingUserRenewal != nil || patch.RenewalGraceDays != nil {
 		var err error
 		tx, err = entClient.Tx(ctx)
 		if err != nil {
@@ -268,6 +275,12 @@ func applyAdminPlanFields(update *dbent.SubscriptionPlanUpdateOne, patch AdminPl
 	}
 	if patch.AllowBulkQuotaReset != nil {
 		update.SetAllowBulkQuotaReset(*patch.AllowBulkQuotaReset)
+	}
+	if patch.AllowExistingUserRenewal != nil {
+		update.SetAllowExistingUserRenewal(*patch.AllowExistingUserRenewal)
+	}
+	if patch.RenewalGraceDays != nil {
+		update.SetRenewalGraceDays(*patch.RenewalGraceDays)
 	}
 	if patch.SortOrder != nil {
 		update.SetSortOrder(*patch.SortOrder)

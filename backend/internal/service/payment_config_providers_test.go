@@ -114,6 +114,18 @@ func TestValidateProviderRequest(t *testing.T) {
 	}
 }
 
+func TestValidateEasyPayNativeInstance(t *testing.T) {
+	config := map[string]string{
+		"easypayProtocol": "bepusdt_native",
+		"bepusdtNetworks": "bep20,polygon",
+	}
+	assert.NoError(t, validateEasyPayCustomMethods(config, "usdt"))
+	assert.NoError(t, validateEasyPayNativeInstance(config, "usdt", "popup", false))
+	assert.Error(t, validateEasyPayNativeInstance(config, "usdt", "qrcode", false))
+	assert.Error(t, validateEasyPayNativeInstance(config, "usdt", "popup", true))
+	assert.Error(t, validateEasyPayNativeInstance(config, "alipay", "popup", false))
+}
+
 func TestValidateEasyPayCustomMethods(t *testing.T) {
 	t.Parallel()
 
@@ -251,6 +263,7 @@ func TestIsSensitiveProviderConfigField(t *testing.T) {
 
 		// EasyPay
 		{"easypay", "pkey", true},
+		{"easypay", "apiToken", true},
 		{"easypay", "pid", false},
 		{"easypay", "apiBase", false},
 

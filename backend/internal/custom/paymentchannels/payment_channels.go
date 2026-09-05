@@ -30,12 +30,13 @@ type Limits struct {
 // Instance is the minimal provider-instance projection needed to build user
 // facing payment-channel options.
 type Instance struct {
-	ID           int64
-	ProviderKey  string
-	PaymentTypes []string
-	Currency     string
-	Limits       map[string]Limits
-	DisplayNames map[string]string
+	ID             int64
+	ProviderKey    string
+	PaymentTypes   []string
+	Currency       string
+	Limits         map[string]Limits
+	DisplayNames   map[string]string
+	NetworkOptions []NetworkOption
 }
 
 // MethodOption is the stable public representation of a selectable payment
@@ -47,19 +48,25 @@ type AmountRange struct {
 	SingleMax float64 `json:"single_max"`
 }
 
+type NetworkOption struct {
+	Code        string `json:"code"`
+	DisplayName string `json:"display_name"`
+}
+
 type MethodOption struct {
-	ID           string        `json:"id"`
-	PaymentType  string        `json:"payment_type"`
-	ProviderKey  string        `json:"provider_key"`
-	DisplayName  string        `json:"display_name,omitempty"`
-	Currency     string        `json:"currency"`
-	FeeRate      float64       `json:"fee_rate"`
-	DailyLimit   float64       `json:"daily_limit"`
-	SingleMin    float64       `json:"single_min"`
-	SingleMax    float64       `json:"single_max"`
-	AmountRanges []AmountRange `json:"amount_ranges,omitempty"`
-	Available    bool          `json:"available"`
-	Capabilities []string      `json:"capabilities,omitempty"`
+	ID             string          `json:"id"`
+	PaymentType    string          `json:"payment_type"`
+	ProviderKey    string          `json:"provider_key"`
+	DisplayName    string          `json:"display_name,omitempty"`
+	Currency       string          `json:"currency"`
+	FeeRate        float64         `json:"fee_rate"`
+	DailyLimit     float64         `json:"daily_limit"`
+	SingleMin      float64         `json:"single_min"`
+	SingleMax      float64         `json:"single_max"`
+	AmountRanges   []AmountRange   `json:"amount_ranges,omitempty"`
+	NetworkOptions []NetworkOption `json:"network_options,omitempty"`
+	Available      bool            `json:"available"`
+	Capabilities   []string        `json:"capabilities,omitempty"`
 }
 
 type channelKey struct {
@@ -116,6 +123,12 @@ func BuildMethodOptions(instances []Instance, feeRate float64, alipayMobilePrecr
 			SingleMax:    limits.SingleMax,
 			AmountRanges: amountRanges,
 			Available:    len(amountRanges) > 0,
+		}
+		if key.paymentType == BepusdtPaymentType && key.providerKey == ProviderEasyPay {
+			option.NetworkOptions = aggregateNetworkOptions(groupedInstances)
+			if len(option.NetworkOptions) == 0 {
+				option.Available = false
+			}
 		}
 		if alipayMobilePrecreateDeepLink &&
 			key.paymentType == MethodAlipay &&
@@ -218,6 +231,27 @@ func aggregateDisplayName(paymentType string, instances []Instance) string {
 		names = append(names, instance.DisplayNames[paymentType])
 	}
 	return AggregateDisplayName(names)
+}
+
+func aggregateNetworkOptions(instances []Instance) []NetworkOption {
+	if len(instances) == 0 {
+		return nil
+	}
+	allowed := make(map[string]NetworkOption)
+	for _, instance := range instances {
+		for _, option := range instance.NetworkOptions {
+			if _, exists := allowed[option.Code]; !exists {
+				allowed[option.Code] = option
+			}
+		}
+	}
+	result := make([]NetworkOption, 0, len(allowed))
+	for _, code := range bepusdtNetworkOrder {
+		if option, ok := allowed[code]; ok {
+			result = append(result, option)
+		}
+	}
+	return result
 }
 
 func aggregateAmountRanges(paymentType string, instances []Instance) []AmountRange {
@@ -330,6 +364,8 @@ func optionSortKey(option MethodOption) int {
 		return 50
 	case "airwallex":
 		return 60
+	case "easypay_usdt":
+		return 45
 	default:
 		return 100
 	}

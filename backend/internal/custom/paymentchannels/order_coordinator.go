@@ -32,6 +32,7 @@ type OrderPreparationRequest struct {
 	OpenID                   string
 	PlanID                   int64
 	SourceURL                string
+	PaymentNetwork           string
 }
 
 type OrderSelectionRequest struct {
@@ -40,6 +41,7 @@ type OrderSelectionRequest struct {
 	Strategy         string
 	PayAmount        float64
 	WeChatJSAPIAppID string
+	PaymentNetwork   string
 }
 
 type OrderOAuth struct {
@@ -148,6 +150,7 @@ func (c *OrderCoordinator) Prepare(ctx context.Context, request OrderPreparation
 		Strategy:         strategy,
 		PayAmount:        payAmount,
 		WeChatJSAPIAppID: expectedAppID,
+		PaymentNetwork:   request.PaymentNetwork,
 	})
 	if err != nil {
 		return nil, infraerrors.ServiceUnavailable("PAYMENT_GATEWAY_ERROR", "method_not_configured").
@@ -167,6 +170,9 @@ func (c *OrderCoordinator) Prepare(ctx context.Context, request OrderPreparation
 		}
 	}
 	if err := validateWeChatSelection(request, selection, expectedAppID); err != nil {
+		return nil, err
+	}
+	if err := ValidatePaymentNetworkSelection(request.PaymentType, request.PaymentNetwork, selection); err != nil {
 		return nil, err
 	}
 
