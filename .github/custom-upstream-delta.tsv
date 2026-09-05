@@ -629,3 +629,4 @@ tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984
 tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	6bc3fd3afd62a8f6a6b4c49aa3ad454a4b7aee94	-	-	thin-bridge-contract-unit+candidate-tree-test	精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay native 薄桥调用；精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay 薄桥调用；精确登记返利撤销路由、逐行选择和管理页薄桥函数、调用面与控制流及 EasyPay native 薄桥调用
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 
+

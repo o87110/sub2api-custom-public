@@ -19,7 +19,7 @@ backend/internal/handler/channel_monitor_user_handler.go	delegate	true	59	26	75f
 backend/internal/handler/dto/mappers.go	dto	false	28	22	-
 backend/internal/handler/dto/settings.go	dto	true	19	16	-
 backend/internal/handler/dto/types.go	dto	false	8	0	-
-$160\t88	-
+backend/internal/handler/gateway_handler.go`tdelegate`ttrue`t60`t88`t-
 backend/internal/handler/gateway_handler_chat_completions.go	delegate	true	10	6	-
 backend/internal/handler/gateway_handler_responses.go	delegate	true	6	0	-
 backend/internal/handler/gateway_helper.go	delegate	true	42	0	-
