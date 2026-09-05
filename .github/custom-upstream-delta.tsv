@@ -631,3 +631,4 @@ tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d
 
 
 
+.github/upgrades/0.2.1.md	A	keep	A	custom-docs-ops	@absent	3ac6abab99b5e474ebc6eafba6b971b9524d2ae1	-	-	candidate-tree+targeted-CI	官方升级报告
