@@ -1167,6 +1167,14 @@ func (s *adminServiceImpl) DeleteGroup(ctx context.Context, id int64) error {
 	return nil
 }
 
+func (s *adminServiceImpl) DeleteGroupIfEmpty(ctx context.Context, id int64) error {
+	if s.emptyGroupDeleteRepo == nil {
+		return fmt.Errorf("guarded group deletion is unavailable")
+	}
+	_, err := s.emptyGroupDeleteRepo.DeleteCascadeIfEmpty(ctx, id)
+	return err
+}
+
 func (s *adminServiceImpl) GetGroupAPIKeys(ctx context.Context, groupID int64, page, pageSize int) ([]APIKey, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
 	keys, result, err := s.apiKeyRepo.ListByGroupID(ctx, groupID, params)

@@ -116,6 +116,9 @@ type OpenAIModelsResponse struct {
 	NotModified                  bool
 }
 
+// CodexModelsManifest is retained for handlers using the historical name.
+type CodexModelsManifest = OpenAIModelsResponse
+
 // BuildGroupConfiguredCodexModelsManifest builds a Codex catalog from configured
 // public model names, supplemented by defaults for unmapped OpenAI accounts. The
 // boolean result distinguishes "no explicit configuration" from a configured

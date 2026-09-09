@@ -65,6 +65,7 @@ type APIKeyAuthGroupSnapshot struct {
 	SubscriptionType                string                        `json:"subscription_type"`
 	RateMultiplier                  float64                       `json:"rate_multiplier"`
 	MinimumBalance                  float64                       `json:"minimum_balance"`
+	ModelsListConfig                GroupModelsListConfig         `json:"models_list_config,omitempty"`
 	DailyLimitUSD                   *float64                      `json:"daily_limit_usd,omitempty"`
 	WeeklyLimitUSD                  *float64                      `json:"weekly_limit_usd,omitempty"`
 	MonthlyLimitUSD                 *float64                      `json:"monthly_limit_usd,omitempty"`

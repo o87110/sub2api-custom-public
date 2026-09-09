@@ -31,6 +31,19 @@ import (
 // 匹配格式: /Users/xxx/.gemini/tmp/[64位十六进制哈希]
 var geminiCLITmpDirRegex = regexp.MustCompile(`/\.gemini/tmp/([A-Fa-f0-9]{64})`)
 
+func filterUpstreamGeminiModelsBody(body []byte, allowlist service.GroupModelAllowlist) ([]byte, bool, bool) {
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(body, &envelope); err != nil { return body, false, false }
+	raw, ok := envelope["models"]; if !ok { return body, false, true }
+	var models []map[string]any
+	if err := json.Unmarshal(raw, &models); err != nil { return body, false, true }
+	kept := make([]map[string]any, 0, len(models)); dropped := false
+	for _, m := range models { name, _ := m["name"].(string); name = strings.TrimPrefix(name, "models/"); if allowlist.Allows(name) { kept = append(kept, m) } else { dropped = true } }
+	if !dropped { return body, false, true }
+	b, err := json.Marshal(kept); if err != nil { return body, false, true }; envelope["models"] = b
+	out, err := json.Marshal(envelope); if err != nil { return body, false, true }; return out, true, true
+}
+
 // GeminiV1BetaListModels proxies:
 // GET /v1beta/models
 func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {

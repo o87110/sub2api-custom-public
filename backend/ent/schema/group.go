@@ -342,3 +342,4 @@ func (Group) Indexes() []ent.Index {
 			Annotations(entsql.IndexWhere("duplicate_operation_id IS NOT NULL AND deleted_at IS NULL")),
 	}
 }
+
