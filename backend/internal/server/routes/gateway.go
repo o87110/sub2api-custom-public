@@ -1,7 +1,11 @@
 package routes
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"mime/multipart"
+	"mime"
 	"net/http"
 	"strings"
 
@@ -17,6 +21,12 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
+
+func compositeRequestModelFromBody(contentType string, body []byte) string {
+	media, params, err := mime.ParseMediaType(contentType); if err != nil || media != "multipart/form-data" { return "" }
+	r := multipart.NewReader(bytes.NewReader(body), params["boundary"])
+	for { p, err := r.NextPart(); if err != nil { return "" }; data := new(bytes.Buffer); data.ReadFrom(p); var v struct{ Model string `json:"model"` }; if json.Unmarshal(data.Bytes(), &v)==nil && v.Model!="" { return v.Model } }
+}
 
 // RegisterGatewayRoutes 注册 API 网关路由（Claude/OpenAI/Gemini 兼容）
 func RegisterGatewayRoutes(
