@@ -2813,7 +2813,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					model = reqModel
 				}
 				setOpsRequestContext(c, model, true)
-				if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) { closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model_not_found"); return "", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "model_not_found", nil) }
+				if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) { closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model not available for this group"); return "", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "model not available for this group", nil) }
 				if accessErr := service.CheckGroupModelAccess(ctx, model); accessErr != nil {
 					service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
 					writeGroupModelBlockedWSError(ctx, wsConn, model)
@@ -3550,6 +3550,10 @@ func (h *OpenAIGatewayHandler) ensureOpenAIStreamReadErrorResponse(c *gin.Contex
 // ensureForwardErrorResponse 在 Forward 返回错误但尚未写响应时补写统一错误响应。
 func (h *OpenAIGatewayHandler) ensureForwardErrorResponse(c *gin.Context, streamStarted bool) bool {
 	if c == nil || c.Writer == nil {
+		return false
+	}
+	if c.Request != nil && c.Request.Context().Err() != nil {
+		c.Writer.WriteHeader(statusClientClosedRequest)
 		return false
 	}
 	// 先停 compact 心跳再读 Writer 状态，避免与心跳 goroutine 竞争。
