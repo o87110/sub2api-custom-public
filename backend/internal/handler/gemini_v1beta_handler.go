@@ -64,10 +64,13 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 			googleError(c, http.StatusInternalServerError, "Failed to build models response")
 			return false
 		}
-		displayEnabled := forcePlatform != service.PlatformAntigravity && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled()
+		if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
+			if filtered, _, ok := filterUpstreamGeminiModelsBody(body, apiKey.Group.ModelAllowlist); ok { c.Data(http.StatusOK, "application/json", filtered); return true }
+		}
+		displayEnabled := forcePlatform != service.PlatformAntigravity && apiKey.Group != nil && (apiKey.Group.CustomModelsListEnabled() || apiKey.Group.ModelAllowlistEnabled())
 		var displayModels []string
 		if apiKey.Group != nil {
-			displayModels = apiKey.Group.ModelsListConfig.Models
+			if apiKey.Group.ModelAllowlistEnabled() { displayModels = apiKey.Group.ModelAllowlist.Models } else { displayModels = apiKey.Group.ModelsListConfig.Models }
 		}
 		filtered, _, err := h.gatewayService.FilterGeminiModelsResponse(c.Request.Context(), apiKey.GroupID, platform, body, displayModels, displayEnabled)
 		if err != nil {
