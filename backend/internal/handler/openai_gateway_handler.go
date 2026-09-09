@@ -2355,6 +2355,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model is required in first response.create payload")
 		return
 	}
+	if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(reqModel) {
+		writeGroupModelBlockedWSError(ctx, wsConn, reqModel)
+		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model_not_found")
+		return
+	}
 	if accessErr := service.CheckGroupModelAccess(ctx, reqModel); accessErr != nil {
 		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
 		writeGroupModelBlockedWSError(ctx, wsConn, reqModel)
@@ -2808,6 +2813,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					model = reqModel
 				}
 				setOpsRequestContext(c, model, true)
+				if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) { closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model_not_found"); return "", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "model_not_found", nil) }
 				if accessErr := service.CheckGroupModelAccess(ctx, model); accessErr != nil {
 					service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
 					writeGroupModelBlockedWSError(ctx, wsConn, model)
