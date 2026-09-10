@@ -1,5 +1,5 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	939100ba5f46acb3ba2c91d1e4d85c059eb2c995	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容测试控制面
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	052a2ed556542805f0aac8b47b43798f8814d489	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
 .github/audit-exceptions.yml	M	keep	M	fixed-path	6243f0fa7faa26a7c571955b1d5772e7dd4391cc	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	b5f950c6762e5321b0426e93c970c2c9c758605c	-	-	database-boundary-unit+candidate-tree-test	登记全部 Custom 数据库结构/只读 SQL 例外，并绑定 vendor-0.2.1 准确 Blob 与语义指纹
@@ -431,6 +431,7 @@ backend/migrations/subscription_plan_sold_out_action_migration_test.go	A	keep	A	
 deploy/.env.example	M	keep	M	fixed-path	76762e303b74bcdfd2cd66d5542caa787841e31d	1c8db7653ca07b8c2c7a34467b0e057c5537d2dd	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/CUSTOM_UPGRADE_CN.md	A	keep	A	custom-docs-ops	@absent	ae8da2590530f2c84e96a04fc8450ea27c1b6ec4	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 deploy/README.md	M	keep	M	custom-docs-ops	b4f8d094f481f8f16c30fb7fb70e3cc8048d59cd	10820c0a7be42a4c3a59b8568a1e0c65f678f9db	-	-	documentation-consistency-review	公开二改部署文档需要固定准确镜像、匹配公开仓库并记录旧部署 runtime 的隔离保全顺序
+deploy/apple-container.sh	M	keep	M	fixed-path	5de4d5cab135c4e67d520939add552f5ab931522	cb646f1c6293e7441bd1bb56e278b87d3a9f4ebb	-	-	apple-container-test+candidate-tree-test	预落与官方 v0.2.4 Apple 容器测试匹配的网络子网支持，保持官方 Blob 完全一致
 deploy/docker-compose.custom.yml	A	keep	A	fixed-path	@absent	f0a74a10c339a23bb53fd31f28e4440e8fc59b61	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/docker-compose.local.yml	M	keep	M	fixed-path	0df1fb0d8be36c376b9207d80d55d01ce5d8cf99	7dfa29a5189cfcde8e1f4dd4fb5dcdee9c45fb34	-	-	compose-config+runtime-persistence-test+container-safety	公开二改预构建部署固定准确镜像、持久化 runtime 并禁止提权
 deploy/docker-compose.standalone.yml	M	keep	M	fixed-path	bca5e48514e9632190f5e8700f5b46a58b889ee3	dce5c367ec4398c3fb2b7ce6a91477e7e5c6bb4c	-	-	compose-config+runtime-persistence-test+container-safety	公开二改预构建部署固定准确镜像、持久化 runtime 并禁止提权

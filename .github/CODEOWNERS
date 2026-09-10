@@ -193,6 +193,7 @@
 /backend/migrations/subscription_cycle_usage_migration_test.go @o87110
 /backend/migrations/subscription_plan_bulk_quota_reset_migration_test.go @o87110
 /backend/migrations/subscription_cycle_manual_bulk_quota_reset_migration_test.go @o87110
+/deploy/apple-container.sh @o87110
 /deploy/docker-compose.custom.yml @o87110
 /deploy/docker-entrypoint.sh @o87110
 /deploy/release/** @o87110
