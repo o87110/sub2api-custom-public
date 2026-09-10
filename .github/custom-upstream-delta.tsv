@@ -28,7 +28,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.1.185.md	A	keep	A	custom-docs-ops	@absent	3e2bf78297c3fc31912d8340a7fffa6c09733a38	-	-	documentation-consistency-review	记录官方 v0.1.185 升级、二改交集审查、数据库门禁与发布验证证据
 .github/upgrades/0.2.0.md	A	keep	A	custom-docs-ops	@absent	e442e735e6d0799947e1386520f91b761f1e85aa	-	-	documentation-consistency-review+database-boundary-review	记录官方 v0.2.0 升级、冲突语义移植、数据库迁移审核与发布门禁状态
 .github/upgrades/0.2.1.md	A	keep	A	custom-docs-ops	@absent	46ae35673ded270a7600e5f16ca5024e3c1afbc8	-	-	candidate-tree+targeted-CI	官方升级报告
-.github/upgrades/0.2.4.md	A	keep	A	custom-docs-ops	@absent	66a46a7d9e21056a9c05f3412b541c2836062d35	-	-	candidate-tree	0.2.4 upgrade report
+.github/upgrades/0.2.4.md	A	keep	A	custom-docs-ops	@absent	efd56ccc6ea67b1d489da8b528fdfac745bf2fef	-	-	candidate-tree	0.2.4 upgrade report
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	5c6c05eaccd3a87f697b6f5bd58c3005155ceda1	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记官方 Handler、支付订单、支付配置与 EasyPay native 策略的影子关系，并声明模型服务重命名兼容关系
 .github/workflows/backend-ci.yml	M	keep	M	fixed-path	2bac7259a9e445ee3674608aab8e47273bc193b9	42bce667dc0044b93209fb18cfc816c600f7c0d5	-	-	yaml-parse+action-pin+actionlint+container-safety	并行边界门禁、收窄 Integration 包并为准确 main SHA 产出前端 Release Artifact；集成 harness 保持 UTC，分组用量测试在事务内显式设置业务时区
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
