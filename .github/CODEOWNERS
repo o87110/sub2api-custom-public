@@ -196,6 +196,7 @@
 /deploy/docker-compose.custom.yml @o87110
 /deploy/docker-entrypoint.sh @o87110
 /deploy/release/** @o87110
+/deploy/tests/apple-container-test.sh @o87110
 /deploy/tests/backend-integration-test.sh @o87110
 /deploy/tests/custom-actions-supply-chain-test.sh @o87110
 /deploy/tests/ci-impact.sh @o87110
