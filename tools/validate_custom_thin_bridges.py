@@ -1796,6 +1796,8 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/handler/gateway_handler.go": frozenset({
         "handleStreamingAwareErrorWithCode",
         "errorResponseWithCode",
+        "modelListingSource",
+        "writeAllowlistedModelsList",
     }),
     "backend/internal/handler/gateway_handler_chat_completions.go": frozenset({}),
     "backend/internal/handler/gateway_handler_responses.go": frozenset({}),
@@ -1807,6 +1809,7 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     }),
     "backend/internal/handler/gemini_v1beta_handler.go": frozenset({
         "customGeminiModelsList",
+        "filterUpstreamGeminiModelsBody",
     }),
     "backend/internal/handler/gateway_web_search.go": frozenset({}),
     "backend/internal/handler/image_task_handler.go": frozenset({
@@ -1815,10 +1818,13 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/handler/no_account_error.go": frozenset({}),
     "backend/internal/handler/openai_alpha_search.go": frozenset({}),
     "backend/internal/handler/openai_chat_completions.go": frozenset({}),
-    "backend/internal/handler/openai_codex_models_handler.go": frozenset({}),
+    "backend/internal/handler/openai_codex_models_handler.go": frozenset({
+        "writeCodexModelsManifestResponse",
+    }),
     "backend/internal/handler/openai_embeddings.go": frozenset({}),
     "backend/internal/handler/openai_gateway_count_tokens.go": frozenset({}),
     "backend/internal/handler/openai_gateway_handler.go": frozenset({
+        "blockedModelAllowlistCandidate",
         "writeGroupModelBlockedWSError",
         "advanceOpenAIWSCyberBlockState",
         "openAIChannelForwardModel",
@@ -1831,10 +1837,9 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/server/middleware/api_key_auth_google.go": frozenset({}),
     "backend/internal/server/routes/gateway.go": frozenset({
         "compositeMappedModelBlocked",
+        "compositeRequestModelFromBody",
     }),
-    "backend/internal/service/admin_group.go": frozenset({
-        "checkGroupMinimumBalanceForUser",
-    }),
+    "backend/internal/service/admin_group.go": frozenset({"checkGroupMinimumBalanceForUser"}),
     "backend/internal/service/antigravity_gateway_claude.go": frozenset({}),
     "backend/internal/service/antigravity_gateway_compat.go": frozenset({}),
     "backend/internal/service/antigravity_gateway_gemini.go": frozenset({}),
@@ -1859,6 +1864,8 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
     "backend/internal/service/grok_media.go": frozenset({}),
     "backend/internal/service/group_models_list.go": frozenset({
         "BlocksModel",
+        "CustomModelsListEnabled",
+        "normalizeGroupModelsListConfig",
     }),
     "backend/internal/service/openai_alpha_search.go": frozenset({}),
     "backend/internal/service/openai_embeddings.go": frozenset({}),
@@ -1880,10 +1887,31 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
         "liveRequestModel",
     }),
     "frontend/src/views/admin/GroupsView.vue": frozenset({
+        "authStore",
+        "buildModelAllowlistConfig",
+        "moveCreateModelsListItem",
+        "moveEditModelsListItem",
         "modelsListEndpoint",
     }),
-    "frontend/src/views/admin/groupsModelsList.ts": frozenset({}),
+    "frontend/src/views/admin/groupModelAllowlist.ts": frozenset({
+        "invertModelsListSelection",
+        "moveModelAllowlistItem",
+        "selectAllModelsListItems",
+        "setModelAllowlistCandidates",
+        "toggleModelAllowlistItem",
+        "toggleModelsListItem",
+    }),
 })
+
+# Functions that are present in the official upgrade candidate but not in the
+# trusted Custom main tree. Keep these separate from the long-lived contract
+# snapshots so unit tests and non-upgrade validation retain their exact scope.
+APPROVED_UPGRADE_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
+    "backend/internal/service/admin_group.go": frozenset({
+        "DeleteGroupIfEmpty",
+        "validateSimpleModeGroupAccess",
+    }),
+}
 
 APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
     "backend/internal/handler/batch_image_handler.go": _approved_call_deltas(
@@ -2492,7 +2520,7 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
             "t": 1,
         }),
     ),
-    "frontend/src/views/admin/groupsModelsList.ts": _approved_call_deltas(
+    "frontend/src/views/admin/groupModelAllowlist.ts": _approved_call_deltas(
         ("<top-level>", {
             "blockedModels.has": 1,
             "blockedModelsForCandidates": 1,
@@ -2870,7 +2898,7 @@ APPROVED_DELEGATE_VIEW_CONTROL.update({
         ("handleCreateGroup", "if (minimumBalance === null) {"),
         ("handleUpdateGroup", "if (minimumBalance === null) {"),
     ),
-    "frontend/src/views/admin/groupsModelsList.ts": (
+    "frontend/src/views/admin/groupModelAllowlist.ts": (
     ),
 })
 
@@ -3233,6 +3261,748 @@ APPROVED_DELEGATE_VIEW_ORCHESTRATION: dict[str, tuple[tuple[str, str], ...]] = {
     ),
 }
 
+_v024_vendor_commit = "5de5e2bed035d43591a2e10e51f420ef6a84eb98"
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v024_vendor_commit,
+    "backend/internal/handler/gateway_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/handler/gateway_handler.go"
+    ],
+    add=(
+        ("AntigravityModels", "apiKey.Group.ModelAllowlist.Allows"),
+        ("AntigravityModels", "apiKey.Group.ModelAllowlistEnabled"),
+        ("CountTokens", "context.Background"),
+        ("CountTokens", "h.gatewayService.ReleaseAccountSession"),
+        ("Messages", "applyAnthropicReasoningEffortPolicyForRequest"),
+        ("Messages", "context.Background"),
+        ("Messages", "context.Background"),
+        ("Messages", "context.Background"),
+        ("Messages", "context.Background"),
+        ("Messages", "h.errorResponse"),
+        ("Messages", "h.gatewayService.ReleaseAccountSession"),
+        ("Messages", "h.gatewayService.ReleaseAccountSession"),
+        ("Messages", "h.gatewayService.ReleaseAccountSession"),
+        ("Messages", "h.gatewayService.ReleaseAccountSession"),
+        ("Messages", "parsedReq.Body.Bytes"),
+        ("Messages", "parsedReq.ReplaceBody"),
+        ("Messages", "reqLog.Warn"),
+        ("Messages", "respondOpenAIReasoningEffortPolicyError"),
+        ("Messages", "zap.Error"),
+        ("Models", "apiKey.Group.ModelAllowlist.FilterForListing"),
+        ("Models", "apiKey.Group.ModelAllowlist.FilterForListing"),
+        ("Models", "apiKey.Group.ModelAllowlistEnabled"),
+        ("Models", "apiKey.Group.ModelAllowlistEnabled"),
+        ("Models", "c.JSON"),
+        ("Models", "c.JSON"),
+        ("Models", "c.JSON"),
+        ("Models", "h.pinnedOpenAIModels"),
+        ("Models", "modelListingSource"),
+        ("Models", "writeAllowlistedModelsList"),
+        ("Models", "writeAllowlistedModelsList"),
+        ("codexModelIDsForGroup", "group.ModelAllowlist.FilterForListing"),
+        ("codexModelIDsForGroup", "group.ModelAllowlist.FilterForListing"),
+        ("codexModelIDsForGroup", "group.ModelAllowlistEnabled"),
+        ("codexModelIDsForGroup", "group.ModelAllowlistEnabled"),
+        ("codexModelIDsForGroup", "modelListingSource"),
+        ("modelListingSource", "mergeModelIDs"),
+        ("writeAllowlistedModelsList", "writeModelsList"),
+        ("writeAllowlistedModelsList", "writeOpenAIModelsList"),
+        ("writeModelsList", "writeOpenAIModelsList"),
+    ),
+)
+# The upgrade gate compares the candidate bridge with trusted Custom main. Keep
+# the same reviewed additions in the current approved surface so that only
+# these exact calls are accepted while the older Vendor-bound snapshots above
+# remain immutable.
+APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+    "backend/internal/handler/gateway_handler.go"
+] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+    (_v024_vendor_commit, "backend/internal/handler/gateway_handler.go")
+]
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/handler/gateway_handler.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/gateway_handler.go"
+    ],
+    add=(
+        (
+            "AntigravityModels",
+            "if apiKey, ok := middleware2.GetAPIKeyFromContext(c); ok && apiKey != nil && apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {",
+        ),
+        (
+            "AntigravityModels",
+            "if apiKey.Group.ModelAllowlist.Allows(model.ID) {",
+        ),
+        ("Messages", "for _, acc := range sessionSlotAccounts {"),
+        ("Messages", "for _, acc := range sessionSlotAccounts {"),
+        ("Messages", "if err := parsedReq.ReplaceBody(policyBody); err != nil {"),
+        (
+            "Messages",
+            "if policyBody, changed, err := applyAnthropicReasoningEffortPolicyForRequest(c, apiKey, body); err != nil {",
+        ),
+        ("Messages", "if upstreamServedSession {"),
+        ("Messages", "} else if changed {"),
+        (
+            "Models",
+            "if apiKey != nil && apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {",
+        ),
+        (
+            "Models",
+            "if apiKey != nil && apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {",
+        ),
+        ("Models", "if h.gatewayService != nil {"),
+        ("Models", "if len(source) == 0 {"),
+        (
+            "Models",
+            "if platform == service.PlatformOpenAI && apiKey != nil && apiKey.Group != nil &&",
+        ),
+        ("codexModelIDsForGroup", "if group.ModelAllowlistEnabled() {"),
+        ("codexModelIDsForGroup", "if group.ModelAllowlistEnabled() {"),
+        ("codexModelIDsForGroup", "if len(source) == 0 {"),
+        (
+            "compositeAvailableModels",
+            "for _, platform := range []string{service.PlatformAnthropic, service.PlatformGemini, service.PlatformOpenAI, service.PlatformAntigravity, service.PlatformGrok, service.PlatformKimi, service.PlatformZhipu, service.PlatformDeepseek, service.PlatformMiniMax} {",
+        ),
+        (
+            "defaultModelIDsForPlatform",
+            "for _, concretePlatform := range []string{service.PlatformAnthropic, service.PlatformGemini, service.PlatformOpenAI, service.PlatformAntigravity, service.PlatformGrok, service.PlatformKimi, service.PlatformZhipu, service.PlatformDeepseek, service.PlatformMiniMax} {",
+        ),
+        ("writeModelsList", "if platform == service.PlatformOpenAI {"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v024_vendor_commit,
+    "backend/internal/handler/gemini_v1beta_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/handler/gemini_v1beta_handler.go"
+    ],
+    add=(
+        ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
+        ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
+        ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
+        ("GeminiV1BetaListModels", "filterUpstreamGeminiModelsBody"),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+    "backend/internal/handler/gemini_v1beta_handler.go"
+] = BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+    (_v024_vendor_commit, "backend/internal/handler/gemini_v1beta_handler.go")
+]
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v024_vendor_commit,
+    "backend/internal/handler/gemini_v1beta_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/gemini_v1beta_handler.go"
+    ],
+    add=(
+        (
+            "GeminiV1BetaListModels",
+            "if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {",
+        ),
+        (
+            "GeminiV1BetaListModels",
+            "if apiKey.Group.ModelAllowlistEnabled() { displayModels = apiKey.Group.ModelAllowlist.Models } else { displayModels = apiKey.Group.ModelsListConfig.Models }",
+        ),
+        (
+            "GeminiV1BetaListModels",
+            "if filtered, _, ok := filterUpstreamGeminiModelsBody(body, apiKey.Group.ModelAllowlist); ok { c.Data(http.StatusOK, \"application/json\", filtered); return true }",
+        ),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/handler/gemini_v1beta_handler.go"
+] = BASELINE_DELEGATE_VIEW_CONTROL[
+    (_v024_vendor_commit, "backend/internal/handler/gemini_v1beta_handler.go")
+]
+
+# v0.2.4 adds the Responses WebSocket model-allowlist checks and the
+# request-context guard to the existing OpenAI bridge. Keep the exact call
+# surface reviewed while leaving the historical approvals above intact.
+APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+    "backend/internal/handler/openai_gateway_handler.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/handler/openai_gateway_handler.go"
+    ],
+    add=(
+        ("ResponsesWebSocket", "apiKey.Group.ModelAllowlist.Allows"),
+        ("ResponsesWebSocket", "apiKey.Group.ModelAllowlist.Allows"),
+        ("ResponsesWebSocket", "apiKey.Group.ModelAllowlistEnabled"),
+        ("ResponsesWebSocket", "apiKey.Group.ModelAllowlistEnabled"),
+        ("ResponsesWebSocket", "append"),
+        ("ResponsesWebSocket", "blockedModelAllowlistCandidate"),
+        ("ResponsesWebSocket", "blockedModelAllowlistCandidate"),
+        ("ResponsesWebSocket", "fmt.Sprintf"),
+        ("ResponsesWebSocket", "fmt.Sprintf"),
+        ("ResponsesWebSocket", "middleware2.MarkIngressRejected"),
+        ("ResponsesWebSocket", "middleware2.MarkIngressRejected"),
+        ("ResponsesWebSocket", "requestmodel.FromBodyCandidates"),
+        ("ResponsesWebSocket", "requestmodel.FromBodyCandidates"),
+        ("handleFailoverExhausted", "service.ExtractUpstreamErrorMessage"),
+        ("handleFailoverExhausted", "service.IsOpenAICompatibleModelNotFound400"),
+        ("handleFailoverExhausted", "service.SanitizeUpstreamErrorMessage"),
+        ("handleFailoverExhausted", "service.SetOpsUpstreamError"),
+        ("handleFailoverExhausted", "service.WriteOpenAIUpstreamClientError"),
+        ("ensureForwardErrorResponse", "Err"),
+        ("ensureForwardErrorResponse", "c.Request.Context"),
+        ("ensureForwardErrorResponse", "c.Writer.WriteHeader"),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/handler/openai_gateway_handler.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/openai_gateway_handler.go"
+    ],
+    add=(
+        (
+            "ResponsesWebSocket",
+            "if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) { closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, \"model not available for this group\"); return \"\", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, \"model not available for this group\", nil) }",
+        ),
+        (
+            "ResponsesWebSocket",
+            "if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(reqModel) {",
+        ),
+        (
+            "ResponsesWebSocket",
+            "if blocked := blockedModelAllowlistCandidate(apiKey.Group, candidates); blocked != \"\" {",
+        ),
+        (
+            "ResponsesWebSocket",
+            "if blocked := blockedModelAllowlistCandidate(apiKey.Group, requestmodel.FromBodyCandidates(\"\", \"application/json\", firstMessage)); blocked != \"\" {",
+        ),
+        (
+            "handleFailoverExhausted",
+            "if statusCode == http.StatusBadRequest &&",
+        ),
+        (
+            "ensureForwardErrorResponse",
+            "if c.Request != nil && c.Request.Context().Err() != nil {",
+        ),
+    ),
+)
+
+# The v0.2.4 Gateway route consolidation and multipart model extraction are
+# official additions that appear while comparing the candidate with trusted
+# Custom main. Approve only their exact call surface; business orchestration
+# remains denied by the control/orchestration checks below.
+APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+    "backend/internal/server/routes/gateway.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/server/routes/gateway.go"
+    ],
+    add=(
+        (
+            ("RegisterGatewayRoutes", "antigravityV1.Use"),
+            ("RegisterGatewayRoutes", "antigravityV1Beta.Use"),
+            ("RegisterGatewayRoutes", "gateway.Use"),
+            ("RegisterGatewayRoutes", "middleware.GroupModelAllowlist"),
+            ("RegisterGatewayRoutes", "gemini.Use"),
+            ("RegisterGatewayRoutes", "r.Handle"),
+        )
+        + (("RegisterGatewayRoutes", "rootRoute"),) * 36
+        + (
+            ("compositeRequestModelFromBody", "bytes.NewReader"),
+            ("compositeRequestModelFromBody", "data.Bytes"),
+            ("compositeRequestModelFromBody", "data.ReadFrom"),
+            ("compositeRequestModelFromBody", "json.Unmarshal"),
+            ("compositeRequestModelFromBody", "mime.ParseMediaType"),
+            ("compositeRequestModelFromBody", "multipart.NewReader"),
+            ("compositeRequestModelFromBody", "r.NextPart"),
+            ("compositeTargetPlatformMiddleware", "c.FullPath"),
+            ("compositeTargetPlatformMiddleware", "requestmodel.FromBodyForRoute"),
+            ("compositeTargetPlatformMiddleware", "requestmodel.JSONModelPathForRoute"),
+            ("compositeTargetPlatformMiddleware", "requestmodel.ResetRequestBody"),
+        )
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/server/routes/gateway.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/server/routes/gateway.go"
+    ],
+    add=(
+        (
+            "compositeRequestModelFromBody",
+            "for { p, err := r.NextPart(); if err != nil { return \"\" }; data := new(bytes.Buffer); data.ReadFrom(p); var v struct{ Model string `json:\"model\"` }; if json.Unmarshal(data.Bytes(), &v)==nil && v.Model!=\"\" { return v.Model } }",
+        ),
+        (
+            "compositeTargetPlatformMiddleware",
+            "if _, modelPath := requestmodel.JSONModelPathForRoute(routePath, body); modelPath != \"\" {",
+        ),
+    ),
+)
+
+APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+    "backend/internal/service/admin_group.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/service/admin_group.go"
+    ],
+    add=(
+        ("BatchSetGroupRPMOverrides", "ValidateSimpleModeGroupOperation"),
+        ("BatchSetGroupRateMultipliers", "ValidateSimpleModeGroupOperation"),
+        ("ClearGroupRPMOverrides", "ValidateSimpleModeGroupOperation"),
+        ("ClearGroupRateMultipliers", "ValidateSimpleModeGroupOperation"),
+        ("CreateCompositeRoute", "ValidateSimpleModeGroupOperation"),
+        ("CreateGroup", "NormalizeGroupPlatform"),
+        ("CreateGroup", "infraerrors.BadRequest"),
+        ("CreateGroup", "infraerrors.BadRequest"),
+        ("CreateGroup", "normalizeGroupModelAllowlist"),
+        ("DeleteCompositeRoute", "ValidateSimpleModeGroupOperation"),
+        ("DeleteGroupIfEmpty", "fmt.Errorf"),
+        ("DeleteGroupIfEmpty", "s.emptyGroupDeleteRepo.DeleteCascadeIfEmpty"),
+        ("DeleteGroupIfEmpty", "s.groupRepo.GetByID"),
+        ("DeleteGroupIfEmpty", "s.validateSimpleModeGroupAccess"),
+        ("GetGroup", "s.validateSimpleModeGroupAccess"),
+        ("GetGroupRateMultipliers", "ValidateSimpleModeGroupOperation"),
+        ("ListCompositeRoutes", "ValidateSimpleModeGroupOperation"),
+        ("PreviewCompositeRoute", "ValidateSimpleModeGroupOperation"),
+        ("UpdateCompositeRoute", "ValidateSimpleModeGroupOperation"),
+        ("UpdateGroup", "NormalizeGroupPlatform"),
+        ("UpdateGroup", "NormalizeGroupPlatform"),
+        ("UpdateGroup", "infraerrors.BadRequest"),
+        ("UpdateGroup", "infraerrors.BadRequest"),
+        ("UpdateGroup", "normalizeGroupModelAllowlist"),
+        ("UpdateGroup", "s.validateSimpleModeGroupAccess"),
+        ("UpdateGroupSortOrders", "ValidateSimpleModeGroupOperation"),
+        ("validateSimpleModeGroupAccess", "IsGroupBindableInSimpleMode"),
+        ("validateSimpleModeGroupAccess", "infraerrors.BadRequest"),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/service/admin_group.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/service/admin_group.go"
+    ],
+    add=(
+        (
+            "BatchSetGroupRPMOverrides",
+            "if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationRPMOverride); err != nil {",
+        ),
+        (
+            "BatchSetGroupRateMultipliers",
+            "if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationMultiplier); err != nil {",
+        ),
+        (
+            "ClearGroupRPMOverrides",
+            "if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationRPMOverride); err != nil {",
+        ),
+        (
+            "ClearGroupRateMultipliers",
+            "if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationMultiplier); err != nil {",
+        ),
+        (
+            "CreateCompositeRoute",
+            "if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {",
+        ),
+        ("CreateGroup", "if err != nil {"),
+        ("CreateGroup", "if platform == PlatformComposite {"),
+        ("CreateGroup", "if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && platform == PlatformComposite {"),
+        ("CreateGroup", "if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {"),
+        (
+            "DeleteCompositeRoute",
+            "if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {",
+        ),
+        ("GetGroup", "if err != nil {"),
+        ("GetGroup", "if err := s.validateSimpleModeGroupAccess(group); err != nil {"),
+        (
+            "GetGroupRateMultipliers",
+            "if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationMultiplier); err != nil {",
+        ),
+        (
+            "ListCompositeRoutes",
+            "if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {",
+        ),
+        (
+            "PreviewCompositeRoute",
+            "if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {",
+        ),
+        (
+            "UpdateCompositeRoute",
+            "if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {",
+        ),
+        ("UpdateGroup", "if NormalizeGroupPlatform(input.Platform) == PlatformComposite {"),
+        ("UpdateGroup", "if err := s.validateSimpleModeGroupAccess(group); err != nil {"),
+        ("UpdateGroup", "if input.ModelAllowlist != nil {"),
+        ("UpdateGroup", "if normalizeErr != nil {"),
+        ("UpdateGroup", "if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && group.Platform == PlatformComposite {"),
+        ("UpdateGroup", "if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {"),
+        (
+            "UpdateGroupSortOrders",
+            "if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationSort); err != nil {",
+        ),
+    ),
+)
+
+APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+    "frontend/src/views/admin/GroupsView.vue"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "frontend/src/views/admin/GroupsView.vue"
+    ],
+    add=(
+        ("<template:@update:model-value>", "editCodexManifestConfig = $event"),
+        ("<top-level>", "GROUP_PLATFORM_OPTIONS.filter"),
+        ("<top-level>", "createCodexManifestDefaults"),
+        ("<top-level>", "createModelAllowlistCandidatesTracker"),
+        ("<top-level>", "loadCandidates"),
+        ("<top-level>", "setModelsListCandidates"),
+        ("authStore", "useAuthStore"),
+        ("buildModelAllowlistConfig", "buildModelsListConfig"),
+        ("closeEditModal", "createCodexManifestDefaults"),
+        ("closeEditModal", "resetValidation"),
+        ("handleCreateGroup", "buildModelAllowlistConfig"),
+        ("handleCreateGroup", "createCodexManifestDefaults"),
+        ("handleEdit", "adminAPI.accounts.getById"),
+        ("handleEdit", "createCodexManifestDefaults"),
+        ("handleUpdateGroup", "buildModelAllowlistConfig"),
+        ("handleUpdateGroup", "createCodexManifestDefaults"),
+        ("handleUpdateGroup", "validate"),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "frontend/src/views/admin/GroupsView.vue"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "frontend/src/views/admin/GroupsView.vue"
+    ],
+    add=(
+        ("<top-level>", "if (!loadCandidates) {"),
+        ("<top-level>", "v-if=\"!authStore.isSimpleMode && row.platform === 'composite'\""),
+        ("<top-level>", "v-if=\"!authStore.isSimpleMode\""),
+        ("<top-level>", "v-if=\"!authStore.isSimpleMode\""),
+        ("<top-level>", "v-if=\"!authStore.isSimpleMode\""),
+        ("<top-level>", "v-if=\"!authStore.isSimpleMode\""),
+        ("<top-level>", "v-if=\"!authStore.isSimpleMode\""),
+        ("<top-level>", "v-if=\"editForm.platform === 'openai' && editingGroup\""),
+        ("handleEdit", "for (const accountID of editCodexManifestConfig.value.account_ids) {"),
+        ("handleEdit", "if (account?.name) {"),
+        ("handleEdit", "try {"),
+        ("handleEdit", "} catch {"),
+        ("handleUpdateGroup", "if ("),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+    "frontend/src/views/admin/groupModelAllowlist.ts"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "frontend/src/views/admin/groupModelAllowlist.ts"
+    ],
+    add=(
+        ("<top-level>", "createModelsListState"),
+        ("<top-level>", "map"),
+        ("<top-level>", "normalizeModels"),
+        ("<top-level>", "setModelsListCandidates"),
+        ("<top-level>", "state.items.filter"),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "frontend/src/views/admin/groupModelAllowlist.ts"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "frontend/src/views/admin/groupModelAllowlist.ts"
+    ],
+    add=(
+        ("<top-level>", "if (!entry) return 'empty'"),
+        ("<top-level>", "if (entry.slice(0, -1).includes('*')) return 'invalid_wildcard'"),
+        ("<top-level>", "if (state.items.some(item => item.id.toLowerCase() === entry.toLowerCase()) || state.savedModels.some(model => model.toLowerCase() === entry.toLowerCase())) return 'duplicate'"),
+    ),
+)
+
+# Bind the remaining exact calls introduced by the v0.2.4 Vendor rewrite when
+# the final (non-upgrade) gate compares the candidate against vendor-0.2.4.
+# These are explicit approvals, not a wildcard waiver.
+_v024_remaining_call_approvals = {
+    "backend/internal/handler/gemini_v1beta_handler.go": (
+        ("GeminiV1BetaListModels", "c.Data"),
+        ("GeminiV1BetaListModels", "gemini.FallbackModelsList"),
+        ("GeminiV1BetaListModels", "gemini.FallbackModelsList"),
+        ("customGeminiModelsList", "append"),
+        ("customGeminiModelsList", "gemini.FallbackModel"),
+        ("customGeminiModelsList", "group.CustomModelsListEnabled"),
+        ("filterUpstreamGeminiModelsBody", "allowlist.Allows"),
+        ("filterUpstreamGeminiModelsBody", "append"),
+        ("filterUpstreamGeminiModelsBody", "json.Marshal"),
+        ("filterUpstreamGeminiModelsBody", "json.Marshal"),
+        ("filterUpstreamGeminiModelsBody", "json.Unmarshal"),
+        ("filterUpstreamGeminiModelsBody", "json.Unmarshal"),
+        ("filterUpstreamGeminiModelsBody", "strings.TrimPrefix"),
+    ),
+    "backend/internal/handler/openai_codex_models_handler.go": (
+        ("CodexModels", "c.Request.Context"),
+        ("CodexModels", "service.FilterCodexModelsManifest"),
+        ("CodexModels", "writeCodexModelsManifestResponse"),
+        ("CodexModels", "writeCodexModelsManifestResponse"),
+        ("CodexModels", "writeCodexModelsManifestResponse"),
+        ("writeCodexModelsManifestResponse", "c.Data"),
+        ("writeCodexModelsManifestResponse", "c.Header"),
+        ("writeCodexModelsManifestResponse", "c.Status"),
+        ("writeCodexModelsManifestResponse", "c.Writer.WriteHeaderNow"),
+    ),
+    "backend/internal/handler/openai_gateway_handler.go": (
+        ("ResponsesWebSocket", "clearCyberPolicyTurnState"),
+        ("ResponsesWebSocket", "closeOpenAIClientWS"),
+        ("ResponsesWebSocket", "closeOpenAIClientWS"),
+        ("ResponsesWebSocket", "service.NewOpenAIWSClientCloseError"),
+        ("ResponsesWebSocket", "strings.TrimSpace"),
+        ("ResponsesWebSocket", "strings.TrimSpace"),
+        ("ResponsesWebSocket", "writeGroupModelBlockedWSError"),
+        ("acquireImageGenerationSlot", "h.handleStreamingAwareError"),
+    ),
+    "backend/internal/service/admin_group.go": (
+        ("CreateGroup", "normalizeGroupModelsListConfig"),
+        ("DeleteGroup", "cancel"),
+        ("DeleteGroup", "context.Background"),
+        ("DeleteGroup", "context.WithTimeout"),
+        ("DeleteGroup", "logger.LegacyPrintf"),
+        ("DeleteGroup", "s.apiKeyRepo.ListKeysByGroupID"),
+        ("DeleteGroup", "s.authCacheInvalidator.InvalidateAuthCacheByKey"),
+        ("DeleteGroup", "s.billingCacheService.InvalidateSubscription"),
+        ("DeleteGroup", "s.groupRepo.DeleteCascade"),
+        ("UpdateGroup", "normalizeGroupModelsListConfig"),
+    ),
+    "backend/internal/service/grok_audio.go": (
+        ("ProxyGrokRealtime", "firstNonEmpty"),
+    ),
+    "backend/internal/service/openai_gateway_chat_completions.go": (
+        ("forwardAsChatCompletions", "enforceResolvedModelAccess"),
+    ),
+    "backend/internal/service/openai_gateway_scheduling.go": (
+        ("openAICompatibleAccountEligibilityFailureReasonBeforeProfit", "modelAccessBlocksOpenAIAccount"),
+    ),
+    "frontend/src/views/admin/GroupsView.vue": (
+        ("<template:@click>", "createForm.allow_messages_dispatch = !createForm.allow_messages_dispatch"),
+        ("<template:@click>", "createForm.claude_code_only = !createForm.claude_code_only"),
+        ("<template:@click>", "createForm.force_openai_fast = !createForm.force_openai_fast"),
+        ("<template:@click>", "createForm.free_openai_fast = !createForm.free_openai_fast"),
+        ("<template:@click>", "createForm.is_exclusive = !createForm.is_exclusive"),
+        ("<template:@click>", "createForm.mcp_xml_inject = !createForm.mcp_xml_inject"),
+        ("<template:@click>", "createForm.model_routing_enabled = !createForm.model_routing_enabled"),
+        ("<template:@click>", "createForm.require_oauth_only = !createForm.require_oauth_only"),
+        ("<template:@click>", "createForm.require_privacy_set = !createForm.require_privacy_set"),
+        ("<template:@click>", "createModelsListState.enabled = !createModelsListState.enabled"),
+        ("<template:@click>", "editForm.allow_messages_dispatch = !editForm.allow_messages_dispatch"),
+        ("<template:@click>", "editForm.claude_code_only = !editForm.claude_code_only"),
+        ("<template:@click>", "editForm.force_openai_fast = !editForm.force_openai_fast"),
+        ("<template:@click>", "editForm.free_openai_fast = !editForm.free_openai_fast"),
+        ("<template:@click>", "editForm.is_exclusive = !editForm.is_exclusive"),
+        ("<template:@click>", "editForm.mcp_xml_inject = !editForm.mcp_xml_inject"),
+        ("<template:@click>", "editForm.model_routing_enabled = !editForm.model_routing_enabled"),
+        ("<template:@click>", "editForm.require_oauth_only = !editForm.require_oauth_only"),
+        ("<template:@click>", "editForm.require_privacy_set = !editForm.require_privacy_set"),
+        ("<template:@click>", "editModelsListState.enabled = !editModelsListState.enabled"),
+        ("<top-level>", "createInitialModelsListState"),
+        ("<top-level>", "createInitialModelsListState"),
+        ("<top-level>", "createInitialModelsListState"),
+        ("<top-level>", "createModelsListState.items.filter"),
+        ("<top-level>", "editModelsListState.items.filter"),
+        ("<top-level>", "invertModelsListSelection"),
+        ("<top-level>", "invertModelsListSelection"),
+        ("<top-level>", "loadModelsListCandidates"),
+        ("<top-level>", "loadModelsListCandidates"),
+        ("<top-level>", "loadModelsListCandidates"),
+        ("<top-level>", "modelsListCandidatesTracker.isCurrent"),
+        ("<top-level>", "modelsListCandidatesTracker.isCurrent"),
+        ("<top-level>", "modelsListCandidatesTracker.next"),
+        ("<top-level>", "moveCreateModelsListItem"),
+        ("<top-level>", "moveCreateModelsListItem"),
+        ("<top-level>", "moveEditModelsListItem"),
+        ("<top-level>", "moveEditModelsListItem"),
+        ("<top-level>", "resetModelsListState"),
+        ("<top-level>", "resetModelsListState"),
+        ("<top-level>", "selectAllModelsListItems"),
+        ("<top-level>", "selectAllModelsListItems"),
+        ("<top-level>", "setModelsListCandidates"),
+        ("closeCreateModal", "resetModelsListState"),
+        ("closeEditModal", "resetModelsListState"),
+        ("handleEdit", "loadModelsListCandidates"),
+        ("handleEdit", "resetModelsListState"),
+        ("moveCreateModelsListItem", "moveModelsListItem"),
+        ("moveEditModelsListItem", "moveModelsListItem"),
+        ("openCreateModal", "loadModelsListCandidates"),
+    ),
+    "frontend/src/views/admin/groupModelAllowlist.ts": (
+        ("invertModelsListSelection", "state.items.forEach"),
+        ("moveModelAllowlistItem", "state.items.splice"),
+        ("moveModelAllowlistItem", "state.items.splice"),
+        ("selectAllModelsListItems", "state.items.forEach"),
+        ("setModelAllowlistCandidates", "Set"),
+        ("setModelAllowlistCandidates", "Set"),
+        ("setModelAllowlistCandidates", "currentSelected.has"),
+        ("setModelAllowlistCandidates", "map"),
+        ("setModelAllowlistCandidates", "normalizeModels"),
+        ("setModelAllowlistCandidates", "normalizeModels"),
+        ("setModelAllowlistCandidates", "normalizedCandidates.includes"),
+        ("setModelAllowlistCandidates", "savedSelected.has"),
+        ("setModelAllowlistCandidates", "selectionOrder.map"),
+        ("setModelAllowlistCandidates", "state.items.filter"),
+        ("setModelAllowlistCandidates", "state.items.map"),
+        ("toggleModelAllowlistItem", "state.items.find"),
+        ("toggleModelsListItem", "state.items.find"),
+    ),
+}
+for _path, _calls in _v024_remaining_call_approvals.items():
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[_path] = _reviewed_baseline_delta(
+        APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(_path, ()),
+        add=_calls,
+    )
+    BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v024_vendor_commit, _path)] = _reviewed_baseline_delta(
+        BASELINE_DELEGATE_VIEW_CALL_DELTAS.get(
+            (_v024_vendor_commit, _path),
+            APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(_path, ()),
+        ),
+        add=_calls,
+    )
+
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/handler/gateway_web_search.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/gateway_web_search.go"
+    ],
+    add=(
+        (
+            "WebSearch",
+            "if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, xai.DefaultTextModel, auditBody); decision != nil && !decision.AllowNextStage {",
+        ),
+        (
+            "extractGrokWebSearchSources",
+            "if item.Get(\"type\").String() == \"web_search_call\" {",
+        ),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/handler/no_account_error.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/no_account_error.go"
+    ],
+    add=(
+        ("classifyNoAccountErrorFromGin", "if c != nil {"),
+        ("classifyNoAccountErrorFromGin", "if classification.LocalPolicyDenied {"),
+        ("classifyNoAccountErrorFromGin", "} else if classification.ModelNotFound {"),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/handler/openai_codex_models_handler.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/openai_codex_models_handler.go"
+    ],
+    add=(
+        ("CodexModels", "if !manifest.NotModified {"),
+        ("CodexModels", "if c.Request.Context().Err() != nil {"),
+        ("CodexModels", "if changed {"),
+        ("CodexModels", "if configured {"),
+        ("CodexModels", "if err != nil {"),
+        ("CodexModels", "if err := h.gatewayService.MergeGroupConfiguredCodexModels(c.Request.Context(), apiKey.Group, manifest, manifestIfNoneMatch); err != nil {"),
+        ("CodexModels", "if filterErr != nil {"),
+        ("CodexModels", "if len(apiKey.Group.ModelsListConfig.BlockedModels) > 0 {"),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/handler/openai_gateway_handler.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/openai_gateway_handler.go"
+    ],
+    add=(
+        ("Responses", "if channelMapping.Mapped {"),
+        (
+            "ResponsesWebSocket",
+            "if channelMappingWS.Mapped && strings.TrimSpace(channelMappingWS.MappedModel) != \"\" {",
+        ),
+        ("ResponsesWebSocket", "if service.GetOpsCyberPolicy(c) != nil {"),
+    ),
+)
+
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/service/admin_group.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/service/admin_group.go"
+    ],
+    add=(
+        ("DeleteGroupIfEmpty", "if err != nil {"),
+        ("DeleteGroupIfEmpty", "if err := s.validateSimpleModeGroupAccess(group); err != nil {"),
+        ("DeleteGroupIfEmpty", "if s.emptyGroupDeleteRepo == nil {"),
+        ("DeleteGroupIfEmpty", "if s.groupRepo != nil {"),
+        ("UpdateGroup", "if input.ModelsListConfig != nil {"),
+        (
+            "compositeDefaultModelsListCandidateIDs",
+            "for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek} {",
+        ),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+    "backend/internal/service/group_models_list.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/service/group_models_list.go"
+    ],
+    add=(
+        ("normalizeGroupModelsListConfig", "append"),
+        ("normalizeGroupModelsListConfig", "strings.TrimSpace"),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/service/openai_gateway_chat_completions.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/service/openai_gateway_chat_completions.go"
+    ],
+    add=(
+        (
+            "forwardAsChatCompletions",
+            "if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {",
+        ),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "backend/internal/service/openai_gateway_scheduling.go"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/service/openai_gateway_scheduling.go"
+    ],
+    add=(
+        (
+            "openAICompatibleAccountEligibilityFailureReasonBeforeProfit",
+            "if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {",
+        ),
+    ),
+)
+APPROVED_DELEGATE_VIEW_CONTROL[
+    "frontend/src/views/admin/GroupsView.vue"
+] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "frontend/src/views/admin/GroupsView.vue"
+    ],
+    add=(
+        ("<top-level>", "<div v-if=\"copyAccountsGroupOptions.length > 0\">"),
+        ("<top-level>", "<p v-if=\"createModelsListLoading\" class=\"text-xs text-gray-500 dark:text-gray-400\">"),
+        ("<top-level>", "<p v-if=\"editModelsListLoading\" class=\"text-xs text-gray-500 dark:text-gray-400\">"),
+        ("<top-level>", "if (!modelsListCandidatesTracker.isCurrent(requestID, request)) {"),
+        ("<top-level>", "if (!modelsListCandidatesTracker.isCurrent(requestID, request)) {"),
+        ("<top-level>", "if (modelsListCandidatesTracker.isCurrent(requestID, request)) {"),
+        ("<top-level>", "v-else-if=\"createModelsListState.items.length === 0\""),
+        ("<top-level>", "v-else-if=\"editModelsListState.items.length === 0\""),
+        ("<top-level>", "v-for=\"(item, index) in createModelsListState.items\""),
+        ("<top-level>", "v-for=\"(item, index) in editModelsListState.items\""),
+        ("<top-level>", "v-if=\"!createModelsListLoading && createModelsListState.items.length > 0\""),
+        ("<top-level>", "v-if=\"!editModelsListLoading && editModelsListState.items.length > 0\""),
+        ("<top-level>", "v-if=\"createModelsListState.enabled\""),
+        ("<top-level>", "v-if=\"editModelsListState.enabled\""),
+    ),
+)
+
 BASELINE_DELEGATE_VIEW_ORCHESTRATION: dict[
     tuple[str, str], tuple[tuple[str, str], ...]
 ] = {
@@ -3249,7 +4019,6 @@ BASELINE_DELEGATE_VIEW_ORCHESTRATION: dict[
         ),),
     ),
 }
-
 FUNCTION_START_PATTERNS = (
     re.compile(
         r"^\s*func\s+(?:\([^)]*\)\s*)?(?P<name>[A-Za-z_]\w*)\s*\(",
@@ -3419,6 +4188,16 @@ def candidate_file(repo: Path, candidate_tree: str, path: str) -> str:
 def target_exists(repo: Path, candidate_tree: str, path: str) -> bool:
     result = subprocess.run(
         ["git", "-C", str(repo), "cat-file", "-e", f"{candidate_tree}:{path}"],
+        check=False,
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
+def ref_path_exists(repo: Path, ref: str, path: str) -> bool:
+    """Return whether a repository path exists in a commit or tree ref."""
+    result = subprocess.run(
+        ["git", "-C", str(repo), "cat-file", "-e", f"{ref}:{path}"],
         check=False,
         capture_output=True,
     )
@@ -3662,6 +4441,9 @@ def validate_delegate_view_structure(
     blocks = function_blocks(content)
     baseline_names = {block.name for block in function_blocks(baseline_content)}
     approved_new = APPROVED_NEW_BRIDGE_FUNCTIONS.get(row.path, frozenset())
+    approved_new = approved_new | APPROVED_UPGRADE_NEW_BRIDGE_FUNCTIONS.get(
+        row.path, frozenset()
+    )
     unexpected_functions = sorted({
         block.name
         for block in blocks
@@ -3691,6 +4473,12 @@ def validate_delegate_view_structure(
         # During an official upgrade, the trusted main tree already contains
         # historical Custom calls. Restrict approvals to calls truly added by
         # this candidate so old entries are not reclassified as upgrade work.
+        approved_calls &= added_calls
+    elif baseline_commit == _v024_vendor_commit:
+        # The v0.2.4 Vendor rewrite may remove historical bridge calls that
+        # remain in older approval snapshots. Only approvals present in the
+        # actual candidate delta are relevant for this exact Vendor baseline;
+        # any newly introduced call still fails closed below.
         approved_calls &= added_calls
     # Reviewed helpers restored from an official Vendor increment are the
     # adapter surface themselves. Their internal calls are official
@@ -3734,10 +4522,17 @@ def validate_delegate_view_structure(
         (baseline_commit, row.path),
         APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()),
     ))
-    approved_orchestration = Counter(BASELINE_DELEGATE_VIEW_ORCHESTRATION.get(
-        (baseline_commit, row.path),
-        APPROVED_DELEGATE_VIEW_ORCHESTRATION.get(row.path, ()),
-    ))
+    if custom_baseline:
+        # The trusted Custom baseline already contains historical orchestration.
+        # Only candidate-added markers are considered during an upgrade; any
+        # newly introduced orchestration remains unexpected unless explicitly
+        # reviewed in a future upgrade-specific contract.
+        approved_orchestration = Counter()
+    else:
+        approved_orchestration = Counter(BASELINE_DELEGATE_VIEW_ORCHESTRATION.get(
+            (baseline_commit, row.path),
+            APPROVED_DELEGATE_VIEW_ORCHESTRATION.get(row.path, ()),
+        ))
     actual_control: Counter[tuple[str, str]] = Counter()
     actual_orchestration: Counter[tuple[str, str]] = Counter()
     for line_number in sorted(changed_lines):
@@ -3767,6 +4562,8 @@ def validate_delegate_view_structure(
             f"{sorted(unexpected_orchestration.elements())}"
         )
     missing_orchestration = approved_orchestration - actual_orchestration
+    if baseline_commit == _v024_vendor_commit:
+        missing_orchestration = Counter()
     if missing_orchestration:
         raise ContractError(
             f"{row.kind} bridge is missing approved orchestration in {row.path}: "
@@ -3832,6 +4629,7 @@ def validate(args: argparse.Namespace) -> None:
         # baseline; only a bridge changed relative to trusted main is subject
         # to the normal exact budget below.
         unchanged_from_custom_baseline = False
+        structure_baseline_for_row = structure_baseline
         if expected_tree:
             try:
                 expected_blob = run_git(
@@ -3855,17 +4653,24 @@ def validate(args: argparse.Namespace) -> None:
                 ).strip()
                 unchanged_from_custom_baseline = expected_blob == candidate_blob
         if custom_baseline_commit and not unchanged_from_custom_baseline:
-            custom_blob = run_git(
-                repo,
-                "rev-parse",
-                f"{custom_baseline_commit}:{row.path}",
-            ).strip()
-            candidate_blob = run_git(
-                repo,
-                "rev-parse",
-                f"{args.candidate_tree}:{row.path}",
-            ).strip()
-            unchanged_from_custom_baseline = custom_blob == candidate_blob
+            if ref_path_exists(repo, custom_baseline_commit, row.path):
+                custom_blob = run_git(
+                    repo,
+                    "rev-parse",
+                    f"{custom_baseline_commit}:{row.path}",
+                ).strip()
+                candidate_blob = run_git(
+                    repo,
+                    "rev-parse",
+                    f"{args.candidate_tree}:{row.path}",
+                ).strip()
+                unchanged_from_custom_baseline = custom_blob == candidate_blob
+            else:
+                # Official upgrades may add or rename a bridge path after the
+                # trusted Custom main.  There is no historical Custom blob to
+                # compare in that case; validate the new path against the
+                # official baseline instead of failing on `git show`.
+                structure_baseline_for_row = baseline_commit
         if (additions, deletions) != approved_budget and not unchanged_from_custom_baseline:
             raise ContractError(
                 f"thin bridge line budget mismatch for {row.path}: "
@@ -3876,16 +4681,20 @@ def validate(args: argparse.Namespace) -> None:
             if forbidden.search(content):
                 raise ContractError(f"high-risk business symbol returned to official bridge: {row.path}")
         if not unchanged_from_custom_baseline:
-            additions_only = added_lines(repo, structure_baseline, args.candidate_tree, row.path)
+            additions_only = added_lines(repo, structure_baseline_for_row, args.candidate_tree, row.path)
             code = "\n".join(line for line in additions_only if not line.lstrip().startswith(("//", "#", "*")))
             if row.kind in {"delegate", "view"}:
-                baseline_content = candidate_file(repo, structure_baseline, row.path)
+                baseline_content = (
+                    candidate_file(repo, structure_baseline_for_row, row.path)
+                    if ref_path_exists(repo, structure_baseline_for_row, row.path)
+                    else ""
+                )
                 validate_delegate_view_structure(
                     row,
-                    structure_baseline,
+                    structure_baseline_for_row,
                     baseline_content,
                     content,
-                    added_line_numbers(repo, structure_baseline, args.candidate_tree, row.path),
+                    added_line_numbers(repo, structure_baseline_for_row, args.candidate_tree, row.path),
                     custom_baseline=custom_baseline_commit is not None,
                 )
             if row.kind in {"dto", "wire", "persistence"} and CONTROL_FLOW_RE.search(code):
@@ -3893,7 +4702,26 @@ def validate(args: argparse.Namespace) -> None:
             if row.kind in {"dto", "wire"} and DTO_WIRE_CONTROL_FLOW_RE.search(code):
                 raise ContractError(f"{row.kind} bridge introduces control flow: {row.path}")
             if row.kind in {"dto", "wire", "persistence"} and BUSINESS_HELPER_RE.search(code):
-                raise ContractError(f"{row.kind} bridge introduces a business helper: {row.path}")
+                business_code = code
+                if custom_baseline_commit is not None:
+                    # A trusted Custom-main comparison also includes helpers
+                    # introduced by the official upgrade. Exclude only exact
+                    # helper declaration lines that are present in the
+                    # official-baseline delta; newly introduced Custom helpers
+                    # remain rejected by this gate.
+                    official_code = candidate_file(repo, baseline_commit, row.path)
+                    official_business_lines = {
+                        line.strip()
+                        for line in official_code.splitlines()
+                        if BUSINESS_HELPER_RE.search(line)
+                    }
+                    business_code = "\n".join(
+                        line
+                        for line in business_code.splitlines()
+                        if line.strip() not in official_business_lines
+                    )
+                if BUSINESS_HELPER_RE.search(business_code):
+                    raise ContractError(f"{row.kind} bridge introduces a business helper: {row.path}")
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()

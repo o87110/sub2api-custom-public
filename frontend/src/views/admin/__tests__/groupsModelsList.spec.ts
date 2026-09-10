@@ -12,7 +12,7 @@ import {
   setModelsListCandidates,
   toggleModelsListItem,
   toggleModelsBlocklistItem,
-} from "../groupsModelsList";
+} from "../groupModelAllowlist";
 
 describe("groupsModelsList", () => {
   it("selects all default candidates for a new disabled config", () => {

@@ -536,6 +536,7 @@ export default {
       leaveEmptyToKeep: '留空则保持原密码不变',
       generatePassword: '生成随机密码',
       copyPassword: '复制密码',
+      passwordCopied: '密码已复制',
       creating: '创建中...',
       updating: '更新中...',
       columns: {
@@ -890,6 +891,7 @@ export default {
         maxReasoningEffortOverLimit: '超限访问控制',
         maxReasoningEffortOverLimitDowngrade: '超过上限时自动降档',
         maxReasoningEffortOverLimitDeny: '拒绝访问',
+        reasoningEffortToDeny: '拒绝访问',
         maxReasoningEffortOverLimitHint: '设置上限后生效。自动降档会将超过上限的请求改写为上限值后转发；拒绝访问则直接返回错误。',
         reasoningEffortMappings: '推理强度映射',
         reasoningEffortMappingsHint: '类型和模型均可留空，表示匹配全部模型。同一类型和模型下可添加多条请求值映射，例如前缀 gpt 同时将 high、xhigh 转到 medium。精确优先于前后缀，更长前后缀优先。',
@@ -1124,6 +1126,19 @@ export default {
         selectAll: '全选',
         invertSelection: '反选'
       },
+      codexModelsManifest: {
+        title: 'Codex 模型清单',
+        hint: '根据选定的 OpenAI 账号为 Codex 客户端生成模型清单。',
+        enable: '启用 Codex 清单',
+        enabledHint: '仅使用选定账号生成 Codex 模型清单。',
+        disabledHint: '当前分组未启用 Codex 模型清单。',
+        accounts: '固定账号',
+        searchPlaceholder: '搜索账号...',
+        searchEmpty: '没有匹配的账号',
+        fallback: '回退到普通调度',
+        fallbackHint: '固定账号无法提供模型时，回退到普通账号调度。',
+        selectAtLeastOne: '至少选择一个账号'
+      },
       compositeRoutes: {
         action: '路由',
         title: 'Composite 路由',
@@ -1249,14 +1264,6 @@ export default {
         selectAccounts: '选择账号',
         noAccounts: '此分组暂无账号',
         loadingAccounts: '加载账号中...',
-      claudeMaxSimulation: {
-        title: 'Claude Max 用量模拟',
-        tooltip:
-          '启用后，对于没有上游缓存写入用量的 Claude 模型，系统会确定性地将 token 映射为少量输入加 1h 缓存创建，同时保持总 token 不变。',
-        enabled: '已启用（模拟 1h 缓存）',
-        disabled: '已禁用',
-        hint: '仅调整用量计费日志中的 token 类别。不会持久化每个请求的映射状态。'
-      },
         removeRule: '删除规则',
         noRules: '暂无路由规则',
         noRulesHint: '添加路由规则以将特定模型请求优先路由到指定账号',
@@ -1268,6 +1275,14 @@ export default {
         tooltip: '启用后，当请求包含 MCP 工具时，会在 system prompt 中注入 XML 格式调用协议提示词。关闭此选项可避免对某些客户端造成干扰。',
         enabled: '已启用',
         disabled: '已禁用'
+      },
+      claudeMaxSimulation: {
+        title: 'Claude Max 用量模拟',
+        tooltip:
+          '启用后，对于没有上游缓存写入用量的 Claude 模型，系统会确定性地将 token 映射为少量输入加 1h 缓存创建，同时保持总 token 不变。',
+        enabled: '已启用（模拟 1h 缓存）',
+        disabled: '已禁用',
+        hint: '仅调整用量计费日志中的 token 类别。不会持久化每个请求的映射状态。'
       },
       supportedScopes: {
         title: '支持的模型系列',

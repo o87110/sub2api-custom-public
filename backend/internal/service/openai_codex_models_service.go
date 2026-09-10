@@ -128,7 +128,7 @@ func (s *OpenAIGatewayService) BuildGroupConfiguredCodexModelsManifest(
 	group *Group,
 	ifNoneMatch string,
 ) (*OpenAIModelsResponse, bool, error) {
-	if s == nil || s.accountRepo == nil || group == nil || group.Platform != PlatformOpenAI {
+	if s == nil || s.accountRepo == nil || group == nil || group.Platform != PlatformOpenAI || group.CodexModelsManifestConfig.Enabled {
 		return nil, false, nil
 	}
 

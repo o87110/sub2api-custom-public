@@ -178,6 +178,7 @@ blob_at() {
 thin_bridge_allowed() {
   case "$1" in
       backend/cmd/server/wire.go | \
+      backend/internal/domain/model_allowlist.go | \
       backend/internal/domain/models_list_config.go | \
       backend/internal/handler/admin/channel_monitor_handler.go | \
       backend/internal/handler/admin/content_moderation_handler.go | \
@@ -265,6 +266,7 @@ thin_bridge_allowed() {
       backend/internal/service/grok_media.go | \
       backend/internal/service/group_models_list.go | \
       backend/internal/service/group.go | \
+      backend/internal/service/group_model_allowlist.go | \
       backend/internal/service/idempotency_test.go | \
       backend/internal/service/idempotency.go | \
       backend/internal/service/notification_email_service_test.go | \
@@ -337,7 +339,7 @@ thin_bridge_allowed() {
       frontend/src/types/payment.ts | \
       frontend/src/views/admin/__tests__/SettingsView.spec.ts | \
       frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue | \
-      frontend/src/views/admin/groupsModelsList.ts | \
+      frontend/src/views/admin/groupModelAllowlist.ts | \
       frontend/src/views/admin/GroupsView.vue | \
       frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts | \
       frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts | \

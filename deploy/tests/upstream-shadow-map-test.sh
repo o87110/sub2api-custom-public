@@ -153,7 +153,8 @@ if [[ "$expected_count" -eq 176 ]]; then
   assert_mapping $'backend/internal/service/gateway_scheduling.go\tbackend/internal/custom/groupmodelaccess/policy.go'
   assert_mapping $'backend/internal/service/openai_gateway_scheduling.go\tbackend/internal/custom/groupmodelaccess/policy.go'
   assert_mapping $'backend/internal/service/openai_gateway_forward.go\tbackend/internal/custom/groupmodelaccess/policy.go'
-  assert_mapping $'frontend/src/views/admin/groupsModelsList.ts\tfrontend/src/custom/group-model-access/blocklist.ts'
+  assert_mapping $'frontend/src/views/admin/groupModelAllowlist.ts\tfrontend/src/custom/group-model-access/blocklist.ts'
+  assert_mapping $'backend/internal/service/group_model_allowlist.go|backend/internal/service/group_models_list.go|@removed\tbackend/internal/custom/groupmodelaccess/policy.go'
 fi
 
 validate_relative_path() {
@@ -542,6 +543,7 @@ backend/internal/service/gemini_chat_completions_compat_service.go
 backend/internal/service/gemini_messages_compat_service.go
 backend/internal/service/grok_audio.go
 backend/internal/service/grok_media.go
+backend/internal/service/group_model_allowlist.go
 backend/internal/service/group_models_list.go
 backend/internal/service/openai_alpha_search.go
 backend/internal/service/openai_embeddings.go
@@ -557,7 +559,7 @@ backend/internal/service/openai_gateway_scheduling.go
 backend/internal/service/openai_images_responses.go
 backend/internal/service/openai_images.go
 backend/internal/service/openai_live.go
-frontend/src/views/admin/groupsModelsList.ts
+frontend/src/views/admin/groupModelAllowlist.ts
 backend/internal/service/not_content_moderation_companion.go
 unmapped/fixture-must-not-match.txt
 EOF

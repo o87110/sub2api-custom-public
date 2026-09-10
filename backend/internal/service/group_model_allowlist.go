@@ -14,18 +14,19 @@ import (
 // GroupModelAllowlist 是 service 层的分组模型白名单（与 domain.GroupModelAllowlist
 // 字段一致，ent 持久化用 domain 类型，边界处显式转换）。
 type GroupModelAllowlist struct {
-	Enabled bool     `json:"enabled"`
-	Models  []string `json:"models,omitempty"`
+	Enabled       bool     `json:"enabled"`
+	Models        []string `json:"models,omitempty"`
+	BlockedModels []string `json:"blocked_models,omitempty"`
 }
 
 // DomainGroupModelAllowlist 把 service 白名单转换为 ent 持久化使用的 domain 类型。
 func DomainGroupModelAllowlist(cfg GroupModelAllowlist) domain.GroupModelAllowlist {
-	return domain.GroupModelAllowlist{Enabled: cfg.Enabled, Models: cfg.Models}
+	return domain.GroupModelAllowlist{Enabled: cfg.Enabled, Models: cfg.Models, BlockedModels: cfg.BlockedModels}
 }
 
 // GroupModelAllowlistFromDomain 把 ent 读出的 domain 白名单转换为 service 类型。
 func GroupModelAllowlistFromDomain(cfg domain.GroupModelAllowlist) GroupModelAllowlist {
-	return GroupModelAllowlist{Enabled: cfg.Enabled, Models: cfg.Models}
+	return GroupModelAllowlist{Enabled: cfg.Enabled, Models: cfg.Models, BlockedModels: cfg.BlockedModels}
 }
 
 // supplementUnmappedOpenAIModels ensures a partial mapping catalog does not
@@ -48,7 +49,7 @@ func supplementUnmappedOpenAIModels(accounts []Account, models []string) []strin
 // 条目 TrimSpace、按小写去重保序；`*` 只允许出现在条目末尾；
 // enabled=true 且列表为空视为配置错误，返回 400 而不是运行时静默放行/拒绝。
 func normalizeGroupModelAllowlist(cfg GroupModelAllowlist) (GroupModelAllowlist, error) {
-	out := GroupModelAllowlist{Enabled: cfg.Enabled}
+	out := GroupModelAllowlist{Enabled: cfg.Enabled, BlockedModels: normalizeGroupModelsListConfig(GroupModelsListConfig{BlockedModels: cfg.BlockedModels}).BlockedModels}
 	if len(cfg.Models) == 0 {
 		if out.Enabled {
 			return out, infraerrors.New(http.StatusBadRequest, "INVALID_MODEL_ALLOWLIST", "model allowlist cannot be enabled with an empty model list")

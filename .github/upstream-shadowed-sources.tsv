@@ -76,7 +76,7 @@ backend/internal/service/gemini_chat_completions_compat_service.go	backend/inter
 backend/internal/service/gemini_messages_compat_service.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/service/grok_audio.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/service/grok_media.go	backend/internal/custom/groupmodelaccess/policy.go
-backend/internal/service/group_models_list.go	backend/internal/custom/groupmodelaccess/policy.go
+backend/internal/service/group_model_allowlist.go|backend/internal/service/group_models_list.go|@removed	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/service/idempotency.go	backend/internal/custom/idempotencyexecution/execution.go
 backend/internal/service/idempotency_test.go	backend/internal/custom/idempotencyexecution/execution_test.go
 backend/internal/service/notification_email_service.go	backend/internal/custom/moderation/cyber_policy.go
@@ -161,7 +161,7 @@ frontend/src/views/admin/SubscriptionsView.vue	frontend/src/custom/subscription-
 frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue	frontend/src/custom/affiliate-reversal/AffiliateReversalActionBar.vue|frontend/src/custom/affiliate-reversal/AffiliateReversalDialog.vue
 frontend/src/views/admin/__tests__/RiskControlView.spec.ts	frontend/src/custom/moderation/UserBanThresholdOverrides.spec.ts|frontend/src/custom/moderation/userBanThresholds.spec.ts|frontend/src/custom/moderation/views/__tests__/RiskControlView.spec.ts
 frontend/src/views/admin/__tests__/SettingsView.spec.ts	frontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.spec.ts|frontend/src/custom/payment-channels/adminPaymentChannels.spec.ts
-frontend/src/views/admin/groupsModelsList.ts	frontend/src/custom/group-model-access/blocklist.ts
+frontend/src/views/admin/groupModelAllowlist.ts	frontend/src/custom/group-model-access/blocklist.ts
 frontend/src/views/admin/orders/AdminPaymentPlansView.vue	frontend/src/custom/subscription-plan-inventory/InventoryQuantityCell.vue|frontend/src/custom/subscription-plan-inventory/SoldOutActionCell.vue|frontend/src/custom/subscription-plan-inventory/inventory.ts
 frontend/src/views/admin/orders/PlanEditDialog.vue	frontend/src/custom/subscription-plan-inventory/InventoryQuantityInput.vue|frontend/src/custom/subscription-plan-inventory/SoldOutActionSelect.vue|frontend/src/custom/subscription-plan-inventory/inventory.ts|frontend/src/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue
 frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts	frontend/src/custom/subscription-plan-inventory/__tests__/inventory.spec.ts

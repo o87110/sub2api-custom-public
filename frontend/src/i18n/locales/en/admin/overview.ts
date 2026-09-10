@@ -536,6 +536,7 @@ export default {
       leaveEmptyToKeep: 'Leave empty to keep current password',
       generatePassword: 'Generate random password',
       copyPassword: 'Copy password',
+      passwordCopied: 'Password copied',
       creating: 'Creating...',
       updating: 'Updating...',
       form: {
@@ -871,7 +872,7 @@ export default {
       accountsAvailable: 'Avail:',
       accountsRateLimited: 'Limited:',
       accountsTotal: 'Total:',
-      accountsUnit: '',
+      accountsUnit: 'accounts',
       rateAndAccounts: '{rate}x rate · {count} accounts',
       accountsCount: '{count} accounts',
       rateLabel: 'rate',
@@ -908,6 +909,7 @@ export default {
         maxReasoningEffortOverLimit: 'Over-limit access control',
         maxReasoningEffortOverLimitDowngrade: 'Automatically downgrade when over limit',
         maxReasoningEffortOverLimitDeny: 'Deny access',
+        reasoningEffortToDeny: 'Deny access',
         maxReasoningEffortOverLimitHint: 'Applies after a ceiling is set. Downgrade rewrites values above the ceiling to the ceiling. Deny rejects the request.',
         reasoningEffortMappings: 'Reasoning effort mappings',
         reasoningEffortMappingsHint: 'Type and model can both be left empty to match every model. One type and model can hold multiple request mappings, for example prefix gpt mapping both high and xhigh to medium. Exact matches beat affixes, and longer affixes beat shorter ones.',
@@ -1126,6 +1128,19 @@ export default {
         selectedSummary: 'Selected {selected} / {total}',
         selectAll: 'Select all',
         invertSelection: 'Invert'
+      },
+      codexModelsManifest: {
+        title: 'Codex Model Manifest',
+        hint: 'Expose a model manifest built from selected OpenAI accounts for Codex clients.',
+        enable: 'Enable Codex manifest',
+        enabledHint: 'Only selected accounts are used to build the Codex model manifest.',
+        disabledHint: 'Codex manifest is disabled for this group.',
+        accounts: 'Pinned accounts',
+        searchPlaceholder: 'Search accounts...',
+        searchEmpty: 'No matching accounts',
+        fallback: 'Fallback to scheduler',
+        fallbackHint: 'Use normal account scheduling when the pinned manifest cannot provide a model.',
+        selectAtLeastOne: 'Select at least one account'
       },
       compositeRoutes: {
         action: 'Routes',
