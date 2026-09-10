@@ -3429,11 +3429,11 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
         ),
         (
             "GeminiV1BetaListModels",
-            "if apiKey.Group.ModelAllowlistEnabled() { displayModels = apiKey.Group.ModelAllowlist.Models } else { displayModels = apiKey.Group.ModelsListConfig.Models }",
+            "if apiKey.Group.ModelAllowlistEnabled() {",
         ),
         (
             "GeminiV1BetaListModels",
-            "if filtered, _, ok := filterUpstreamGeminiModelsBody(body, apiKey.Group.ModelAllowlist); ok { c.Data(http.StatusOK, \"application/json\", filtered); return true }",
+            "if filtered, _, ok := filterUpstreamGeminiModelsBody(body, apiKey.Group.ModelAllowlist); ok {",
         ),
     ),
 )
@@ -3485,7 +3485,7 @@ APPROVED_DELEGATE_VIEW_CONTROL[
     add=(
         (
             "ResponsesWebSocket",
-            "if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) { closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, \"model not available for this group\"); return \"\", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, \"model not available for this group\", nil) }",
+            "if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) {",
         ),
         (
             "ResponsesWebSocket",
@@ -4462,6 +4462,7 @@ def validate_delegate_view_structure(
     changed_lines: set[int],
     *,
     custom_baseline: bool = False,
+    upgrade_baseline_commit: str | None = None,
 ) -> None:
     if row.kind not in {"delegate", "view"}:
         return
@@ -4487,6 +4488,11 @@ def validate_delegate_view_structure(
         (baseline_commit, row.path),
         APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()),
     ))
+    if custom_baseline and upgrade_baseline_commit == _v024_vendor_commit:
+        approved_calls |= Counter(BASELINE_DELEGATE_VIEW_CALL_DELTAS.get(
+            (_v024_vendor_commit, row.path),
+            APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()),
+        ))
     if (
         baseline_commit == "29009f0b2ea14edf3b11ae2564fb617ff91a03b4"
         and row.path == "backend/internal/service/openai_gateway_scheduling.go"
@@ -4550,12 +4556,24 @@ def validate_delegate_view_structure(
         (baseline_commit, row.path),
         APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()),
     ))
+    if custom_baseline and upgrade_baseline_commit == _v024_vendor_commit:
+        approved_control |= Counter(BASELINE_DELEGATE_VIEW_CONTROL.get(
+            (_v024_vendor_commit, row.path),
+            APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()),
+        ))
     if custom_baseline:
         # The trusted Custom baseline already contains historical orchestration.
         # Only candidate-added markers are considered during an upgrade; any
         # newly introduced orchestration remains unexpected unless explicitly
         # reviewed in a future upgrade-specific contract.
         approved_orchestration = Counter()
+        if upgrade_baseline_commit == _v024_vendor_commit:
+            approved_orchestration = Counter(
+                BASELINE_DELEGATE_VIEW_ORCHESTRATION.get(
+                    (_v024_vendor_commit, row.path),
+                    APPROVED_DELEGATE_VIEW_ORCHESTRATION.get(row.path, ()),
+                )
+            )
     else:
         approved_orchestration = Counter(BASELINE_DELEGATE_VIEW_ORCHESTRATION.get(
             (baseline_commit, row.path),
@@ -4735,6 +4753,7 @@ def validate(args: argparse.Namespace) -> None:
                     content,
                     added_line_numbers(repo, structure_baseline_for_row, args.candidate_tree, row.path),
                     custom_baseline=custom_baseline_commit is not None,
+                    upgrade_baseline_commit=baseline_commit,
                 )
             if row.kind in {"dto", "wire", "persistence"} and CONTROL_FLOW_RE.search(code):
                 raise ContractError(f"{row.kind} bridge introduces a loop or watcher: {row.path}")
