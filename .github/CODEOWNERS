@@ -88,6 +88,7 @@
 /backend/internal/server/api_contract_test.go @o87110
 /backend/internal/server/routes/admin.go @o87110
 /backend/internal/server/routes/composite_platform_test.go @o87110
+/backend/internal/server/routes/gateway_models_pinned_test.go @o87110
 /backend/internal/payment/load_balancer.go @o87110
 /backend/internal/payment/provider/easypay.go @o87110
 /backend/internal/payment/provider/easypay_refund_test.go @o87110
@@ -267,6 +268,7 @@
 /frontend/src/views/admin/__tests__/GroupsView.duplicate.spec.ts @o87110
 /frontend/src/views/admin/__tests__/groupsModelsList.spec.ts @o87110
 /frontend/src/views/admin/__tests__/groupsModelsListLayout.spec.ts @o87110
+/frontend/src/views/admin/__tests__/ChannelMonitorView.grok.spec.ts @o87110
 /frontend/src/views/admin/__tests__/SettingsView.spec.ts @o87110
 /frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts @o87110
 /frontend/src/views/user/KeysView.vue @o87110
