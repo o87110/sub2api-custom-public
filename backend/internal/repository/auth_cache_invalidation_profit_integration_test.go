@@ -178,6 +178,22 @@ func TestAuthCacheInvalidationTrigger_ProfitControlColumns(t *testing.T) {
 			require.Equal(t, 1, count(), name+" 变更必须入队")
 		})
 	}
+
+	clear()
+	_, err = integrationDB.ExecContext(ctx, `
+UPDATE groups
+SET model_allowlist = '{"enabled":true,"models":["gpt-5.4"]}'::jsonb
+WHERE id = $1`, group.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count(), "model_allowlist 变更必须入队")
+	clear()
+
+	_, err = integrationDB.ExecContext(ctx, `
+UPDATE groups
+SET model_allowlist = '{"enabled":true,"models":["gpt-5.4"]}'::jsonb
+WHERE id = $1`, group.ID)
+	require.NoError(t, err)
+	require.Zero(t, count(), "model_allowlist 无实际变化的 UPDATE 不得入队")
 }
 
 func TestAuthCacheInvalidationTrigger_ModelListConfigForwardMigration(t *testing.T) {
@@ -222,6 +238,9 @@ func TestAuthCacheInvalidationTrigger_ModelListConfigForwardMigration(t *testing
 		require.NoError(t, err)
 	}
 	clear()
+
+	_, err = tx.ExecContext(ctx, "ALTER TABLE groups RENAME COLUMN model_allowlist TO models_list_config")
+	require.NoError(t, err)
 
 	_, err = tx.ExecContext(ctx, groupAuthCacheInvalidationMigration193SQL)
 	require.NoError(t, err)

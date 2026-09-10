@@ -95,6 +95,9 @@ sha256sum runtime/sub2api
   `user_subscription_cycles` 和 `subscription_plans`；
 - 应用套餐续费策略 Migration 232 前，确认备份包含 `subscription_plans` 和
   `schema_migrations`；升级后核验新增开关默认关闭、宽限天数默认 `0`；
+- 升级官方 v0.2.4 的 Migration 235/236/238 前，确认备份包含 `groups`、`api_keys`、
+  `auth_cache_invalidation_outbox` 和 `schema_migrations`；在数据库副本验证列已收敛为
+  `model_allowlist`，并验证分组更新、删除及白名单变更不会引用旧列；
 - 涉及邀请返利撤销 Migration 时，确认备份包含 `user_affiliate_ledger`、
   `user_affiliates`、`users`、`payment_audit_logs`、`payment_orders` 和
   `schema_migrations`，并在升级后核验 `user_affiliate_reversals` 已创建；
