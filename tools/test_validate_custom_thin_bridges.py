@@ -466,6 +466,21 @@ class ThinBridgeContractTests(unittest.TestCase):
             validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[(current, gemini_path)],
         )
 
+    def test_v024_groups_view_binds_official_column_slice_calls(self) -> None:
+        calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+            "frontend/src/views/admin/GroupsView.vue"
+        ]
+        control = validator.APPROVED_DELEGATE_VIEW_CONTROL[
+            "frontend/src/views/admin/GroupsView.vue"
+        ]
+
+        self.assertEqual(calls.count(("<top-level>", "basic.slice")), 2)
+        self.assertIn(("<top-level>", "if (!authStore.isSimpleMode) {"), control)
+        self.assertIn(
+            ("<top-level>", "if (authStore.isSimpleMode) return basic;"),
+            control,
+        )
+
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
         fixture = self.fixture(candidate_content="if (enabled) { value = 2 }\n", kind="dto")
         with self.assertRaisesRegex(validator.ContractError, "introduces control flow"):
