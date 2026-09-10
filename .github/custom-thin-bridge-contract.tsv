@@ -25,7 +25,7 @@ backend/internal/handler/gateway_handler_chat_completions.go	delegate	true	10	6	
 backend/internal/handler/gateway_handler_responses.go	delegate	true	6	0	-
 backend/internal/handler/gateway_helper.go	delegate	true	42	0	-
 backend/internal/handler/gateway_web_search.go	delegate	true	28	56	e803e3851c0a7e222cfadeafad7b8636ab959d11:28:56,073e92d17178a1ccdb0a27017f572f10c9c7ab62:28:56,e0c48a19ed794a565e3858662520afe0a1f9f0ba:28:56,75f88be5f75c27771836b586f7de1503afa0e3bc:28:56,e8cb019fabf8b55199436229044cbf9aa7a82564:28:56,e98ef32eb29aecd30d1def615912ec4dc93173f3:28:56,2ac784c51a5d0925b324efef2ba6b3446c364781:28:56,aa236488351eb71e120fc2b6fb32e36b0374c918:28:56
-backend/internal/handler/gemini_v1beta_handler.go	delegate	true	58	3	578785ee7fb35030b094b69624efe25670a36f5f:42:3,5de5e2bed035d43591a2e10e51f420ef6a84eb98:66:74
+backend/internal/handler/gemini_v1beta_handler.go	delegate	true	58	3	578785ee7fb35030b094b69624efe25670a36f5f:42:3,5de5e2bed035d43591a2e10e51f420ef6a84eb98:98:73
 backend/internal/handler/handler.go	dto	true	2	0	-
 backend/internal/handler/image_task_handler.go	delegate	true	34	0	-
 backend/internal/handler/no_account_error.go	delegate	true	16	10	75f88be5f75c27771836b586f7de1503afa0e3bc:16:10,e8cb019fabf8b55199436229044cbf9aa7a82564:16:10,e98ef32eb29aecd30d1def615912ec4dc93173f3:16:10,2ac784c51a5d0925b324efef2ba6b3446c364781:16:10
@@ -34,7 +34,7 @@ backend/internal/handler/openai_chat_completions.go	delegate	true	3	0	578785ee7f
 backend/internal/handler/openai_codex_models_handler.go	delegate	true	39	2	e98ef32eb29aecd30d1def615912ec4dc93173f3:39:2,2ac784c51a5d0925b324efef2ba6b3446c364781:39:2,aa236488351eb71e120fc2b6fb32e36b0374c918:39:2,5de5e2bed035d43591a2e10e51f420ef6a84eb98:72:29
 backend/internal/handler/openai_embeddings.go	delegate	true	3	0	578785ee7fb35030b094b69624efe25670a36f5f:4:2,5de5e2bed035d43591a2e10e51f420ef6a84eb98:4:2
 backend/internal/handler/openai_gateway_count_tokens.go	delegate	true	4	0	-
-backend/internal/handler/openai_gateway_handler.go	delegate	true	86	8	e8cb019fabf8b55199436229044cbf9aa7a82564:86:8,e98ef32eb29aecd30d1def615912ec4dc93173f3:86:8,2ac784c51a5d0925b324efef2ba6b3446c364781:86:8,578785ee7fb35030b094b69624efe25670a36f5f:119:44,5de5e2bed035d43591a2e10e51f420ef6a84eb98:143:73
+backend/internal/handler/openai_gateway_handler.go	delegate	true	86	8	e8cb019fabf8b55199436229044cbf9aa7a82564:86:8,e98ef32eb29aecd30d1def615912ec4dc93173f3:86:8,2ac784c51a5d0925b324efef2ba6b3446c364781:86:8,578785ee7fb35030b094b69624efe25670a36f5f:119:44,5de5e2bed035d43591a2e10e51f420ef6a84eb98:146:73
 backend/internal/handler/openai_images.go	delegate	true	3	0	-
 backend/internal/handler/openai_live.go	delegate	true	16	0	-
 backend/internal/handler/payment_handler.go	delegate	true	64	13	-
@@ -55,7 +55,7 @@ backend/internal/server/middleware/api_key_auth.go	delegate	true	6	0	-
 backend/internal/server/middleware/api_key_auth_google.go	delegate	true	6	0	-
 backend/internal/server/middleware/audit_log.go	dto	false	3	0	-
 backend/internal/server/routes/admin.go	delegate	true	6	1	-
-backend/internal/server/routes/gateway.go	delegate	true	19	0	5de5e2bed035d43591a2e10e51f420ef6a84eb98:29:0
+backend/internal/server/routes/gateway.go	delegate	true	19	0	5de5e2bed035d43591a2e10e51f420ef6a84eb98:47:0
 backend/internal/service/admin_group.go	delegate	true	106	13	5de5e2bed035d43591a2e10e51f420ef6a84eb98:168:106
 backend/internal/service/admin_group_duplicate.go	persistence	false	4	2	5de5e2bed035d43591a2e10e51f420ef6a84eb98:11:4
 backend/internal/service/admin_service.go	persistence	false	5	1	e803e3851c0a7e222cfadeafad7b8636ab959d11:5:1,073e92d17178a1ccdb0a27017f572f10c9c7ab62:5:1,e0c48a19ed794a565e3858662520afe0a1f9f0ba:5:1,75f88be5f75c27771836b586f7de1503afa0e3bc:5:1,e8cb019fabf8b55199436229044cbf9aa7a82564:5:1,e98ef32eb29aecd30d1def615912ec4dc93173f3:5:1,2ac784c51a5d0925b324efef2ba6b3446c364781:5:1,5de5e2bed035d43591a2e10e51f420ef6a84eb98:7:1

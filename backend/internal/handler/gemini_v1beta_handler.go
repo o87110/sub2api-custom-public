@@ -33,15 +33,41 @@ var geminiCLITmpDirRegex = regexp.MustCompile(`/\.gemini/tmp/([A-Fa-f0-9]{64})`)
 
 func filterUpstreamGeminiModelsBody(body []byte, allowlist service.GroupModelAllowlist) ([]byte, bool, bool) {
 	var envelope map[string]json.RawMessage
-	if err := json.Unmarshal(body, &envelope); err != nil { return body, false, false }
-	raw, ok := envelope["models"]; if !ok { return body, false, true }
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return body, false, false
+	}
+	raw, ok := envelope["models"]
+	if !ok {
+		return body, false, true
+	}
 	var models []map[string]any
-	if err := json.Unmarshal(raw, &models); err != nil { return body, false, true }
-	kept := make([]map[string]any, 0, len(models)); dropped := false
-	for _, m := range models { name, _ := m["name"].(string); name = strings.TrimPrefix(name, "models/"); if allowlist.Allows(name) { kept = append(kept, m) } else { dropped = true } }
-	if !dropped { return body, false, true }
-	b, err := json.Marshal(kept); if err != nil { return body, false, true }; envelope["models"] = b
-	out, err := json.Marshal(envelope); if err != nil { return body, false, true }; return out, true, true
+	if err := json.Unmarshal(raw, &models); err != nil {
+		return body, false, true
+	}
+	kept := make([]map[string]any, 0, len(models))
+	dropped := false
+	for _, m := range models {
+		name, _ := m["name"].(string)
+		name = strings.TrimPrefix(name, "models/")
+		if allowlist.Allows(name) {
+			kept = append(kept, m)
+		} else {
+			dropped = true
+		}
+	}
+	if !dropped {
+		return body, false, true
+	}
+	b, err := json.Marshal(kept)
+	if err != nil {
+		return body, false, true
+	}
+	envelope["models"] = b
+	out, err := json.Marshal(envelope)
+	if err != nil {
+		return body, false, true
+	}
+	return out, true, true
 }
 
 // GeminiV1BetaListModels proxies:
@@ -65,12 +91,19 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 			return false
 		}
 		if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
-			if filtered, _, ok := filterUpstreamGeminiModelsBody(body, apiKey.Group.ModelAllowlist); ok { c.Data(http.StatusOK, "application/json", filtered); return true }
+			if filtered, _, ok := filterUpstreamGeminiModelsBody(body, apiKey.Group.ModelAllowlist); ok {
+				c.Data(http.StatusOK, "application/json", filtered)
+				return true
+			}
 		}
 		displayEnabled := forcePlatform != service.PlatformAntigravity && apiKey.Group != nil && (apiKey.Group.CustomModelsListEnabled() || apiKey.Group.ModelAllowlistEnabled())
 		var displayModels []string
 		if apiKey.Group != nil {
-			if apiKey.Group.ModelAllowlistEnabled() { displayModels = apiKey.Group.ModelAllowlist.Models } else { displayModels = apiKey.Group.ModelsListConfig.Models }
+			if apiKey.Group.ModelAllowlistEnabled() {
+				displayModels = apiKey.Group.ModelAllowlist.Models
+			} else {
+				displayModels = apiKey.Group.ModelsListConfig.Models
+			}
 		}
 		filtered, _, err := h.gatewayService.FilterGeminiModelsResponse(c.Request.Context(), apiKey.GroupID, platform, body, displayModels, displayEnabled)
 		if err != nil {

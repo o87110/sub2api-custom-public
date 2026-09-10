@@ -3056,6 +3056,13 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
         "backend/internal/handler/gemini_v1beta_handler.go"
     ],
     remove=(("GeminiV1BetaListModels", "customGeminiModelsList"),),
+    add=(
+        ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
+        ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
+        ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
+        ("GeminiV1BetaListModels", "c.Data"),
+        ("GeminiV1BetaListModels", "filterUpstreamGeminiModelsBody"),
+    ),
 )
 BASELINE_DELEGATE_VIEW_CONTROL[(
     _v021_vendor_commit,
@@ -3068,6 +3075,20 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
         "GeminiV1BetaListModels",
         "if models, ok := customGeminiModelsList(apiKey.Group); ok {",
     ),),
+    add=(
+        (
+            "GeminiV1BetaListModels",
+            "if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {",
+        ),
+        (
+            "GeminiV1BetaListModels",
+            "if apiKey.Group.ModelAllowlistEnabled() {",
+        ),
+        (
+            "GeminiV1BetaListModels",
+            "if filtered, _, ok := filterUpstreamGeminiModelsBody(body, apiKey.Group.ModelAllowlist); ok {",
+        ),
+    ),
 )
 
 BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
@@ -3429,11 +3450,11 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
         ),
         (
             "GeminiV1BetaListModels",
-            "if apiKey.Group.ModelAllowlistEnabled() { displayModels = apiKey.Group.ModelAllowlist.Models } else { displayModels = apiKey.Group.ModelsListConfig.Models }",
+            "if apiKey.Group.ModelAllowlistEnabled() {",
         ),
         (
             "GeminiV1BetaListModels",
-            "if filtered, _, ok := filterUpstreamGeminiModelsBody(body, apiKey.Group.ModelAllowlist); ok { c.Data(http.StatusOK, \"application/json\", filtered); return true }",
+            "if filtered, _, ok := filterUpstreamGeminiModelsBody(body, apiKey.Group.ModelAllowlist); ok {",
         ),
     ),
 )
@@ -3485,7 +3506,7 @@ APPROVED_DELEGATE_VIEW_CONTROL[
     add=(
         (
             "ResponsesWebSocket",
-            "if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) { closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, \"model not available for this group\"); return \"\", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, \"model not available for this group\", nil) }",
+            "if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) {",
         ),
         (
             "ResponsesWebSocket",
@@ -3506,6 +3527,135 @@ APPROVED_DELEGATE_VIEW_CONTROL[
         (
             "ensureForwardErrorResponse",
             "if c.Request != nil && c.Request.Context().Err() != nil {",
+        ),
+    ),
+)
+
+# The v0.2.4 rewrite is compared with the trusted v0.2.1 Custom tree during
+# upgrade validation.  Carry the same reviewed WebSocket additions into that
+# exact baseline snapshot so formatting-only lint repairs do not erase the
+# semantic approval surface.
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v021_vendor_commit,
+    "backend/internal/handler/openai_gateway_handler.go",
+)] = _reviewed_baseline_delta(
+    BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+        _v021_vendor_commit,
+        "backend/internal/handler/openai_gateway_handler.go",
+    )],
+    add=(
+        ("ResponsesWebSocket", "apiKey.Group.ModelAllowlist.Allows"),
+        ("ResponsesWebSocket", "apiKey.Group.ModelAllowlist.Allows"),
+        ("ResponsesWebSocket", "apiKey.Group.ModelAllowlistEnabled"),
+        ("ResponsesWebSocket", "apiKey.Group.ModelAllowlistEnabled"),
+        ("ResponsesWebSocket", "append"),
+        ("ResponsesWebSocket", "blockedModelAllowlistCandidate"),
+        ("ResponsesWebSocket", "blockedModelAllowlistCandidate"),
+        ("ResponsesWebSocket", "closeOpenAIClientWS"),
+        ("ResponsesWebSocket", "closeOpenAIClientWS"),
+        ("ResponsesWebSocket", "closeOpenAIClientWS"),
+        ("ResponsesWebSocket", "fmt.Sprintf"),
+        ("ResponsesWebSocket", "fmt.Sprintf"),
+        ("ResponsesWebSocket", "middleware2.MarkIngressRejected"),
+        ("ResponsesWebSocket", "middleware2.MarkIngressRejected"),
+        ("ResponsesWebSocket", "requestmodel.FromBodyCandidates"),
+        ("ResponsesWebSocket", "requestmodel.FromBodyCandidates"),
+        ("ResponsesWebSocket", "service.MarkOpsClientBusinessLimited"),
+        ("ResponsesWebSocket", "service.MarkOpsClientBusinessLimited"),
+        ("ResponsesWebSocket", "service.NewOpenAIWSClientCloseError"),
+        ("ResponsesWebSocket", "service.NewOpenAIWSClientCloseError"),
+        ("ResponsesWebSocket", "writeGroupModelBlockedWSError"),
+        ("handleFailoverExhausted", "service.ExtractUpstreamErrorMessage"),
+        ("handleFailoverExhausted", "service.IsOpenAICompatibleModelNotFound400"),
+        ("handleFailoverExhausted", "service.SanitizeUpstreamErrorMessage"),
+        ("handleFailoverExhausted", "service.SetOpsUpstreamError"),
+        ("handleFailoverExhausted", "service.WriteOpenAIUpstreamClientError"),
+        ("ensureForwardErrorResponse", "Err"),
+        ("ensureForwardErrorResponse", "c.Request.Context"),
+        ("ensureForwardErrorResponse", "c.Writer.WriteHeader"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v021_vendor_commit,
+    "backend/internal/handler/openai_gateway_handler.go",
+)] = _reviewed_baseline_delta(
+    BASELINE_DELEGATE_VIEW_CONTROL[(
+        _v021_vendor_commit,
+        "backend/internal/handler/openai_gateway_handler.go",
+    )],
+    add=(
+        (
+            "ResponsesWebSocket",
+            "if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) {",
+        ),
+        (
+            "ResponsesWebSocket",
+            "if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(reqModel) {",
+        ),
+        (
+            "ResponsesWebSocket",
+            "if blocked := blockedModelAllowlistCandidate(apiKey.Group, candidates); blocked != \"\" {",
+        ),
+        (
+            "ResponsesWebSocket",
+            "if blocked := blockedModelAllowlistCandidate(apiKey.Group, requestmodel.FromBodyCandidates(\"\", \"application/json\", firstMessage)); blocked != \"\" {",
+        ),
+        (
+            "handleFailoverExhausted",
+            "if statusCode == http.StatusBadRequest &&",
+        ),
+        (
+            "ensureForwardErrorResponse",
+            "if c.Request != nil && c.Request.Context().Err() != nil {",
+        ),
+    ),
+)
+
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v021_vendor_commit,
+    "backend/internal/server/routes/gateway.go",
+)] = _reviewed_baseline_delta(
+    BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+        _v021_vendor_commit,
+        "backend/internal/server/routes/gateway.go",
+    )],
+    add=(
+        (
+            ("RegisterGatewayRoutes", "antigravityV1.Use"),
+            ("RegisterGatewayRoutes", "antigravityV1Beta.Use"),
+            ("RegisterGatewayRoutes", "gateway.Use"),
+            ("RegisterGatewayRoutes", "middleware.GroupModelAllowlist"),
+            ("RegisterGatewayRoutes", "gemini.Use"),
+            ("RegisterGatewayRoutes", "r.Handle"),
+        )
+        + (("RegisterGatewayRoutes", "rootRoute"),) * 36
+        + (
+            ("compositeRequestModelFromBody", "bytes.NewReader"),
+            ("compositeRequestModelFromBody", "data.Bytes"),
+            ("compositeRequestModelFromBody", "data.ReadFrom"),
+            ("compositeRequestModelFromBody", "json.Unmarshal"),
+            ("compositeRequestModelFromBody", "mime.ParseMediaType"),
+            ("compositeRequestModelFromBody", "multipart.NewReader"),
+            ("compositeRequestModelFromBody", "r.NextPart"),
+            ("compositeTargetPlatformMiddleware", "c.FullPath"),
+            ("compositeTargetPlatformMiddleware", "requestmodel.FromBodyForRoute"),
+            ("compositeTargetPlatformMiddleware", "requestmodel.JSONModelPathForRoute"),
+            ("compositeTargetPlatformMiddleware", "requestmodel.ResetRequestBody"),
+        )
+    ),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v021_vendor_commit,
+    "backend/internal/server/routes/gateway.go",
+)] = _reviewed_baseline_delta(
+    BASELINE_DELEGATE_VIEW_CONTROL[(
+        _v021_vendor_commit,
+        "backend/internal/server/routes/gateway.go",
+    )],
+    add=(
+        (
+            "compositeTargetPlatformMiddleware",
+            "if _, modelPath := requestmodel.JSONModelPathForRoute(routePath, body); modelPath != \"\" {",
         ),
     ),
 )
@@ -4554,8 +4704,14 @@ def validate_delegate_view_structure(
         # The trusted Custom baseline already contains historical orchestration.
         # Only candidate-added markers are considered during an upgrade; any
         # newly introduced orchestration remains unexpected unless explicitly
-        # reviewed in a future upgrade-specific contract.
-        approved_orchestration = Counter()
+        # reviewed in a future upgrade-specific contract.  A reviewed
+        # baseline-specific allowance is retained for upgrade paths whose
+        # official rewrite already has an exact orchestration snapshot.
+        approved_orchestration = Counter(
+            BASELINE_DELEGATE_VIEW_ORCHESTRATION.get(
+                (baseline_commit, row.path), ()
+            )
+        )
     else:
         approved_orchestration = Counter(BASELINE_DELEGATE_VIEW_ORCHESTRATION.get(
             (baseline_commit, row.path),

@@ -2835,7 +2835,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					model = reqModel
 				}
 				setOpsRequestContext(c, model, true)
-		if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) { closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model not available for this group"); return "", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "model not available for this group", nil) }
+				if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) {
+					closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model not available for this group")
+					return "", service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "model not available for this group", nil)
+				}
 				if accessErr := service.CheckGroupModelAccess(ctx, model); accessErr != nil {
 					service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
 					writeGroupModelBlockedWSError(ctx, wsConn, model)
