@@ -2529,6 +2529,15 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
             "normalizeBlockedModels": 1,
         }),
     ),
+    "frontend/src/views/admin/groupsModelsList.ts": _approved_call_deltas(
+        ("<top-level>", {
+            "blockedModels.has": 1,
+            "blockedModelsForCandidates": 1,
+            "buildBlockedModelsPayload": 1,
+            "includeSavedBlockedModels": 1,
+            "normalizeBlockedModels": 1,
+        }),
+    ),
 })
 
 _v0184_codex_models_calls = Counter(
@@ -3261,6 +3270,21 @@ APPROVED_DELEGATE_VIEW_ORCHESTRATION: dict[str, tuple[tuple[str, str], ...]] = {
     ),
 }
 
+# Keep the pre-upgrade approval surface immutable for the trusted v0.2.1
+# baseline before applying the v0.2.4-specific additions below. This lets the
+# control-plane contract land on main first while continuing to validate both
+# the current tree and the pending official candidate exactly.
+for _path, _calls in tuple(APPROVED_DELEGATE_VIEW_CALL_DELTAS.items()):
+    BASELINE_DELEGATE_VIEW_CALL_DELTAS.setdefault(
+        (_v021_vendor_commit, _path),
+        _calls,
+    )
+for _path, _control in tuple(APPROVED_DELEGATE_VIEW_CONTROL.items()):
+    BASELINE_DELEGATE_VIEW_CONTROL.setdefault(
+        (_v021_vendor_commit, _path),
+        _control,
+    )
+
 _v024_vendor_commit = "5de5e2bed035d43591a2e10e51f420ef6a84eb98"
 BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     _v024_vendor_commit,
@@ -3802,6 +3826,8 @@ _v024_remaining_call_approvals = {
         ("<top-level>", "createInitialModelsListState"),
         ("<top-level>", "createInitialModelsListState"),
         ("<top-level>", "createInitialModelsListState"),
+        ("<top-level>", "basic.slice"),
+        ("<top-level>", "basic.slice"),
         ("<top-level>", "createModelsListState.items.filter"),
         ("<top-level>", "editModelsListState.items.filter"),
         ("<top-level>", "invertModelsListSelection"),
@@ -3991,6 +4017,8 @@ APPROVED_DELEGATE_VIEW_CONTROL[
         ("<top-level>", "<p v-if=\"editModelsListLoading\" class=\"text-xs text-gray-500 dark:text-gray-400\">"),
         ("<top-level>", "if (!modelsListCandidatesTracker.isCurrent(requestID, request)) {"),
         ("<top-level>", "if (!modelsListCandidatesTracker.isCurrent(requestID, request)) {"),
+        ("<top-level>", "if (!authStore.isSimpleMode) {"),
+        ("<top-level>", "if (authStore.isSimpleMode) return basic;"),
         ("<top-level>", "if (modelsListCandidatesTracker.isCurrent(requestID, request)) {"),
         ("<top-level>", "v-else-if=\"createModelsListState.items.length === 0\""),
         ("<top-level>", "v-else-if=\"editModelsListState.items.length === 0\""),
@@ -4593,13 +4621,24 @@ def validate(args: argparse.Namespace) -> None:
     contract_rows = load_contract(args.contract)
     contract_paths = {row.path for row in contract_rows}
     ledger_paths = load_thin_bridge_paths(args.ledger)
-    if contract_paths != ledger_paths:
-        missing = sorted(ledger_paths - contract_paths)
-        extra = sorted(contract_paths - ledger_paths)
-        raise ContractError(f"thin bridge contract/ledger mismatch; missing={missing}, extra={extra}")
+    missing = sorted(ledger_paths - contract_paths)
+    extra = contract_paths - ledger_paths
+    active_extra = sorted(
+        path for path in extra if target_exists(repo, args.candidate_tree, path)
+    )
+    if missing or active_extra:
+        raise ContractError(
+            "thin bridge contract/ledger mismatch; "
+            f"missing={missing}, active_extra={active_extra}"
+        )
 
     shadows = load_shadow_map(args.shadow_map)
     for row in contract_rows:
+        # Control-plane updates must land before an official upgrade. Permit
+        # reviewed future or retired rows only while their path is absent from
+        # the candidate; a present unledgered bridge remains fail-closed above.
+        if row.path not in ledger_paths:
+            continue
         content = candidate_file(repo, args.candidate_tree, row.path)
         targets = shadows.get(row.path, set())
         direct_custom_import = bool(CUSTOM_IMPORT_RE.search(content))

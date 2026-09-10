@@ -340,6 +340,7 @@ thin_bridge_allowed() {
       frontend/src/views/admin/__tests__/SettingsView.spec.ts | \
       frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue | \
       frontend/src/views/admin/groupModelAllowlist.ts | \
+      frontend/src/views/admin/groupsModelsList.ts | \
       frontend/src/views/admin/GroupsView.vue | \
       frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts | \
       frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts | \

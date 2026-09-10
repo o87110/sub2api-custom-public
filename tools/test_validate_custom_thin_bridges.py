@@ -101,6 +101,7 @@ class ThinBridgeFixture:
         additions: int | None = None,
         deletions: int | None = None,
         baseline_budget_overrides: str = "-",
+        extra_rows: list[list[object]] | None = None,
     ) -> None:
         rows = []
         if include_bridge:
@@ -112,6 +113,8 @@ class ThinBridgeFixture:
                 self.deletions if deletions is None else deletions,
                 baseline_budget_overrides,
             ])
+        rows.extend(extra_rows or [])
+        rows.sort(key=lambda row: str(row[0]))
         self._write_tsv(
             ".github/custom-thin-bridge-contract.tsv",
             validator.CONTRACT_HEADER,
@@ -149,6 +152,21 @@ class ThinBridgeContractTests(unittest.TestCase):
         fixture = self.fixture()
         fixture.write_contract(include_bridge=False)
         with self.assertRaisesRegex(validator.ContractError, "contract/ledger mismatch"):
+            validator.validate(fixture.args())
+
+    def test_accepts_an_absent_forward_compatible_contract_path(self) -> None:
+        fixture = self.fixture()
+        fixture.write_contract(extra_rows=[[
+            "frontend/src/api/future.ts", "dto", "false", 1, 0, "-",
+        ]])
+        validator.validate(fixture.args())
+
+    def test_rejects_a_present_unledgered_contract_path(self) -> None:
+        fixture = self.fixture()
+        fixture.write_contract(extra_rows=[[
+            fixture.target_path, "dto", "false", 1, 0, "-",
+        ]])
+        with self.assertRaisesRegex(validator.ContractError, "active_extra"):
             validator.validate(fixture.args())
 
     def test_rejects_a_required_shadow_mapping(self) -> None:
@@ -446,6 +464,21 @@ class ThinBridgeContractTests(unittest.TestCase):
         self.assertNotIn(
             ("GeminiV1BetaListModels", "customGeminiModelsList"),
             validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[(current, gemini_path)],
+        )
+
+    def test_v024_groups_view_binds_official_column_slice_calls(self) -> None:
+        calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+            "frontend/src/views/admin/GroupsView.vue"
+        ]
+        control = validator.APPROVED_DELEGATE_VIEW_CONTROL[
+            "frontend/src/views/admin/GroupsView.vue"
+        ]
+
+        self.assertEqual(calls.count(("<top-level>", "basic.slice")), 2)
+        self.assertIn(("<top-level>", "if (!authStore.isSimpleMode) {"), control)
+        self.assertIn(
+            ("<top-level>", "if (authStore.isSimpleMode) return basic;"),
+            control,
         )
 
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
