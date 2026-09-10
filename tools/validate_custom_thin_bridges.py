@@ -4491,7 +4491,7 @@ def validate_delegate_view_structure(
     if custom_baseline and upgrade_baseline_commit == _v024_vendor_commit:
         approved_calls |= Counter(BASELINE_DELEGATE_VIEW_CALL_DELTAS.get(
             (_v024_vendor_commit, row.path),
-            APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()),
+            (),
         ))
     if (
         baseline_commit == "29009f0b2ea14edf3b11ae2564fb617ff91a03b4"
@@ -4559,7 +4559,7 @@ def validate_delegate_view_structure(
     if custom_baseline and upgrade_baseline_commit == _v024_vendor_commit:
         approved_control |= Counter(BASELINE_DELEGATE_VIEW_CONTROL.get(
             (_v024_vendor_commit, row.path),
-            APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()),
+            (),
         ))
     if custom_baseline:
         # The trusted Custom baseline already contains historical orchestration.
@@ -4571,7 +4571,7 @@ def validate_delegate_view_structure(
             approved_orchestration = Counter(
                 BASELINE_DELEGATE_VIEW_ORCHESTRATION.get(
                     (_v024_vendor_commit, row.path),
-                    APPROVED_DELEGATE_VIEW_ORCHESTRATION.get(row.path, ()),
+                    (),
                 )
             )
     else:
