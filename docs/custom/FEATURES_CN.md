@@ -537,9 +537,10 @@ backend/migrations/198_subscription_cycle_manual_bulk_quota_reset.sql
 - 候选列表聚合平台默认模型、账号映射键值、Messages 分发映射、复合路由公开名/上游名
   及关联渠道映射输入/输出。已保存但候选源消失的黑名单项继续回显并可移除；
 - 分组复制深复制黑名单；分组更新立即失效 API Key 鉴权缓存，缓存快照版本为 v20；数据库
-  Trigger 通过前向 Migration 覆盖函数定义，直接修改 `models_list_config` 也会 durable
-  失效，且不新增表、列或数据回写；
-- 配置复用现有 `models_list_config` JSON，不新增列或 Schema 字段；Gemini 模型详情静态
+  Trigger 先由 Migration 221 覆盖旧列，再由 Migration 238 在官方 Migration 235/236
+  重命名后绑定 `model_allowlist`，直接修改当前白名单 JSON 也会 durable 失效，且 238
+  不新增表、列或数据回写；
+- 配置复用官方更名后的 `model_allowlist` JSON，不新增额外列或 Schema 字段；Gemini 模型详情静态
   返回/上游转发及 Web Search 实际发送模型均执行最终策略守卫。
 
 主要实现：

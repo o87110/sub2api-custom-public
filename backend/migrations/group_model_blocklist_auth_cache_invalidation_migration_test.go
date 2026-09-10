@@ -16,3 +16,14 @@ func TestGroupModelBlocklistAuthCacheInvalidationForwardMigration(t *testing.T) 
 	require.Contains(t, sql, "OLD.profit_control_enabled IS NOT DISTINCT FROM NEW.profit_control_enabled")
 	require.Contains(t, sql, "INSERT INTO auth_cache_invalidation_outbox")
 }
+
+func TestGroupModelAllowlistAuthCacheInvalidationForwardMigration(t *testing.T) {
+	content, err := FS.ReadFile("238_group_model_allowlist_auth_cache_invalidation.sql")
+	require.NoError(t, err)
+	sql := strings.Join(strings.Fields(string(content)), " ")
+	require.Contains(t, sql, "CREATE OR REPLACE FUNCTION enqueue_group_auth_cache_invalidation()")
+	require.Contains(t, sql, "OLD.model_allowlist IS NOT DISTINCT FROM NEW.model_allowlist")
+	require.NotContains(t, sql, "OLD.models_list_config")
+	require.Contains(t, sql, "OLD.profit_control_enabled IS NOT DISTINCT FROM NEW.profit_control_enabled")
+	require.Contains(t, sql, "INSERT INTO auth_cache_invalidation_outbox")
+}

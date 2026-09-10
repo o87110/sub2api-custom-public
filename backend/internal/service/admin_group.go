@@ -10,6 +10,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/custom/groupaccess"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
@@ -47,7 +48,21 @@ func (s *adminServiceImpl) GetAllGroupsIncludingInactive(ctx context.Context) ([
 }
 
 func (s *adminServiceImpl) GetGroup(ctx context.Context, id int64) (*Group, error) {
-	return s.groupRepo.GetByID(ctx, id)
+	group, err := s.groupRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validateSimpleModeGroupAccess(group); err != nil {
+		return nil, err
+	}
+	return group, nil
+}
+
+func (s *adminServiceImpl) validateSimpleModeGroupAccess(group *Group) error {
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && !IsGroupBindableInSimpleMode(group) {
+		return infraerrors.BadRequest("SIMPLE_MODE_GROUP_NOT_BINDABLE", "composite groups are not supported in simple mode")
+	}
+	return nil
 }
 
 func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id int64, platform string) ([]string, error) {
@@ -152,6 +167,9 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 }
 
 func (s *adminServiceImpl) ListCompositeRoutes(ctx context.Context, groupID int64) ([]CompositeModelRoute, error) {
+	if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {
+		return nil, err
+	}
 	if err := s.requireCompositeGroup(ctx, groupID); err != nil {
 		return nil, err
 	}
@@ -162,6 +180,9 @@ func (s *adminServiceImpl) ListCompositeRoutes(ctx context.Context, groupID int6
 }
 
 func (s *adminServiceImpl) CreateCompositeRoute(ctx context.Context, groupID int64, input CompositeRouteInput) (*CompositeModelRoute, error) {
+	if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {
+		return nil, err
+	}
 	if err := s.requireCompositeGroup(ctx, groupID); err != nil {
 		return nil, err
 	}
@@ -179,6 +200,9 @@ func (s *adminServiceImpl) CreateCompositeRoute(ctx context.Context, groupID int
 }
 
 func (s *adminServiceImpl) UpdateCompositeRoute(ctx context.Context, groupID, routeID int64, input CompositeRouteInput) (*CompositeModelRoute, error) {
+	if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {
+		return nil, err
+	}
 	if err := s.requireCompositeGroup(ctx, groupID); err != nil {
 		return nil, err
 	}
@@ -202,6 +226,9 @@ func (s *adminServiceImpl) UpdateCompositeRoute(ctx context.Context, groupID, ro
 }
 
 func (s *adminServiceImpl) DeleteCompositeRoute(ctx context.Context, groupID, routeID int64) error {
+	if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {
+		return err
+	}
 	if err := s.requireCompositeGroup(ctx, groupID); err != nil {
 		return err
 	}
@@ -217,6 +244,9 @@ func (s *adminServiceImpl) DeleteCompositeRoute(ctx context.Context, groupID, ro
 }
 
 func (s *adminServiceImpl) PreviewCompositeRoute(ctx context.Context, groupID int64, input CompositeRoutePreviewRequest) (*CompositeRouteDecision, error) {
+	if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {
+		return nil, err
+	}
 	if err := s.requireCompositeGroup(ctx, groupID); err != nil {
 		return nil, err
 	}
@@ -360,6 +390,16 @@ func sanitizeGroupOpenAIFast(group *Group) {
 }
 
 func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupInput) (*Group, error) {
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
+		platform := NormalizeGroupPlatform(input.Platform)
+		if platform == PlatformComposite {
+			return nil, infraerrors.BadRequest("SIMPLE_MODE_GROUP_NOT_BINDABLE", "composite groups are not supported in simple mode")
+		}
+		*input = CreateGroupInput{
+			Name: input.Name, Description: input.Description, Platform: platform,
+			RateMultiplier: 1, SubscriptionType: SubscriptionTypeStandard,
+		}
+	}
 	if input.RateMultiplier <= 0 {
 		return nil, errors.New("rate_multiplier must be > 0")
 	}
@@ -368,6 +408,13 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	}
 
 	platform := NormalizeGroupPlatform(input.Platform)
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && platform == PlatformComposite {
+		return nil, infraerrors.BadRequest("SIMPLE_MODE_GROUP_NOT_BINDABLE", "composite groups are not supported in simple mode")
+	}
+	modelAllowlist, err := normalizeGroupModelAllowlist(input.ModelAllowlist)
+	if err != nil {
+		return nil, err
+	}
 	// 固定账号 manifest 配置：账号绑定发生在创建之后，创建时无法校验成员关系，
 	// 拒绝开启并在创建后的编辑里配置。
 	if normalizeCodexModelsManifestConfig(platform, input.CodexModelsManifestConfig).Enabled {
@@ -583,6 +630,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		RequirePrivacySet:               input.RequirePrivacySet,
 		DefaultMappedModel:              input.DefaultMappedModel,
 		MessagesDispatchModelConfig:     normalizeOpenAIMessagesDispatchModelConfig(input.MessagesDispatchModelConfig),
+		ModelAllowlist:                  modelAllowlist,
 		ModelsListConfig:                normalizeGroupModelsListConfig(input.ModelsListConfig),
 		// 固定账号 manifest 配置：账号绑定发生在分组创建之后，创建路径禁止开启，
 		// 成员关系无从校验（前端创建对话框也不展示）。
@@ -724,6 +772,16 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if err != nil {
 		return nil, err
 	}
+	if err := s.validateSimpleModeGroupAccess(group); err != nil {
+		return nil, err
+	}
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
+		if NormalizeGroupPlatform(input.Platform) == PlatformComposite {
+			return nil, infraerrors.BadRequest("SIMPLE_MODE_GROUP_NOT_BINDABLE", "composite groups are not supported in simple mode")
+		}
+		name, description := input.Name, input.Description
+		*input = UpdateGroupInput{Name: name, Description: description}
+	}
 
 	// 渠道缓存里存了 groupID → platform 的映射，改了平台要让它失效（见函数末尾）
 	previousPlatform := group.Platform
@@ -735,7 +793,10 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		group.Description = *input.Description
 	}
 	if input.Platform != "" {
-		group.Platform = input.Platform
+		group.Platform = NormalizeGroupPlatform(input.Platform)
+		if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && group.Platform == PlatformComposite {
+			return nil, infraerrors.BadRequest("SIMPLE_MODE_GROUP_NOT_BINDABLE", "composite groups are not supported in simple mode")
+		}
 	}
 	if input.RateMultiplier != nil {
 		if *input.RateMultiplier <= 0 {
@@ -970,6 +1031,13 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.MessagesDispatchModelConfig != nil {
 		group.MessagesDispatchModelConfig = normalizeOpenAIMessagesDispatchModelConfig(*input.MessagesDispatchModelConfig)
 	}
+	if input.ModelAllowlist != nil {
+		modelAllowlist, normalizeErr := normalizeGroupModelAllowlist(*input.ModelAllowlist)
+		if normalizeErr != nil {
+			return nil, normalizeErr
+		}
+		group.ModelAllowlist = modelAllowlist
+	}
 	if input.ModelsListConfig != nil {
 		group.ModelsListConfig = normalizeGroupModelsListConfig(*input.ModelsListConfig)
 	}
@@ -1167,6 +1235,23 @@ func (s *adminServiceImpl) DeleteGroup(ctx context.Context, id int64) error {
 	return nil
 }
 
+func (s *adminServiceImpl) DeleteGroupIfEmpty(ctx context.Context, id int64) error {
+	if s.emptyGroupDeleteRepo == nil {
+		return fmt.Errorf("guarded group deletion is unavailable")
+	}
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && s.groupRepo != nil {
+		group, err := s.groupRepo.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if err := s.validateSimpleModeGroupAccess(group); err != nil {
+			return err
+		}
+	}
+	_, err := s.emptyGroupDeleteRepo.DeleteCascadeIfEmpty(ctx, id)
+	return err
+}
+
 func (s *adminServiceImpl) GetGroupAPIKeys(ctx context.Context, groupID int64, page, pageSize int) ([]APIKey, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
 	keys, result, err := s.apiKeyRepo.ListByGroupID(ctx, groupID, params)
@@ -1177,6 +1262,9 @@ func (s *adminServiceImpl) GetGroupAPIKeys(ctx context.Context, groupID int64, p
 }
 
 func (s *adminServiceImpl) GetGroupRateMultipliers(ctx context.Context, groupID int64) ([]UserGroupRateEntry, error) {
+	if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationMultiplier); err != nil {
+		return nil, err
+	}
 	if s.userGroupRateRepo == nil {
 		return nil, nil
 	}
@@ -1184,6 +1272,9 @@ func (s *adminServiceImpl) GetGroupRateMultipliers(ctx context.Context, groupID 
 }
 
 func (s *adminServiceImpl) ClearGroupRateMultipliers(ctx context.Context, groupID int64) error {
+	if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationMultiplier); err != nil {
+		return err
+	}
 	if s.userGroupRateRepo == nil {
 		return nil
 	}
@@ -1191,6 +1282,9 @@ func (s *adminServiceImpl) ClearGroupRateMultipliers(ctx context.Context, groupI
 }
 
 func (s *adminServiceImpl) BatchSetGroupRateMultipliers(ctx context.Context, groupID int64, entries []GroupRateMultiplierInput) error {
+	if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationMultiplier); err != nil {
+		return err
+	}
 	if s.userGroupRateRepo == nil {
 		return nil
 	}
@@ -1203,6 +1297,9 @@ func (s *adminServiceImpl) BatchSetGroupRateMultipliers(ctx context.Context, gro
 }
 
 func (s *adminServiceImpl) ClearGroupRPMOverrides(ctx context.Context, groupID int64) error {
+	if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationRPMOverride); err != nil {
+		return err
+	}
 	if s.userGroupRateRepo == nil {
 		return nil
 	}
@@ -1217,6 +1314,9 @@ func (s *adminServiceImpl) ClearGroupRPMOverrides(ctx context.Context, groupID i
 }
 
 func (s *adminServiceImpl) BatchSetGroupRPMOverrides(ctx context.Context, groupID int64, entries []GroupRPMOverrideInput) error {
+	if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationRPMOverride); err != nil {
+		return err
+	}
 	if s.userGroupRateRepo == nil {
 		return nil
 	}
@@ -1236,6 +1336,9 @@ func (s *adminServiceImpl) BatchSetGroupRPMOverrides(ctx context.Context, groupI
 }
 
 func (s *adminServiceImpl) UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error {
+	if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationSort); err != nil {
+		return err
+	}
 	return s.groupRepo.UpdateSortOrders(ctx, updates)
 }
 

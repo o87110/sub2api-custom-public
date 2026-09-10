@@ -36,6 +36,7 @@
               @change="loadGroups"
             />
             <Select
+              v-if="!authStore.isSimpleMode"
               v-model="filters.is_exclusive"
               :options="exclusiveOptions"
               :placeholder="t('admin.groups.allGroups')"
@@ -93,6 +94,7 @@
               </div>
             </div>
             <button
+              v-if="!authStore.isSimpleMode"
               @click="openSortModal"
               class="btn btn-secondary"
               :title="t('admin.groups.sortOrder')"
@@ -383,6 +385,7 @@
                 <span class="text-xs">{{ t("common.edit") }}</span>
               </button>
               <button
+                v-if="!authStore.isSimpleMode"
                 data-testid="group-duplicate"
                 :title="
                   duplicatingGroupIds.has(row.id)
@@ -403,7 +406,8 @@
                 </span>
               </button>
               <button
-                v-if="row.platform === 'composite'"
+                v-if="!authStore.isSimpleMode && row.platform === 'composite'"
+                data-testid="group-composite-routes"
                 @click="handleCompositeRoutes(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-cyan-600 dark:hover:bg-dark-700 dark:hover:text-cyan-400"
               >
@@ -413,6 +417,8 @@
                 }}</span>
               </button>
               <button
+                v-if="!authStore.isSimpleMode"
+                data-testid="group-rate-multipliers"
                 @click="handleRateMultipliers(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-purple-600 dark:hover:bg-dark-700 dark:hover:text-purple-400"
               >
@@ -422,6 +428,8 @@
                 }}</span>
               </button>
               <button
+                v-if="!authStore.isSimpleMode"
+                data-testid="group-rpm-overrides"
                 @click="handleRPMOverrides(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-orange-600 dark:hover:bg-dark-700 dark:hover:text-orange-400"
               >
@@ -2697,6 +2705,16 @@
           @invert="invertModelsBlocklistSelection(editModelsListState)"
         />
 
+        <!-- 固定账号获取 Codex Model Manifest（仅 openai 平台，仅编辑对话框） -->
+        <CodexManifestAccountsField
+          v-if="editForm.platform === 'openai' && editingGroup"
+          ref="editCodexManifestRef"
+          :group-id="editingGroup.id"
+          :model-value="editCodexManifestConfig"
+          @update:model-value="editCodexManifestConfig = $event"
+          :account-names="editCodexManifestAccountNames"
+        />
+
         <!-- 图片生成计费配置 -->
         <div
           v-if="supportsImagePricingPlatform(editForm.platform)"
@@ -4577,6 +4595,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAppStore } from "@/stores/app";
+import { useAuthStore } from "@/stores/auth";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { adminAPI } from "@/api/admin";
 import type {
@@ -4586,6 +4605,7 @@ import type {
   CompositeRouteDecision,
   CompositeRouteEndpoint,
   CompositeRouteMatchType,
+  CodexModelsManifestConfig,
   GroupPlatform,
   SubscriptionType,
 } from "@/types";
@@ -4610,6 +4630,7 @@ import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
 import GroupMinimumBalanceField from "@/custom/group-access/GroupMinimumBalanceField.vue";
 import GroupModelBlocklistField from "@/custom/group-model-access/GroupModelBlocklistField.vue";
+import CodexManifestAccountsField from "@/components/admin/group/CodexManifestAccountsField.vue";
 import {
   minimumBalanceFormValue,
   normalizeMinimumBalanceFormValue,
@@ -4652,8 +4673,8 @@ import {
   selectAllModelsListItems,
   setModelsListCandidates,
   toggleModelsBlocklistItem,
-} from "./groupsModelsList";
-import { createModelsListCandidatesTracker } from "./groupsModelsListCandidates";
+} from "./groupModelAllowlist";
+import { createModelAllowlistCandidatesTracker } from "./modelAllowlistCandidates";
 import { normalizeSupportedModelScopesForPlatform } from "./groupsSupportedModelScopes";
 import {
   isProfitControlPlatform,
@@ -4754,6 +4775,16 @@ const groupPricingToAPI = (
 
 const { t } = useI18n();
 const appStore = useAppStore();
+// Some isolated component tests mount this view without an active Pinia
+// instance; keep the view usable in that environment while using the real
+// store in the application.
+const authStore = (() => {
+  try {
+    return useAuthStore();
+  } catch {
+    return { isSimpleMode: false };
+  }
+})();
 const onboardingStore = useOnboardingStore();
 
 const ALWAYS_VISIBLE_COLUMNS = new Set(["name", "actions"]);
@@ -4767,43 +4798,27 @@ const VERSION_NEW_HIDDEN_COLUMNS: Record<number, string[]> = {
   2: ["id"],
 };
 
-const allColumns = computed<Column[]>(() => [
-  { key: "name", label: t("admin.groups.columns.name"), sortable: true },
-  { key: "id", label: t("admin.groups.columns.id"), sortable: true },
-  {
-    key: "platform",
-    label: t("admin.groups.columns.platform"),
-    sortable: true,
-  },
-  {
-    key: "billing_type",
-    label: t("admin.groups.columns.billingType"),
-    sortable: true,
-  },
-  {
-    key: "rate_multiplier",
-    label: t("admin.groups.columns.rateMultiplier"),
-    sortable: true,
-  },
-  {
-    key: "is_exclusive",
-    label: t("admin.groups.columns.type"),
-    sortable: true,
-  },
-  {
-    key: "account_count",
-    label: t("admin.groups.columns.accounts"),
-    sortable: true,
-  },
-  {
-    key: "capacity",
-    label: t("admin.groups.columns.capacity"),
-    sortable: false,
-  },
-  { key: "usage", label: t("admin.groups.columns.usage"), sortable: false },
-  { key: "status", label: t("admin.groups.columns.status"), sortable: true },
-  { key: "actions", label: t("admin.groups.columns.actions"), sortable: false },
-]);
+const allColumns = computed<Column[]>(() => {
+  const basic: Column[] = [
+    { key: "name", label: t("admin.groups.columns.name"), sortable: true },
+    { key: "id", label: t("admin.groups.columns.id"), sortable: true },
+    { key: "platform", label: t("admin.groups.columns.platform"), sortable: true },
+    { key: "account_count", label: t("admin.groups.columns.accounts"), sortable: true },
+    { key: "status", label: t("admin.groups.columns.status"), sortable: true },
+    { key: "actions", label: t("admin.groups.columns.actions"), sortable: false },
+  ];
+  if (authStore.isSimpleMode) return basic;
+  return [
+    ...basic.slice(0, 3),
+    { key: "billing_type", label: t("admin.groups.columns.billingType"), sortable: true },
+    { key: "rate_multiplier", label: t("admin.groups.columns.rateMultiplier"), sortable: true },
+    { key: "is_exclusive", label: t("admin.groups.columns.type"), sortable: true },
+    basic[3],
+    { key: "capacity", label: t("admin.groups.columns.capacity"), sortable: false },
+    { key: "usage", label: t("admin.groups.columns.usage"), sortable: false },
+    ...basic.slice(4),
+  ];
+});
 
 const toggleableColumns = computed(() =>
   allColumns.value.filter((col) => !ALWAYS_VISIBLE_COLUMNS.has(col.key)),
@@ -4883,9 +4898,13 @@ const saveColumnsToStorage = () => {
 
 const isColumnVisible = (key: string) => !hiddenColumns.has(key);
 const hasVisibleUsageSummaryConsumer = computed(
-  () => isColumnVisible("usage") || isColumnVisible("billing_type"),
+  () =>
+    !authStore.isSimpleMode &&
+    (isColumnVisible("usage") || isColumnVisible("billing_type")),
 );
-const hasVisibleCapacityColumn = computed(() => isColumnVisible("capacity"));
+const hasVisibleCapacityColumn = computed(
+  () => !authStore.isSimpleMode && isColumnVisible("capacity"),
+);
 
 const toggleColumn = (key: string) => {
   const validKeys = getValidHiddenColumnKeys();
@@ -4930,7 +4949,11 @@ const exclusiveOptions = computed(() => [
   { value: "false", label: t("admin.groups.nonExclusive") },
 ]);
 
-const platformOptions = computed(() => [...GROUP_PLATFORM_OPTIONS]);
+const platformOptions = computed(() =>
+  authStore.isSimpleMode
+    ? GROUP_PLATFORM_OPTIONS.filter((option) => option.value !== "composite")
+    : [...GROUP_PLATFORM_OPTIONS],
+);
 
 const platformFilterOptions = computed(() => [
   { value: "", label: t("admin.groups.allPlatforms") },
@@ -5198,13 +5221,36 @@ const modelsListEndpoint = (platform: string) =>
   platform === "gemini" ? "/v1beta/models" : "/v1/models";
 const createModelsListLoading = ref(false);
 const editModelsListLoading = ref(false);
+type CodexManifestAccountsFieldExpose = {
+  validate: () => boolean;
+  resetValidation: () => void;
+};
+const editCodexManifestRef = ref<CodexManifestAccountsFieldExpose | null>(null);
+const createCodexManifestDefaults = (): CodexModelsManifestConfig => ({
+  enabled: false,
+  account_ids: [],
+  fallback_to_scheduler: false,
+});
+const editCodexManifestConfig = ref<CodexModelsManifestConfig>(
+  createCodexManifestDefaults(),
+);
+const editCodexManifestAccountNames = ref<Record<number, string>>({});
 type ReasoningEffortPolicyFieldsExpose = {
   validate: () => boolean;
   resetValidation: () => void;
 };
 const createReasoningEffortPolicyRef = ref<ReasoningEffortPolicyFieldsExpose | null>(null);
 const editReasoningEffortPolicyRef = ref<ReasoningEffortPolicyFieldsExpose | null>(null);
-const modelsListCandidatesTracker = createModelsListCandidatesTracker();
+const modelsListCandidatesTracker = createModelAllowlistCandidatesTracker();
+
+const buildModelAllowlistConfig = (state: typeof createModelsListState) => {
+  const config = buildModelsListConfig(state);
+  return {
+    enabled: config.enabled,
+    models: config.models,
+    blocked_models: config.blocked_models,
+  };
+};
 const createModelsListSelectedCount = computed(
   () => createModelsListState.items.filter((item) => item.selected).length,
 );
@@ -5506,7 +5552,19 @@ const loadModelsListCandidates = async (
   const loadingRef = mode === "create" ? createModelsListLoading : editModelsListLoading;
   loadingRef.value = true;
   try {
-    const models = await adminAPI.groups.getModelsListCandidates(groupID, platform);
+    const groupsAPI = adminAPI.groups as typeof adminAPI.groups & {
+      getModelsListCandidates?: (
+        id: number,
+        platform?: GroupPlatform,
+      ) => Promise<string[]>;
+    };
+    const loadCandidates =
+      groupsAPI.getModelAllowlistCandidates ?? groupsAPI.getModelsListCandidates;
+    if (!loadCandidates) {
+      setModelsListCandidates(state, []);
+      return;
+    }
+    const models = await loadCandidates(groupID, platform);
     if (!modelsListCandidatesTracker.isCurrent(requestID, request)) {
       return;
     }
@@ -5883,7 +5941,7 @@ const loadGroups = async () => {
       {
         platform: (filters.platform as GroupPlatform) || undefined,
         status: filters.status as any,
-        is_exclusive: filters.is_exclusive
+        is_exclusive: !authStore.isSimpleMode && filters.is_exclusive
           ? filters.is_exclusive === "true"
           : undefined,
         search: searchQuery.value.trim() || undefined,
@@ -6206,7 +6264,9 @@ const handleCreateGroup = async () => {
       model_routing: convertRoutingRulesToApiFormat(
         createModelRoutingRules.value,
       ),
-      models_list_config: buildModelsListConfig(createModelsListState),
+      model_allowlist: buildModelAllowlistConfig(createModelsListState),
+      // 创建时账号绑定尚未完成，Codex Manifest 固定账号保持关闭。
+      codex_models_manifest_config: createCodexManifestDefaults(),
       supported_model_scopes: normalizeSupportedModelScopesForPlatform(
         createForm.platform,
         createForm.supported_model_scopes,
@@ -6392,7 +6452,25 @@ const handleEdit = async (group: AdminGroup) => {
     group.reasoning_effort_mappings,
     group.platform,
   );
-  resetModelsListState(editModelsListState, group.models_list_config);
+  resetModelsListState(editModelsListState, group.model_allowlist);
+  const savedCodexManifestConfig =
+    group.codex_models_manifest_config ?? createCodexManifestDefaults();
+  editCodexManifestConfig.value = {
+    enabled: savedCodexManifestConfig.enabled ?? false,
+    account_ids: [...(savedCodexManifestConfig.account_ids ?? [])],
+    fallback_to_scheduler: savedCodexManifestConfig.fallback_to_scheduler ?? false,
+  };
+  editCodexManifestAccountNames.value = {};
+  for (const accountID of editCodexManifestConfig.value.account_ids) {
+    try {
+      const account = await adminAPI.accounts.getById(accountID);
+      if (account?.name) {
+        editCodexManifestAccountNames.value[accountID] = account.name;
+      }
+    } catch {
+      // The component falls back to displaying #<id> for stale account IDs.
+    }
+  }
   // 加载模型路由规则（异步加载账号名称）
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(
     group.model_routing,
@@ -6440,6 +6518,9 @@ const closeEditModal = () => {
   resetMessagesDispatchFormState(editForm);
   editForm.allow_live = false;
   resetModelsListState(editModelsListState);
+  editCodexManifestConfig.value = createCodexManifestDefaults();
+  editCodexManifestAccountNames.value = {};
+  editCodexManifestRef.value?.resetValidation();
 };
 
 const handleUpdateGroup = async () => {
@@ -6463,6 +6544,14 @@ const handleUpdateGroup = async () => {
     return;
   }
   if (!validateProfitControlForm(editForm)) {
+    return;
+  }
+  if (
+    editForm.platform === "openai" &&
+    editCodexManifestConfig.value.enabled &&
+    editCodexManifestConfig.value.account_ids.length === 0
+  ) {
+    editCodexManifestRef.value?.validate();
     return;
   }
 
@@ -6505,7 +6594,16 @@ const handleUpdateGroup = async () => {
       model_routing: convertRoutingRulesToApiFormat(
         editModelRoutingRules.value,
       ),
-      models_list_config: buildModelsListConfig(editModelsListState),
+      model_allowlist: buildModelAllowlistConfig(editModelsListState),
+      codex_models_manifest_config:
+        editForm.platform === "openai"
+          ? {
+              enabled: editCodexManifestConfig.value.enabled,
+              account_ids: [...editCodexManifestConfig.value.account_ids],
+              fallback_to_scheduler:
+                editCodexManifestConfig.value.fallback_to_scheduler,
+            }
+          : createCodexManifestDefaults(),
       supported_model_scopes: normalizeSupportedModelScopesForPlatform(
         editForm.platform,
         editForm.supported_model_scopes,
@@ -6979,7 +7077,7 @@ watch(
     }
     resetDisabledBatchImagePricing(editForm);
     if (editingGroup.value) {
-      resetModelsListState(editModelsListState, editForm.platform === editingGroup.value.platform ? editingGroup.value.models_list_config : undefined);
+      resetModelsListState(editModelsListState, editForm.platform === editingGroup.value.platform ? editingGroup.value.model_allowlist : undefined);
       loadModelsListCandidates("edit", editingGroup.value.id, newVal);
     }
   },
@@ -7075,8 +7173,10 @@ const saveSortOrder = async () => {
 
 onMounted(() => {
   loadGroups();
-  void loadLiveCapability();
-  loadModelsListCandidates("create", 0, createForm.platform);
+  if (!authStore.isSimpleMode) {
+    void loadLiveCapability();
+    loadModelsListCandidates("create", 0, createForm.platform);
+  }
   document.addEventListener("click", handleClickOutside);
 });
 
