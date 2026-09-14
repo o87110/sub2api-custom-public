@@ -668,7 +668,7 @@ func TestCancelOrderReturnsConflictWhenAlreadyPaidLocally(t *testing.T) {
 	require.Equal(t, "ORDER_ALREADY_PAID", infraerrors.Reason(err))
 }
 
-func TestCancelOrderDefersWhenUpstreamCancellationFails(t *testing.T) {
+func TestCancelOrderFallsBackWhenUpstreamCancellationFails(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentOrderLifecycleTestClient(t)
 	user, err := client.User.Create().
@@ -700,6 +700,90 @@ func TestCancelOrderDefersWhenUpstreamCancellationFails(t *testing.T) {
 	registry.Register(&paymentOrderLifecycleQueryProvider{
 		resp:      &payment.QueryOrderResponse{TradeNo: order.OutTradeNo, Status: payment.ProviderStatusPending},
 		cancelErr: errors.New("upstream close failed"),
+	})
+	svc := &PaymentService{entClient: client, registry: registry, providersLoaded: true}
+
+	outcome, err := svc.CancelOrder(ctx, order.ID, user.ID)
+	require.NoError(t, err)
+	require.Equal(t, checkPaidResultCancelled, outcome)
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusCancelled, reloaded.Status)
+}
+
+func TestCancelOrderFallsBackWhenPaymentProviderUnavailable(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+	user, err := client.User.Create().
+		SetEmail("cancel-provider-unavailable@example.com").
+		SetPasswordHash("hash").
+		SetUsername("cancel-provider-unavailable-user").
+		Save(ctx)
+	require.NoError(t, err)
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(10).
+		SetPayAmount(10).
+		SetFeeRate(0).
+		SetRechargeCode("CANCEL-PROVIDER-UNAVAILABLE").
+		SetOutTradeNo("sub2_cancel_provider_unavailable").
+		SetPaymentType(payment.TypeAlipay).
+		SetPaymentTradeNo("").
+		SetOrderType(payment.OrderTypeBalance).
+		SetStatus(OrderStatusPending).
+		SetExpiresAt(time.Now().Add(time.Hour)).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("api.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	provider := &paymentOrderLifecycleQueryProvider{queryErr: errors.New("provider unavailable")}
+	registry := payment.NewRegistry()
+	registry.Register(provider)
+	svc := &PaymentService{entClient: client, registry: registry, providersLoaded: true}
+
+	outcome, err := svc.CancelOrder(ctx, order.ID, user.ID)
+	require.NoError(t, err)
+	require.Equal(t, checkPaidResultCancelled, outcome)
+	require.Zero(t, provider.cancelCalls)
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusCancelled, reloaded.Status)
+}
+
+func TestCancelOrderDoesNotFallbackWhenProviderAmountIsInvalid(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+	user, err := client.User.Create().
+		SetEmail("cancel-invalid-amount@example.com").
+		SetPasswordHash("hash").
+		SetUsername("cancel-invalid-amount-user").
+		Save(ctx)
+	require.NoError(t, err)
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(10).
+		SetPayAmount(10).
+		SetFeeRate(0).
+		SetRechargeCode("CANCEL-INVALID-AMOUNT").
+		SetOutTradeNo("sub2_cancel_invalid_amount").
+		SetPaymentType(payment.TypeAlipay).
+		SetPaymentTradeNo("").
+		SetOrderType(payment.OrderTypeBalance).
+		SetStatus(OrderStatusPending).
+		SetExpiresAt(time.Now().Add(time.Hour)).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("api.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	registry := payment.NewRegistry()
+	registry.Register(&paymentOrderLifecycleQueryProvider{
+		resp: &payment.QueryOrderResponse{TradeNo: order.OutTradeNo, Status: payment.ProviderStatusPaid, Amount: 0},
 	})
 	svc := &PaymentService{entClient: client, registry: registry, providersLoaded: true}
 
@@ -982,7 +1066,7 @@ func TestReconcilePendingPaymentOrdersRetriesPaidFulfillment(t *testing.T) {
 	require.Len(t, redeemRepo.useCalls, 1)
 }
 
-func TestExpireTimedOutOrderDefersWhenPaymentProviderUnavailable(t *testing.T) {
+func TestExpireTimedOutOrderFallsBackWhenPaymentProviderUnavailable(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentOrderLifecycleTestClient(t)
 	user, err := client.User.Create().
@@ -1016,10 +1100,10 @@ func TestExpireTimedOutOrderDefersWhenPaymentProviderUnavailable(t *testing.T) {
 
 	expired, err := svc.ExpireTimedOutOrders(ctx)
 	require.NoError(t, err)
-	require.Zero(t, expired)
+	require.Equal(t, 1, expired)
 	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
 	require.NoError(t, err)
-	require.Equal(t, OrderStatusPending, reloaded.Status)
+	require.Equal(t, OrderStatusExpired, reloaded.Status)
 }
 
 func TestExpireTimedOutOrderExpiresWhenUpstreamAlreadyFailed(t *testing.T) {

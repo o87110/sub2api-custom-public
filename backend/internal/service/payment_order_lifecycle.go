@@ -30,6 +30,7 @@ const (
 	checkPaidResultCancelled   = "cancelled"
 	checkPaidResultUnpaid      = "unpaid"
 	checkPaidResultUnavailable = "unavailable"
+	checkPaidResultInvalid     = "invalid"
 
 	paymentOrderReconcileLimit = 20
 )
@@ -134,11 +135,20 @@ func (s *PaymentService) AdminCancelOrder(ctx context.Context, orderID int64) (s
 }
 
 func (s *PaymentService) cancelCore(ctx context.Context, o *dbent.PaymentOrder, fs, op, ad string) (string, error) {
+	upstreamUnavailable := false
 	if o.PaymentTradeNo != "" || o.PaymentType != "" {
 		switch s.checkPaid(ctx, o) {
 		case checkPaidResultAlreadyPaid:
 			return checkPaidResultAlreadyPaid, nil
 		case checkPaidResultUnavailable:
+			// A provider outage must not leave local orders and reserved inventory
+			// stuck forever. Continue with the conditional local transition; late
+			// payment reconciliation still protects the existing grace window.
+			upstreamUnavailable = true
+			slog.Warn("payment status unavailable; proceeding with local order transition", "orderID", o.ID, "targetStatus", fs)
+		case checkPaidResultInvalid:
+			// A malformed paid response (for example, an invalid amount) is not an
+			// outage. Keep the conservative behavior and let the caller retry later.
 			return checkPaidResultUnavailable, nil
 		}
 	}
@@ -160,7 +170,12 @@ func (s *PaymentService) cancelCore(ctx context.Context, o *dbent.PaymentOrder, 
 	if fs == OrderStatusExpired {
 		auditAction = "ORDER_EXPIRED"
 	}
-	s.writeAuditLog(ctx, o.ID, auditAction, op, map[string]any{"detail": ad})
+	auditDetail := map[string]any{"detail": ad}
+	if upstreamUnavailable {
+		auditDetail["upstream_status"] = checkPaidResultUnavailable
+		auditDetail["local_fallback"] = true
+	}
+	s.writeAuditLog(ctx, o.ID, auditAction, op, auditDetail)
 	return checkPaidResultCancelled, nil
 }
 
@@ -172,6 +187,8 @@ func normalizeCancelOutcome(outcome string, err error) (string, error) {
 	case checkPaidResultAlreadyPaid:
 		return "", infraerrors.Conflict("ORDER_ALREADY_PAID", "order has already been paid and cannot be cancelled")
 	case checkPaidResultUnavailable:
+		return "", infraerrors.ServiceUnavailable("PAYMENT_STATUS_UNAVAILABLE", "payment provider status is temporarily unavailable")
+	case checkPaidResultInvalid:
 		return "", infraerrors.ServiceUnavailable("PAYMENT_STATUS_UNAVAILABLE", "payment provider status is temporarily unavailable")
 	case checkPaidResultCancelled:
 		return outcome, nil
@@ -236,7 +253,7 @@ func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.Paym
 			slog.Warn("query upstream returned invalid paid amount", "orderID", o.ID, "queryRef", queryRef, "paid", resp.Amount)
 			retriedResp, retryOK := requeryPaidOrderOnce(ctx, prov, queryRef)
 			if !retryOK {
-				return checkPaidResultUnavailable
+				return checkPaidResultInvalid
 			}
 			resp = retriedResp
 		}
@@ -442,7 +459,7 @@ func (s *PaymentService) ReconcilePendingPaymentOrders(ctx context.Context) (int
 		switch result {
 		case checkPaidResultAlreadyPaid:
 			recovered++
-		case checkPaidResultUnavailable:
+		case checkPaidResultUnavailable, checkPaidResultInvalid:
 			slog.Warn("payment order reconciliation deferred", "orderID", order.ID, "status", order.Status)
 		}
 	}
@@ -522,7 +539,7 @@ func (s *PaymentService) ExpireTimedOutOrders(ctx context.Context) (int, error) 
 			slog.Info("order was paid during expiry", "orderID", o.ID)
 			continue
 		}
-		if outcome == checkPaidResultUnavailable {
+		if outcome == checkPaidResultUnavailable || outcome == checkPaidResultInvalid {
 			slog.Warn("defer order expiry because payment status is unavailable", "orderID", o.ID)
 			continue
 		}
