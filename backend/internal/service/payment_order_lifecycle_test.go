@@ -720,6 +720,15 @@ func TestCancelOrderFallsBackWhenPaymentProviderUnavailable(t *testing.T) {
 		SetUsername("cancel-provider-unavailable-user").
 		Save(ctx)
 	require.NoError(t, err)
+	plan, err := client.SubscriptionPlan.Create().
+		SetGroupID(1).
+		SetName("cancel provider unavailable inventory plan").
+		SetPrice(10).
+		SetRemainingQuantity(0).
+		SetForSale(false).
+		SetInventoryAutoDelisted(true).
+		Save(ctx)
+	require.NoError(t, err)
 	order, err := client.PaymentOrder.Create().
 		SetUserID(user.ID).
 		SetUserEmail(user.Email).
@@ -731,7 +740,9 @@ func TestCancelOrderFallsBackWhenPaymentProviderUnavailable(t *testing.T) {
 		SetOutTradeNo("sub2_cancel_provider_unavailable").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("").
-		SetOrderType(payment.OrderTypeBalance).
+		SetOrderType(payment.OrderTypeSubscription).
+		SetPlanID(plan.ID).
+		SetPlanInventoryState(subscriptioninventory.StateReserved).
 		SetStatus(OrderStatusPending).
 		SetExpiresAt(time.Now().Add(time.Hour)).
 		SetClientIP("127.0.0.1").
@@ -751,6 +762,11 @@ func TestCancelOrderFallsBackWhenPaymentProviderUnavailable(t *testing.T) {
 	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
 	require.NoError(t, err)
 	require.Equal(t, OrderStatusCancelled, reloaded.Status)
+	plan, err = client.SubscriptionPlan.Get(ctx, plan.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, *plan.RemainingQuantity)
+	require.True(t, plan.ForSale)
+	require.False(t, plan.InventoryAutoDelisted)
 }
 
 func TestCancelOrderDoesNotFallbackWhenProviderAmountIsInvalid(t *testing.T) {
@@ -955,7 +971,7 @@ func TestReconcilePendingPaymentOrdersRecoversEasyPayOrder(t *testing.T) {
 	require.Len(t, redeemRepo.useCalls, 1)
 }
 
-func TestExpireTimedOutOrderDefersOnEmptyOrUnsupportedUpstreamResponse(t *testing.T) {
+func TestExpireTimedOutOrderFallsBackOnEmptyOrUnsupportedUpstreamResponse(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		slug string
@@ -998,10 +1014,10 @@ func TestExpireTimedOutOrderDefersOnEmptyOrUnsupportedUpstreamResponse(t *testin
 
 			expired, err := svc.ExpireTimedOutOrders(ctx)
 			require.NoError(t, err)
-			require.Zero(t, expired)
+			require.Equal(t, 1, expired)
 			reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
 			require.NoError(t, err)
-			require.Equal(t, OrderStatusPending, reloaded.Status)
+			require.Equal(t, OrderStatusExpired, reloaded.Status)
 		})
 	}
 }
