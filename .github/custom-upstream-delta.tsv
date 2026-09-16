@@ -3,7 +3,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/audit-exceptions.yml	M	keep	M	fixed-path	6243f0fa7faa26a7c571955b1d5772e7dd4391cc	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	bde415d9fd7aa3733ec313db5d76dbc1782618ef	-	-	database-boundary-unit+candidate-tree-test	登记全部 Custom 数据库结构/只读 SQL 例外，并绑定 vendor-0.2.4 准确 Blob 与语义指纹
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	1862c1163d6338c4f644e77da7e7de4331d37ec9	-	-	candidate-tree+shadow-map+thin-bridge-contract	双版本登记 v0.2.1 现行薄桥与 v0.2.4 候选路径、精确预算及调用面
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	15713a06bc08953953035721539b80ce7f992a6a	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记 v0.2.1、v0.2.4 与 v0.2.5 候选路径、精确预算及调用面
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	38907c3d119bde7ce0f23a95140f6280724eb12f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	502a82d89460ee80d38dc77bb11b3e3069dc30ff	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -438,6 +438,7 @@ backend/migrations/subscription_plan_sold_out_action_migration_test.go	A	keep	A	
 deploy/.env.example	M	keep	M	fixed-path	3c0c1a009c0a80e737e118464417427120da4c89	3bf3617f03e70a8f229e35d824c4550b4fa1da08	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/CUSTOM_UPGRADE_CN.md	A	keep	A	custom-docs-ops	@absent	ae8da2590530f2c84e96a04fc8450ea27c1b6ec4	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 deploy/README.md	M	keep	M	custom-docs-ops	b4f8d094f481f8f16c30fb7fb70e3cc8048d59cd	10820c0a7be42a4c3a59b8568a1e0c65f678f9db	-	-	documentation-consistency-review	公开二改部署文档需要固定准确镜像、匹配公开仓库并记录旧部署 runtime 的隔离保全顺序
+deploy/apple-container.sh	M	keep	M	fixed-path	cb646f1c6293e7441bd1bb56e278b87d3a9f4ebb	5a44ae5b300ef45d72a5e9f70f8d6ca5d3c7258c	-	-	apple-container-safety+targeted-CI	Apple 容器从持久化 runtime 启动并按镜像 ID 更新，保留信号监督与配置隔离
 deploy/docker-compose.custom.yml	A	keep	A	fixed-path	@absent	f0a74a10c339a23bb53fd31f28e4440e8fc59b61	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/docker-compose.local.yml	M	keep	M	fixed-path	4edc40c7f0f5593e53bf421c1fc7b7fcc4f37d01	5d34212943b7190c84dd1cd39e90f445b11c2727	-	-	compose-config+runtime-persistence-test+container-safety	公开二改预构建部署固定准确镜像、持久化 runtime 并禁止提权
 deploy/docker-compose.standalone.yml	M	keep	M	fixed-path	babed5b984525e90fa8cfdbb9058173818d4b4c4	8efd4e41a94946604b38de1af951a0df65e82dd5	-	-	compose-config+runtime-persistence-test+container-safety	公开二改预构建部署固定准确镜像、持久化 runtime 并禁止提权
@@ -459,6 +460,7 @@ deploy/release/release-inputs-changed.sh	A	keep	A	fixed-path	@absent	0376e3f7c68
 deploy/release/release-notes.sh	A	keep	A	fixed-path	@absent	a2e8b6be71ac5328deea3b1b3cec3ef4f717e5f0	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 deploy/release/release-state-policy.sh	A	keep	A	fixed-path	@absent	9924057c455d26a3a8f7408343d8a5336b1497e8	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 deploy/release/wait-for-required-ci.sh	A	keep	A	fixed-path	@absent	b3bc57953cdd21be8160aa79442b8eb6b6bdb293	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
+deploy/tests/apple-container-test.sh	M	keep	M	custom-test	d1a3aa7c1e977b42b02b1029d528c9c54f02a1fe	f4551118c5f12539b21a0ef8fac97e7becbc544e	-	-	apple-container-safety+targeted-CI	验证 Apple 容器持久化 runtime、监督进程与镜像基线传递
 deploy/tests/backend-integration-test.sh	A	keep	A	custom-test	@absent	97e53a6e20636b5e744d59e3532fe05788e20c74	-	-	backend-integration-contract+test-executed-in-CI	只运行并校验全部已登记 Integration 标签包，包括订阅仓储真实 PostgreSQL 原子资格重置用例
 deploy/tests/ci-impact-test.sh	A	keep	A	custom-test	@absent	6baf1abab452a60976914719b335c51aa9856a99	-	-	targeted-CI+candidate-tree-test	保留官方升级测试与二改回归夹具
 deploy/tests/ci-impact.sh	A	keep	A	custom-test	@absent	37f63a94d608fa3a2f01a2a37fc7e84edc5ed898	-	-	targeted-CI+candidate-tree-test	保留官方升级测试与二改回归夹具
@@ -469,6 +471,7 @@ deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	361e16b4
 deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	5ad9f8b764b0ab7ee2db0824bc6ba1a0334eb190	-	-	candidate-tree+shadow-map+thin-bridge-contract	双版本允许 v0.2.1 与 v0.2.4 重命名前后的薄桥路径
 deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
 deploy/tests/docker-runtime-resources-test.sh	M	keep	M	custom-test	4e7480d4d59c6edda9bbd3259f47c0db4fc7e5aa	4752f88556f2706ef283163c6524b64f90368f6d	-	-	runtime-resource-test+release-safety	验证官方及 Custom 镜像构建链路均携带定价 fallback resources
+deploy/tests/fixtures/bin/container	M	keep	M	custom-test	3fd75457bb18dc9fdf292873b5c8cac0681517dd	62ae9f83d3422ccd6e50fee98fed0c45da48ebe5	-	-	apple-container-safety+targeted-CI	为 Apple 容器安全测试记录 create 参数、env 文件和镜像 inspect 结果
 deploy/tests/frontend-dist-safety-test.sh	A	keep	A	custom-test	@absent	a79c40721355a3b9c0dad1ce1ab43fd46caaa1f3	-	-	frontend-artifact-fixtures+release-safety	验证前端 Artifact 复用、失败关闭及 v1 内容哈希不依赖 GNU tar
 deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b1bd1e96b0281f51d5c289056bd	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
