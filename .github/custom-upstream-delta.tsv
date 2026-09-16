@@ -438,6 +438,7 @@ backend/migrations/subscription_plan_sold_out_action_migration_test.go	A	keep	A	
 deploy/.env.example	M	keep	M	fixed-path	3c0c1a009c0a80e737e118464417427120da4c89	3bf3617f03e70a8f229e35d824c4550b4fa1da08	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/CUSTOM_UPGRADE_CN.md	A	keep	A	custom-docs-ops	@absent	ae8da2590530f2c84e96a04fc8450ea27c1b6ec4	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 deploy/README.md	M	keep	M	custom-docs-ops	b4f8d094f481f8f16c30fb7fb70e3cc8048d59cd	10820c0a7be42a4c3a59b8568a1e0c65f678f9db	-	-	documentation-consistency-review	公开二改部署文档需要固定准确镜像、匹配公开仓库并记录旧部署 runtime 的隔离保全顺序
+deploy/apple-container.sh	M	keep	M	fixed-path	cb646f1c6293e7441bd1bb56e278b87d3a9f4ebb	5a44ae5b300ef45d72a5e9f70f8d6ca5d3c7258c	-	-	apple-container-safety+targeted-CI	Apple 容器从持久化 runtime 启动并按镜像 ID 更新，保留信号监督与配置隔离
 deploy/docker-compose.custom.yml	A	keep	A	fixed-path	@absent	f0a74a10c339a23bb53fd31f28e4440e8fc59b61	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/docker-compose.local.yml	M	keep	M	fixed-path	4edc40c7f0f5593e53bf421c1fc7b7fcc4f37d01	5d34212943b7190c84dd1cd39e90f445b11c2727	-	-	compose-config+runtime-persistence-test+container-safety	公开二改预构建部署固定准确镜像、持久化 runtime 并禁止提权
 deploy/docker-compose.standalone.yml	M	keep	M	fixed-path	babed5b984525e90fa8cfdbb9058173818d4b4c4	8efd4e41a94946604b38de1af951a0df65e82dd5	-	-	compose-config+runtime-persistence-test+container-safety	公开二改预构建部署固定准确镜像、持久化 runtime 并禁止提权
