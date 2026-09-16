@@ -4162,6 +4162,10 @@ APPROVED_DELEGATE_VIEW_CONTROL[
             "compositeDefaultModelsListCandidateIDs",
             "for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax, PlatformOpenCodeGo} {",
         ),
+        (
+            "compositeDefaultModelsListCandidateIDs",
+            "for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek} {",
+        ),
     ),
 )
 APPROVED_DELEGATE_VIEW_CALL_DELTAS[
