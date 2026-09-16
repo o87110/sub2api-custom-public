@@ -4247,7 +4247,2428 @@ BASELINE_DELEGATE_VIEW_ORCHESTRATION: dict[
         ),),
     ),
 }
+# Official v0.2.5 baseline-specific approvals. These are exact positive
+# call/control-flow deltas from the immutable Vendor commit to the reviewed
+# candidate tree; they keep direct upstream-sync validation fail-closed.
+_v025_vendor_commit = "86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea"
+_v025_baseline_call_approvals: dict[str, tuple[tuple[str, str], ...]] = {
+    'backend/internal/handler/admin/setting_handler.go': _approved_call_deltas(
+        ('GetSettings', {
+            'response.ErrorFrom': 1,
+        }),
+    ),
+    'backend/internal/handler/admin/setting_handler_update.go': _approved_call_deltas(
+        ('UpdateSettings', {
+            'boolValueOrDefault': 1,
+            'response.ErrorFrom': 1,
+        }),
+    ),
+    'backend/internal/handler/admin/subscription_handler.go': _approved_call_deltas(
+        ('<top-level>', {
+            'AdminResetQuota': 1,
+            'AdminResetQuotaIdempotent': 1,
+            'const': 1,
+        }),
+        ('BulkResetQuota', {
+            'adminActorScope': 1,
+            'c.GetHeader': 1,
+            'c.ShouldBindJSON': 1,
+            'claimedAt.Add': 1,
+            'err.Error': 1,
+            'executeAdminIdempotentJSON': 1,
+            'h.bulkResetService.ResetSelected': 1,
+            'idempotencyexecution.FromContext': 1,
+            'idempotencyexecution.New': 1,
+            'response.BadRequest': 4,
+            'response.ErrorFrom': 2,
+            'service.DefaultWriteIdempotencyTTL': 1,
+            'service.HashIdempotencyKey': 1,
+            'service.NormalizeIdempotencyKey': 1,
+            'strconv.Itoa': 1,
+            'time.Now': 1,
+        }),
+        ('ListBulkResetQuotaCandidates', {
+            'c.Request.Context': 1,
+            'h.bulkResetService.ListCandidates': 1,
+            'response.ErrorFrom': 1,
+            'response.Success': 1,
+        }),
+        ('ResetQuota', {
+            'adminActorScope': 1,
+            'c.GetHeader': 1,
+            'claimedAt.Add': 1,
+            'dto.UserSubscriptionFromServiceAdmin': 1,
+            'executeAdminIdempotentJSON': 1,
+            'idempotencyexecution.FromContext': 1,
+            'idempotencyexecution.New': 1,
+            'resetter.AdminResetQuota': 1,
+            'resetter.AdminResetQuotaIdempotent': 1,
+            'response.ErrorFrom': 2,
+            'service.DefaultWriteIdempotencyTTL': 1,
+            'service.HashIdempotencyKey': 1,
+            'service.NormalizeIdempotencyKey': 1,
+            'time.Now': 1,
+        }),
+        ('UpdateCurrentCycleBulkResetEligibility', {
+            'c.Param': 1,
+            'c.Request.Context': 2,
+            'c.ShouldBindJSON': 1,
+            'dto.UserSubscriptionFromServiceAdmin': 1,
+            'err.Error': 1,
+            'h.bulkResetService.UpdateCurrentCycleManualEligibility': 1,
+            'h.subscriptionService.GetByID': 1,
+            'response.BadRequest': 2,
+            'response.ErrorFrom': 2,
+            'response.Success': 1,
+            'strconv.ParseInt': 1,
+        }),
+    ),
+    'backend/internal/handler/admin/system_handler.go': _approved_call_deltas(
+        ('Rollback', {
+            'response.Error': 1,
+        }),
+    ),
+    'backend/internal/handler/api_key_handler.go': _approved_call_deltas(
+        ('GetAvailableGroups', {
+            'h.apiKeyService.GetAvailableGroupOptions': 1,
+        }),
+    ),
+    'backend/internal/handler/auth_wechat_oauth.go': _approved_call_deltas(
+        ('WeChatPaymentOAuthCallback', {
+            'redirectOAuthError': 1,
+            'strings.ToLower': 1,
+            'strings.TrimSpace': 1,
+        }),
+        ('WeChatPaymentOAuthStart', {
+            'ParseWeChatPaymentOAuthToken': 1,
+            'c.Query': 2,
+            'h.wechatPaymentResumeService': 1,
+            'response.BadRequest': 1,
+            'response.ErrorFrom': 1,
+            'strings.ToLower': 1,
+            'strings.TrimSpace': 2,
+        }),
+    ),
+    'backend/internal/handler/batch_image_handler.go': _approved_call_deltas(
+        ('batchImageError', {
+            'c.JSON': 1,
+            'service.GroupModelBlockedModel': 1,
+            'service.IsGroupModelBlockedError': 1,
+            'service.MarkOpsClientBusinessLimited': 1,
+        }),
+    ),
+    'backend/internal/handler/channel_monitor_user_handler.go': _approved_call_deltas(
+        ('<top-level>', {
+            'Resolve': 1,
+        }),
+        ('List', {
+            'c.Request.Context': 1,
+            'h.groupRateResolver.Resolve': 1,
+        }),
+    ),
+    'backend/internal/handler/gateway_handler.go': _approved_call_deltas(
+        ('billingErrorDetails', {
+            'pkgerrors.Message': 1,
+            'pkgerrors.Reason': 1,
+        }),
+    ),
+    'backend/internal/handler/gateway_handler_chat_completions.go': _approved_call_deltas(
+        ('ChatCompletions', {
+            'bindGroupModelAccessChannelMapping': 1,
+            'c.Request.Context': 1,
+            'c.Request.WithContext': 1,
+            'service.ContextWithSelectionGroupModelAccess': 1,
+        }),
+    ),
+    'backend/internal/handler/gateway_handler_responses.go': _approved_call_deltas(
+        ('Responses', {
+            'bindGroupModelAccessChannelMapping': 1,
+            'c.Request.Context': 1,
+            'c.Request.WithContext': 1,
+            'service.ContextWithSelectionGroupModelAccess': 1,
+        }),
+    ),
+    'backend/internal/handler/gateway_helper.go': _approved_call_deltas(
+        ('bindGroupModelAccessChannelMapping', {
+            'c.Request.Context': 1,
+            'c.Request.WithContext': 1,
+            'enforceGroupModelAccess': 1,
+            'withGroupModelAccessChannelMapping': 1,
+        }),
+        ('bindGroupModelAccessFallbackModel', {
+            'c.Request.Context': 1,
+            'c.Request.WithContext': 1,
+            'groupmodelaccess.WithFallbackModel': 1,
+            'strings.TrimSpace': 1,
+        }),
+        ('enforceGroupModelAccess', {
+            'c.Request.Context': 1,
+            'groupmodelaccess.WriteBlockedResponse': 1,
+            'service.CheckGroupModelAccess': 1,
+            'service.MarkOpsClientBusinessLimited': 1,
+        }),
+        ('withGroupModelAccessChannelMapping', {
+            'groupmodelaccess.WithRequestModel': 1,
+            'strings.TrimSpace': 1,
+        }),
+    ),
+    'backend/internal/handler/gateway_web_search.go': _approved_call_deltas(
+        ('WebSearch', {
+            'service.IsGroupModelBlockedError': 1,
+        }),
+        ('doGrokNativeWebSearch', {
+            'account.GetMappedModel': 1,
+            'enforceGroupModelAccess': 1,
+            'strings.TrimSpace': 1,
+        }),
+    ),
+    'backend/internal/handler/gemini_v1beta_handler.go': _approved_call_deltas(
+        ('GeminiV1BetaGetModel', {
+            'enforceGroupModelAccess': 1,
+        }),
+        ('GeminiV1BetaListModels', {
+            'apiKey.Group.CustomModelsListEnabled': 2,
+            'c.Data': 2,
+            'c.Request.Context': 2,
+            'customGeminiModelsList': 1,
+            'filterAndWriteModels': 3,
+            'gemini.FallbackModelsList': 2,
+            'googleError': 3,
+            'h.gatewayService.FilterGeminiModelsResponse': 2,
+            'json.Marshal': 1,
+        }),
+        ('GeminiV1BetaModels', {
+            'bindGroupModelAccessChannelMapping': 1,
+            'c.Request.Context': 1,
+            'c.Request.WithContext': 1,
+            'service.ContextWithSelectionGroupModelAccess': 1,
+        }),
+        ('customGeminiModelsList', {
+            'append': 1,
+            'gemini.FallbackModel': 1,
+            'group.CustomModelsListEnabled': 1,
+        }),
+        ('filterUpstreamGeminiModelsBody', {
+            'strings.TrimPrefix': 1,
+        }),
+    ),
+    'backend/internal/handler/image_task_handler.go': _approved_call_deltas(
+        ('refreshGroupModelAccessBeforeRun', {
+            'h.failTask': 4,
+            'h.openAI.apiKeyService.GetByID': 1,
+            'imageTaskErrorPayload': 3,
+            'json.Marshal': 1,
+            'middleware2.GetAPIKeyFromContext': 1,
+            'service.BindGroupModelAccessRequest': 1,
+            'service.IsGroupModelBlockedError': 1,
+            'string': 1,
+            'strings.TrimSpace': 1,
+            'taskCtx.Request.Context': 1,
+            'taskCtx.Set': 1,
+        }),
+        ('run', {
+            'h.refreshGroupModelAccessBeforeRun': 1,
+        }),
+    ),
+    'backend/internal/handler/no_account_error.go': _approved_call_deltas(
+        ('classifyNoAccountErrorFromGin', {
+            'service.MarkOpsClientBusinessLimited': 1,
+        }),
+    ),
+    'backend/internal/handler/openai_alpha_search.go': _approved_call_deltas(
+        ('AlphaSearch', {
+            'bindGroupModelAccessChannelMapping': 1,
+        }),
+    ),
+    'backend/internal/handler/openai_chat_completions.go': _approved_call_deltas(
+        ('ChatCompletions', {
+            'bindGroupModelAccessChannelMapping': 1,
+        }),
+    ),
+    'backend/internal/handler/openai_codex_models_handler.go': _approved_call_deltas(
+        ('CodexModels', {
+            'c.Request.Context': 2,
+            'h.errorResponse': 1,
+            'service.FilterCodexModelsManifest': 2,
+            'writeCodexModelsManifestResponse': 3,
+        }),
+        ('writeCodexModelsManifestResponse', {
+            'c.Data': 1,
+            'c.Header': 1,
+            'c.Status': 1,
+            'c.Writer.WriteHeaderNow': 1,
+        }),
+    ),
+    'backend/internal/handler/openai_embeddings.go': _approved_call_deltas(
+        ('Embeddings', {
+            'bindGroupModelAccessChannelMapping': 1,
+        }),
+    ),
+    'backend/internal/handler/openai_gateway_count_tokens.go': _approved_call_deltas(
+        ('CountTokens', {
+            'bindGroupModelAccessChannelMapping': 1,
+            'bindGroupModelAccessFallbackModel': 1,
+        }),
+    ),
+    'backend/internal/handler/openai_gateway_handler.go': _approved_call_deltas(
+        ('Messages', {
+            'bindGroupModelAccessChannelMapping': 1,
+            'bindGroupModelAccessFallbackModel': 1,
+        }),
+        ('Responses', {
+            'bindGroupModelAccessChannelMapping': 1,
+        }),
+        ('ResponsesWebSocket', {
+            'apiKey.Group.ModelAllowlist.Allows': 2,
+            'apiKey.Group.ModelAllowlistEnabled': 2,
+            'c.Request.WithContext': 1,
+            'classifyOpenAICompatibleNoAccountErrorFromGin': 2,
+            'clearCyberPolicyTurnState': 1,
+            'closeOpenAIClientWS': 6,
+            'service.CheckGroupModelAccess': 4,
+            'service.CheckOpenAIAccountModelAccess': 1,
+            'service.GroupModelBlockedModel': 1,
+            'service.MarkOpsClientBusinessLimited': 5,
+            'service.NewOpenAIWSClientCloseError': 4,
+            'strings.TrimSpace': 2,
+            'withGroupModelAccessChannelMapping': 2,
+            'writeGroupModelBlockedWSError': 8,
+        }),
+        ('acquireImageGenerationSlot', {
+            'h.handleStreamingAwareError': 1,
+        }),
+        ('ensureForwardErrorResponse', {
+            'c.Writer.WriteHeader': 1,
+        }),
+        ('rejectIfCyberSessionBlocked', {
+            'c.Request.Context': 1,
+            'h.contentModerationService.CyberPolicyGroupInScope': 1,
+        }),
+        ('writeGroupModelBlockedWSError', {
+            'cancel': 1,
+            'conn.Write': 1,
+            'context.Background': 1,
+            'context.WithTimeout': 1,
+            'fmt.Sprintf': 1,
+            'json.Marshal': 1,
+            'strings.TrimSpace': 1,
+        }),
+    ),
+    'backend/internal/handler/openai_images.go': _approved_call_deltas(
+        ('Images', {
+            'bindGroupModelAccessChannelMapping': 1,
+        }),
+    ),
+    'backend/internal/handler/openai_live.go': _approved_call_deltas(
+        ('Live', {
+            'String': 1,
+            'classifyNoAccountErrorFromGin': 1,
+            'errors.Is': 1,
+            'gjson.GetBytes': 1,
+            'h.errorResponse': 2,
+            'service.GroupModelBlockedModel': 1,
+            'service.IsGroupModelBlockedError': 1,
+            'service.MarkOpsClientBusinessLimited': 1,
+            'strings.TrimSpace': 1,
+        }),
+    ),
+    'backend/internal/handler/payment_handler.go': _approved_call_deltas(
+        ('GetCheckoutInfo', {
+            'h.configService.GetAvailableMethodOptions': 1,
+            'h.paymentService.ListPlansForUser': 1,
+            'middleware2.GetAuthSubjectFromContext': 1,
+            'response.ErrorFrom': 2,
+            'subscriptioninventory.IsSoldOut': 1,
+        }),
+        ('GetPlans', {
+            'h.paymentService.ListPlansForUser': 1,
+            'middleware2.GetAuthSubjectFromContext': 1,
+            'subscriptioninventory.IsSoldOut': 1,
+        }),
+        ('applyWeChatPaymentResumeClaims', {
+            'infraerrors.BadRequest': 3,
+            'math.IsInf': 1,
+            'math.IsNaN': 1,
+            'paymentchannels.IsValidSelection': 1,
+            'strings.EqualFold': 1,
+            'strings.ToLower': 1,
+            'strings.TrimSpace': 2,
+        }),
+    ),
+    'backend/internal/handler/payment_webhook_handler.go': _approved_call_deltas(
+        ('extractOutTradeNo', {
+            'byte': 1,
+            'json.Unmarshal': 1,
+            'strings.TrimSpace': 1,
+        }),
+        ('handleNotify', {
+            'c.String': 2,
+            'strings.HasPrefix': 1,
+            'strings.TrimSpace': 1,
+        }),
+    ),
+    'backend/internal/payment/load_balancer.go': _approved_call_deltas(
+        ('<top-level>', {
+            'RevalidateSelection': 1,
+            'SelectInstanceForNetwork': 1,
+        }),
+        ('LoadDailyUsage', {
+            'Aggregate': 1,
+            'GroupBy': 1,
+            'Scan': 1,
+            'Where': 1,
+            'dbent.Sum': 1,
+            'lb.db.PaymentOrder.Query': 1,
+            'paymentorder.CreatedAtGTE': 1,
+            'paymentorder.ProviderInstanceIDIn': 1,
+            'paymentorder.StatusIn': 1,
+            'startOfDay': 1,
+            'time.Now': 1,
+        }),
+        ('LoadEnabledInstances', {
+            'All': 1,
+            'Where': 1,
+            'append': 1,
+            'dbent.Asc': 1,
+            'fmt.Errorf': 1,
+            'lb.db.PaymentProviderInstance.Query': 1,
+            'lb.paymentInstanceRecord': 1,
+            'paymentproviderinstance.Enabled': 1,
+            'paymentproviderinstance.ProviderKey': 1,
+            'query.Order': 1,
+            'query.Where': 1,
+        }),
+        ('LoadInstance', {
+            'dbent.IsNotFound': 1,
+            'fmt.Errorf': 1,
+            'lb.db.PaymentProviderInstance.Get': 1,
+            'lb.paymentInstanceRecord': 1,
+        }),
+        ('NewDefaultLoadBalancer', {
+            'paymentchannels.NewInstanceCoordinator': 1,
+        }),
+        ('RevalidateSelection', {
+            'Revalidate': 1,
+            'customSelectionFromPayment': 1,
+            'lb.instanceCoordinator': 1,
+        }),
+        ('SelectInstance', {
+            'Select': 1,
+            'lb.instanceCoordinator': 1,
+            'paymentSelectionFromCustom': 1,
+            'slog.Info': 1,
+            'string': 1,
+            'wxpayJSAPIAppIDFromContext': 1,
+        }),
+        ('SelectInstanceForNetwork', {
+            'Select': 1,
+            'lb.instanceCoordinator': 1,
+            'paymentSelectionFromCustom': 1,
+            'slog.Info': 1,
+            'slog.Warn': 1,
+            'string': 1,
+            'wxpayJSAPIAppIDFromContext': 1,
+        }),
+        ('instanceCoordinator', {
+            'lb.coordinatorOnce.Do': 1,
+            'paymentchannels.NewInstanceCoordinator': 1,
+        }),
+        ('paymentInstanceRecord', {
+            'fmt.Errorf': 1,
+            'lb.decryptConfig': 1,
+        }),
+    ),
+    'backend/internal/payment/provider/easypay.go': _approved_call_deltas(
+        ('CancelPayment', {
+            'client.Cancel': 1,
+            'e.apiBase': 1,
+            'paymentchannels.IsBepusdtNativeConfig': 1,
+            'paymentchannels.NewBepusdtClient': 1,
+        }),
+        ('CreatePayment', {
+            'e.createBepusdtPayment': 1,
+            'paymentchannels.IsBepusdtNativeConfig': 1,
+        }),
+        ('NewEasyPay', {
+            'fmt.Errorf': 3,
+            'paymentchannels.NormalizeEasyPayProtocol': 1,
+            'paymentchannels.ParseBepusdtNetworks': 1,
+            'strings.TrimSpace': 3,
+        }),
+        ('QueryOrder', {
+            'client.Info': 1,
+            'e.apiBase': 1,
+            'fmt.Errorf': 2,
+            'paymentchannels.IsBepusdtNativeConfig': 1,
+            'paymentchannels.NewBepusdtClient': 1,
+        }),
+        ('Refund', {
+            'fmt.Errorf': 1,
+            'paymentchannels.IsBepusdtNativeConfig': 1,
+        }),
+        ('SupportedTypes', {
+            'paymentchannels.IsBepusdtNativeConfig': 1,
+        }),
+        ('VerifyNotification', {
+            'paymentchannels.IsBepusdtNativeConfig': 1,
+            'paymentchannels.ParseBepusdtNotification': 1,
+        }),
+        ('createBepusdtPayment', {
+            'client.CreateTransaction': 1,
+            'e.apiBase': 1,
+            'e.resolveURLs': 1,
+            'fmt.Errorf': 2,
+            'paymentchannels.BepusdtNetworkByCode': 1,
+            'paymentchannels.NewBepusdtClient': 1,
+            'paymentchannels.ValidateBepusdtPaymentNetwork': 1,
+            'strconv.ParseFloat': 1,
+            'strings.TrimSpace': 1,
+        }),
+        ('resolveCID', {
+            'paymentchannels.ResolveEasyPayCID': 1,
+        }),
+    ),
+    'backend/internal/server/middleware/api_key_auth.go': _approved_call_deltas(
+        ('apiKeyAuthWithSubscription', {
+            'bindAndEnforceGroupModelAccess': 2,
+        }),
+    ),
+    'backend/internal/server/middleware/api_key_auth_google.go': _approved_call_deltas(
+        ('APIKeyAuthWithSubscriptionGoogle', {
+            'bindAndEnforceGroupModelAccess': 2,
+        }),
+    ),
+    'backend/internal/server/routes/admin.go': _approved_call_deltas(
+        ('registerAffiliateRoutes', {
+            'affiliates.POST': 2,
+        }),
+        ('registerSubscriptionRoutes', {
+            'subscriptions.GET': 1,
+            'subscriptions.POST': 1,
+            'subscriptions.PUT': 1,
+        }),
+    ),
+    'backend/internal/server/routes/gateway.go': _approved_call_deltas(
+        ('compositeGeminiTargetPlatformMiddleware', {
+            'compositeMappedModelBlocked': 1,
+        }),
+        ('compositeMappedModelBlocked', {
+            'c.Request.Context': 1,
+            'groupmodelaccess.WriteBlockedResponse': 1,
+            'service.CheckGroupModelAccess': 1,
+            'service.MarkOpsClientBusinessLimited': 1,
+        }),
+        ('compositeRequestModelFromBody', {
+            'bytes.NewReader': 1,
+            'data.Bytes': 1,
+            'data.ReadFrom': 1,
+            'json.Unmarshal': 1,
+            'mime.ParseMediaType': 1,
+            'multipart.NewReader': 1,
+            'r.NextPart': 1,
+        }),
+        ('compositeTargetPlatformMiddleware', {
+            'compositeMappedModelBlocked': 1,
+        }),
+    ),
+    'backend/internal/service/admin_group.go': _approved_call_deltas(
+        ('AdminUpdateAPIKeyGroupID', {
+            'fmt.Errorf': 1,
+            's.apiKeyRepo.Update': 1,
+            's.authCacheInvalidator.InvalidateAuthCacheByKey': 1,
+            's.checkGroupMinimumBalanceForUser': 1,
+        }),
+        ('BatchSetGroupRPMOverrides', {
+            'ValidateSimpleModeGroupOperation': 1,
+        }),
+        ('BatchSetGroupRateMultipliers', {
+            'ValidateSimpleModeGroupOperation': 1,
+        }),
+        ('ClearGroupRPMOverrides', {
+            'ValidateSimpleModeGroupOperation': 1,
+        }),
+        ('ClearGroupRateMultipliers', {
+            'ValidateSimpleModeGroupOperation': 1,
+        }),
+        ('CreateCompositeRoute', {
+            'ValidateSimpleModeGroupOperation': 1,
+        }),
+        ('CreateGroup', {
+            'infraerrors.BadRequest': 2,
+            'math.IsInf': 1,
+            'math.IsNaN': 1,
+            'normalizeGroupModelsListConfig': 1,
+        }),
+        ('DeleteCompositeRoute', {
+            'ValidateSimpleModeGroupOperation': 1,
+        }),
+        ('DeleteGroup', {
+            'cancel': 1,
+            'context.Background': 1,
+            'context.WithTimeout': 1,
+            'logger.LegacyPrintf': 1,
+            's.apiKeyRepo.ListKeysByGroupID': 1,
+            's.authCacheInvalidator.InvalidateAuthCacheByKey': 1,
+            's.billingCacheService.InvalidateSubscription': 1,
+            's.groupRepo.DeleteCascade': 1,
+        }),
+        ('DeleteGroupIfEmpty', {
+            'fmt.Errorf': 1,
+            's.emptyGroupDeleteRepo.DeleteCascadeIfEmpty': 1,
+            's.groupRepo.GetByID': 1,
+            's.validateSimpleModeGroupAccess': 1,
+        }),
+        ('GetGroupModelsListCandidates', {
+            'addCandidate': 11,
+            'containsInt64': 1,
+            'normalizeOpenAIMessagesDispatchModelConfig': 1,
+            's.channelRepo.ListAll': 1,
+            's.compositeRouteRepo.ListByGroup': 1,
+        }),
+        ('GetGroupRateMultipliers', {
+            'ValidateSimpleModeGroupOperation': 1,
+        }),
+        ('ListCompositeRoutes', {
+            'ValidateSimpleModeGroupOperation': 1,
+        }),
+        ('PreviewCompositeRoute', {
+            'ValidateSimpleModeGroupOperation': 1,
+        }),
+        ('ReplaceUserGroup', {
+            's.checkGroupMinimumBalanceForUser': 1,
+        }),
+        ('UpdateCompositeRoute', {
+            'ValidateSimpleModeGroupOperation': 1,
+        }),
+        ('UpdateGroup', {
+            'NormalizeGroupPlatform': 2,
+            'infraerrors.BadRequest': 2,
+            'math.IsInf': 1,
+            'math.IsNaN': 1,
+            'normalizeGroupModelsListConfig': 1,
+        }),
+        ('UpdateGroupSortOrders', {
+            'ValidateSimpleModeGroupOperation': 1,
+        }),
+        ('checkGroupMinimumBalanceForUser', {
+            'groupaccess.CheckMinimumBalance': 1,
+            'infraerrors.InternalServer': 1,
+            's.userRepo.GetByID': 1,
+        }),
+    ),
+    'backend/internal/service/antigravity_gateway_claude.go': _approved_call_deltas(
+        ('Forward', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/antigravity_gateway_compat.go': _approved_call_deltas(
+        ('prepareAntigravityCompatCall', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/antigravity_gateway_gemini.go': _approved_call_deltas(
+        ('ForwardGemini', {
+            'enforceResolvedModelAccess': 2,
+        }),
+    ),
+    'backend/internal/service/antigravity_gateway_upstream.go': _approved_call_deltas(
+        ('ForwardUpstream', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/api_key_service.go': _approved_call_deltas(
+        ('Create', {
+            'groupaccess.CheckMinimumBalance': 1,
+        }),
+        ('GetAvailableGroupOptions', {
+            'append': 1,
+            'groupaccess.EvaluateMinimumBalance': 1,
+            's.availableGroupsForUser': 1,
+        }),
+        ('GetAvailableGroups', {
+            's.availableGroupsForUser': 1,
+        }),
+        ('Update', {
+            'groupaccess.CheckMinimumBalance': 1,
+        }),
+        ('availableGroupsForUser', {
+            'append': 1,
+            'fmt.Errorf': 3,
+            's.canUserBindGroupInternal': 1,
+            's.groupRepo.ListActive': 1,
+            's.userRepo.GetByID': 1,
+            's.userSubRepo.ListActiveByUserID': 1,
+        }),
+    ),
+    'backend/internal/service/batch_image_public.go': _approved_call_deltas(
+        ('ListModels', {
+            'WithCurrentGroupModelAccess': 1,
+            'modelAccessBlocksGatewayAccount': 1,
+        }),
+        ('Submit', {
+            'CheckGroupModelAccess': 2,
+            'ErrBillingServiceUnavailable.WithCause': 1,
+            'WithCurrentGroupModelAccess': 2,
+            'enforceResolvedModelAccess': 1,
+            'groupaccess.CheckMinimumBalance': 1,
+            'hbCancel': 1,
+            'policyErr.Error': 1,
+            'resolveGatewayAccountModelForAccess': 1,
+            's.Repo.RecordBatchImageJobSubmitFailure': 1,
+            's.UserRepo.GetByID': 1,
+            's.ensureGroupAllowsBatchImage': 1,
+            's.hidePreUpstreamSubmitFailure': 1,
+            's.releaseFailedSubmitHold': 1,
+            'sanitizeBatchImagePublicMessage': 1,
+        }),
+        ('selectProviderAndAccount', {
+            'CheckGatewayAccountModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/billing_cache_service.go': _approved_call_deltas(
+        ('<top-level>', {
+            'GetGroupByIDForMinimumBalance': 1,
+        }),
+        ('CheckBillingEligibility', {
+            's.checkCustomMinimumBalanceEligibility': 1,
+        }),
+        ('LoadCurrentBalance', {
+            'a.service.getUserBalanceFromDB': 1,
+        }),
+        ('LoadMinimumBalanceGroup', {
+            'a.loader.GetGroupByIDForMinimumBalance': 1,
+            'minimumBalanceGroupSnapshot': 1,
+        }),
+        ('checkCustomMinimumBalanceEligibility', {
+            'ErrBillingServiceUnavailable.WithCause': 1,
+            'IsClaudeCodeClient': 1,
+            'checker.Check': 1,
+            'ctx.Value': 1,
+            'errors.As': 1,
+            'errors.Is': 1,
+            'groupaccess.NewEligibilityChecker': 1,
+            'logger.LegacyPrintf': 1,
+            'minimumBalanceGroupSnapshot': 1,
+        }),
+    ),
+    'backend/internal/service/channel_monitor_service.go': _approved_call_deltas(
+        ('Create', {
+            'cloneFloat64Pointer': 1,
+            'normalizeGroupRateDisplayTemplate': 1,
+        }),
+        ('Duplicate', {
+            'cloneFloat64Pointer': 1,
+        }),
+        ('applyMonitorUpdate', {
+            'cloneFloat64Pointer': 1,
+            'normalizeGroupRateDisplayTemplate': 1,
+            'validateGroupRateDisplayTemplate': 1,
+            'validateGroupRateOverride': 1,
+        }),
+        ('normalizeGroupRateDisplayTemplate', {
+            'channelmonitorratedisplay.NormalizeTemplate': 1,
+        }),
+        ('validateCreateParams', {
+            'validateGroupRateDisplayTemplate': 1,
+            'validateGroupRateOverride': 1,
+        }),
+        ('validateGroupRateDisplayTemplate', {
+            'channelmonitorratedisplay.NormalizeTemplate': 1,
+        }),
+        ('validateGroupRateOverride', {
+            'channelmonitorratedisplay.ValidOverride': 1,
+        }),
+    ),
+    'backend/internal/service/content_moderation.go': _approved_call_deltas(
+        ('Check', {
+            'applyCustomContentModerationKeywordExcerpt': 1,
+            'cfg.includesAPIAuditGroup': 1,
+            'content.ExcerptText': 1,
+            'contentModerationLogGroupID': 1,
+            's.recordPreBlockSyncMetric': 1,
+            'slog.Info': 1,
+        }),
+        ('RecordCyberPolicyEvent', {
+            's.tryRecordCustomCyberPolicyEvent': 1,
+        }),
+        ('UpdateConfig', {
+            'cloneContentModerationConfig': 1,
+            'cloneContentModerationUserBanThresholdOverrides': 1,
+            'infraerrors.BadRequest': 1,
+            'normalizeContentModerationAPIAuditScope': 1,
+            's.reconcileDeletedContentModerationGroups': 1,
+            'validateContentModerationAPIAuditBanThreshold': 1,
+        }),
+        ('applyFlaggedAccountSideEffects', {
+            'contentModerationNotificationConfigForBanEvaluation': 1,
+            's.countFlaggedByUserSince': 1,
+            's.evaluateContentModerationBanRules': 1,
+            'slog.Warn': 1,
+        }),
+        ('cloneContentModerationConfig', {
+            'cloneContentModerationUserBanThresholdOverrides': 1,
+            'normalizeContentModerationAPIAuditScope': 1,
+        }),
+        ('configView', {
+            'cloneContentModerationUserBanThresholdOverrides': 1,
+            'normalizeContentModerationAPIAuditScope': 1,
+        }),
+        ('defaultContentModerationConfig', {
+            'defaultContentModerationAPIAuditScope': 1,
+        }),
+        ('normalize', {
+            'cloneContentModerationUserBanThresholdOverrides': 1,
+            'normalizeContentModerationAPIAuditScope': 1,
+            'validateContentModerationAPIAuditBanThreshold': 1,
+        }),
+        ('parseContentModerationConfig', {
+            'byte': 1,
+            'json.Unmarshal': 1,
+        }),
+        ('persistContentModerationLog', {
+            'effectiveContentModerationConfigForUser': 1,
+        }),
+        ('sendCyberPolicyEmail', {
+            'contentModerationEmailVariables': 1,
+        }),
+        ('validateConfig', {
+            'err.Error': 2,
+            'fmt.Sprintf': 1,
+            'infraerrors.BadRequest': 4,
+            's.groupRepo.GetByIDLite': 1,
+            'validateContentModerationAPIAuditBanThreshold': 1,
+            'validateContentModerationAPIAuditScope': 1,
+            'validateContentModerationUserBanThresholdOverrides': 1,
+        }),
+        ('worker', {
+            'cfg.includesAPIAuditGroup': 1,
+            's.loadRuntimeSnapshot': 1,
+        }),
+    ),
+    'backend/internal/service/gateway_bedrock.go': _approved_call_deltas(
+        ('forwardBedrock', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/gateway_count_tokens.go': _approved_call_deltas(
+        ('ForwardCountTokens', {
+            'enforceResolvedModelAccess': 1,
+            'resolveGatewayAccountModelForAccess': 1,
+        }),
+    ),
+    'backend/internal/service/gateway_forward.go': _approved_call_deltas(
+        ('Forward', {
+            'enforceResolvedModelAccess': 1,
+            'resolveGatewayAccountModelForAccess': 1,
+        }),
+    ),
+    'backend/internal/service/gateway_forward_as_chat_completions.go': _approved_call_deltas(
+        ('ForwardAsChatCompletions', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/gateway_forward_as_responses.go': _approved_call_deltas(
+        ('ForwardAsResponses', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/gateway_model_availability.go': _approved_call_deltas(
+        ('DiagnoseModelAvailabilityForPlatform', {
+            'groupmodelaccess.WithPolicy': 1,
+            'modelAccessBlocksGatewayAccount': 1,
+            's.isModelSupportedByAccountWithContext': 1,
+        }),
+        ('FilterGeminiModelsResponse', {
+            'append': 3,
+            'json.Marshal': 2,
+            'json.Unmarshal': 4,
+            's.FilterModelsByGroupAccess': 1,
+            'strings.TrimPrefix': 4,
+            'strings.TrimSpace': 5,
+        }),
+        ('FilterModelsByGroupAccess', {
+            'append': 1,
+            'group.ResolveMessagesDispatchModel': 1,
+            'groupmodelaccess.FromContext': 1,
+            'groupmodelaccess.WithFallbackModel': 1,
+            'groupmodelaccess.WithRequestModel': 2,
+            'policy.Blocks': 1,
+            'policy.Empty': 1,
+            's.DiagnoseModelAvailabilityForPlatform': 1,
+            's.ResolveChannelMappingAndRestrict': 1,
+            's.resolveCompositeRouteDecision': 1,
+            's.resolveGroupByID': 1,
+            'strings.TrimSpace': 1,
+        }),
+    ),
+    'backend/internal/service/gateway_scheduling.go': _approved_call_deltas(
+        ('isModelSupportedByAccountWithContext', {
+            'modelAccessBlocksGatewayAccount': 1,
+        }),
+        ('modelAccessBlocksGatewayAccount', {
+            'Empty': 1,
+            'groupmodelaccess.BlocksContext': 1,
+            'groupmodelaccess.FromContext': 1,
+            'resolveGatewayAccountModelForAccess': 1,
+        }),
+        ('newSelectionResult', {
+            'attachSelectionGroupModelAccess': 1,
+        }),
+        ('resolveGatewayAccountModelForAccess', {
+            'ResolveBedrockModelID': 1,
+            'ThinkingEnabledFromContext': 1,
+            'account.GetMappedModel': 1,
+            'account.IsBedrock': 1,
+            'account.IsOpenAICompatible': 1,
+            'account.ResolveMappedModel': 1,
+            'applyThinkingModelSuffix': 1,
+            'claude.NormalizeModelID': 2,
+            'groupmodelaccess.RequestModel': 1,
+            'mapAntigravityModel': 1,
+            'normalizeVertexAnthropicModelID': 1,
+            'resolveOpenAIAccountModelForAccess': 1,
+            'strings.TrimSpace': 1,
+        }),
+        ('withGroupContext', {
+            'groupmodelaccess.WithAdditionalModels': 1,
+        }),
+    ),
+    'backend/internal/service/gemini_chat_completions_compat_service.go': _approved_call_deltas(
+        ('forwardClaudeBodyAsChatCompletions', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/gemini_messages_compat_service.go': _approved_call_deltas(
+        ('Forward', {
+            'enforceResolvedModelAccess': 1,
+        }),
+        ('ForwardNative', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/grok_audio.go': _approved_call_deltas(
+        ('ForwardGrokVoice', {
+            'String': 1,
+            'account.GetMappedModel': 1,
+            'enforceResolvedModelAccess': 1,
+            'gjson.GetBytes': 1,
+            'strings.TrimSpace': 2,
+        }),
+        ('ProxyGrokRealtime', {
+            'account.GetMappedModel': 1,
+            'enforceResolvedModelAccess': 1,
+            'firstNonEmpty': 1,
+            'strings.TrimSpace': 1,
+        }),
+    ),
+    'backend/internal/service/grok_media.go': _approved_call_deltas(
+        ('ForwardGrokMedia', {
+            'endpoint.RequiresRequestBody': 1,
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/group_models_list.go': _approved_call_deltas(
+        ('<top-level>', {
+            'import': 1,
+        }),
+        ('BlocksModel', {
+            'groupmodelaccess.Blocks': 1,
+        }),
+        ('normalizeGroupModelsListConfig', {
+            'append': 1,
+            'groupmodelaccess.Normalize': 1,
+            'strings.TrimSpace': 1,
+        }),
+    ),
+    'backend/internal/service/idempotency.go': _approved_call_deltas(
+        ('Execute', {
+            'idempotencyexecution.New': 1,
+            'idempotencyexecution.WithContext': 1,
+        }),
+    ),
+    'backend/internal/service/openai_alpha_search.go': _approved_call_deltas(
+        ('ForwardAlphaSearch', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/openai_embeddings.go': _approved_call_deltas(
+        ('ForwardEmbeddings', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/openai_gateway_chat_completions.go': _approved_call_deltas(
+        ('forwardAsChatCompletions', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/openai_gateway_chat_completions_raw.go': _approved_call_deltas(
+        ('forwardAsRawChatCompletions', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/openai_gateway_count_tokens.go': _approved_call_deltas(
+        ('ForwardCountTokensAsAnthropic', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/openai_gateway_forward.go': _approved_call_deltas(
+        ('Forward', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/openai_gateway_grok.go': _approved_call_deltas(
+        ('forwardGrokResponses', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/openai_gateway_messages.go': _approved_call_deltas(
+        ('ForwardAsAnthropic', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/openai_gateway_messages_chat_fallback.go': _approved_call_deltas(
+        ('forwardAnthropicViaRawChatCompletions', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/openai_gateway_model_availability.go': _approved_call_deltas(
+        ('DiagnoseModelAvailabilityForPlatform', {
+            'modelAccessBlocksOpenAIAccount': 1,
+        }),
+    ),
+    'backend/internal/service/openai_gateway_scheduling.go': _approved_call_deltas(
+        ('modelAccessBlocksOpenAIAccount', {
+            'CheckOpenAIAccountModelAccess': 1,
+            'Empty': 1,
+            'groupmodelaccess.FromContext': 1,
+        }),
+        ('openAICompatibleAccountEligibilityFailureReasonBeforeProfit', {
+            'modelAccessBlocksOpenAIAccount': 1,
+        }),
+        ('resolveOpenAIAccountModelForAccess', {
+            'groupmodelaccess.FallbackModel': 1,
+            'groupmodelaccess.RequestModel': 1,
+            'normalizeOpenAIModelForUpstream': 1,
+            'resolveOpenAICompactForwardModel': 1,
+            'resolveOpenAIForwardModel': 1,
+            'strings.TrimSpace': 1,
+        }),
+    ),
+    'backend/internal/service/openai_images.go': _approved_call_deltas(
+        ('forwardOpenAIImagesAPIKey', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/openai_images_responses.go': _approved_call_deltas(
+        ('forwardOpenAIImagesOAuth', {
+            'enforceResolvedModelAccess': 1,
+        }),
+    ),
+    'backend/internal/service/openai_live.go': _approved_call_deltas(
+        ('CreateLiveCall', {
+            'CheckGroupModelAccess': 1,
+            'CheckOpenAIAccountModelAccess': 1,
+            'liveRequestModel': 1,
+            'selection.ReleaseFunc': 1,
+        }),
+        ('createUpstreamLiveCall', {
+            'String': 1,
+            'enforceResolvedModelAccess': 1,
+            'gjson.GetBytes': 1,
+            'liveRequestModel': 1,
+            'resolveOpenAIAccountModelForAccess': 1,
+            's.ReplaceModelInBody': 1,
+            'strings.TrimSpace': 1,
+        }),
+        ('liveRequestModel', {
+            'String': 1,
+            'gjson.GetBytes': 1,
+            'strings.TrimSpace': 1,
+        }),
+    ),
+    'backend/internal/service/payment_config_limits.go': _approved_call_deltas(
+        ('GetAvailableMethodOptions', {
+            'All': 1,
+            'BuildOptions': 1,
+            'Where': 1,
+            'fmt.Errorf': 1,
+            'paymentproviderinstance.EnabledEQ': 1,
+            's.entClient.PaymentProviderInstance.Query': 1,
+            's.pcPaymentProviderRecords': 1,
+        }),
+        ('HasConfiguredProviderPaymentType', {
+            'All': 1,
+            'HasConfiguredSelection': 1,
+            'NormalizeVisibleMethod': 1,
+            'fmt.Errorf': 1,
+            's.entClient.PaymentProviderInstance.Query': 1,
+            's.pcPaymentProviderRecords': 1,
+            'strings.ToLower': 1,
+            'strings.TrimSpace': 1,
+        }),
+        ('ValidateMethodProviderCurrencyConsistency', {
+            'All': 1,
+            'NormalizeVisibleMethod': 1,
+            'ValidateCurrency': 1,
+            'Where': 1,
+            'WithMetadata': 1,
+            'fmt.Errorf': 1,
+            'infraerrors.ServiceUnavailable': 1,
+            'paymentproviderinstance.EnabledEQ': 1,
+            's.ValidateMethodCurrencyConsistency': 1,
+            's.entClient.PaymentProviderInstance.Query': 1,
+            's.pcPaymentProviderRecords': 1,
+            'strings.ToLower': 1,
+            'strings.TrimSpace': 1,
+        }),
+        ('pcAggregateMethodDisplayName', {
+            'append': 1,
+            'paymentchannels.AggregateDisplayName': 1,
+        }),
+        ('pcPaymentProviderRecords', {
+            'append': 1,
+            'int64': 1,
+            'paymentProviderConfigCurrency': 1,
+            's.decryptConfig': 1,
+        }),
+    ),
+    'backend/internal/service/payment_config_plans.go': _approved_call_deltas(
+        ('CreatePlan', {
+            'SetAllowBulkQuotaReset': 1,
+            'SetAllowExistingUserRenewal': 1,
+            'SetNillableRemainingQuantity': 1,
+            'SetRenewalGraceDays': 1,
+            'SetSoldOutAction': 1,
+            'subscriptioninventory.NormalizeSoldOutAction': 1,
+            'subscriptioninventory.ValidateConfiguredQuantity': 1,
+            'subscriptioninventory.ValidateRenewalGraceDays': 1,
+        }),
+        ('ListPlansForSale', {
+            'subscriptioninventory.ListPlansForSale': 1,
+        }),
+        ('UpdatePlan', {
+            'subscriptioninventory.UpdateAdminPlan': 1,
+        }),
+        ('validatePlanPatch', {
+            'subscriptioninventory.ValidateRenewalGraceDays': 1,
+            'subscriptioninventory.ValidateSoldOutActionPatch': 1,
+        }),
+    ),
+    'backend/internal/service/payment_config_providers.go': _approved_call_deltas(
+        ('CreateProviderInstance', {
+            'validateEasyPayNativeInstance': 1,
+        }),
+        ('UpdateProviderInstance', {
+            'validateEasyPayNativeInstance': 1,
+        }),
+        ('validateEasyPayCustomMethods', {
+            'err.Error': 1,
+            'infraerrors.BadRequest': 3,
+            'paymentchannels.ClassifyEasyPayCustomType': 1,
+            'paymentchannels.NormalizeEasyPayProtocol': 1,
+            'strings.EqualFold': 1,
+            'strings.TrimSpace': 1,
+        }),
+        ('validateEasyPayNativeInstance', {
+            'err.Error': 1,
+            'infraerrors.BadRequest': 1,
+            'paymentchannels.ValidateBepusdtProviderMode': 1,
+        }),
+    ),
+    'backend/internal/service/payment_config_service.go': _approved_call_deltas(
+        ('GetPaymentConfig', {
+            'fmt.Errorf': 1,
+            'paymentchannels.ParseChannelSettings': 1,
+        }),
+        ('UpdatePaymentConfig', {
+            'err.Error': 1,
+            'infraerrors.BadRequest': 1,
+            'paymentchannels.SerializeChannelSettings': 1,
+        }),
+    ),
+    'backend/internal/service/payment_fulfillment.go': _approved_call_deltas(
+        ('applyAffiliateRebateForOrder', {
+            's.affiliateService.AccrueInviteRebateForPaymentOrder': 1,
+        }),
+        ('ensurePaymentSubscriptionAssigned', {
+            'fmt.Errorf': 1,
+            'strconv.FormatInt': 1,
+            'subscriptioninventory.ConsumeForFulfillment': 1,
+        }),
+    ),
+    'backend/internal/service/payment_order.go': _approved_call_deltas(
+        ('BuildWeChatOAuth', {
+            'loader.service.buildWeChatOAuthRequiredResponse': 1,
+        }),
+        ('CalculatePayAmount', {
+            'calculateCreateOrderPayAmountForOrderType': 1,
+        }),
+        ('CreateOrder', {
+            'Prepare': 1,
+            'buildOrderOAuthResponse': 1,
+            'customOrderPreparationRequest': 1,
+            'infraerrors.BadRequest': 1,
+            'paymentSelectionFromOrder': 1,
+            'paymentchannels.NewOrderCoordinator': 1,
+            'slog.Error': 1,
+            'strings.ToLower': 1,
+            'strings.TrimSpace': 1,
+            'subscriptioninventory.TransitionPendingOrderAndRelease': 1,
+        }),
+        ('HasConfiguredSelection', {
+            'loader.service.configService.HasConfiguredProviderPaymentType': 1,
+        }),
+        ('LoadMethodCurrency', {
+            'loader.service.configService.ValidateMethodProviderCurrencyConsistency': 1,
+        }),
+        ('LoadWeChatOAuthAppID', {
+            'loader.service.getWeChatPaymentOAuthCredential': 1,
+        }),
+        ('RevalidateOrderInstance', {
+            'loader.service.loadBalancer.RevalidateSelection': 1,
+            'paymentSelectionFromOrder': 1,
+        }),
+        ('SelectOrderInstance', {
+            'customOrderSelection': 1,
+            'loader.service.loadBalancer.SelectInstance': 2,
+            'networkAware.SelectInstanceForNetwork': 1,
+            'payment.Strategy': 1,
+            'payment.WithWxpayJSAPIAppID': 1,
+            'strings.TrimSpace': 1,
+        }),
+        ('UsesOfficialWeChatVisibleMethod', {
+            'loader.service.usesOfficialWxpayVisibleMethod': 1,
+        }),
+        ('ValidatePayAmountCurrency', {
+            'paymentSelectionFromOrder': 1,
+            'validateSelectedCreateOrderAmountCurrency': 1,
+        }),
+        ('buildPaymentOrderProviderSnapshot', {
+            'paymentchannels.BepusdtNetworkByCode': 1,
+            'paymentchannels.NormalizeEasyPayProtocol': 1,
+            'strings.TrimSpace': 1,
+        }),
+        ('buildWeChatOAuthRequiredResponse', {
+            'CreateWeChatPaymentOAuthToken': 1,
+            'fmt.Errorf': 1,
+            's.paymentResume': 1,
+            'strconv.FormatFloat': 1,
+        }),
+        ('buildWeChatPaymentOAuthStartURL', {
+            'q.Set': 2,
+            'strings.TrimSpace': 2,
+        }),
+        ('createOrderInTx', {
+            'SetPlanInventoryState': 1,
+            'subscriptioninventory.PrepareOrderInventory': 1,
+            'time.Now': 1,
+            'tx.Client': 1,
+        }),
+        ('invokeProvider', {
+            'RevalidateBeforeProvider': 1,
+            'customOrderSelection': 1,
+            'int64': 1,
+            'paymentchannels.NewOrderCoordinator': 1,
+        }),
+        ('validateSubOrder', {
+            'subscriptioninventory.AuthorizePlanForOrder': 1,
+            'time.Now': 1,
+        }),
+    ),
+    'backend/internal/service/payment_refund.go': _approved_call_deltas(
+        ('ExecuteRefund', {
+            's.subscriptionSvc.AdjustSubscriptionForRefund': 1,
+        }),
+        ('RollbackRefund', {
+            's.subscriptionSvc.RestoreSubscriptionTermAfterRefund': 1,
+        }),
+        ('applyRefundFinalDeduction', {
+            's.subscriptionSvc.FinalizeSubscriptionRefundDeduction': 1,
+        }),
+    ),
+    'backend/internal/service/payment_resume_service.go': _approved_call_deltas(
+        ('CreateWeChatPaymentOAuthToken', {
+            'paymentchannels.PrepareWeChatOAuthClaims': 1,
+            's.createSignedToken': 1,
+            's.ensureSigningKey': 1,
+            'time.Now': 1,
+        }),
+        ('CreateWeChatPaymentResumeToken', {
+            'paymentchannels.PrepareWeChatResumeClaims': 1,
+        }),
+        ('ParseWeChatPaymentOAuthToken', {
+            'err.Error': 1,
+            'infraerrors.BadRequest': 3,
+            'paymentchannels.ValidateWeChatOAuthClaims': 1,
+            's.ensureSigningKey': 1,
+            's.parseSignedToken': 1,
+            'validatePaymentResumeExpiry': 1,
+        }),
+        ('ParseWeChatPaymentResumeToken', {
+            'err.Error': 1,
+            'paymentchannels.ValidateWeChatResumeClaims': 1,
+        }),
+        ('RevalidateSelection', {
+            'lb.inner.RevalidateSelection': 1,
+        }),
+        ('SelectInstanceForNetwork', {
+            'NormalizeVisibleMethod': 1,
+            'fmt.Errorf': 1,
+            'lb.configService.resolveEnabledVisibleMethodInstance': 1,
+            'lb.inner.SelectInstance': 2,
+            'networkAware.SelectInstanceForNetwork': 2,
+        }),
+    ),
+    'backend/internal/service/subscription_service.go': _approved_call_deltas(
+        ('AdjustSubscriptionForRefund', {
+            'infraerrors.InternalServer': 1,
+            'repo.AdjustTerm': 1,
+            's.invalidateAdjustedSubscriptionCache': 1,
+            's.now': 1,
+        }),
+        ('AdminResetQuota', {
+            'repo.ResetQuota': 1,
+            's.invalidateSubscriptionCaches': 1,
+            's.now': 1,
+        }),
+        ('AdminResetQuotaIdempotent', {
+            'infraerrors.InternalServer': 1,
+            'repo.ResetQuota': 1,
+            's.invalidateSubscriptionCaches': 1,
+            's.now': 1,
+        }),
+        ('AdminResetQuotaIfBulkEligible', {
+            'infraerrors.InternalServer': 1,
+            'repo.ResetQuotaIfBulkEligible': 1,
+            's.invalidateSubscriptionCaches': 1,
+            's.now': 1,
+        }),
+        ('EnsureWindowMaintenance', {
+            'repo.EnsureWindowMaintenance': 1,
+            's.now': 1,
+        }),
+        ('ExtendSubscription', {
+            'repo.AdjustTerm': 1,
+            's.invalidateAdjustedSubscriptionCache': 1,
+            's.now': 1,
+        }),
+        ('FinalizeSubscriptionRefundDeduction', {
+            'errors.Is': 1,
+            'infraerrors.InternalServer': 1,
+            'repo.AdjustTerm': 1,
+            's.invalidateAdjustedSubscriptionCache': 1,
+            's.now': 1,
+        }),
+        ('InvalidateSubscriptionCachesAfterCycleMutation', {
+            's.invalidateSubscriptionCaches': 1,
+        }),
+        ('RestoreSubscriptionTermAfterRefund', {
+            'infraerrors.InternalServer': 1,
+            'repo.RestoreTermSnapshotExact': 1,
+            's.invalidateAdjustedSubscriptionCache': 1,
+        }),
+        ('ValidateAndCheckLimits', {
+            'subscriptionquota.NeedsAdvance': 1,
+        }),
+        ('invalidateAdjustedSubscriptionCache', {
+            'cancel': 1,
+            'context.Background': 1,
+            'context.WithTimeout': 1,
+            's.InvalidateSubCache': 1,
+            's.billingCacheService.InvalidateSubscription': 1,
+        }),
+        ('normalizeExpiredWindowsAt', {
+            'subscriptionquota.NeedsAdvance': 1,
+        }),
+        ('updateExistingSubscriptionTerm', {
+            'repo.RenewExistingTerm': 1,
+            's.now': 1,
+            'time.Now': 1,
+        }),
+    ),
+    'frontend/src/components/admin/monitor/MonitorFormDialog.vue': _approved_call_deltas(
+        ('<top-level>', {
+            'createEmptyMonitorGroupRateFormState': 1,
+            'ref': 1,
+            't': 1,
+        }),
+        ('buildPayload', {
+            'buildMonitorGroupRateCreateFields': 1,
+        }),
+        ('handleSubmit', {
+            'appStore.showError': 1,
+            'buildMonitorGroupRateUpdateFields': 1,
+            't': 1,
+            'validateMonitorGroupRateForm': 1,
+        }),
+        ('loadFromMonitor', {
+            'monitorGroupRateFormStateFromSource': 1,
+        }),
+        ('resetForm', {
+            'createEmptyMonitorGroupRateFormState': 1,
+        }),
+    ),
+    'frontend/src/components/common/DataTable.vue': _approved_call_deltas(
+        ('<top-level>', {
+            'filter': 1,
+            'isRowSelectable': 3,
+            'map': 1,
+            'props.rowSelectable': 1,
+        }),
+        ('toggleRowSelection', {
+            'isRowSelectable': 1,
+        }),
+    ),
+    'frontend/src/components/payment/AmountInput.vue': _approved_call_deltas(
+        ('<top-level>', {
+            'RegExp': 1,
+            'computed': 3,
+            'currencySymbol': 1,
+            'normalizePaymentCurrency': 1,
+            'paymentCurrencyFractionDigits': 1,
+        }),
+        ('handleInput', {
+            'amountPattern.value.test': 1,
+        }),
+    ),
+    'frontend/src/components/payment/SubscriptionPlanCard.vue': _approved_call_deltas(
+        ('<template:@click>', {
+            'handleSelect': 1,
+        }),
+        ('<top-level>', {
+            'computed': 2,
+            'isPlanPurchasable': 1,
+            'isPlanSoldOut': 1,
+            't': 2,
+        }),
+        ('handleSelect', {
+            'emit': 1,
+        }),
+    ),
+    'frontend/src/components/payment/paymentFlow.ts': _approved_call_deltas(
+        ('buildCreateOrderPayload', {
+            'input.paymentNetwork.trim': 1,
+            'input.providerKey.trim': 1,
+            'toLowerCase': 2,
+            'trim': 2,
+        }),
+        ('decidePaymentLaunch', {
+            'toLowerCase': 2,
+            'trim': 2,
+        }),
+    ),
+    'frontend/src/components/user/monitor/MonitorCard.vue': _approved_call_deltas(
+        ('<top-level>', {
+            'statusLabel': 1,
+        }),
+    ),
+    'frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue': _approved_call_deltas(
+        ('<top-level>', {
+            'computed': 1,
+            'matrixWheelZoomHint': 1,
+        }),
+        ('onMatrixWheel', {
+            'resolveMatrixWheelZoomTrack': 1,
+        }),
+    ),
+    'frontend/src/views/admin/GroupsView.vue': _approved_call_deltas(
+        ('<template:@click>', {
+            'createForm.allow_messages_dispatch = !createForm.allow_messages_dispatch': 1,
+            'createForm.claude_code_only = !createForm.claude_code_only': 1,
+            'createForm.force_openai_fast = !createForm.force_openai_fast': 1,
+            'createForm.free_openai_fast = !createForm.free_openai_fast': 1,
+            'createForm.is_exclusive = !createForm.is_exclusive': 1,
+            'createForm.mcp_xml_inject = !createForm.mcp_xml_inject': 1,
+            'createForm.model_routing_enabled = !createForm.model_routing_enabled': 1,
+            'createForm.require_oauth_only = !createForm.require_oauth_only': 1,
+            'createForm.require_privacy_set = !createForm.require_privacy_set': 1,
+            'createModelsListState.enabled = !createModelsListState.enabled': 1,
+            'editForm.allow_messages_dispatch = !editForm.allow_messages_dispatch': 1,
+            'editForm.claude_code_only = !editForm.claude_code_only': 1,
+            'editForm.force_openai_fast = !editForm.force_openai_fast': 1,
+            'editForm.free_openai_fast = !editForm.free_openai_fast': 1,
+            'editForm.is_exclusive = !editForm.is_exclusive': 1,
+            'editForm.mcp_xml_inject = !editForm.mcp_xml_inject': 1,
+            'editForm.model_routing_enabled = !editForm.model_routing_enabled': 1,
+            'editForm.require_oauth_only = !editForm.require_oauth_only': 1,
+            'editForm.require_privacy_set = !editForm.require_privacy_set': 1,
+            'editModelsListState.enabled = !editModelsListState.enabled': 1,
+        }),
+        ('<template:@update:model-value>', {
+            'editCodexManifestConfig = $event': 1,
+        }),
+        ('<top-level>', {
+            'blockAllModelsListItems': 2,
+            'createInitialModelsListState': 3,
+            'createModelsListState.items.filter': 1,
+            'editModelsListState.items.filter': 1,
+            'invertModelsBlocklistSelection': 2,
+            'invertModelsListSelection': 2,
+            'loadCandidates': 1,
+            'loadModelsListCandidates': 3,
+            'minimumBalanceFormValue': 2,
+            'modelsListCandidatesTracker.isCurrent': 3,
+            'modelsListCandidatesTracker.next': 1,
+            'modelsListEndpoint': 4,
+            'moveCreateModelsListItem': 2,
+            'moveEditModelsListItem': 2,
+            'resetModelsListState': 2,
+            'selectAllModelsListItems': 2,
+            'setModelsListCandidates': 2,
+            'toggleModelsBlocklistItem': 2,
+        }),
+        ('authStore', {
+            'useAuthStore': 1,
+        }),
+        ('buildModelAllowlistConfig', {
+            'buildModelsListConfig': 1,
+        }),
+        ('closeCreateModal', {
+            'minimumBalanceFormValue': 1,
+            'resetModelsListState': 1,
+        }),
+        ('closeEditModal', {
+            'minimumBalanceFormValue': 1,
+            'resetModelsListState': 1,
+        }),
+        ('handleCreateGroup', {
+            'normalizeMinimumBalanceFormValue': 1,
+        }),
+        ('handleEdit', {
+            'adminAPI.accounts.getById': 1,
+            'loadModelsListCandidates': 1,
+            'minimumBalanceFormValue': 1,
+            'resetModelsListState': 1,
+        }),
+        ('handleUpdateGroup', {
+            'normalizeMinimumBalanceFormValue': 1,
+        }),
+        ('moveCreateModelsListItem', {
+            'moveModelsListItem': 1,
+        }),
+        ('moveEditModelsListItem', {
+            'moveModelsListItem': 1,
+        }),
+        ('openCreateModal', {
+            'loadModelsListCandidates': 1,
+        }),
+    ),
+    'frontend/src/views/admin/SettingsView.vue': _approved_call_deltas(
+        ('<top-level>', {
+            'Number': 1,
+        }),
+        ('saveSettings', {
+            'appStore.showError': 1,
+            'localText': 1,
+            'paymentChannelSettingsRef.value.validate': 1,
+        }),
+    ),
+    'frontend/src/views/admin/SubscriptionsView.vue': _approved_call_deltas(
+        ('<template:@cancel>', {
+            'cancelResetQuota': 1,
+        }),
+        ('<template:@click>', {
+            'showBulkResetDialog = true': 1,
+        }),
+        ('<template:@close>', {
+            'showBulkResetDialog = false': 1,
+        }),
+        ('<template:@completed>', {
+            'loadSubscriptions': 1,
+        }),
+        ('<template:@updated>', {
+            'loadSubscriptions': 1,
+        }),
+        ('<top-level>', {
+            'ref': 1,
+            't': 1,
+        }),
+        ('handleResetQuota', {
+            'Date.now': 1,
+            'Math.random': 1,
+            'randomUUID': 1,
+        }),
+    ),
+    'frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue': _approved_call_deltas(
+        ('<template:@change>', {
+            'reloadFromFirstPage': 1,
+        }),
+        ('<template:@clear>', {
+            'clearSelection': 1,
+        }),
+        ('<template:@click>', {
+            'refreshRecords': 1,
+        }),
+        ('<template:@completed>', {
+            'handleReversalCompleted': 1,
+        }),
+        ('<template:@update:selected-keys>', {
+            'handleSelectionChange': 1,
+        }),
+        ('<top-level>', {
+            'formatAmount': 3,
+            'formatDateTime': 1,
+            't': 9,
+        }),
+        ('handlePageChange', {
+            'clearSelection': 1,
+        }),
+        ('handlePageSizeChange', {
+            'clearSelection': 1,
+        }),
+        ('handleReversalCompleted', {
+            'appStore.showSuccess': 1,
+            'clearSelection': 1,
+            'formatAmount': 1,
+            'loadRecords': 1,
+            't': 1,
+        }),
+        ('handleSelectionChange', {
+            'Number': 1,
+            'Number.isInteger': 1,
+            'filter': 1,
+            'map': 1,
+            'slice': 1,
+        }),
+        ('handleSort', {
+            'clearSelection': 1,
+        }),
+        ('rebateSelectionLabel', {
+            't': 1,
+        }),
+        ('refreshRecords', {
+            'clearSelection': 1,
+            'loadRecords': 1,
+        }),
+        ('reloadFromFirstPage', {
+            'clearSelection': 1,
+        }),
+        ('selectedRebateRecords', {
+            'Set': 1,
+            'computed': 1,
+            'filter': 1,
+            'selected.has': 1,
+        }),
+    ),
+    'frontend/src/views/admin/groupModelAllowlist.ts': _approved_call_deltas(
+        ('<top-level>', {
+            'blockedModels.has': 1,
+            'blockedModelsForCandidates': 1,
+            'buildBlockedModelsPayload': 1,
+            'createModelsListState': 1,
+            'includeSavedBlockedModels': 1,
+            'map': 1,
+            'normalizeBlockedModels': 1,
+            'normalizeModels': 1,
+            'setModelsListCandidates': 1,
+            'state.items.filter': 1,
+        }),
+        ('invertModelsListSelection', {
+            'state.items.forEach': 1,
+        }),
+        ('moveModelAllowlistItem', {
+            'state.items.splice': 2,
+        }),
+        ('selectAllModelsListItems', {
+            'state.items.forEach': 1,
+        }),
+        ('setModelAllowlistCandidates', {
+            'Set': 2,
+            'currentSelected.has': 1,
+            'map': 1,
+            'normalizeModels': 2,
+            'normalizedCandidates.includes': 1,
+            'savedSelected.has': 1,
+            'selectionOrder.map': 1,
+            'state.items.filter': 1,
+            'state.items.map': 1,
+        }),
+        ('toggleModelAllowlistItem', {
+            'state.items.find': 1,
+        }),
+        ('toggleModelsListItem', {
+            'state.items.find': 1,
+        }),
+    ),
+    'frontend/src/views/admin/orders/AdminPaymentPlansView.vue': _approved_call_deltas(
+        ('<top-level>', {
+            'canListSoldOutPlan': 3,
+            'isPlanSoldOut': 3,
+            't': 4,
+        }),
+        ('toggleForSale', {
+            'appStore.showError': 1,
+            'canListSoldOutPlan': 1,
+            'isPlanSoldOut': 1,
+            't': 1,
+        }),
+    ),
+    'frontend/src/views/admin/orders/PlanEditDialog.vue': _approved_call_deltas(
+        ('<template:@click>', {
+            'togglePlanForSale': 1,
+        }),
+        ('<template:@update:enabled>', {
+            'handleRenewalEnabled': 1,
+        }),
+        ('<template:@update:grace-days>', {
+            'planForm.renewal_grace_days = $event': 1,
+        }),
+        ('<template:@update:model-value>', {
+            'handleRemainingQuantityInput': 1,
+        }),
+        ('<top-level>', {
+            'String': 1,
+            'computed': 1,
+            'ref': 5,
+            'remainingQuantityInput.value.trim': 1,
+        }),
+        ('buildPlanPayload', {
+            'inventoryQuantityValue': 2,
+        }),
+        ('handleSavePlan', {
+            'appStore.showError': 2,
+        }),
+        ('remainingQuantityError', {
+            'computed': 1,
+            'isInventoryQuantity': 1,
+            'remainingQuantityInput.value.trim': 1,
+            't': 1,
+        }),
+        ('renewalGraceDaysError', {
+            'Number.isInteger': 1,
+            'computed': 1,
+            't': 1,
+        }),
+        ('togglePlanForSale', {
+            'appStore.showError': 1,
+            'remainingQuantityInput.value.trim': 1,
+            't': 1,
+        }),
+    ),
+    'frontend/src/views/user/KeysView.vue': _approved_call_deltas(
+        ('<template:@busy-change>', {
+            'bulkActionBusy = $event': 1,
+        }),
+        ('<template:@click>', {
+            'refreshApiKeys': 1,
+        }),
+        ('<template:@completed>', {
+            'handleBulkCompleted': 1,
+        }),
+        ('<template:@update:selected-ids>', {
+            'selectedKeyIds = $event': 1,
+        }),
+        ('<template:@update:selected-keys>', {
+            'handleTableSelectionChange': 1,
+        }),
+        ('<top-level>', {
+            'balanceRequirementForGroup': 2,
+            'balanceRequirementsByGroupID.value.get': 1,
+            'computed': 1,
+            'customApiKeyBulkText': 1,
+            'groupBalanceRequirement': 1,
+            'groupBalanceRequirementsByID': 1,
+            'ref': 1,
+        }),
+        ('changeGroup', {
+            'balanceRequirementForGroup': 1,
+            'minimumBalanceErrorToast': 1,
+        }),
+        ('handleBulkCompleted', {
+            'loadApiKeys': 1,
+        }),
+        ('handleSubmit', {
+            'minimumBalanceErrorToast': 1,
+        }),
+        ('handleTableSelectionChange', {
+            'Set': 1,
+            'apiKeys.value.map': 1,
+            'keys.filter': 1,
+            'visibleKeyIds.has': 1,
+        }),
+        ('loadApiKeys', {
+            'Set': 1,
+            'response.items.map': 1,
+            'selectedKeyIds.value.filter': 1,
+            'visibleKeyIds.has': 1,
+        }),
+        ('refreshApiKeys', {
+            'loadApiKeys': 1,
+        }),
+    ),
+    'frontend/src/views/user/PaymentView.vue': _approved_call_deltas(
+        ('<template:@cancel>', {
+            'cancelBepusdtNetworkSelection': 1,
+        }),
+        ('<template:@confirm>', {
+            'confirmBepusdtNetworkSelection': 1,
+        }),
+        ('<template:@select>', {
+            'selectedChannelId = $event': 2,
+        }),
+        ('<top-level>', {
+            'appStore.showWarning': 2,
+            'appendBackupChannelHint': 1,
+            'checkout.value.plans.find': 1,
+            'createOrder': 1,
+            'extractI18nErrorMessage': 1,
+            'findPaymentChannel': 3,
+            'groupPlans.filter': 1,
+            'isPlanPurchasable': 2,
+            'paymentAPI.getCheckoutInfo': 1,
+            'paymentChannelSupports': 2,
+            'paymentStore.createOrder': 1,
+            'planAvailabilityError': 1,
+            'ref': 1,
+            'router.replace': 1,
+            'router.resolve': 1,
+            'synchronizePlanAvailability': 1,
+            't': 2,
+            'usePaymentChannelPricing': 1,
+            'usePaymentChannelRecovery': 1,
+        }),
+        ('applyScenarioError', {
+            'appendBackupChannelHint': 1,
+        }),
+        ('beginOrder', {
+            'createOrder': 1,
+            'isBepusdtNativeChannel': 1,
+        }),
+        ('confirmBepusdtNetworkSelection', {
+            'createOrder': 1,
+        }),
+        ('confirmSubscribe', {
+            'appStore.showWarning': 1,
+            'beginOrder': 1,
+            'isPlanPurchasable': 1,
+            't': 1,
+        }),
+        ('handleSubmitRecharge', {
+            'beginOrder': 1,
+        }),
+        ('isBepusdtNativeChannel', {
+            'Array.isArray': 1,
+        }),
+        ('selectPlan', {
+            'appStore.showWarning': 1,
+            'isPlanPurchasable': 1,
+            't': 1,
+        }),
+        ('selectPlanFromModal', {
+            'appStore.showWarning': 1,
+            'isPlanPurchasable': 1,
+            't': 1,
+        }),
+    ),
+}
+for _path, _calls in _v025_baseline_call_approvals.items():
+    BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v025_vendor_commit, _path)] = _calls
+_v025_baseline_control_approvals: dict[str, tuple[tuple[str, str], ...]] = {
+    'backend/internal/handler/admin/setting_handler.go': (
+        ('GetSettings', 'if err != nil {'),
+    ),
+    'backend/internal/handler/admin/setting_handler_update.go': (
+        ('UpdateSettings', 'if err != nil {'),
+    ),
+    'backend/internal/handler/admin/subscription_handler.go': (
+        ('ResetQuota', 'if resetter == nil {'),
+        ('ResetQuota', 'if err != nil {'),
+        ('ResetQuota', 'if idempotencyKey == "" {'),
+        ('ResetQuota', 'if err != nil {'),
+        ('ResetQuota', 'if err != nil {'),
+        ('ResetQuota', 'if !ok {'),
+        ('ResetQuota', 'if execErr != nil {'),
+    ),
+    'backend/internal/handler/admin/system_handler.go': (
+        ('Rollback', 'if err := c.ShouldBindJSON(&req); err != nil {'),
+        ('Rollback', 'if targetVersion == "" {'),
+        ('PerformUpdate', 'if errors.Is(err, customupdater.ErrNoUpdateAvailable) {'),
+    ),
+    'backend/internal/handler/api_key_handler.go': (
+        ('GetAvailableGroups', 'for i := range options {'),
+        ('GetAvailableGroups', 'if requirement := options[i].BalanceRequirement; requirement != nil {'),
+    ),
+    'backend/internal/handler/auth_wechat_oauth.go': (
+        ('WeChatPaymentOAuthCallback', 'if paymentContext.ProviderKey != "" && paymentContext.ProviderKey != payment.TypeWxpay {'),
+        ('WeChatPaymentOAuthStart', 'if contextToken := strings.TrimSpace(c.Query("payment_context_token")); contextToken != "" {'),
+        ('WeChatPaymentOAuthStart', 'if parseErr != nil {'),
+        ('WeChatPaymentOAuthStart', 'if paymentContext.PaymentType == "" {'),
+        ('WeChatPaymentOAuthStart', 'if paymentContext.ProviderKey != "" && paymentContext.ProviderKey != payment.TypeWxpay {'),
+    ),
+    'backend/internal/handler/batch_image_handler.go': (
+        ('batchImageError', 'if service.IsGroupModelBlockedError(err) {'),
+    ),
+    'backend/internal/handler/channel_monitor_user_handler.go': (
+        ('List', 'if h.groupRateResolver != nil {'),
+        ('List', 'if rate, ok := groupRates[v.ID]; ok {'),
+    ),
+    'backend/internal/handler/gateway_handler.go': (
+        ('billingErrorDetails', 'if pkgerrors.Reason(err) == groupaccess.MinimumBalanceNotMetReason {'),
+        ('Models', 'if h.gatewayService != nil {'),
+    ),
+    'backend/internal/handler/gateway_handler_chat_completions.go': (
+        ('ChatCompletions', 'if !bindGroupModelAccessChannelMapping(c, channelMapping) {'),
+        ('chatCompletionsErrorResponse', 'if status == http.StatusNotFound && errType == "model_not_found" {'),
+    ),
+    'backend/internal/handler/gateway_handler_responses.go': (
+        ('Responses', 'if !bindGroupModelAccessChannelMapping(c, channelMapping) {'),
+    ),
+    'backend/internal/handler/gateway_web_search.go': (
+        ('extractGrokWebSearchSources', 'if item.Get("type").String() == "web_search_call" {'),
+        ('WebSearch', 'if service.IsGroupModelBlockedError(err) {'),
+        ('doGrokNativeWebSearch', 'if upstreamModel == "" {'),
+        ('doGrokNativeWebSearch', 'if !enforceGroupModelAccess(c, upstreamModel) {'),
+        ('WebSearch', 'if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, xai.DefaultTextModel, auditBody); decision != nil && !decision.AllowNextStage {'),
+    ),
+    'backend/internal/handler/gemini_v1beta_handler.go': (
+        ('GeminiV1BetaListModels', 'if err != nil {'),
+        ('GeminiV1BetaListModels', 'if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {'),
+        ('GeminiV1BetaListModels', 'if filtered, _, ok := filterUpstreamGeminiModelsBody(body, apiKey.Group.ModelAllowlist); ok {'),
+        ('GeminiV1BetaListModels', 'if apiKey.Group != nil {'),
+        ('GeminiV1BetaListModels', 'if apiKey.Group.ModelAllowlistEnabled() {'),
+        ('GeminiV1BetaListModels', 'if err != nil {'),
+        ('GeminiV1BetaListModels', 'if models, ok := customGeminiModelsList(apiKey.Group); ok {'),
+        ('GeminiV1BetaListModels', 'if apiKey.Group != nil {'),
+        ('GeminiV1BetaListModels', 'if filterErr != nil {'),
+        ('GeminiV1BetaListModels', 'if changed {'),
+        ('GeminiV1BetaGetModel', 'if !enforceGroupModelAccess(c, modelName) {'),
+        ('GeminiV1BetaModels', 'if !bindGroupModelAccessChannelMapping(c, channelMapping) {'),
+    ),
+    'backend/internal/handler/image_task_handler.go': (
+        ('run', 'if !h.refreshGroupModelAccessBeforeRun(taskID, taskCtx) {'),
+    ),
+    'backend/internal/handler/no_account_error.go': (
+        ('classifyNoAccountErrorFromGin', 'if c != nil {'),
+        ('classifyNoAccountErrorFromGin', 'if classification.LocalPolicyDenied {'),
+        ('classifyNoAccountErrorFromGin', '} else if classification.ModelNotFound {'),
+    ),
+    'backend/internal/handler/openai_alpha_search.go': (
+        ('AlphaSearch', 'if !bindGroupModelAccessChannelMapping(c, channelMapping) {'),
+    ),
+    'backend/internal/handler/openai_chat_completions.go': (
+        ('ChatCompletions', 'if !bindGroupModelAccessChannelMapping(c, channelMapping) {'),
+    ),
+    'backend/internal/handler/openai_codex_models_handler.go': (
+        ('CodexModels', 'if err := h.gatewayService.MergeGroupConfiguredCodexModels(c.Request.Context(), apiKey.Group, manifest, manifestIfNoneMatch); err != nil {'),
+        ('CodexModels', 'if !manifest.NotModified {'),
+        ('CodexModels', 'if len(apiKey.Group.ModelsListConfig.BlockedModels) > 0 {'),
+        ('CodexModels', 'if err != nil {'),
+        ('CodexModels', 'if c.Request.Context().Err() != nil {'),
+        ('CodexModels', 'if configured {'),
+        ('CodexModels', 'if filterErr != nil {'),
+        ('CodexModels', 'if changed {'),
+        ('CodexModels', 'if filterErr != nil {'),
+        ('CodexModels', 'if changed {'),
+    ),
+    'backend/internal/handler/openai_embeddings.go': (
+        ('Embeddings', 'if !bindGroupModelAccessChannelMapping(c, channelMapping) {'),
+    ),
+    'backend/internal/handler/openai_gateway_count_tokens.go': (
+        ('CountTokens', 'if !bindGroupModelAccessChannelMapping(c, channelMapping) {'),
+    ),
+    'backend/internal/handler/openai_gateway_handler.go': (
+        ('ensureForwardErrorResponse', 'if c.Request != nil && c.Request.Context().Err() != nil {'),
+        ('Responses', 'if !bindGroupModelAccessChannelMapping(c, channelMapping) {'),
+        ('Responses', 'if channelMapping.Mapped {'),
+        ('ResponsesWebSocket', 'if cls.ModelNotFound {'),
+        ('ResponsesWebSocket', '} else if lastFailoverErr != nil {'),
+        ('ResponsesWebSocket', 'if cls.ModelNotFound {'),
+        ('ResponsesWebSocket', '} else if lastFailoverErr != nil {'),
+        ('errorResponse', 'if status == http.StatusNotFound && errType == "model_not_found" {'),
+        ('Messages', 'if !bindGroupModelAccessChannelMapping(c, channelMappingMsg) {'),
+        ('ResponsesWebSocket', 'if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(model) {'),
+        ('ResponsesWebSocket', 'if accessErr := service.CheckGroupModelAccess(ctx, model); accessErr != nil {'),
+        ('ResponsesWebSocket', 'if mapping.Mapped {'),
+        ('ResponsesWebSocket', 'if accessErr := service.CheckGroupModelAccess(turnAccessCtx, mapping.MappedModel); accessErr != nil {'),
+        ('ResponsesWebSocket', 'if accessErr := service.CheckOpenAIAccountModelAccess(turnAccessCtx, account, mapping.MappedModel, false); accessErr != nil {'),
+        ('handleFailoverExhausted', 'if statusCode == http.StatusBadRequest &&'),
+        ('ResponsesWebSocket', 'if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() && !apiKey.Group.ModelAllowlist.Allows(reqModel) {'),
+        ('ResponsesWebSocket', 'if accessErr := service.CheckGroupModelAccess(ctx, reqModel); accessErr != nil {'),
+        ('ResponsesWebSocket', 'if service.GetOpsCyberPolicy(c) != nil {'),
+        ('ResponsesWebSocket', 'if channelMappingWS.Mapped {'),
+        ('ResponsesWebSocket', 'if accessErr := service.CheckGroupModelAccess(ctx, channelMappingWS.MappedModel); accessErr != nil {'),
+        ('ResponsesWebSocket', 'if channelMappingWS.Mapped && strings.TrimSpace(channelMappingWS.MappedModel) != "" {'),
+        ('rejectIfCyberSessionBlocked', 'if h.contentModerationService == nil ||'),
+    ),
+    'backend/internal/handler/openai_images.go': (
+        ('Images', 'if !bindGroupModelAccessChannelMapping(c, channelMapping) {'),
+    ),
+    'backend/internal/handler/openai_live.go': (
+        ('Live', 'if cls.ModelNotFound {'),
+        ('Live', 'if service.IsGroupModelBlockedError(err) {'),
+        ('Live', 'if model == "" {'),
+        ('Live', 'if errors.Is(err, service.ErrNoAvailableAccounts) {'),
+    ),
+    'backend/internal/handler/payment_handler.go': (
+        ('GetCheckoutInfo', 'if err != nil {'),
+        ('applyWeChatPaymentResumeClaims', 'if providerKey != "" {'),
+        ('applyWeChatPaymentResumeClaims', 'if req.ProviderKey != "" && !strings.EqualFold(strings.TrimSpace(req.ProviderKey), providerKey) {'),
+        ('applyWeChatPaymentResumeClaims', 'if !paymentchannels.IsValidSelection(paymentType, providerKey) {'),
+        ('applyWeChatPaymentResumeClaims', 'if claims.FeeRate != nil {'),
+        ('applyWeChatPaymentResumeClaims', 'if math.IsNaN(*claims.FeeRate) || math.IsInf(*claims.FeeRate, 0) || *claims.FeeRate < 0 || *claims.FeeRate > 100 {'),
+        ('GetCheckoutInfo', 'if err != nil {'),
+    ),
+    'backend/internal/handler/payment_webhook_handler.go': (
+        ('handleNotify', 'if notification != nil && notification.Metadata["protocol"] == paymentchannels.EasyPayProtocolBepusdt {'),
+        ('extractOutTradeNo', 'if outTradeNo := values.Get("out_trade_no"); outTradeNo != "" {'),
+        ('extractOutTradeNo', 'if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {'),
+        ('handleNotify', 'if providerKey == payment.TypeEasyPay && strings.HasPrefix(strings.TrimSpace(rawBody), "{") {'),
+    ),
+    'backend/internal/payment/load_balancer.go': (
+        ('SelectInstance', 'if err != nil {'),
+        ('SelectInstance', 'if result.UsageLoadError != nil {'),
+        ('SelectInstance', 'for _, rejection := range result.LimitRejections {'),
+    ),
+    'backend/internal/payment/provider/easypay.go': (
+        ('NewEasyPay', 'if err != nil {'),
+        ('NewEasyPay', 'if strings.TrimSpace(config["apiBase"]) == "" {'),
+        ('NewEasyPay', 'if protocol == paymentchannels.EasyPayProtocolBepusdt {'),
+        ('NewEasyPay', 'if strings.TrimSpace(config[paymentchannels.EasyPayAPITokenConfigKey]) == "" {'),
+        ('NewEasyPay', 'for _, k := range []string{"notifyUrl", "returnUrl"} {'),
+        ('NewEasyPay', 'if strings.TrimSpace(config[k]) == "" {'),
+        ('NewEasyPay', 'if _, err := paymentchannels.ParseBepusdtNetworks(config[paymentchannels.BepusdtNetworksConfigKey]); err != nil {'),
+        ('NewEasyPay', 'for _, k := range []string{"pid", "pkey", "notifyUrl", "returnUrl"} {'),
+        ('NewEasyPay', 'if strings.TrimSpace(config[k]) == "" {'),
+        ('SupportedTypes', 'if paymentchannels.IsBepusdtNativeConfig(e.config) {'),
+        ('CreatePayment', 'if paymentchannels.IsBepusdtNativeConfig(e.config) {'),
+        ('QueryOrder', 'if paymentchannels.IsBepusdtNativeConfig(e.config) {'),
+        ('QueryOrder', 'if err != nil {'),
+        ('QueryOrder', 'if err != nil {'),
+        ('QueryOrder', 'switch response.Status {'),
+        ('VerifyNotification', 'if paymentchannels.IsBepusdtNativeConfig(e.config) {'),
+        ('VerifyNotification', 'if err != nil {'),
+        ('VerifyNotification', 'if notification.Status == 2 {'),
+        ('Refund', 'if paymentchannels.IsBepusdtNativeConfig(e.config) {'),
+    ),
+    'backend/internal/server/middleware/api_key_auth.go': (
+        ('apiKeyAuthWithSubscription', 'if !bindAndEnforceGroupModelAccess(c, apiKey) {'),
+        ('apiKeyAuthWithSubscription', 'if !bindAndEnforceGroupModelAccess(c, apiKey) {'),
+    ),
+    'backend/internal/server/middleware/api_key_auth_google.go': (
+        ('APIKeyAuthWithSubscriptionGoogle', 'if !bindAndEnforceGroupModelAccess(c, apiKey) {'),
+        ('APIKeyAuthWithSubscriptionGoogle', 'if !bindAndEnforceGroupModelAccess(c, apiKey) {'),
+    ),
+    'backend/internal/server/routes/gateway.go': (
+        ('compositeGeminiTargetPlatformMiddleware', 'if compositeMappedModelBlocked(c, decision.UpstreamModel) {'),
+        ('compositeTargetPlatformMiddleware', 'if compositeMappedModelBlocked(c, decision.UpstreamModel) {'),
+    ),
+    'backend/internal/service/admin_group.go': (
+        ('UpdateGroup', 'if normalizeErr != nil {'),
+        ('UpdateGroup', 'if input.ModelsListConfig != nil {'),
+        ('GetGroupModelsListCandidates', 'if model == "" {'),
+        ('GetGroupModelsListCandidates', 'if _, ok := seen[model]; ok {'),
+        ('GetGroupModelsListCandidates', 'for requestedModel, upstreamModel := range acc.GetModelMapping() {'),
+        ('GetGroupModelsListCandidates', 'if selectedGroup != nil {'),
+        ('GetGroupModelsListCandidates', 'for requestedModel, upstreamModel := range cfg.ExactModelMappings {'),
+        ('GetGroupModelsListCandidates', 'if id > 0 && platform == PlatformComposite && s.compositeRouteRepo != nil {'),
+        ('GetGroupModelsListCandidates', 'if err != nil {'),
+        ('GetGroupModelsListCandidates', 'for _, route := range routes {'),
+        ('GetGroupModelsListCandidates', 'if id > 0 && s.channelRepo != nil {'),
+        ('GetGroupModelsListCandidates', 'if err != nil {'),
+        ('GetGroupModelsListCandidates', 'for _, channel := range channels {'),
+        ('GetGroupModelsListCandidates', 'if !containsInt64(channel.GroupIDs, id) {'),
+        ('GetGroupModelsListCandidates', 'for mappingPlatform, mapping := range channel.ModelMapping {'),
+        ('GetGroupModelsListCandidates', 'if platform != PlatformComposite && mappingPlatform != platform {'),
+        ('GetGroupModelsListCandidates', 'for requestedModel, upstreamModel := range mapping {'),
+        ('ListCompositeRoutes', 'if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {'),
+        ('CreateCompositeRoute', 'if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {'),
+        ('UpdateCompositeRoute', 'if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {'),
+        ('DeleteGroupIfEmpty', 'if s.emptyGroupDeleteRepo == nil {'),
+        ('DeleteGroupIfEmpty', 'if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && s.groupRepo != nil {'),
+        ('DeleteGroupIfEmpty', 'if err != nil {'),
+        ('DeleteGroupIfEmpty', 'if err := s.validateSimpleModeGroupAccess(group); err != nil {'),
+        ('DeleteCompositeRoute', 'if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {'),
+        ('GetGroupRateMultipliers', 'if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationMultiplier); err != nil {'),
+        ('PreviewCompositeRoute', 'if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationCompositeRoute); err != nil {'),
+        ('ClearGroupRateMultipliers', 'if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationMultiplier); err != nil {'),
+        ('BatchSetGroupRateMultipliers', 'if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationMultiplier); err != nil {'),
+        ('UpdateGroup', 'if NormalizeGroupPlatform(input.Platform) == PlatformComposite {'),
+        ('ClearGroupRPMOverrides', 'if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationRPMOverride); err != nil {'),
+        ('UpdateGroup', 'if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && group.Platform == PlatformComposite {'),
+        ('BatchSetGroupRPMOverrides', 'if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationRPMOverride); err != nil {'),
+        ('UpdateGroup', 'if input.MinimumBalance != nil {'),
+        ('UpdateGroup', 'if math.IsNaN(*input.MinimumBalance) || math.IsInf(*input.MinimumBalance, 0) || *input.MinimumBalance < 0 {'),
+        ('UpdateGroupSortOrders', 'if err := ValidateSimpleModeGroupOperation(s.cfg, AdminGroupOperationSort); err != nil {'),
+        ('AdminUpdateAPIKeyGroupID', 'if (*groupID == 0 && apiKey.GroupID == nil) ||'),
+        ('AdminUpdateAPIKeyGroupID', 'if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {'),
+        ('AdminUpdateAPIKeyGroupID', 'if s.authCacheInvalidator != nil {'),
+        ('AdminUpdateAPIKeyGroupID', 'if err := s.checkGroupMinimumBalanceForUser(ctx, apiKey.UserID, group); err != nil {'),
+        ('CreateGroup', 'if platform == PlatformComposite {'),
+        ('CreateGroup', 'if math.IsNaN(input.MinimumBalance) || math.IsInf(input.MinimumBalance, 0) || input.MinimumBalance < 0 {'),
+        ('CreateGroup', 'if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && platform == PlatformComposite {'),
+        ('CreateGroup', 'if err != nil {'),
+        ('ReplaceUserGroup', 'if migrated > 0 {'),
+        ('ReplaceUserGroup', 'if err := s.checkGroupMinimumBalanceForUser(opCtx, userID, newGroup); err != nil {'),
+        ('ReplaceUserGroup', 'if err := s.userRepo.AddGroupToAllowedGroups(opCtx, userID, newGroupID); err != nil {'),
+    ),
+    'backend/internal/service/antigravity_gateway_claude.go': (
+        ('Forward', 'if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {'),
+    ),
+    'backend/internal/service/antigravity_gateway_compat.go': (
+        ('prepareAntigravityCompatCall', 'if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {'),
+    ),
+    'backend/internal/service/antigravity_gateway_gemini.go': (
+        ('ForwardGemini', 'if mappedModel != "" {'),
+        ('ForwardGemini', 'if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {'),
+        ('ForwardGemini', 'if accessErr := enforceResolvedModelAccess(ctx, c, fallbackModel); accessErr != nil {'),
+    ),
+    'backend/internal/service/antigravity_gateway_upstream.go': (
+        ('ForwardUpstream', 'if err := enforceResolvedModelAccess(ctx, c, originalModel); err != nil {'),
+    ),
+    'backend/internal/service/api_key_service.go': (
+        ('Update', 'if groupChanged {'),
+        ('Update', 'if err != nil {'),
+        ('Update', 'if err != nil {'),
+        ('Update', 'if !s.canUserBindGroup(ctx, user, group) {'),
+        ('Update', 'if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {'),
+        ('Create', 'if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {'),
+    ),
+    'backend/internal/service/batch_image_public.go': (
+        ('Submit', 'if releaseErr := s.releaseFailedSubmitHold(ctx, job, requestHash); releaseErr != nil {'),
+        ('Submit', 'if policyErr != nil {'),
+        ('ListModels', 'if err != nil {'),
+        ('ListModels', 'if modelAccessBlocksGatewayAccount(ctx, &account, model) {'),
+        ('Submit', 'if err != nil {'),
+        ('Submit', 'if err := CheckGroupModelAccess(ctx, normalized.Model); err != nil {'),
+        ('selectProviderAndAccount', 'if blockedErr != nil {'),
+        ('selectProviderAndAccount', 'if accessErr := CheckGatewayAccountModelAccess(ctx, &account, model); accessErr != nil {'),
+        ('Submit', 'if policyErr == nil {'),
+        ('Submit', 'if group != nil && group.MinimumBalance > 0 {'),
+        ('Submit', 'if s.UserRepo == nil {'),
+        ('Submit', 'if err != nil {'),
+        ('Submit', 'if err := groupaccess.CheckMinimumBalance(group.ID, group.Name, user.Balance, group.MinimumBalance); err != nil {'),
+        ('Submit', 'if policyErr == nil {'),
+    ),
+    'backend/internal/service/billing_cache_service.go': (
+        ('CheckBillingEligibility', 'if err != nil {'),
+        ('CheckBillingEligibility', 'if !groupMinimumBalanceEnabled && s.circuitBreaker != nil && !s.circuitBreaker.Allow() {'),
+    ),
+    'backend/internal/service/channel_monitor_service.go': (
+        ('validateCreateParams', 'if err := validateGroupRateOverride(p.GroupRateOverride); err != nil {'),
+        ('validateCreateParams', 'if err := validateGroupRateDisplayTemplate(p.GroupRateDisplayTemplate); err != nil {'),
+        ('applyMonitorUpdate', 'if p.ClearGroupRateOverride {'),
+        ('applyMonitorUpdate', '} else if p.GroupRateOverride != nil {'),
+        ('applyMonitorUpdate', 'if err := validateGroupRateOverride(p.GroupRateOverride); err != nil {'),
+        ('applyMonitorUpdate', 'if p.GroupRateDisplayTemplate != nil {'),
+        ('applyMonitorUpdate', 'if err := validateGroupRateDisplayTemplate(*p.GroupRateDisplayTemplate); err != nil {'),
+    ),
+    'backend/internal/service/content_moderation.go': (
+        ('RecordCyberPolicyEvent', 'if s.tryRecordCustomCyberPolicyEvent(ctx, in) {'),
+        ('parseContentModerationConfig', 'if err := json.Unmarshal([]byte(raw), &fields); err == nil {'),
+        ('parseContentModerationConfig', 'if _, ok := fields["api_audit_ban_threshold"]; !ok {'),
+        ('RecordCyberPolicyEvent', 'if err := s.sendCyberPolicyEmail(ctx, cfg, log); err != nil {'),
+        ('UpdateConfig', 'if input.APIAuditBanEnabled != nil {'),
+        ('UpdateConfig', 'if input.APIAuditBanThreshold != nil {'),
+        ('UpdateConfig', 'if err := validateContentModerationAPIAuditBanThreshold(*input.APIAuditBanThreshold); err != nil {'),
+        ('UpdateConfig', 'if input.UserBanThresholds != nil {'),
+        ('validateConfig', 'if err := validateContentModerationUserBanThresholdOverrides(cfg.UserBanThresholds); err != nil {'),
+        ('validateConfig', 'if err := validateContentModerationAPIAuditBanThreshold(cfg.APIAuditBanThreshold); err != nil {'),
+        ('UpdateConfig', 'if input.APIAuditScope != nil {'),
+        ('validateConfig', 'if err := validateContentModerationAPIAuditScope(cfg, requireAPIAuditScope); err != nil {'),
+        ('validateConfig', 'if !cfg.APIAuditScope.AllInScope && s.groupRepo != nil {'),
+        ('validateConfig', 'for _, groupID := range cfg.APIAuditScope.GroupIDs {'),
+        ('validateConfig', 'if _, err := s.groupRepo.GetByIDLite(ctx, groupID); err != nil {'),
+        ('normalize', 'if validateContentModerationAPIAuditBanThreshold(cfg.APIAuditBanThreshold) != nil {'),
+        ('UpdateConfig', 'if err := s.reconcileDeletedContentModerationGroups(ctx, persistedCfg, cfg); err != nil {'),
+        ('worker', 'if latestSnapshot, latestErr := s.loadRuntimeSnapshot(ctx); latestErr == nil && latestSnapshot != nil && latestSnapshot.config != nil {'),
+        ('worker', 'if !cfg.includesAPIAuditGroup(task.input.GroupID) {'),
+        ('applyFlaggedAccountSideEffects', 'if n, err := s.countFlaggedByUserSince(ctx, *log.UserID, since, cfg.CyberPolicyExcludeFromBanCount); err == nil {'),
+        ('applyFlaggedAccountSideEffects', 'if cfg.AutoBanEnabled && evaluation.Reached && s.userRepo != nil {'),
+        ('Check', 'if !inAPIAuditScope {'),
+        ('Check', 'if cfg.Mode == ContentModerationModePreBlock {'),
+    ),
+    'backend/internal/service/content_moderation_email.go': (
+        ('buildCyberPolicyNoticeEmailBody', 'if cfg != nil && cfg.BanThreshold > 0 {'),
+    ),
+    'backend/internal/service/gateway_bedrock.go': (
+        ('forwardBedrock', 'if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {'),
+    ),
+    'backend/internal/service/gateway_count_tokens.go': (
+        ('ForwardCountTokens', 'if model := resolveGatewayAccountModelForAccess(ctx, account, parsed.Model); model != "" {'),
+        ('ForwardCountTokens', 'if err := enforceResolvedModelAccess(ctx, c, model); err != nil {'),
+    ),
+    'backend/internal/service/gateway_forward.go': (
+        ('Forward', 'if model := resolveGatewayAccountModelForAccess(ctx, account, parsed.Model); model != "" {'),
+        ('Forward', 'if err := enforceResolvedModelAccess(ctx, c, model); err != nil {'),
+    ),
+    'backend/internal/service/gateway_forward_as_chat_completions.go': (
+        ('ForwardAsChatCompletions', 'if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {'),
+    ),
+    'backend/internal/service/gateway_forward_as_responses.go': (
+        ('ForwardAsResponses', 'if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {'),
+    ),
+    'backend/internal/service/gateway_model_availability.go': (
+        ('DiagnoseModelAvailabilityForPlatform', 'if modelAccessBlocksGatewayAccount(ctx, &accounts[i], requestedModel) &&'),
+    ),
+    'backend/internal/service/gateway_scheduling.go': (
+        ('isModelSupportedByAccountWithContext', 'if modelAccessBlocksGatewayAccount(ctx, account, requestedModel) {'),
+    ),
+    'backend/internal/service/gemini_chat_completions_compat_service.go': (
+        ('forwardClaudeBodyAsChatCompletions', 'if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {'),
+    ),
+    'backend/internal/service/gemini_messages_compat_service.go': (
+        ('ForwardNative', 'if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {'),
+        ('Forward', 'if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {'),
+    ),
+    'backend/internal/service/grok_audio.go': (
+        ('ProxyGrokRealtime', 'if err := enforceResolvedModelAccess(ctx, c, model); err != nil {'),
+        ('ForwardGrokVoice', 'if requestedModel := strings.TrimSpace(gjson.GetBytes(body, "model").String()); requestedModel != "" {'),
+        ('ForwardGrokVoice', 'if upstreamModel == "" {'),
+        ('ForwardGrokVoice', 'if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/grok_media.go': (
+        ('ForwardGrokMedia', 'if endpoint.RequiresRequestBody() {'),
+        ('ForwardGrokMedia', 'if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/idempotency.go': (
+        ('Execute', 'if err != nil {'),
+    ),
+    'backend/internal/service/openai_alpha_search.go': (
+        ('ForwardAlphaSearch', 'if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/openai_embeddings.go': (
+        ('ForwardEmbeddings', 'if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/openai_gateway_chat_completions.go': (
+        ('forwardAsChatCompletions', 'if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/openai_gateway_chat_completions_raw.go': (
+        ('forwardAsRawChatCompletions', 'if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/openai_gateway_count_tokens.go': (
+        ('ForwardCountTokensAsAnthropic', 'if err := enforceResolvedModelAccess(ctx, c, prepared.UpstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/openai_gateway_forward.go': (
+        ('Forward', 'if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/openai_gateway_grok.go': (
+        ('forwardGrokResponses', 'if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/openai_gateway_messages.go': (
+        ('ForwardAsAnthropic', 'if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/openai_gateway_messages_chat_fallback.go': (
+        ('forwardAnthropicViaRawChatCompletions', 'if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/openai_gateway_model_availability.go': (
+        ('DiagnoseModelAvailabilityForPlatform', 'if modelAccessBlocksOpenAIAccount(ctx, &accounts[i], requestedModel, false) {'),
+    ),
+    'backend/internal/service/openai_gateway_scheduling.go': (
+        ('openAICompatibleAccountEligibilityFailureReasonBeforeProfit', 'if modelAccessBlocksOpenAIAccount(ctx, account, requestedModel, requireCompact) {'),
+    ),
+    'backend/internal/service/openai_images.go': (
+        ('forwardOpenAIImagesAPIKey', 'if err := enforceResolvedModelAccess(ctx, c, upstreamModel); err != nil {'),
+    ),
+    'backend/internal/service/openai_images_responses.go': (
+        ('forwardOpenAIImagesOAuth', 'if err := enforceResolvedModelAccess(ctx, c, requestModel); err != nil {'),
+    ),
+    'backend/internal/service/openai_live.go': (
+        ('CreateLiveCall', 'if err := CheckGroupModelAccess(ctx, requestedModel); err != nil {'),
+        ('createUpstreamLiveCall', 'if err := enforceResolvedModelAccess(ctx, nil, upstreamModel); err != nil {'),
+        ('createUpstreamLiveCall', 'if strings.TrimSpace(gjson.GetBytes(request.Session, "model").String()) != "" && upstreamModel != requestedModel {'),
+        ('CreateLiveCall', 'if accessErr := CheckOpenAIAccountModelAccess(ctx, account, requestedModel, false); accessErr != nil {'),
+        ('CreateLiveCall', 'if selection.ReleaseFunc != nil {'),
+    ),
+    'backend/internal/service/payment_config_plans.go': (
+        ('CreatePlan', 'if err != nil {'),
+        ('CreatePlan', 'if err := subscriptioninventory.ValidateConfiguredQuantity(req.RemainingQuantity, soldOutAction); err != nil {'),
+        ('CreatePlan', 'if err := subscriptioninventory.ValidateRenewalGraceDays(req.RenewalGraceDays); err != nil {'),
+        ('validatePlanPatch', 'if req.RenewalGraceDays != nil {'),
+        ('validatePlanPatch', 'if err := subscriptioninventory.ValidateRenewalGraceDays(*req.RenewalGraceDays); err != nil {'),
+        ('validatePlanPatch', 'if err := subscriptioninventory.ValidateSoldOutActionPatch(req.SoldOutAction); err != nil {'),
+    ),
+    'backend/internal/service/payment_config_providers.go': (
+        ('UpdateProviderInstance', 'if err := validateEasyPayNativeInstance(configToValidate, nextSupportedTypes, nextPaymentMode, nextRefundEnabled); err != nil {'),
+        ('validateEasyPayCustomMethods', 'switch paymentchannels.ClassifyEasyPayCustomType(method.Type) {'),
+        ('validateEasyPayCustomMethods', 'if isNative && strings.EqualFold(supportedType, paymentchannels.BepusdtPaymentType) {'),
+        ('CreateProviderInstance', 'if err := validateEasyPayNativeInstance(req.Config, typesStr, req.PaymentMode, req.RefundEnabled); err != nil {'),
+        ('UpdateProviderInstance', 'if req.PaymentMode != nil {'),
+        ('validateEasyPayCustomMethods', 'if err != nil {'),
+        ('validateEasyPayCustomMethods', 'if isNative && strings.TrimSpace(config["customMethods"]) != "" {'),
+        ('UpdateProviderInstance', 'if req.RefundEnabled != nil {'),
+    ),
+    'backend/internal/service/payment_config_service.go': (
+        ('UpdatePaymentConfig', 'if req.ChannelSettings != nil {'),
+        ('UpdatePaymentConfig', 'if err != nil {'),
+        ('GetPaymentConfig', 'if err != nil {'),
+    ),
+    'backend/internal/service/payment_fulfillment.go': (
+        ('ensurePaymentSubscriptionAssigned', 'if err := subscriptioninventory.ConsumeForFulfillment(txCtx, txClient, o.ID); err != nil {'),
+    ),
+    'backend/internal/service/payment_order.go': (
+        ('invokeProvider', 'if err := paymentchannels.NewOrderCoordinator(paymentOrderLoader{service: s}).RevalidateBeforeProvider('),
+        ('CreateOrder', 'if req.PaymentNetwork != "" && req.PaymentType != paymentchannels.BepusdtPaymentType {'),
+        ('CreateOrder', 'if preparation.OAuth != nil {'),
+        ('CreateOrder', 'if _, cleanupErr := subscriptioninventory.TransitionPendingOrderAndRelease(ctx, s.entClient, order.ID, OrderStatusFailed); cleanupErr != nil {'),
+        ('validateSubOrder', 'if err != nil {'),
+        ('createOrderInTx', 'if plan != nil {'),
+        ('createOrderInTx', 'if err != nil {'),
+        ('buildWeChatOAuthRequiredResponse', 'if err != nil {'),
+        ('buildPaymentOrderProviderSnapshot', 'if protocol, err := paymentchannels.NormalizeEasyPayProtocol(sel.Config[paymentchannels.EasyPayProtocolConfigKey]); err == nil {'),
+        ('buildPaymentOrderProviderSnapshot', 'if protocol == paymentchannels.EasyPayProtocolBepusdt {'),
+        ('buildPaymentOrderProviderSnapshot', 'if network := strings.TrimSpace(req.PaymentNetwork); network != "" {'),
+        ('buildPaymentOrderProviderSnapshot', 'if mapped, ok := paymentchannels.BepusdtNetworkByCode(network); ok {'),
+        ('buildWeChatPaymentOAuthStartURL', 'if providerKey := strings.TrimSpace(req.ProviderKey); providerKey != "" {'),
+        ('buildWeChatPaymentOAuthStartURL', 'if paymentContextToken = strings.TrimSpace(paymentContextToken); paymentContextToken != "" {'),
+    ),
+    'backend/internal/service/payment_refund.go': (
+        ('RollbackRefund', 'if err != nil {'),
+        ('RollbackRefund', 'if p.SubscriptionTermSnapshot != nil {'),
+        ('applyRefundFinalDeduction', 'if err := s.subscriptionSvc.FinalizeSubscriptionRefundDeduction(ctx, p.SubscriptionID, -p.SubDaysToDeduct); err != nil {'),
+    ),
+    'backend/internal/service/payment_resume_service.go': (
+        ('CreateWeChatPaymentResumeToken', 'if err := s.ensureSigningKey(); err != nil {'),
+        ('CreateWeChatPaymentResumeToken', 'if err != nil {'),
+        ('ParseWeChatPaymentResumeToken', 'if claims.TokenType != paymentchannels.WeChatPaymentResumeTokenType {'),
+        ('ParseWeChatPaymentResumeToken', 'if err != nil {'),
+    ),
+    'backend/internal/service/subscription_service.go': (
+        ('assignSubscriptionWithReuse', 'if err := s.updateExistingSubscriptionTerm(ctx, sub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, input.AllowBulkQuotaReset, true); err != nil {'),
+        ('EnsureWindowMaintenance', 'if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {'),
+        ('EnsureWindowMaintenance', 'if err != nil {'),
+        ('detectAssignSemanticConflict', 'if existing.ManualBulkQuotaResetEnabled != input.AllowBulkQuotaReset {'),
+        ('ValidateAndCheckLimits', 'if subscriptionquota.NeedsAdvance(sub.CurrentCycleEndsAt, sub.ExpiresAt, now) {'),
+        ('ExtendSubscription', 'if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {'),
+        ('ExtendSubscription', 'if err != nil {'),
+        ('ExtendSubscription', 'if s.billingCacheService != nil {'),
+        ('assignOrExtendSubscription', 'if err := s.updateExistingSubscriptionTerm(ctx, existingSub.ID, validityDays, input.Notes, input.CycleSourceType, input.CycleSourceRef, input.AllowBulkQuotaReset, false); err != nil {'),
+        ('updateExistingSubscriptionTerm', 'if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {'),
+        ('updateExistingSubscriptionTerm', 'if s.now != nil {'),
+        ('normalizeExpiredWindowsAt', 'if subscriptionquota.NeedsAdvance(sub.CurrentCycleEndsAt, sub.ExpiresAt, now) {'),
+        ('AdminResetQuota', 'if repo, ok := s.userSubRepo.(UserSubscriptionCustomRepository); ok {'),
+        ('AdminResetQuota', 'if err != nil {'),
+    ),
+    'frontend/src/components/admin/monitor/MonitorFormDialog.vue': (
+        ('handleSubmit', 'if (groupRateError) {'),
+    ),
+    'frontend/src/components/common/DataTable.vue': (
+        ('toggleRowSelection', 'if (!isRowSelectable(row)) return'),
+    ),
+    'frontend/src/components/payment/AmountInput.vue': (
+        ('handleInput', 'if (!amountPattern.value.test(val)) return'),
+    ),
+    'frontend/src/components/payment/SubscriptionPlanCard.vue': (
+        ('<top-level>', '<span v-if="soldOut" class="mt-1 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300">'),
+    ),
+    'frontend/src/components/payment/paymentFlow.ts': (
+        ('buildCreateOrderPayload', 'if (input.paymentNetwork?.trim()) {'),
+        ('buildCreateOrderPayload', 'if (input.providerKey?.trim()) {'),
+    ),
+    'frontend/src/components/user/monitor/MonitorCard.vue': (
+        ('<top-level>', 'v-if="typeof item.group_rate_multiplier === \'number\'"'),
+    ),
+    'frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue': (
+        ('onMatrixWheel', 'if (!pulse) return'),
+    ),
+    'frontend/src/views/admin/GroupsView.vue': (
+        ('handleCreateGroup', 'if (minimumBalance === null) {'),
+        ('handleEdit', 'for (const accountID of editCodexManifestConfig.value.account_ids) {'),
+        ('handleEdit', 'try {'),
+        ('handleEdit', 'if (account?.name) {'),
+        ('handleEdit', '} catch {'),
+        ('handleUpdateGroup', 'if (minimumBalance === null) {'),
+        ('<top-level>', '<div v-if="copyAccountsGroupOptions.length > 0">'),
+        ('<top-level>', 'v-if="editModelsListState.enabled"'),
+        ('<top-level>', 'v-if="!editModelsListLoading && editModelsListState.items.length > 0"'),
+        ('<top-level>', '<p v-if="editModelsListLoading" class="text-xs text-gray-500 dark:text-gray-400">'),
+        ('<top-level>', 'v-else-if="editModelsListState.items.length === 0"'),
+        ('<top-level>', 'v-for="(item, index) in editModelsListState.items"'),
+        ('<top-level>', 'v-if="editForm.platform === \'openai\' && editingGroup"'),
+        ('<top-level>', 'v-if="createModelsListState.enabled"'),
+        ('<top-level>', 'v-if="!createModelsListLoading && createModelsListState.items.length > 0"'),
+        ('<top-level>', '<p v-if="createModelsListLoading" class="text-xs text-gray-500 dark:text-gray-400">'),
+        ('<top-level>', 'v-else-if="createModelsListState.items.length === 0"'),
+        ('<top-level>', 'v-for="(item, index) in createModelsListState.items"'),
+        ('<top-level>', 'if (!modelsListCandidatesTracker.isCurrent(requestID, request)) {'),
+        ('<top-level>', 'if (modelsListCandidatesTracker.isCurrent(requestID, request)) {'),
+        ('<top-level>', 'if (!modelsListCandidatesTracker.isCurrent(requestID, request)) {'),
+        ('<top-level>', 'if (!loadCandidates) {'),
+    ),
+    'frontend/src/views/admin/SettingsView.vue': (
+        ('saveSettings', 'if ('),
+        ('<top-level>', 'v-if="form.payment_enabled"'),
+    ),
+    'frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue': (
+        ('<top-level>', 'v-if="props.type === \'rebates\'"'),
+        ('<top-level>', 'v-if="props.type === \'rebates\'"'),
+        ('<top-level>', '<div v-if="row.reversed_at" class="text-xs text-gray-500 dark:text-dark-400">'),
+        ('<top-level>', '<div v-if="row.reversed_by_user_id" class="text-xs text-gray-500 dark:text-dark-400">'),
+        ('<top-level>', '<div v-if="row.reversal_reason" class="max-w-48 truncate text-xs text-gray-500 dark:text-dark-400" :title="row.reversal_reason">'),
+        ('<top-level>', '<div v-if="row.rebate_status === \'reversed\' && row.snapshot_available" class="max-w-64 text-xs text-gray-500 dark:text-dark-400">'),
+        ('<top-level>', '<div v-else-if="row.rebate_status === \'reversed\'" class="text-xs text-amber-600 dark:text-amber-400">'),
+    ),
+    'frontend/src/views/admin/groupModelAllowlist.ts': (
+        ('<top-level>', "if (!entry) return 'empty'"),
+        ('<top-level>', "if (entry.slice(0, -1).includes('*')) return 'invalid_wildcard'"),
+        ('<top-level>', "if (state.items.some(item => item.id.toLowerCase() === entry.toLowerCase()) || state.savedModels.some(model => model.toLowerCase() === entry.toLowerCase())) return 'duplicate'"),
+    ),
+    'frontend/src/views/admin/orders/AdminPaymentPlansView.vue': (
+        ('toggleForSale', 'if (!plan.for_sale && isPlanSoldOut(plan) && !canListSoldOutPlan(plan)) {'),
+    ),
+    'frontend/src/views/admin/orders/PlanEditDialog.vue': (
+        ('buildPlanPayload', 'if (!props.plan) {'),
+        ('buildPlanPayload', 'if (forSaleDirty.value) payload.for_sale = planForm.for_sale'),
+        ('buildPlanPayload', 'if (remainingQuantityDirty.value) payload.remaining_quantity = inventoryQuantityValue(remainingQuantityInput.value)'),
+        ('buildPlanPayload', 'if (planForm.sold_out_action !== initialSoldOutAction.value) payload.sold_out_action = planForm.sold_out_action'),
+        ('buildPlanPayload', 'if (planForm.allow_existing_user_renewal !== initialAllowExistingUserRenewal.value) payload.allow_existing_user_renewal = planForm.allow_existing_user_renewal'),
+        ('buildPlanPayload', 'if (planForm.renewal_grace_days !== initialRenewalGraceDays.value) payload.renewal_grace_days = planForm.renewal_grace_days'),
+        ('handleSavePlan', 'if (remainingQuantityError.value) {'),
+        ('handleSavePlan', 'if (renewalGraceDaysError.value) {'),
+    ),
+    'frontend/src/views/user/KeysView.vue': (
+        ('loadApiKeys', 'if (!options.preserveSelection) {'),
+        ('onFilterChange', 'if (bulkActionBusy.value) return'),
+        ('<top-level>', 'v-if="(option as unknown as GroupOption).balanceRequirement"'),
+        ('<top-level>', '<span v-if="option" class="flex min-w-0 items-center">'),
+        ('<top-level>', 'v-if="option.balanceRequirement"'),
+        ('<top-level>', 'v-if="row.group && balanceRequirementForGroup(row.group.id)"'),
+        ('handlePageChange', 'if (bulkActionBusy.value) return'),
+        ('handlePageSizeChange', 'if (bulkActionBusy.value) return'),
+        ('handleSort', 'if (bulkActionBusy.value) return'),
+        ('changeGroup', 'if (newGroupId !== null && balanceRequirementForGroup(newGroupId)) return'),
+        ('changeGroup', '} catch (error: unknown) {'),
+    ),
+    'frontend/src/views/user/PaymentView.vue': (
+        ('<top-level>', 'if (checkout.value.balance_disabled && subscriptionEnabled.value) {'),
+        ('<top-level>', '<div v-if="enabledChannelIds.length === 0" class="card py-16 text-center">'),
+        ('<top-level>', '<div v-if="enabledChannelIds.length >= 1" class="card p-6">'),
+        ('<top-level>', 'if (purchasablePlans.length === 1) {'),
+        ('<top-level>', '} else if (groupPlans.length > 0) {'),
+        ('selectPlan', 'if (!isPlanPurchasable(plan)) {'),
+        ('selectPlanFromModal', 'if (!isPlanPurchasable(plan)) {'),
+        ('confirmSubscribe', 'if (!isPlanPurchasable(selectedPlan.value)) {'),
+        ('<top-level>', '<div v-if="enabledChannelIds.length >= 1" class="card p-6">'),
+        ('<top-level>', "if (orderType === 'subscription' && !options.isResume) {"),
+        ('<top-level>', 'if (!isPlanPurchasable(plan)) {'),
+        ('<top-level>', 'if (availabilityError) {'),
+        ('<top-level>', 'if (selectedPlan.value?.id === planId) selectedPlan.value = null'),
+        ('<top-level>', "} else if (apiErr.reason === 'TOO_MANY_PENDING') {"),
+        ('<top-level>', 'if (restoredChannel) {'),
+        ('<top-level>', 'if (enabledChannelIds.value.length) {'),
+    ),
+    'frontend/src/views/user/SubscriptionsView.vue': (
+        ('<top-level>', 'v-if="subscription.status === \'active\' || subscription.status === \'expired\'"'),
+    ),
+}
+for _path, _control in _v025_baseline_control_approvals.items():
+    BASELINE_DELEGATE_VIEW_CONTROL[(_v025_vendor_commit, _path)] = _control
+_v025_baseline_orchestration_approvals: dict[str, tuple[tuple[str, str], ...]] = {
+    'backend/internal/handler/gemini_v1beta_handler.go': (
+        ('GeminiV1BetaListModels', 'filterAndWriteModels(antigravity.FallbackGeminiModelsList(), service.PlatformAntigravity)'),
+        ('GeminiV1BetaListModels', 'filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)'),
+        ('GeminiV1BetaListModels', 'filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)'),
+        ('customGeminiModelsList', 'models = append(models, gemini.FallbackModel(modelID))'),
+    ),
+    'backend/internal/service/openai_gateway_scheduling.go': (
+        ('resolveOpenAIAccountModelForAccess', 'upstreamModel := resolveOpenAIForwardModel(account, baseModel, groupmodelaccess.FallbackModel(ctx))'),
+    ),
+}
+for _path, _orchestration in _v025_baseline_orchestration_approvals.items():
+    BASELINE_DELEGATE_VIEW_ORCHESTRATION[(_v025_vendor_commit, _path)] = _orchestration
+
 FUNCTION_START_PATTERNS = (
+
+
     re.compile(
         r"^\s*func\s+(?:\([^)]*\)\s*)?(?P<name>[A-Za-z_]\w*)\s*\(",
         re.MULTILINE,
