@@ -110,6 +110,7 @@ APPROVED_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
     "backend/internal/handler/admin/subscription_handler.go": frozenset({
         "BulkResetQuota",
         "ListBulkResetQuotaCandidates",
+        "ProvideSubscriptionHandler",
         "UpdateCurrentCycleBulkResetEligibility",
     }),
     "backend/internal/handler/channel_monitor_user_handler.go": frozenset({"SetGroupRateResolver"}),
