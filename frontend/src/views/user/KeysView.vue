@@ -1429,8 +1429,7 @@ const columns = computed<Column[]>(() =>
 
 const apiKeys = ref<ApiKey[]>([])
 const selectedKeyIds = ref<number[]>([])
-const bulkActionBusy = ref(false)
-const selectedIds = selectedKeyIds
+const bulkActionBusy = ref(false), selectedIds = selectedKeyIds
 const showBulkEditModal = ref(false)
 const selectedApiKeys = computed(() => apiKeys.value.filter((key) => selectedIds.value.includes(key.id)))
 
@@ -1607,7 +1606,6 @@ const groupOptions = computed(() =>
 )
 
 const balanceRequirementsByGroupID = computed(() => groupBalanceRequirementsByID(groups.value))
-
 const balanceRequirementForGroup = (groupId: number): GroupBalanceRequirement | null =>
   balanceRequirementsByGroupID.value.get(groupId) ?? null
 const createProvider = ref<KeyGroupProvider>('anthropic')
@@ -1695,7 +1693,8 @@ const loadApiKeys = async (options: { preserveSelection?: boolean } = {}) => {
     })
     if (signal.aborted) return
     apiKeys.value = response.items
-    handleSelectionChange(selectedKeyIds.value)
+    const visibleKeyIds = new Set(response.items.map((key) => key.id))
+    selectedKeyIds.value = selectedKeyIds.value.filter((id) => visibleKeyIds.has(id))
     pagination.value.total = response.total
     pagination.value.pages = response.pages
 
@@ -1738,6 +1737,7 @@ const handleTableSelectionChange = (keys: Array<string | number>) => {
   selectedKeyIds.value = keys.filter(
     (id): id is number => typeof id === 'number' && visibleKeyIds.has(id)
   )
+  handleSelectionChange(selectedKeyIds.value)
 }
 
 const handleBulkCompleted = async (result: ApiKeyBulkCompletedResult) => {
