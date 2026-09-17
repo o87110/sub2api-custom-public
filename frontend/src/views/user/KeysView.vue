@@ -1434,11 +1434,17 @@ const selectedIds = selectedKeyIds
 const showBulkEditModal = ref(false)
 const selectedApiKeys = computed(() => apiKeys.value.filter((key) => selectedIds.value.includes(key.id)))
 
+const handleSelectionChange = (ids: Array<string | number>) => {
+  const visibleIds = new Set(apiKeys.value.map((key) => key.id))
+  selectedIds.value = [...new Set(ids.map(Number))].filter((id) => visibleIds.has(id))
+}
+
 const handleBulkUpdated = (succeededIds: number[]) => {
   const succeeded = new Set(succeededIds)
   selectedIds.value = selectedIds.value.filter((id) => !succeeded.has(id))
   loadApiKeys({ preserveSelection: true })
 }
+
 const groups = ref<Group[]>([])
 const loading = ref(false)
 const submitting = ref(false)
@@ -1689,8 +1695,7 @@ const loadApiKeys = async (options: { preserveSelection?: boolean } = {}) => {
     })
     if (signal.aborted) return
     apiKeys.value = response.items
-    const visibleKeyIds = new Set(response.items.map((key) => key.id))
-    selectedKeyIds.value = selectedKeyIds.value.filter((id) => visibleKeyIds.has(id))
+    handleSelectionChange(selectedKeyIds.value)
     pagination.value.total = response.total
     pagination.value.pages = response.pages
 
