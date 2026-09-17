@@ -124,7 +124,7 @@ backend/internal/service/payment_resume_service.go	delegate	true	66	44	86f93c28e
 backend/internal/service/payment_resume_service_test.go	compat-test	true	43	1	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:43:1
 backend/internal/service/payment_service.go	delegate	true	18	11	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:18:11
 backend/internal/service/redeem_service.go	delegate	true	9	5	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:9:5
-backend/internal/service/subscription_service.go	delegate	true	188	26	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:190:31
+backend/internal/service/subscription_service.go	delegate	true	188	26	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:192:32
 backend/internal/service/user_subscription.go	dto	false	13	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:13:0
 backend/internal/service/user_subscription_port.go	dto	true	30	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:30:0
 frontend/src/api/admin/affiliates.ts	dto	false	104	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:104:0
