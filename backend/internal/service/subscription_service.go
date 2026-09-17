@@ -753,7 +753,8 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 				return err
 			}
 		}
-		return nil
+		sub, err = s.userSubRepo.GetByID(txCtx, subscriptionID)
+		return err
 	})
 	if err != nil {
 		return nil, err
