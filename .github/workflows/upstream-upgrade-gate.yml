@@ -892,9 +892,11 @@ jobs:
           )
           if [[ "$RELEASE_INPUTS_CHANGED" == "true" ]]; then
             required_results+=("release-preflight=${RELEASE_PREFLIGHT_RESULT}")
-          elif [[ "$RELEASE_INPUTS_CHANGED" == "false" && "$RELEASE_PREFLIGHT_RESULT" != "skipped" ]]; then
-            echo "Release preflight must be skipped when release inputs are unchanged: ${RELEASE_PREFLIGHT_RESULT}." >&2
-            exit 1
+          elif [[ "$RELEASE_INPUTS_CHANGED" == "false" ]]; then
+            if [[ "$RELEASE_PREFLIGHT_RESULT" != "skipped" ]]; then
+              echo "Release preflight must be skipped when release inputs are unchanged: ${RELEASE_PREFLIGHT_RESULT}." >&2
+              exit 1
+            fi
           else
             echo "Invalid release input classification: ${RELEASE_INPUTS_CHANGED:-<empty>}." >&2
             exit 1

@@ -741,6 +741,31 @@ if ! env \
   exit 1
 fi
 
+if ! env \
+  CONTEXT_RESULT=success \
+  IS_UPGRADE=true \
+  GATE_RESULT=success \
+  BACKEND_RESULT=success \
+  FRONTEND_RESULT=success \
+  RELEASE_PREFLIGHT_RESULT=skipped \
+  RELEASE_INPUTS_CHANGED=false \
+  /bin/bash "$tmp_dir/required-validation.sh" >/dev/null; then
+  echo "ERROR: required validation rejected unchanged release inputs with a skipped preflight" >&2
+  exit 1
+fi
+if env \
+  CONTEXT_RESULT=success \
+  IS_UPGRADE=true \
+  GATE_RESULT=success \
+  BACKEND_RESULT=success \
+  FRONTEND_RESULT=success \
+  RELEASE_PREFLIGHT_RESULT=success \
+  RELEASE_INPUTS_CHANGED=false \
+  /bin/bash "$tmp_dir/required-validation.sh" >/dev/null 2>&1; then
+  echo "ERROR: required validation accepted an unexpected release preflight" >&2
+  exit 1
+fi
+
 for rejected_result in failure cancelled skipped neutral; do
   if env \
     CONTEXT_RESULT=success \
