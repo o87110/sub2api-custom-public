@@ -5985,6 +5985,7 @@ _v025_baseline_call_approvals: dict[str, tuple[tuple[str, str], ...]] = {
             'Set': 1,
             'apiKeys.value.map': 1,
             'keys.filter': 1,
+            'handleSelectionChange': 1,
             'visibleKeyIds.has': 1,
         }),
         ('loadApiKeys', {
