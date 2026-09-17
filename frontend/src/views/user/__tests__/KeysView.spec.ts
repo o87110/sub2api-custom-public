@@ -777,6 +777,8 @@ describe('user KeysView column settings', () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     )
     expect(table.props('selectedKeys')).toEqual([1])
+  })
+
   describe('create provider selection', () => {
     const platforms = ['anthropic', 'openai', 'kimi', 'zhipu', 'deepseek', 'minimax', 'gemini', 'grok', 'antigravity', 'composite', 'opencode_go']
     const availableGroups = platforms.map((platform, index) => ({

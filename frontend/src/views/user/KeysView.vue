@@ -1434,15 +1434,10 @@ const selectedIds = selectedKeyIds
 const showBulkEditModal = ref(false)
 const selectedApiKeys = computed(() => apiKeys.value.filter((key) => selectedIds.value.includes(key.id)))
 
-const handleSelectionChange = (ids: Array<string | number>) => {
-  const visibleIds = new Set(apiKeys.value.map((key) => key.id))
-  selectedIds.value = [...new Set(ids.map(Number))].filter((id) => visibleIds.has(id))
-}
-
 const handleBulkUpdated = (succeededIds: number[]) => {
   const succeeded = new Set(succeededIds)
   selectedIds.value = selectedIds.value.filter((id) => !succeeded.has(id))
-  loadApiKeys()
+  loadApiKeys({ preserveSelection: true })
 }
 const groups = ref<Group[]>([])
 const loading = ref(false)
