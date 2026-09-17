@@ -47,12 +47,18 @@ const (
 )
 
 // NewSubscriptionHandler creates a new admin subscription handler
-func NewSubscriptionHandler(subscriptionService *service.SubscriptionService, bulkResetService *subscriptionbulkreset.Service) *SubscriptionHandler {
+func NewSubscriptionHandler(subscriptionService *service.SubscriptionService) *SubscriptionHandler {
 	return &SubscriptionHandler{
 		subscriptionService: subscriptionService,
 		quotaResetter:       subscriptionService,
-		bulkResetService:    bulkResetService,
 	}
+}
+
+// ProvideSubscriptionHandler wires the Custom bulk reset service into the admin handler.
+func ProvideSubscriptionHandler(subscriptionService *service.SubscriptionService, bulkResetService *subscriptionbulkreset.Service) *SubscriptionHandler {
+	handler := NewSubscriptionHandler(subscriptionService)
+	handler.bulkResetService = bulkResetService
+	return handler
 }
 
 // AssignSubscriptionRequest represents assign subscription request
