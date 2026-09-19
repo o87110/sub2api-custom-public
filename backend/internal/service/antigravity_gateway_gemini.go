@@ -67,12 +67,6 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 	// 解析请求以获取 image_size（用于图片计费）
 	imageInputSize := s.extractImageInputSize(body)
 	imageSize := normalizeOpenAIImageSizeTier(imageInputSize)
-	mappedModel := s.getMappedModel(account, originalModel)
-	if mappedModel != "" {
-		if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {
-			return nil, err
-		}
-	}
 
 	switch action {
 	case "generateContent", "streamGenerateContent":
@@ -92,6 +86,19 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 		return nil, s.writeGoogleError(c, http.StatusNotFound, "Unsupported action: "+action)
 	}
 
+	// 裸模型名（gemini-3.8-flash）+ thinkingConfig → 账号映射表里对应的 -low/-medium/-high 变体；
+	// 裸名有显式映射时保持原行为。
+	mappedModel, variantResolved := resolveGeminiThinkingVariant(account, originalModel, body)
+	if !variantResolved {
+		mappedModel = s.getMappedModel(account, originalModel)
+	} else {
+		logger.LegacyPrintf("service.antigravity_gateway", "%s resolved bare Gemini model %s to thinking variant %s", prefix, originalModel, mappedModel)
+	}
+	if mappedModel != "" {
+		if err := enforceResolvedModelAccess(ctx, c, mappedModel); err != nil {
+			return nil, err
+		}
+	}
 	if mappedModel == "" {
 		MarkOpsClientBusinessLimited(c, OpsClientBusinessLimitedReasonLocalFeatureGate)
 		return nil, s.writeGoogleError(c, http.StatusForbidden, fmt.Sprintf("model %s not in whitelist", originalModel))

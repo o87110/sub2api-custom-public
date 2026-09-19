@@ -99,10 +99,10 @@ describe('channel monitor Grok provider', () => {
     const wrapper = mountDialog()
     await flushPromises()
 
-    expect(PROVIDERS).toContain(PROVIDER_GROK)
-    const providerButtons = wrapper.findAll('[data-testid^="monitor-provider-"]')
-    expect(providerButtons).toHaveLength(PROVIDERS.length)
-    expect(providerButtons[0].element.parentElement?.className).toContain('grid-cols-2')
+	expect(PROVIDERS).toContain(PROVIDER_GROK)
+	const providerButtons = wrapper.findAll('[data-testid^="monitor-provider-"]')
+	expect(providerButtons).toHaveLength(PROVIDERS.length)
+	expect(providerButtons[0].element.parentElement?.className).toContain('grid-cols-2')
     expect(providerButtons[0].element.parentElement?.className).toContain('sm:grid-cols-4')
 
     const grokButton = wrapper.get('[data-testid="monitor-provider-grok"]')
