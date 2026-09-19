@@ -2042,6 +2042,10 @@ APPROVED_NEW_BRIDGE_FUNCTIONS.update({
 # trusted Custom main tree. Keep these separate from the long-lived contract
 # snapshots so unit tests and non-upgrade validation retain their exact scope.
 APPROVED_UPGRADE_NEW_BRIDGE_FUNCTIONS: dict[str, frozenset[str]] = {
+    "backend/internal/handler/gemini_v1beta_handler.go": frozenset({
+        "appendUpstreamGeminiModels",
+        "mergeGeminiModelLists",
+    }),
     "backend/internal/service/admin_group.go": frozenset({
         "DeleteGroupIfEmpty",
         "validateSimpleModeGroupAccess",

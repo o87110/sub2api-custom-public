@@ -466,6 +466,15 @@ class ThinBridgeContractTests(unittest.TestCase):
             validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[(current, gemini_path)],
         )
 
+    def test_v027_approves_gemini_model_adapter_helpers(self) -> None:
+        helpers = validator.APPROVED_UPGRADE_NEW_BRIDGE_FUNCTIONS[
+            "backend/internal/handler/gemini_v1beta_handler.go"
+        ]
+        self.assertEqual(
+            helpers,
+            frozenset({"appendUpstreamGeminiModels", "mergeGeminiModelLists"}),
+        )
+
     def test_v024_groups_view_binds_official_column_slice_calls(self) -> None:
         calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[
             "frontend/src/views/admin/GroupsView.vue"
