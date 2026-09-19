@@ -3,7 +3,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/audit-exceptions.yml	M	keep	M	fixed-path	6243f0fa7faa26a7c571955b1d5772e7dd4391cc	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	9b195574491f3831c00e0744488158ccfc4a4481	-	-	database-boundary-unit+candidate-tree-test	登记全部 Custom 数据库结构与只读 SQL 例外，并绑定 vendor-0.2.7 准确 Blob 与语义指纹
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	6f52463c2ac95b3f9f0b55d30ffcc4476429096e	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记至 v0.2.7 候选路径、精确预算及调用面
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	ff8484578af9ea592d788e1e7c805b01661c7ac2	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记 v0.2.1、v0.2.4 与 v0.2.5 候选路径、精确预算及调用面
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	38907c3d119bde7ce0f23a95140f6280724eb12f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	07f7c7ddabcd938ed20baf60d06ee86f16b16fcd	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -468,7 +468,7 @@ deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	7e
 deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad7233c21340ce3dd1969db55ed51	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
 deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	361e16b491ff71d305c566795628c7c796694739	-	-	goreleaser-check+release-safety+runtime-resource-test	验证发布输入分类、同 SHA 门禁复用、前端来源、Manifest 兼容、缓存与耗时契约
-deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	e6b4913c5eacfd3a2228f514a1c5f187bd7e3fc1	-	-	candidate-tree+shadow-map+thin-bridge-contract	双版本允许 v0.2.1 与 v0.2.4 重命名前后的薄桥路径，并登记 v0.2.7 新增的 Wire 薄桥
+deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	23f3a33125a159f061af4af42e6b4f0dcc325cb8	-	-	candidate-tree+shadow-map+thin-bridge-contract	双版本允许 v0.2.1 与 v0.2.4 重命名前后的薄桥路径
 deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
 deploy/tests/docker-runtime-resources-test.sh	M	keep	M	custom-test	4e7480d4d59c6edda9bbd3259f47c0db4fc7e5aa	4752f88556f2706ef283163c6524b64f90368f6d	-	-	runtime-resource-test+release-safety	验证官方及 Custom 镜像构建链路均携带定价 fallback resources
 deploy/tests/frontend-dist-safety-test.sh	A	keep	A	custom-test	@absent	a79c40721355a3b9c0dad1ce1ab43fd46caaa1f3	-	-	frontend-artifact-fixtures+release-safety	验证前端 Artifact 复用、失败关闭及 v1 内容哈希不依赖 GNU tar
@@ -638,5 +638,5 @@ frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	M	keep	M	official-
 frontend/src/views/user/paymentWechatResume.ts	M	keep	M	official-thin-bridge	8121bc56fc4bd590385ad4780422dc95584aa0b1	9e753cd42ca8b0672e7b793fbadadf9d4c208091	frontend/src/views/user/paymentWechatResume.ts	frontend/src/custom/payment-channels/paymentRecoveryRoute.ts	thin-bridge-review+go-test+candidate-tree-test	微信支付恢复查询的服务商薄适配
 tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	be1c01d3b1dcccdf3b178034e71d2146bff206af	-	-	thin-bridge-contract-unit+candidate-tree-test	验证未来缺失路径可预登记且实际出现的未登记路径仍失败关闭，并绑定 v0.2.4 官方列排序调用与控制流
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
-tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	5e308509ed2db61934ab000a8628316846821185	-	-	thin-bridge-contract-unit+candidate-tree-test	绑定至 v0.2.7 的调用、控制流与编排面，按准确 Vendor Commit 验证并对新基线变化失败关闭
+tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	672a1e82520ecfd4b5d0e8ef116dc12a399982b7	-	-	thin-bridge-contract-unit+candidate-tree-test	绑定 v0.2.1、v0.2.4 与 v0.2.5 调用控制面并精确登记官方列排序调用与控制流，仅跳过候选树中尚不存在的预登记路径
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异

@@ -6874,7 +6874,11 @@ def load_thin_bridge_paths(ledger: Path) -> set[str]:
             "verification", "reason",
         ],
     )
-    return {row["path"] for row in rows if row["category"] == "official-thin-bridge"}
+    return {
+        row["path"]
+        for row in rows
+        if row["category"] in {"official-thin-bridge", "official-thin-bridge-preflight"}
+    }
 
 
 def load_shadow_map(path: Path) -> dict[str, set[str]]:
@@ -6926,6 +6930,8 @@ def line_counts(repo: Path, baseline: str, candidate_tree: str, path: str) -> tu
     output = run_git(repo, "diff", "--numstat", "--no-renames", baseline, candidate_tree, "--", path)
     assert isinstance(output, str)
     lines = [line for line in output.splitlines() if line]
+    if not lines:
+        return 0, 0
     if len(lines) != 1:
         raise ContractError(f"thin bridge must have exactly one numstat row: {path}")
     additions, deletions, actual_path = lines[0].split("\t", 2)
