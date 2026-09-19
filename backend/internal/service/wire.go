@@ -243,6 +243,21 @@ func ProvideAccountUsageService(
 	return service
 }
 
+// ProvidePluginManager wires the sensitive OpenAI OAuth account directory at
+// construction time so generated Wire output cannot drop the Custom bridge.
+func ProvidePluginManager(
+	repo PluginRepository,
+	encryptor SecretEncryptor,
+	cfg *config.Config,
+	hostInfo PluginHostInfo,
+	kvStore PluginKVStore,
+	accountDirectory PluginAccountDirectory,
+) *PluginManager {
+	manager := NewPluginManager(repo, encryptor, cfg, hostInfo, kvStore)
+	manager.SetAccountDirectory(accountDirectory)
+	return manager
+}
+
 func ProvideAccountTestService(
 	accountRepo AccountRepository,
 	geminiTokenProvider *GeminiTokenProvider,
@@ -924,7 +939,8 @@ var ProviderSet = wire.NewSet(
 	NewTotpService,
 	NewErrorPassthroughService,
 	NewTLSFingerprintProfileService,
-	NewPluginManager,
+	ProvidePluginManager,
+	wire.Bind(new(PluginAccountDirectory), new(*OpenAIGatewayService)),
 	NewDigestSessionStore,
 	ProvideIdempotencyCoordinator,
 	ProvideSystemOperationLockService,

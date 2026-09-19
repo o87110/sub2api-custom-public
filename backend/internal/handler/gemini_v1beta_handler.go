@@ -31,43 +31,45 @@ import (
 // 匹配格式: /Users/xxx/.gemini/tmp/[64位十六进制哈希]
 var geminiCLITmpDirRegex = regexp.MustCompile(`/\.gemini/tmp/([A-Fa-f0-9]{64})`)
 
-func filterUpstreamGeminiModelsBody(body []byte, allowlist service.GroupModelAllowlist) ([]byte, bool, bool) {
+func filterUpstreamGeminiModelsBody(body []byte, allowlist service.GroupModelAllowlist) (filtered []byte, dropped bool, ok bool) {
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(body, &envelope); err != nil {
-		return body, false, false
+		return nil, false, false
 	}
-	raw, ok := envelope["models"]
-	if !ok {
+	rawModels, hasModels := envelope["models"]
+	if !hasModels {
 		return body, false, true
 	}
-	var models []map[string]any
-	if err := json.Unmarshal(raw, &models); err != nil {
-		return body, false, true
+	type geminiModelName struct {
+		Name string `json:"name"`
 	}
-	kept := make([]map[string]any, 0, len(models))
-	dropped := false
-	for _, m := range models {
-		name, _ := m["name"].(string)
-		name = strings.TrimPrefix(name, "models/")
-		if allowlist.Allows(name) {
-			kept = append(kept, m)
-		} else {
-			dropped = true
+	var models []json.RawMessage
+	if err := json.Unmarshal(rawModels, &models); err != nil {
+		return nil, false, false
+	}
+	kept := make([]json.RawMessage, 0, len(models))
+	for _, raw := range models {
+		var model geminiModelName
+		if err := json.Unmarshal(raw, &model); err != nil {
+			return nil, false, false
+		}
+		if allowlist.Allows(model.Name) {
+			kept = append(kept, raw)
 		}
 	}
-	if !dropped {
+	if len(kept) == len(models) {
 		return body, false, true
 	}
-	b, err := json.Marshal(kept)
+	mergedModels, err := json.Marshal(kept)
 	if err != nil {
-		return body, false, true
+		return nil, false, false
 	}
-	envelope["models"] = b
-	out, err := json.Marshal(envelope)
+	envelope["models"] = mergedModels
+	merged, err := json.Marshal(envelope)
 	if err != nil {
-		return body, false, true
+		return nil, false, false
 	}
-	return out, true, true
+	return merged, true, true
 }
 
 // GeminiV1BetaListModels proxies:
@@ -105,18 +107,29 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 				displayModels = apiKey.Group.ModelsListConfig.Models
 			}
 		}
-		filtered, _, err := h.gatewayService.FilterGeminiModelsResponse(c.Request.Context(), apiKey.GroupID, platform, body, displayModels, displayEnabled)
-		if err != nil {
-			googleError(c, http.StatusInternalServerError, "Failed to filter models response")
-			return false
+		if h.gatewayService != nil {
+			filtered, _, err := h.gatewayService.FilterGeminiModelsResponse(c.Request.Context(), apiKey.GroupID, platform, body, displayModels, displayEnabled)
+			if err != nil {
+				googleError(c, http.StatusInternalServerError, "Failed to filter models response")
+				return false
+			}
+			body = filtered
 		}
-		c.Data(http.StatusOK, "application/json", filtered)
+		c.Data(http.StatusOK, "application/json", body)
 		return true
 	}
 
-	// 强制 antigravity 模式：返回 antigravity 支持的模型列表
+	agModelIDs, err := h.geminiCompatService.AntigravityGeminiModelIDs(c.Request.Context(), apiKey.GroupID, forcePlatform != service.PlatformAntigravity)
+	if err != nil {
+		googleError(c, http.StatusServiceUnavailable, "Unable to list Antigravity models")
+		return
+	}
+	agModels := make([]gemini.Model, 0, len(agModelIDs))
+	for _, id := range agModelIDs {
+		agModels = append(agModels, gemini.FallbackModel(id))
+	}
 	if forcePlatform == service.PlatformAntigravity {
-		filterAndWriteModels(antigravity.FallbackGeminiModelsList(), service.PlatformAntigravity)
+		filterAndWriteModels(gemini.ModelsListResponse{Models: agModels}, service.PlatformAntigravity)
 		return
 	}
 
@@ -127,11 +140,8 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 
 	account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), apiKey.GroupID)
 	if err != nil {
-		// 没有 gemini 账户，检查是否有 antigravity 账户可用
-		hasAntigravity, _ := h.geminiCompatService.HasAntigravityAccounts(c.Request.Context(), apiKey.GroupID)
-		if hasAntigravity {
-			// antigravity 账户使用静态模型列表
-			filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)
+		if len(agModels) > 0 {
+			filterAndWriteModels(gemini.ModelsListResponse{Models: agModels}, service.PlatformGemini)
 			return
 		}
 		markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
@@ -145,23 +155,93 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		return
 	}
 	if shouldFallbackGeminiModels(res) {
-		filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)
+		filterAndWriteModels(gemini.ModelsListResponse{Models: mergeGeminiModelLists(gemini.DefaultModels(), agModels)}, service.PlatformGemini)
 		return
+	}
+	if res.StatusCode == http.StatusOK && len(agModels) > 0 {
+		if merged, ok := appendUpstreamGeminiModels(res.Body, agModels); ok {
+			res.Body = merged
+		}
+	}
+	if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
+		if filtered, dropped, ok := filterUpstreamGeminiModelsBody(res.Body, apiKey.Group.ModelAllowlist); ok && dropped {
+			res.Body = filtered
+		}
 	}
 	displayEnabled := apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled()
 	var displayModels []string
 	if apiKey.Group != nil {
 		displayModels = apiKey.Group.ModelsListConfig.Models
 	}
-	filtered, changed, filterErr := h.gatewayService.FilterGeminiModelsResponse(c.Request.Context(), apiKey.GroupID, service.PlatformGemini, res.Body, displayModels, displayEnabled)
-	if filterErr != nil {
-		googleError(c, http.StatusBadGateway, "Invalid upstream models response")
-		return
-	}
-	if changed {
-		res.Body = filtered
+	if h.gatewayService != nil {
+		filtered, changed, filterErr := h.gatewayService.FilterGeminiModelsResponse(c.Request.Context(), apiKey.GroupID, service.PlatformGemini, res.Body, displayModels, displayEnabled)
+		if filterErr != nil {
+			googleError(c, http.StatusBadGateway, "Invalid upstream models response")
+			return
+		}
+		if changed {
+			res.Body = filtered
+		}
 	}
 	writeUpstreamResponse(c, res)
+}
+
+// mergeGeminiModelLists keeps native metadata when both sources advertise a model.
+func mergeGeminiModelLists(native, extra []gemini.Model) []gemini.Model {
+	result := append([]gemini.Model{}, native...)
+	seen := make(map[string]bool, len(native))
+	for _, model := range native {
+		seen[model.Name] = true
+	}
+	for _, model := range extra {
+		if !seen[model.Name] {
+			result = append(result, model)
+			seen[model.Name] = true
+		}
+	}
+	return result
+}
+
+// appendUpstreamGeminiModels preserves unknown model metadata and envelope fields.
+func appendUpstreamGeminiModels(body []byte, extra []gemini.Model) ([]byte, bool) {
+	var envelope map[string]json.RawMessage
+	if json.Unmarshal(body, &envelope) != nil || envelope == nil {
+		return body, false
+	}
+	var models []json.RawMessage
+	raw, exists := envelope["models"]
+	if !exists || json.Unmarshal(raw, &models) != nil {
+		return body, false
+	}
+	seen := make(map[string]bool, len(models))
+	for _, raw := range models {
+		var model struct {
+			Name string `json:"name"`
+		}
+		if json.Unmarshal(raw, &model) != nil {
+			return body, false
+		}
+		seen[model.Name] = true
+	}
+	changed := false
+	for _, model := range extra {
+		if seen[model.Name] {
+			continue
+		}
+		raw, err := json.Marshal(model)
+		if err != nil {
+			return body, false
+		}
+		models = append(models, raw)
+		seen[model.Name] = true
+		changed = true
+	}
+	if !changed {
+		return body, true
+	}
+	envelope["models"], _ = json.Marshal(models)
+	merged, err := json.Marshal(envelope)
+	return merged, err == nil
 }
 
 func customGeminiModelsList(group *service.Group) (gemini.ModelsListResponse, bool) {

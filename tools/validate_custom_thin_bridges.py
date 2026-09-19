@@ -6668,6 +6668,73 @@ _v025_baseline_orchestration_approvals: dict[str, tuple[tuple[str, str], ...]] =
 for _path, _orchestration in _v025_baseline_orchestration_approvals.items():
     BASELINE_DELEGATE_VIEW_ORCHESTRATION[(_v025_vendor_commit, _path)] = _orchestration
 
+# Official v0.2.7 does not change the reviewed Custom bridge intent. Start from
+# the exact v0.2.5 call/control/orchestration surface and let the structural
+# validator fail closed for any path whose new official baseline changes that
+# delta. Such paths must be reviewed and overridden explicitly below.
+_v027_vendor_commit = "aea725f2ea644d5592d0bbb1d63b607efa7e200a"
+for _path, _calls in _v025_baseline_call_approvals.items():
+    BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v027_vendor_commit, _path)] = _calls
+for _path, _control in _v025_baseline_control_approvals.items():
+    BASELINE_DELEGATE_VIEW_CONTROL[(_v027_vendor_commit, _path)] = _control
+for _path, _orchestration in _v025_baseline_orchestration_approvals.items():
+    BASELINE_DELEGATE_VIEW_ORCHESTRATION[(_v027_vendor_commit, _path)] = _orchestration
+
+# v0.2.7 moves the Gemini fallback list construction and model-name trimming
+# into the official implementation. The candidate adds only the Custom
+# allowlist/filtering calls plus nil-safe dynamic upstream filtering.
+_v027_gemini_models_path = "backend/internal/handler/gemini_v1beta_handler.go"
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v027_vendor_commit,
+    _v027_gemini_models_path,
+)] = _reviewed_baseline_delta(
+    _v025_baseline_call_approvals[_v027_gemini_models_path],
+    remove=(
+        ("GeminiV1BetaListModels", "gemini.FallbackModelsList"),
+        ("GeminiV1BetaListModels", "gemini.FallbackModelsList"),
+        ("filterUpstreamGeminiModelsBody", "strings.TrimPrefix"),
+    ),
+    add=(
+        ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
+        ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
+        ("GeminiV1BetaListModels", "filterUpstreamGeminiModelsBody"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v027_vendor_commit,
+    _v027_gemini_models_path,
+)] = _reviewed_baseline_delta(
+    _v025_baseline_control_approvals[_v027_gemini_models_path],
+    add=(
+        ("GeminiV1BetaListModels", "if h.gatewayService != nil {"),
+        ("GeminiV1BetaListModels", "if h.gatewayService != nil {"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_ORCHESTRATION[(
+    _v027_vendor_commit,
+    _v027_gemini_models_path,
+)] = _reviewed_baseline_delta(
+    _v025_baseline_orchestration_approvals[_v027_gemini_models_path],
+    remove=(
+        ("GeminiV1BetaListModels", "filterAndWriteModels(antigravity.FallbackGeminiModelsList(), service.PlatformAntigravity)"),
+        ("GeminiV1BetaListModels", "filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)"),
+        ("GeminiV1BetaListModels", "filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)"),
+    ),
+)
+
+# v0.2.7 changes invalid amount handling from an early return to a block that
+# restores the previous valid value. Keep that official control-flow shape
+# while the Custom regex remains currency-precision aware.
+_v027_amount_input_path = "frontend/src/components/payment/AmountInput.vue"
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v027_vendor_commit,
+    _v027_amount_input_path,
+)] = _reviewed_baseline_delta(
+    _v025_baseline_control_approvals[_v027_amount_input_path],
+    remove=(("handleInput", "if (!amountPattern.value.test(val)) return"),),
+    add=(("handleInput", "if (!amountPattern.value.test(val)) {"),),
+)
+
 FUNCTION_START_PATTERNS = (
 
 
