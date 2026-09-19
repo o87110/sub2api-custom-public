@@ -307,6 +307,7 @@ thin_bridge_allowed() {
       backend/internal/service/subscription_service.go | \
       backend/internal/service/user_subscription_port.go | \
       backend/internal/service/user_subscription.go | \
+      backend/internal/service/wire.go | \
       frontend/src/api/admin/affiliates.ts | \
       frontend/src/api/admin/channelMonitor.ts | \
       frontend/src/api/admin/payment.ts | \
