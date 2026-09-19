@@ -127,7 +127,7 @@ backend/internal/service/redeem_service.go	delegate	true	9	5	86f93c28ee34cc74b62
 backend/internal/service/subscription_service.go	delegate	true	188	26	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:192:32,aea725f2ea644d5592d0bbb1d63b607efa7e200a:192:32
 backend/internal/service/user_subscription.go	dto	false	13	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:13:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:13:0
 backend/internal/service/user_subscription_port.go	dto	true	30	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:30:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:30:0
-backend/internal/service/wire.go	wire	true	17	1	aea725f2ea644d5592d0bbb1d63b607efa7e200a:17:1
+backend/internal/service/wire.go	wire	true	0	0	aea725f2ea644d5592d0bbb1d63b607efa7e200a:17:1
 frontend/src/api/admin/affiliates.ts	dto	false	104	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:104:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:104:0
 frontend/src/api/admin/channelMonitor.ts	dto	false	7	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:7:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:7:0
 frontend/src/api/admin/payment.ts	dto	true	9	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:9:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:9:0
