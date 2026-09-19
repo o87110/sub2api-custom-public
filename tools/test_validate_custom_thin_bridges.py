@@ -466,7 +466,7 @@ class ThinBridgeContractTests(unittest.TestCase):
             validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[(current, gemini_path)],
         )
 
-    def test_v027_approves_gemini_model_adapter_helpers(self) -> None:
+    def test_v027_preserves_gemini_model_adapter_boundaries(self) -> None:
         helpers = validator.APPROVED_UPGRADE_NEW_BRIDGE_FUNCTIONS[
             "backend/internal/handler/gemini_v1beta_handler.go"
         ]
@@ -481,6 +481,11 @@ class ThinBridgeContractTests(unittest.TestCase):
             )
         ]
         for call in (
+            ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
+            ("GeminiV1BetaListModels", "filterUpstreamGeminiModelsBody"),
+        ):
+            self.assertIn(call, calls)
+        for call in (
             ("GeminiV1BetaListModels", "append"),
             ("GeminiV1BetaListModels", "appendUpstreamGeminiModels"),
             ("GeminiV1BetaListModels", "gemini.DefaultModels"),
@@ -491,7 +496,7 @@ class ThinBridgeContractTests(unittest.TestCase):
             ),
             ("GeminiV1BetaListModels", "mergeGeminiModelLists"),
         ):
-            self.assertIn(call, calls)
+            self.assertNotIn(call, calls)
         control = validator.BASELINE_DELEGATE_VIEW_CONTROL[
             (
                 "aea725f2ea644d5592d0bbb1d63b607efa7e200a",
@@ -512,7 +517,7 @@ class ThinBridgeContractTests(unittest.TestCase):
                 "backend/internal/handler/gemini_v1beta_handler.go",
             )
         ]
-        self.assertIn(
+        self.assertNotIn(
             (
                 "GeminiV1BetaListModels",
                 "agModels = append(agModels, gemini.FallbackModel(id))",
@@ -523,8 +528,8 @@ class ThinBridgeContractTests(unittest.TestCase):
         antigravity_calls = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
             ("aea725f2ea644d5592d0bbb1d63b607efa7e200a", antigravity_path)
         ]
-        self.assertIn(("ForwardGemini", "logger.LegacyPrintf"), antigravity_calls)
-        self.assertIn(
+        self.assertNotIn(("ForwardGemini", "logger.LegacyPrintf"), antigravity_calls)
+        self.assertNotIn(
             ("ForwardGemini", "resolveGeminiThinkingVariant"),
             antigravity_calls,
         )

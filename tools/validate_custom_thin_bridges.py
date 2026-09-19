@@ -6684,9 +6684,9 @@ for _path, _control in _v025_baseline_control_approvals.items():
 for _path, _orchestration in _v025_baseline_orchestration_approvals.items():
     BASELINE_DELEGATE_VIEW_ORCHESTRATION[(_v027_vendor_commit, _path)] = _orchestration
 
-# v0.2.7 moves the Gemini fallback list construction and model-name trimming
-# into the official implementation. The candidate adds only the Custom
-# allowlist/filtering calls plus nil-safe dynamic upstream filtering.
+# v0.2.7 moves the Gemini fallback list construction, model-name trimming, and
+# dynamic upstream model merge into the official implementation. The candidate
+# adds only the reviewed Custom allowlist/filtering calls.
 _v027_gemini_models_path = "backend/internal/handler/gemini_v1beta_handler.go"
 BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     _v027_vendor_commit,
@@ -6702,12 +6702,6 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
         ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
         ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
         ("GeminiV1BetaListModels", "filterUpstreamGeminiModelsBody"),
-        ("GeminiV1BetaListModels", "append"),
-        ("GeminiV1BetaListModels", "appendUpstreamGeminiModels"),
-        ("GeminiV1BetaListModels", "gemini.DefaultModels"),
-        ("GeminiV1BetaListModels", "gemini.FallbackModel"),
-        ("GeminiV1BetaListModels", "h.geminiCompatService.AntigravityGeminiModelIDs"),
-        ("GeminiV1BetaListModels", "mergeGeminiModelLists"),
     ),
 )
 _v027_antigravity_gemini_path = "backend/internal/service/antigravity_gateway_gemini.go"
@@ -6716,10 +6710,6 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     _v027_antigravity_gemini_path,
 )] = _reviewed_baseline_delta(
     _v025_baseline_call_approvals[_v027_antigravity_gemini_path],
-    add=(
-        ("ForwardGemini", "logger.LegacyPrintf"),
-        ("ForwardGemini", "resolveGeminiThinkingVariant"),
-    ),
 )
 BASELINE_DELEGATE_VIEW_CONTROL[(
     _v027_vendor_commit,
@@ -6752,10 +6742,6 @@ BASELINE_DELEGATE_VIEW_ORCHESTRATION[(
         ("GeminiV1BetaListModels", "filterAndWriteModels(antigravity.FallbackGeminiModelsList(), service.PlatformAntigravity)"),
         ("GeminiV1BetaListModels", "filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)"),
         ("GeminiV1BetaListModels", "filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)"),
-        ("customGeminiModelsList", "models = append(models, gemini.FallbackModel(modelID))"),
-    ),
-    add=(
-        ("GeminiV1BetaListModels", "agModels = append(agModels, gemini.FallbackModel(id))"),
     ),
 )
 
