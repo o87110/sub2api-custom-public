@@ -307,6 +307,7 @@ thin_bridge_allowed() {
       backend/internal/service/subscription_service.go | \
       backend/internal/service/user_subscription_port.go | \
       backend/internal/service/user_subscription.go | \
+      backend/internal/service/wire.go | \
       frontend/src/api/admin/affiliates.ts | \
       frontend/src/api/admin/channelMonitor.ts | \
       frontend/src/api/admin/payment.ts | \
@@ -370,7 +371,7 @@ while IFS=$'\t' read -r \
   [[ "$initial_status" =~ ^[AMD]$ ]] ||
     fail "invalid initial status for $path: $initial_status"
   case "$category" in
-    whole-file-restore | official-thin-bridge | generated | fixed-path | \
+      whole-file-restore | official-thin-bridge | official-thin-bridge-preflight | generated | fixed-path | \
       custom-backend | custom-frontend | custom-test | custom-docs-ops | \
       explicit-exception)
       ;;
@@ -386,7 +387,8 @@ while IFS=$'\t' read -r \
 
   status="$(actual_status "$path")"
   if [[ "$decision" == "restore" ]]; then
-    [[ "$expected_status" == "RESTORED" && "$category" == "whole-file-restore" ]] ||
+    [[ "$expected_status" == "RESTORED" &&
+       "$category" =~ ^(whole-file-restore|official-thin-bridge-preflight)$ ]] ||
       fail "restored path has invalid status/category: $path"
     [[ -z "$status" ]] || fail "restored path still differs from baseline: $path"
     is_sha "$base_blob" || fail "restored path must exist in the baseline: $path"
