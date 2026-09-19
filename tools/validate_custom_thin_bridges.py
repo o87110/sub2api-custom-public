@@ -6702,6 +6702,23 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
         ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
         ("GeminiV1BetaListModels", "apiKey.Group.ModelAllowlistEnabled"),
         ("GeminiV1BetaListModels", "filterUpstreamGeminiModelsBody"),
+        ("GeminiV1BetaListModels", "append"),
+        ("GeminiV1BetaListModels", "appendUpstreamGeminiModels"),
+        ("GeminiV1BetaListModels", "gemini.DefaultModels"),
+        ("GeminiV1BetaListModels", "gemini.FallbackModel"),
+        ("GeminiV1BetaListModels", "h.geminiCompatService.AntigravityGeminiModelIDs"),
+        ("GeminiV1BetaListModels", "mergeGeminiModelLists"),
+    ),
+)
+_v027_antigravity_gemini_path = "backend/internal/service/antigravity_gateway_gemini.go"
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v027_vendor_commit,
+    _v027_antigravity_gemini_path,
+)] = _reviewed_baseline_delta(
+    _v025_baseline_call_approvals[_v027_antigravity_gemini_path],
+    add=(
+        ("ForwardGemini", "logger.LegacyPrintf"),
+        ("ForwardGemini", "resolveGeminiThinkingVariant"),
     ),
 )
 BASELINE_DELEGATE_VIEW_CONTROL[(
@@ -6712,7 +6729,19 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     add=(
         ("GeminiV1BetaListModels", "if h.gatewayService != nil {"),
         ("GeminiV1BetaListModels", "if h.gatewayService != nil {"),
+        ("GeminiV1BetaListModels", "for _, id := range agModelIDs {"),
+        ("GeminiV1BetaListModels", "if filtered, dropped, ok := filterUpstreamGeminiModelsBody(res.Body, apiKey.Group.ModelAllowlist); ok && dropped {"),
+        ("GeminiV1BetaListModels", "if len(agModels) > 0 {"),
+        ("GeminiV1BetaListModels", "if merged, ok := appendUpstreamGeminiModels(res.Body, agModels); ok {"),
+        ("GeminiV1BetaListModels", "if res.StatusCode == http.StatusOK && len(agModels) > 0 {"),
     ),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v027_vendor_commit,
+    _v027_antigravity_gemini_path,
+)] = _reviewed_baseline_delta(
+    _v025_baseline_control_approvals[_v027_antigravity_gemini_path],
+    add=(("ForwardGemini", "if !variantResolved {"),),
 )
 BASELINE_DELEGATE_VIEW_ORCHESTRATION[(
     _v027_vendor_commit,
@@ -6723,6 +6752,10 @@ BASELINE_DELEGATE_VIEW_ORCHESTRATION[(
         ("GeminiV1BetaListModels", "filterAndWriteModels(antigravity.FallbackGeminiModelsList(), service.PlatformAntigravity)"),
         ("GeminiV1BetaListModels", "filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)"),
         ("GeminiV1BetaListModels", "filterAndWriteModels(gemini.FallbackModelsList(), service.PlatformGemini)"),
+        ("customGeminiModelsList", "models = append(models, gemini.FallbackModel(modelID))"),
+    ),
+    add=(
+        ("GeminiV1BetaListModels", "agModels = append(agModels, gemini.FallbackModel(id))"),
     ),
 )
 
@@ -7188,9 +7221,9 @@ def validate_delegate_view_structure(
         (baseline_commit, row.path),
         APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()),
     ))
-    if custom_baseline and upgrade_baseline_commit == _v024_vendor_commit:
+    if custom_baseline and upgrade_baseline_commit in {_v024_vendor_commit, _v027_vendor_commit}:
         approved_calls |= Counter(BASELINE_DELEGATE_VIEW_CALL_DELTAS.get(
-            (_v024_vendor_commit, row.path),
+            (upgrade_baseline_commit, row.path),
             (),
         ))
     if (
@@ -7256,9 +7289,9 @@ def validate_delegate_view_structure(
         (baseline_commit, row.path),
         APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()),
     ))
-    if custom_baseline and upgrade_baseline_commit == _v024_vendor_commit:
+    if custom_baseline and upgrade_baseline_commit in {_v024_vendor_commit, _v027_vendor_commit}:
         approved_control |= Counter(BASELINE_DELEGATE_VIEW_CONTROL.get(
-            (_v024_vendor_commit, row.path),
+            (upgrade_baseline_commit, row.path),
             (),
         ))
     if custom_baseline:
@@ -7267,10 +7300,10 @@ def validate_delegate_view_structure(
         # newly introduced orchestration remains unexpected unless explicitly
         # reviewed in a future upgrade-specific contract.
         approved_orchestration = Counter()
-        if upgrade_baseline_commit == _v024_vendor_commit:
+        if upgrade_baseline_commit in {_v024_vendor_commit, _v027_vendor_commit}:
             approved_orchestration = Counter(
                 BASELINE_DELEGATE_VIEW_ORCHESTRATION.get(
-                    (_v024_vendor_commit, row.path),
+                    (upgrade_baseline_commit, row.path),
                     (),
                 )
             )

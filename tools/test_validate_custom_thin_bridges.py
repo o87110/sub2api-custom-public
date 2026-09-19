@@ -474,6 +474,66 @@ class ThinBridgeContractTests(unittest.TestCase):
             helpers,
             frozenset({"appendUpstreamGeminiModels", "mergeGeminiModelLists"}),
         )
+        calls = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+            (
+                "aea725f2ea644d5592d0bbb1d63b607efa7e200a",
+                "backend/internal/handler/gemini_v1beta_handler.go",
+            )
+        ]
+        for call in (
+            ("GeminiV1BetaListModels", "append"),
+            ("GeminiV1BetaListModels", "appendUpstreamGeminiModels"),
+            ("GeminiV1BetaListModels", "gemini.DefaultModels"),
+            ("GeminiV1BetaListModels", "gemini.FallbackModel"),
+            (
+                "GeminiV1BetaListModels",
+                "h.geminiCompatService.AntigravityGeminiModelIDs",
+            ),
+            ("GeminiV1BetaListModels", "mergeGeminiModelLists"),
+        ):
+            self.assertIn(call, calls)
+        control = validator.BASELINE_DELEGATE_VIEW_CONTROL[
+            (
+                "aea725f2ea644d5592d0bbb1d63b607efa7e200a",
+                "backend/internal/handler/gemini_v1beta_handler.go",
+            )
+        ]
+        for marker in (
+            ("GeminiV1BetaListModels", "for _, id := range agModelIDs {"),
+            (
+                "GeminiV1BetaListModels",
+                "if merged, ok := appendUpstreamGeminiModels(res.Body, agModels); ok {",
+            ),
+        ):
+            self.assertIn(marker, control)
+        orchestration = validator.BASELINE_DELEGATE_VIEW_ORCHESTRATION[
+            (
+                "aea725f2ea644d5592d0bbb1d63b607efa7e200a",
+                "backend/internal/handler/gemini_v1beta_handler.go",
+            )
+        ]
+        self.assertIn(
+            (
+                "GeminiV1BetaListModels",
+                "agModels = append(agModels, gemini.FallbackModel(id))",
+            ),
+            orchestration,
+        )
+        antigravity_path = "backend/internal/service/antigravity_gateway_gemini.go"
+        antigravity_calls = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
+            ("aea725f2ea644d5592d0bbb1d63b607efa7e200a", antigravity_path)
+        ]
+        self.assertIn(("ForwardGemini", "logger.LegacyPrintf"), antigravity_calls)
+        self.assertIn(
+            ("ForwardGemini", "resolveGeminiThinkingVariant"),
+            antigravity_calls,
+        )
+        self.assertIn(
+            ("ForwardGemini", "if !variantResolved {"),
+            validator.BASELINE_DELEGATE_VIEW_CONTROL[
+                ("aea725f2ea644d5592d0bbb1d63b607efa7e200a", antigravity_path)
+            ],
+        )
 
     def test_v024_groups_view_binds_official_column_slice_calls(self) -> None:
         calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[
