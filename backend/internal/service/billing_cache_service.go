@@ -760,7 +760,11 @@ func (s *BillingCacheService) IncrementUserPlatformQuotaUsage(userID int64, plat
 // 订阅模式：检查缓存用量未超过限额（Group限额从参数传入）
 // platform 为请求的目标平台（如 "anthropic"），传空串 "" 时跳过 user × platform quota 检查。
 func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription, platform string) error {
-	// 简易模式默认跳过所有计费检查. An explicit key-window opt-in keeps
+	groupMinimumBalanceEnabled, err := s.checkCustomMinimumBalanceEligibility(ctx, user, group)
+	if err != nil {
+		return err
+	}
+	// 简易模式默认跳过官方计费检查. An explicit key-window opt-in keeps
 	// balance/subscription/platform checks bypassed while enforcing the three
 	// API-key monetary windows from the database source of truth.
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
@@ -768,10 +772,6 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 			return s.checkSimpleModeAPIKeyRateLimits(ctx, apiKey)
 		}
 		return nil
-	}
-	groupMinimumBalanceEnabled, err := s.checkCustomMinimumBalanceEligibility(ctx, user, group)
-	if err != nil {
-		return err
 	}
 	if !groupMinimumBalanceEnabled && s.circuitBreaker != nil && !s.circuitBreaker.Allow() {
 		return ErrBillingServiceUnavailable
