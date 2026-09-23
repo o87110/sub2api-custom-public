@@ -1,7 +1,7 @@
 path	kind	shadow_required	approved_additions	approved_deletions	baseline_budget_overrides
 backend/cmd/server/wire.go	wire	true	30	2	e8cb019fabf8b55199436229044cbf9aa7a82564:30:2,e98ef32eb29aecd30d1def615912ec4dc93173f3:30:2,2ac784c51a5d0925b324efef2ba6b3446c364781:30:2,aa236488351eb71e120fc2b6fb32e36b0374c918:30:2,86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:30:2,aea725f2ea644d5592d0bbb1d63b607efa7e200a:30:2
 backend/internal/domain/model_allowlist.go	dto	false	3	2	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:3:2,aea725f2ea644d5592d0bbb1d63b607efa7e200a:3:2
-backend/internal/domain/models_list_config.go	dto	false	5	3	5de5e2bed035d43591a2e10e51f420ef6a84eb98:9:0,86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:9:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:9:0
+backend/internal/domain/models_list_config.go	dto	false	5	3	fd80b08c90b55edcad5b00171b53f08721d30da1:9:0,5de5e2bed035d43591a2e10e51f420ef6a84eb98:9:0,86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:9:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:9:0
 backend/internal/handler/admin/channel_monitor_handler.go	dto	false	124	112	75f88be5f75c27771836b586f7de1503afa0e3bc:124:112,86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:124:112,aea725f2ea644d5592d0bbb1d63b607efa7e200a:124:112
 backend/internal/handler/admin/content_moderation_handler.go	dto	false	10	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:10:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:10:0
 backend/internal/handler/admin/group_handler.go	dto	false	4	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:4:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:4:0
@@ -9,7 +9,7 @@ backend/internal/handler/admin/payment_handler.go	delegate	true	64	45	86f93c28ee
 backend/internal/handler/admin/payment_handler_test.go	compat-test	true	23	14	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:23:14,aea725f2ea644d5592d0bbb1d63b607efa7e200a:23:14
 backend/internal/handler/admin/setting_handler.go	delegate	true	7	1	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:7:1,aea725f2ea644d5592d0bbb1d63b607efa7e200a:7:1
 backend/internal/handler/admin/setting_handler_update.go	delegate	true	29	18	e8cb019fabf8b55199436229044cbf9aa7a82564:29:18,e98ef32eb29aecd30d1def615912ec4dc93173f3:29:18,2ac784c51a5d0925b324efef2ba6b3446c364781:29:18,aa236488351eb71e120fc2b6fb32e36b0374c918:29:18,86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:29:18,aea725f2ea644d5592d0bbb1d63b607efa7e200a:29:18
-backend/internal/handler/admin/subscription_handler.go	delegate	true	165	22	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:169:21,aea725f2ea644d5592d0bbb1d63b607efa7e200a:169:21
+backend/internal/handler/admin/subscription_handler.go	delegate	true	165	22	fd80b08c90b55edcad5b00171b53f08721d30da1:169:21,86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:169:21,aea725f2ea644d5592d0bbb1d63b607efa7e200a:169:21
 backend/internal/handler/admin/system_handler.go	delegate	true	19	26	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:19:26,aea725f2ea644d5592d0bbb1d63b607efa7e200a:19:26
 backend/internal/handler/admin/system_handler_test.go	compat-test	true	52	36	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:52:36,aea725f2ea644d5592d0bbb1d63b607efa7e200a:52:36
 backend/internal/handler/api_key_handler.go	delegate	true	21	4	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:21:4,aea725f2ea644d5592d0bbb1d63b607efa7e200a:21:4
@@ -20,7 +20,7 @@ backend/internal/handler/channel_monitor_user_handler.go	delegate	true	59	26	75f
 backend/internal/handler/dto/mappers.go	dto	false	28	22	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:28:22,aea725f2ea644d5592d0bbb1d63b607efa7e200a:28:22
 backend/internal/handler/dto/settings.go	dto	true	19	16	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:19:16,aea725f2ea644d5592d0bbb1d63b607efa7e200a:19:16
 backend/internal/handler/dto/types.go	dto	false	8	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:8:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:8:0
-backend/internal/handler/gateway_handler.go	delegate	true	49	15	578785ee7fb35030b094b69624efe25670a36f5f:49:64,5de5e2bed035d43591a2e10e51f420ef6a84eb98:8:1,86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:8:1,aea725f2ea644d5592d0bbb1d63b607efa7e200a:8:1
+backend/internal/handler/gateway_handler.go	delegate	true	49	15	fd80b08c90b55edcad5b00171b53f08721d30da1:8:1,578785ee7fb35030b094b69624efe25670a36f5f:49:64,5de5e2bed035d43591a2e10e51f420ef6a84eb98:8:1,86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:8:1,aea725f2ea644d5592d0bbb1d63b607efa7e200a:8:1
 backend/internal/handler/gateway_handler_chat_completions.go	delegate	true	10	6	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:10:6,aea725f2ea644d5592d0bbb1d63b607efa7e200a:10:6
 backend/internal/handler/gateway_handler_responses.go	delegate	true	6	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:6:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:6:0
 backend/internal/handler/gateway_helper.go	delegate	true	42	0	86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea:42:0,aea725f2ea644d5592d0bbb1d63b607efa7e200a:42:0
