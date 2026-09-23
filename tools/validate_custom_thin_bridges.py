@@ -6758,6 +6758,23 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     add=(("handleInput", "if (!amountPattern.value.test(val)) {"),),
 )
 
+# Official v0.2.8 rewrites Responses conversion around the final mapped model.
+# Preserve the Custom post-conversion effort fallback as one explicit call in
+# the exact Vendor v0.2.8 baseline approval surface.
+_v028_vendor_commit = "fd80b08c90b55edcad5b00171b53f08721d30da1"
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v028_vendor_commit, "backend/internal/service/gateway_forward_as_responses.go")] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/service/gateway_forward_as_responses.go"
+    ],
+    add=(("ForwardAsResponses", "ApplyThinkingEnabledFallback"),),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(_v028_vendor_commit, "backend/internal/service/gateway_forward_as_responses.go")] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/service/gateway_forward_as_responses.go"
+    ],
+    add=(("ForwardAsResponses", "if reasoningEffort == nil {"),),
+)
+
 FUNCTION_START_PATTERNS = (
 
 
@@ -7182,6 +7199,7 @@ def validate_delegate_view_structure(
     *,
     custom_baseline: bool = False,
     upgrade_baseline_commit: str | None = None,
+    repo_root_for_structure: Path | None = None,
 ) -> None:
     if row.kind not in {"delegate", "view"}:
         return
@@ -7192,6 +7210,20 @@ def validate_delegate_view_structure(
     approved_new = approved_new | APPROVED_UPGRADE_NEW_BRIDGE_FUNCTIONS.get(
         row.path, frozenset()
     )
+    if (
+        custom_baseline
+        and upgrade_baseline_commit
+        and repo_root_for_structure is not None
+        and ref_path_exists(repo_root_for_structure, upgrade_baseline_commit, row.path)
+    ):
+        # The official increment may add helper functions to a file that also
+        # carries Custom bridge code. Only newly added Custom functions remain
+        # subject to the explicit bridge allowlist.
+        official_content = candidate_file(
+            repo_root_for_structure, upgrade_baseline_commit, row.path
+        )
+        official_names = {block.name for block in function_blocks(official_content)}
+        approved_new = approved_new | frozenset(official_names - baseline_names)
     unexpected_functions = sorted({
         block.name
         for block in blocks
@@ -7207,7 +7239,7 @@ def validate_delegate_view_structure(
         (baseline_commit, row.path),
         APPROVED_DELEGATE_VIEW_CALL_DELTAS.get(row.path, ()),
     ))
-    if custom_baseline and upgrade_baseline_commit in {_v024_vendor_commit, _v027_vendor_commit}:
+    if custom_baseline and upgrade_baseline_commit:
         approved_calls |= Counter(BASELINE_DELEGATE_VIEW_CALL_DELTAS.get(
             (upgrade_baseline_commit, row.path),
             (),
@@ -7227,6 +7259,22 @@ def validate_delegate_view_structure(
         # historical Custom calls. Restrict approvals to calls truly added by
         # this candidate so old entries are not reclassified as upgrade work.
         approved_calls &= added_calls
+        if (
+            repo_root_for_structure is not None
+            and upgrade_baseline_commit
+            and ref_path_exists(repo_root_for_structure, upgrade_baseline_commit, row.path)
+        ):
+            # Calls introduced by the official baseline are trusted official
+            # surface. Keep the exact candidate delta intersection so a new
+            # Custom call still requires an explicit approval entry.
+            official_content = candidate_file(
+                repo_root_for_structure, upgrade_baseline_commit, row.path
+            )
+            official_calls = (
+                delegate_view_call_surface(official_content)
+                - delegate_view_call_surface(baseline_content)
+            )
+            approved_calls |= official_calls & added_calls
     elif baseline_commit == _v024_vendor_commit:
         # The v0.2.4 Vendor rewrite may remove historical bridge calls that
         # remain in older approval snapshots. Only approvals present in the
@@ -7275,7 +7323,7 @@ def validate_delegate_view_structure(
         (baseline_commit, row.path),
         APPROVED_DELEGATE_VIEW_CONTROL.get(row.path, ()),
     ))
-    if custom_baseline and upgrade_baseline_commit in {_v024_vendor_commit, _v027_vendor_commit}:
+    if custom_baseline and upgrade_baseline_commit:
         approved_control |= Counter(BASELINE_DELEGATE_VIEW_CONTROL.get(
             (upgrade_baseline_commit, row.path),
             (),
@@ -7458,7 +7506,42 @@ def validate(args: argparse.Namespace) -> None:
                 raise ContractError(f"high-risk business symbol returned to official bridge: {row.path}")
         if not unchanged_from_custom_baseline:
             additions_only = added_lines(repo, structure_baseline_for_row, args.candidate_tree, row.path)
-            code = "\n".join(line for line in additions_only if not line.lstrip().startswith(("//", "#", "*")))
+            official_added_lines: Counter[str] = Counter()
+            if (
+                custom_baseline_commit is not None
+                and structure_baseline_for_row == custom_baseline_commit
+                and ref_path_exists(repo, custom_baseline_commit, row.path)
+                and ref_path_exists(repo, baseline_commit, row.path)
+            ):
+                # A conflicted bridge contains both the trusted Custom code and
+                # the official increment. During upgrade validation, remove only
+                # exact lines introduced by the official baseline so the bridge
+                # checks continue to cover newly added Custom behavior.
+                official_added_lines = Counter(
+                    added_lines(repo, custom_baseline_commit, baseline_commit, row.path)
+                )
+            filtered_additions: list[str] = []
+            for line in additions_only:
+                if official_added_lines[line] > 0:
+                    official_added_lines[line] -= 1
+                    continue
+                filtered_additions.append(line)
+            code = "\n".join(line for line in filtered_additions if not line.lstrip().startswith(("//", "#", "*")))
+            changed_line_numbers = added_line_numbers(
+                repo, structure_baseline_for_row, args.candidate_tree, row.path
+            )
+            filtered_changed_line_numbers = changed_line_numbers
+            if official_added_lines:
+                remaining_official_lines = Counter(
+                    added_lines(repo, custom_baseline_commit, baseline_commit, row.path)
+                )
+                filtered_changed_line_numbers = set()
+                for line_number in sorted(changed_line_numbers):
+                    line = content.splitlines()[line_number - 1]
+                    if remaining_official_lines[line] > 0:
+                        remaining_official_lines[line] -= 1
+                        continue
+                    filtered_changed_line_numbers.add(line_number)
             if row.kind in {"delegate", "view"}:
                 baseline_content = (
                     candidate_file(repo, structure_baseline_for_row, row.path)
@@ -7470,9 +7553,10 @@ def validate(args: argparse.Namespace) -> None:
                     structure_baseline_for_row,
                     baseline_content,
                     content,
-                    added_line_numbers(repo, structure_baseline_for_row, args.candidate_tree, row.path),
+                    filtered_changed_line_numbers,
                     custom_baseline=custom_baseline_commit is not None,
                     upgrade_baseline_commit=baseline_commit,
+                    repo_root_for_structure=repo,
                 )
             if row.kind in {"dto", "wire", "persistence"} and CONTROL_FLOW_RE.search(code):
                 raise ContractError(f"{row.kind} bridge introduces a loop or watcher: {row.path}")

@@ -35,7 +35,9 @@
 
   <AffiliateReversalDialog
     :show="showDialog"
-    :order-ids="selectedRecords.map(record => record.order_id)"
+    :order-ids="selectedRecords
+      .map(record => record.order_id)
+      .filter((orderId): orderId is number => orderId !== null)"
     @close="showDialog = false"
     @busy-change="busy = $event"
     @completed="handleCompleted"
