@@ -1,5 +1,5 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	1962a88541ddd762cc52b350e72ffeadc93a3385	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	1ba70d3b326bd32ed2c1988c803f125e1c7d3a07	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
 .github/audit-exceptions.yml	M	keep	M	fixed-path	6243f0fa7faa26a7c571955b1d5772e7dd4391cc	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	9b195574491f3831c00e0744488158ccfc4a4481	-	-	database-boundary-unit+candidate-tree-test	登记全部 Custom 数据库结构与只读 SQL 例外，并绑定 vendor-0.2.7 准确 Blob 与语义指纹
@@ -437,7 +437,7 @@ backend/migrations/subscription_plan_bulk_quota_reset_migration_test.go	A	keep	A
 backend/migrations/subscription_plan_inventory_migration_test.go	A	keep	A	custom-test	@absent	66b5a013a0dc3fb8c16519642b30bc3bc3a82bbd	-	-	database-boundary-unit+migration-review+go-test	验证库存 Migration 的可空兼容、非负约束和合法状态集合
 backend/migrations/subscription_plan_renewal_policy_migration_test.go	A	keep	A	custom-test	@absent	355653ca38e57d4fbef53b8b2690ea8490c218dc	-	-	targeted-test	subscription renewal policy
 backend/migrations/subscription_plan_sold_out_action_migration_test.go	A	keep	A	custom-test	@absent	8d5c0d0fab5e78ccf5320fb3c2f215962f38bfd0	-	-	database-boundary-unit+migration-review+go-test	验证售罄策略默认值、合法枚举及历史套餐不需数据回写
-deploy/.env.example	M	keep	M	fixed-path	47f249b6aae9d160f86f9f3104545770cb2a1ffb	09cb932e69667b69a44d05525bc075d4924311fb	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+deploy/.env.example	M	keep	M	fixed-path	47f249b6aae9d160f86f9f3104545770cb2a1ffb	36333966573f02ea04e7a5d3b474bbbd05caa1eb	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 deploy/CUSTOM_UPGRADE_CN.md	A	keep	A	custom-docs-ops	@absent	ae8da2590530f2c84e96a04fc8450ea27c1b6ec4	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
 deploy/README.md	M	keep	M	custom-docs-ops	f38257e397f87880b4be86b6d88f779aa8c575e1	f07da6f85e75a7052547f87d4870716e90d2ec24	-	-	documentation-consistency-review	公开二改部署文档需要固定准确镜像、匹配公开仓库并记录旧部署 runtime 的隔离保全顺序
 deploy/docker-compose.custom.yml	A	keep	A	fixed-path	@absent	f0a74a10c339a23bb53fd31f28e4440e8fc59b61	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -469,6 +469,7 @@ deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
 deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	361e16b491ff71d305c566795628c7c796694739	-	-	goreleaser-check+release-safety+runtime-resource-test	验证发布输入分类、同 SHA 门禁复用、前端来源、Manifest 兼容、缓存与耗时契约
 deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	23f3a33125a159f061af4af42e6b4f0dcc325cb8	-	-	candidate-tree+shadow-map+thin-bridge-contract	双版本允许 v0.2.1 与 v0.2.4 重命名前后的薄桥路径
+deploy/tests/docker-compose-simple-mode-env-test.sh	A	keep	A	custom-test	@absent	320fbbd4e447e09cc248696760c1d6cc618a75a6	-	-	compose-config+targeted-CI	验证简易模式 YAML 环境变量覆盖保持空值语义
 deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
 deploy/tests/docker-runtime-resources-test.sh	M	keep	M	custom-test	4e7480d4d59c6edda9bbd3259f47c0db4fc7e5aa	4752f88556f2706ef283163c6524b64f90368f6d	-	-	runtime-resource-test+release-safety	验证官方及 Custom 镜像构建链路均携带定价 fallback resources
 deploy/tests/frontend-dist-safety-test.sh	A	keep	A	custom-test	@absent	a79c40721355a3b9c0dad1ce1ab43fd46caaa1f3	-	-	frontend-artifact-fixtures+release-safety	验证前端 Artifact 复用、失败关闭及 v1 内容哈希不依赖 GNU tar
