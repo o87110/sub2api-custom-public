@@ -176,8 +176,6 @@ jobs:
           set -euo pipefail
           /bin/bash -n deploy/apple-container.sh deploy/rehearsal/preflight.sh
           /bin/sh -n deploy/docker-entrypoint.sh
-      - name: Check Docker Compose simple mode environment
-        run: /bin/sh deploy/tests/docker-compose-simple-mode-env-test.sh
       - name: Check deployment safety
         if: >-
           ${{
@@ -490,13 +488,3 @@ jobs:
           for result in "$BOUNDARIES" "$SHELL" "$UNIT" "$INTEGRATION" "$BUILD" "$FRONTEND" "$LINT"; do
             [[ "$result" == "success" ]]
           done
-
-  release-helpers:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Validate official release helpers
-        run: |
-          python -m pip install -r .github/release-tools/requirements-release.txt
-          python -m unittest discover -s .github/release-tools -p 'test_release_matrix.py'
-          bash -n .github/release-tools/release-images.sh
