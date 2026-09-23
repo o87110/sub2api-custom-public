@@ -1,5 +1,5 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	1962a88541ddd762cc52b350e72ffeadc93a3385	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	1ba70d3b326bd32ed2c1988c803f125e1c7d3a07	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
 .github/audit-exceptions.yml	M	keep	M	fixed-path	6243f0fa7faa26a7c571955b1d5772e7dd4391cc	ff735b3841fb9f8842ae8d45c27c5ca2cceb1ce9	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	d9f21e9ebca15214846946bced8c223df583ec44	-	-	database-boundary-unit+candidate-tree-test	登记全部 Custom 数据库结构与只读 SQL 例外，并绑定 vendor-0.2.7 准确 Blob 与语义指纹

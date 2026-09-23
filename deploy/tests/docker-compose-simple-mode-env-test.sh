@@ -30,6 +30,7 @@ for filename in (
             os.environ, POSTGRES_PASSWORD="compose-test-password",
             DATABASE_HOST="postgres", DATABASE_PASSWORD="compose-test-password",
             REDIS_HOST="redis",
+            SUB2API_IMAGE="ghcr.io/o87110/sub2api-custom-public:test",
         )
         env.pop(key, None)
         if value is not None:
