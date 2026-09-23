@@ -7458,7 +7458,42 @@ def validate(args: argparse.Namespace) -> None:
                 raise ContractError(f"high-risk business symbol returned to official bridge: {row.path}")
         if not unchanged_from_custom_baseline:
             additions_only = added_lines(repo, structure_baseline_for_row, args.candidate_tree, row.path)
-            code = "\n".join(line for line in additions_only if not line.lstrip().startswith(("//", "#", "*")))
+            official_added_lines: Counter[str] = Counter()
+            if (
+                custom_baseline_commit is not None
+                and structure_baseline_for_row == custom_baseline_commit
+                and ref_path_exists(repo, custom_baseline_commit, row.path)
+                and ref_path_exists(repo, baseline_commit, row.path)
+            ):
+                # A conflicted bridge contains both the trusted Custom code and
+                # the official increment. During upgrade validation, remove only
+                # exact lines introduced by the official baseline so the bridge
+                # checks continue to cover newly added Custom behavior.
+                official_added_lines = Counter(
+                    added_lines(repo, custom_baseline_commit, baseline_commit, row.path)
+                )
+            filtered_additions: list[str] = []
+            for line in additions_only:
+                if official_added_lines[line] > 0:
+                    official_added_lines[line] -= 1
+                    continue
+                filtered_additions.append(line)
+            code = "\n".join(line for line in filtered_additions if not line.lstrip().startswith(("//", "#", "*")))
+            changed_line_numbers = added_line_numbers(
+                repo, structure_baseline_for_row, args.candidate_tree, row.path
+            )
+            filtered_changed_line_numbers = changed_line_numbers
+            if official_added_lines:
+                remaining_official_lines = Counter(
+                    added_lines(repo, custom_baseline_commit, baseline_commit, row.path)
+                )
+                filtered_changed_line_numbers = set()
+                for line_number in sorted(changed_line_numbers):
+                    line = content.splitlines()[line_number - 1]
+                    if remaining_official_lines[line] > 0:
+                        remaining_official_lines[line] -= 1
+                        continue
+                    filtered_changed_line_numbers.add(line_number)
             if row.kind in {"delegate", "view"}:
                 baseline_content = (
                     candidate_file(repo, structure_baseline_for_row, row.path)
@@ -7470,7 +7505,7 @@ def validate(args: argparse.Namespace) -> None:
                     structure_baseline_for_row,
                     baseline_content,
                     content,
-                    added_line_numbers(repo, structure_baseline_for_row, args.candidate_tree, row.path),
+                    filtered_changed_line_numbers,
                     custom_baseline=custom_baseline_commit is not None,
                     upgrade_baseline_commit=baseline_commit,
                 )
