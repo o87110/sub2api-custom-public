@@ -65,4 +65,9 @@ func (lifecycle *CodexVersionSyncLifecycle) Stop() {
 }
 
 // ProviderSet contains the custom updater providers.
-var ProviderSet = wire.NewSet(ProvideUpdateCache, ProvideService, ProvideCodexVersionSyncLifecycle)
+var ProviderSet = wire.NewSet(
+	ProvideUpdateCache,
+	ProvideService,
+	NewVersionInfoClient,
+	ProvideCodexVersionSyncLifecycle,
+)
