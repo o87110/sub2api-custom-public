@@ -33,7 +33,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.2.7.md	A	keep	A	custom-docs-ops	@absent	1c3e9fdcdfce5c881d7ba76a855ffa3129dcbe1c	-	-	candidate-tree+targeted-CI	记录 v0.2.7 升级候选树、冲突语义移植、数据库审查与验证证据
 .github/upgrades/0.2.8.md	A	keep	A	custom-docs-ops	@absent	c057c2b5f8a78c58fdfea174011e1dc07b91deb7	-	-	documentation-consistency-review+candidate-tree-test	同步官方升级记录与仓库边界文档
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	28ffa9668bb6054453f47f6c1294b41404ac7d0b	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记 v0.2.1 与 v0.2.4 重命名前后的官方影子源替代关系
-.github/workflows/backend-ci.yml	M	keep	M	fixed-path	2ee5bd389b52840d9c411d7e9bdafbe97c8b14da	42bce667dc0044b93209fb18cfc816c600f7c0d5	-	-	yaml-parse+action-pin+actionlint+container-safety	并行边界门禁、收窄 Integration 包并为准确 main SHA 产出前端 Release Artifact；集成 harness 保持 UTC，分组用量测试在事务内显式设置业务时区
+.github/workflows/backend-ci.yml	M	keep	M	fixed-path	2ee5bd389b52840d9c411d7e9bdafbe97c8b14da	dc2964bf0bf3b016e2c6ad4719516deb58741960	-	-	yaml-parse+action-pin+actionlint+container-safety	并行边界门禁、收窄 Integration 包并为准确 main SHA 产出前端 Release Artifact；集成 harness 保持 UTC，分组用量测试在事务内显式设置业务时区；CI 薄桥接校验绑定受信任 Custom 基线
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
 .github/workflows/release.yml	M	keep	M	fixed-path	f14db676610d498e5f9b2dce8ec9ddc5b01bc425	fc9d57a34c6bc752e72b2898c40124097508e8bd	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	97357efde27a364ce6dcccad34141f2aa16a4418	1fc1fa808dfd146f499687499c64717da350d222	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
@@ -470,7 +470,7 @@ deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	7e
 deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad7233c21340ce3dd1969db55ed51	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
 deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	361e16b491ff71d305c566795628c7c796694739	-	-	goreleaser-check+release-safety+runtime-resource-test	验证发布输入分类、同 SHA 门禁复用、前端来源、Manifest 兼容、缓存与耗时契约
-deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	23f3a33125a159f061af4af42e6b4f0dcc325cb8	-	-	candidate-tree+shadow-map+thin-bridge-contract	双版本允许 v0.2.1 与 v0.2.4 重命名前后的薄桥路径
+deploy/tests/custom-upstream-delta-test.sh	A	keep	A	custom-test	@absent	dcc06ee0a8022d7b7ffcf04bd3f4cfe1b18ecc39	-	-	candidate-tree+shadow-map+thin-bridge-contract	双版本允许 v0.2.1 与 v0.2.4 重命名前后的薄桥路径
 deploy/tests/docker-compose-simple-mode-env-test.sh	M	keep	M	custom-test	28f4eec14a17c2ed989528b089b7a1363a88aeae	320fbbd4e447e09cc248696760c1d6cc618a75a6	-	-	candidate-tree+targeted-CI	保留 main CI 控制面传递 SUB2API_IMAGE 的 Compose 回归测试
 deploy/tests/docker-entrypoint-runtime-test.sh	A	keep	A	custom-test	@absent	8be8765a1b6fe7a3172bfaf775c6677159d3dd90	-	-	bash-syntax+runtime-selection-tests	验证二改行为和发布边界
 deploy/tests/docker-runtime-resources-test.sh	M	keep	M	custom-test	4e7480d4d59c6edda9bbd3259f47c0db4fc7e5aa	4752f88556f2706ef283163c6524b64f90368f6d	-	-	runtime-resource-test+release-safety	验证官方及 Custom 镜像构建链路均携带定价 fallback resources

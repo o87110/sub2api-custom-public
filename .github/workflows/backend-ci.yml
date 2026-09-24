@@ -132,14 +132,25 @@ jobs:
         id: candidate
         env:
           CHECKOUT_SHA: ${{ needs.verify-target.outputs.checkout_sha }}
+          BASE_SHA: ${{ needs.verify-target.outputs.base_sha }}
         run: |
           set -euo pipefail
           candidate_tree="$(/bin/bash deploy/tests/custom-candidate-tree.sh --commit "$CHECKOUT_SHA")"
           echo "tree=$candidate_tree" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            custom_baseline="$BASE_SHA"
+          else
+            custom_baseline="$(git rev-parse --verify "${CHECKOUT_SHA}^")"
+          fi
+          expected_tree="$(git rev-parse --verify "${custom_baseline}^{tree}")"
+          echo "custom_baseline=$custom_baseline" >> "$GITHUB_OUTPUT"
+          echo "expected_tree=$expected_tree" >> "$GITHUB_OUTPUT"
       - name: Enforce upstream delta ledger
         if: needs.verify-target.outputs.is_official_upgrade != 'true'
         env:
           CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
+          CUSTOM_THIN_BRIDGE_CUSTOM_BASELINE: ${{ steps.candidate.outputs.custom_baseline }}
+          CUSTOM_THIN_BRIDGE_EXPECTED_TREE: ${{ steps.candidate.outputs.expected_tree }}
         run: /bin/bash deploy/tests/custom-upstream-delta-test.sh --candidate-tree "$CANDIDATE_TREE"
       - name: Enforce database semantic boundary
         if: needs.verify-target.outputs.is_official_upgrade != 'true'
