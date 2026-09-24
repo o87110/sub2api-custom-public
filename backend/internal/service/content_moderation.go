@@ -725,6 +725,9 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 	if input.CyberPolicyExcludeFromBanCount != nil {
 		cfg.CyberPolicyExcludeFromBanCount = *input.CyberPolicyExcludeFromBanCount
 	}
+	if err := s.reconcileDeletedContentModerationGroups(ctx, persistedCfg, cfg); err != nil {
+		return nil, err
+	}
 	// Legacy flat updates target the selected engine; explicit profiles preserve both drafts.
 	if err := s.updateEngineProfile(ctx, cfg, cfg.Engine, UpdateContentModerationEngineInput{
 		BaseURL: input.BaseURL, Model: input.Model, ProxyID: input.ProxyID, APIKey: input.APIKey,
@@ -737,9 +740,6 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 		if err := s.updateEngineProfile(ctx, cfg, engine, profile); err != nil {
 			return nil, err
 		}
-	}
-	if err := s.reconcileDeletedContentModerationGroups(ctx, persistedCfg, cfg); err != nil {
-		return nil, err
 	}
 	if err := s.validateConfig(ctx, cfg); err != nil {
 		return nil, err

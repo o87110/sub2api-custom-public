@@ -80,8 +80,8 @@ func (s *GatewayService) ForwardAsResponses(
 		return nil, err
 	}
 	requestedReasoningEffort := ExtractResponsesReasoningEffortFromBody(body, mappedModel, originalModel)
-	// 国产模型默认 effort 补充：需要 mappedModel 判定，推迟到 mapping 完成之后。
-	requestedReasoningEffort = ApplyThinkingEnabledFallback(requestedReasoningEffort, body, mappedModel)
+	// Preserve only explicit Responses effort here; unknown client thinking fields may be dropped.
+	// The pricing fallback below evaluates the actual forwarded Anthropic body.
 	if err := validateClaudeOpus55Request(body, mappedModel); err != nil {
 		writeResponsesError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
 		return nil, err
