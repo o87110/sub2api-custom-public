@@ -455,6 +455,17 @@ thin_bridge_args=(
   --baseline "$CUSTOM_UPSTREAM_BASE_COMMIT"
   --candidate-tree "$candidate_tree"
 )
+if [[ -z "${CUSTOM_THIN_BRIDGE_CUSTOM_BASELINE:-}" ]]; then
+  CUSTOM_THIN_BRIDGE_CUSTOM_BASELINE="$(
+    git -C "$repo_root" rev-parse --verify 'HEAD^'
+  )" || fail "custom thin bridge baseline cannot be inferred from HEAD"
+fi
+if [[ -z "${CUSTOM_THIN_BRIDGE_EXPECTED_TREE:-}" ]]; then
+  CUSTOM_THIN_BRIDGE_EXPECTED_TREE="$(
+    git -C "$repo_root" rev-parse --verify \
+      "${CUSTOM_THIN_BRIDGE_CUSTOM_BASELINE}^{tree}"
+  )" || fail "expected thin bridge tree cannot be inferred from the baseline"
+fi
 if [[ -n "${CUSTOM_THIN_BRIDGE_CUSTOM_BASELINE:-}" ]]; then
   git -C "$repo_root" rev-parse --verify \
     "${CUSTOM_THIN_BRIDGE_CUSTOM_BASELINE}^{commit}" >/dev/null ||
