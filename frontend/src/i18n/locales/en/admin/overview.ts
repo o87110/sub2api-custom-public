@@ -1200,7 +1200,21 @@ export default {
         invertSelection: 'Invert'
       },
       modelAllowlist: {
-        emptySelectionError: 'Select at least one model when the model allowlist is enabled'
+        title: 'Model Allowlist',
+        hint: 'When enabled, models outside the allowlist are rejected with 404 model_not_found, and model listing endpoints only show allowlisted models. Entries support exact model IDs and * wildcards anywhere (e.g., gpt-*-codex). Note: Claude Code probes with haiku-family models for titles/summaries and /messages/count_tokens is also allowlist-controlled, so make sure the small models you need are selected too.',
+        loading: 'Loading candidate models...',
+        empty: 'No candidate models; add custom entries below',
+        selectedSummary: 'Selected {selected} / {total}',
+        selectAll: 'Select all',
+        invertSelection: 'Invert',
+        wildcardTag: 'wildcard',
+        customPlaceholder: 'Custom entry, e.g. gpt-*-codex or claude-*',
+        addCustom: 'Add',
+        emptySelectionError: 'The model allowlist is enabled; select or add at least one model entry',
+        errors: {
+          empty: 'Please enter a model entry',
+          duplicate: 'This entry already exists'
+        }
       },
       codexModelsManifest: {
         title: 'Codex Model Manifest',

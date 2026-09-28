@@ -146,7 +146,7 @@ const normalizeModels = (models: string[]): string[] => {
 export interface ModelAllowlistConfig { enabled: boolean; models: string[] }
 export interface ModelAllowlistItem { id: string; selected: boolean }
 export interface ModelAllowlistState { enabled: boolean; savedModels: string[]; items: ModelAllowlistItem[] }
-export type ModelAllowlistAddError = 'empty' | 'invalid_wildcard' | 'duplicate'
+export type ModelAllowlistAddError = 'empty' | 'duplicate'
 
 export const createModelAllowlistState = (config?: Partial<ModelAllowlistConfig> | null): ModelAllowlistState => ({
   enabled: config?.enabled ?? false,
@@ -204,7 +204,6 @@ export const buildModelAllowlistConfig = (state: ModelAllowlistState): ModelAllo
 export const addCustomModelAllowlistItem = (state: ModelAllowlistState, raw: string): ModelAllowlistAddError | null => {
   const entry = raw.trim()
   if (!entry) return 'empty'
-  if (entry.slice(0, -1).includes('*')) return 'invalid_wildcard'
   if (state.items.some(item => item.id.toLowerCase() === entry.toLowerCase()) || state.savedModels.some(model => model.toLowerCase() === entry.toLowerCase())) return 'duplicate'
   state.items.push({ id: entry, selected: true })
   return null
