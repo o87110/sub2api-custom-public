@@ -2577,9 +2577,9 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
     ),
     "backend/internal/service/openai_gateway_chat_completions_raw.go": _approved_call_deltas(
         ("forwardAsRawChatCompletions", {
-            "err.Error": 2,
+            "err.Error": 3,
             "enforceResolvedModelAccess": 1,
-            "writeChatCompletionsError": 2,
+            "writeChatCompletionsError": 3,
         }),
     ),
     "backend/internal/service/openai_gateway_count_tokens.go": _approved_call_deltas(
@@ -2604,7 +2604,9 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
     ),
     "backend/internal/service/openai_gateway_messages_chat_fallback.go": _approved_call_deltas(
         ("forwardAnthropicViaRawChatCompletions", {
+            "err.Error": 3,
             "enforceResolvedModelAccess": 1,
+            "writeAnthropicError": 3,
         }),
     ),
     "backend/internal/service/openai_gateway_model_availability.go": _approved_call_deltas(

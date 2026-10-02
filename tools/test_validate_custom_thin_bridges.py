@@ -426,13 +426,31 @@ class ThinBridgeContractTests(unittest.TestCase):
         ]
 
         self.assertEqual(
-            2,
+            3,
             calls.count(("forwardAsRawChatCompletions", "err.Error")),
         )
         self.assertEqual(
-            2,
+            3,
             calls.count(
                 ("forwardAsRawChatCompletions", "writeChatCompletionsError")
+            ),
+        )
+
+    def test_current_upgrade_approves_anthropic_raw_chat_error_bridge_calls(self) -> None:
+        calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+            "backend/internal/service/openai_gateway_messages_chat_fallback.go"
+        ]
+
+        self.assertEqual(
+            3,
+            calls.count(
+                ("forwardAnthropicViaRawChatCompletions", "err.Error")
+            ),
+        )
+        self.assertEqual(
+            3,
+            calls.count(
+                ("forwardAnthropicViaRawChatCompletions", "writeAnthropicError")
             ),
         )
 
