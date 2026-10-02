@@ -2577,7 +2577,9 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
     ),
     "backend/internal/service/openai_gateway_chat_completions_raw.go": _approved_call_deltas(
         ("forwardAsRawChatCompletions", {
+            "err.Error": 2,
             "enforceResolvedModelAccess": 1,
+            "writeChatCompletionsError": 2,
         }),
     ),
     "backend/internal/service/openai_gateway_count_tokens.go": _approved_call_deltas(
