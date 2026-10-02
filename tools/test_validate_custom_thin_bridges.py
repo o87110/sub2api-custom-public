@@ -406,6 +406,14 @@ class ThinBridgeContractTests(unittest.TestCase):
             ],
         )
 
+    def test_current_upgrade_approves_chat_completion_error_bridge_calls(self) -> None:
+        calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+            "backend/internal/service/openai_gateway_chat_completions.go"
+        ]
+
+        self.assertIn(("forwardAsChatCompletions", "err.Error"), calls)
+        self.assertIn(("forwardAsChatCompletions", "writeChatCompletionsError"), calls)
+
     def test_v021_gateway_approvals_exclude_official_error_helpers(self) -> None:
         current = "578785ee7fb35030b094b69624efe25670a36f5f"
         calls = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[

@@ -2570,6 +2570,10 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
         ("ForwardAsChatCompletions", {
             "enforceResolvedModelAccess": 1,
         }),
+        ("forwardAsChatCompletions", {
+            "err.Error": 1,
+            "writeChatCompletionsError": 1,
+        }),
     ),
     "backend/internal/service/openai_gateway_chat_completions_raw.go": _approved_call_deltas(
         ("forwardAsRawChatCompletions", {
