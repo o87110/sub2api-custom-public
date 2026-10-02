@@ -3,6 +3,12 @@ import { computed, watch, type ComputedRef, type Ref } from 'vue'
 import { DEFAULT_PAYMENT_CURRENCY, formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
 import type { CheckoutInfoResponse, SubscriptionPlan } from '@/types/payment'
 import {
+  normalizeRechargeBonusMode,
+  normalizeRechargeBonusTiers,
+  quoteRechargeBonus,
+  type RechargeBonusQuote,
+} from '@/utils/rechargeBonus'
+import {
   normalizePaymentChannelOptions,
   type PaymentChannelOption,
 } from './paymentChannels'
@@ -34,7 +40,13 @@ export interface PaymentChannelPricing {
   validAmount: ComputedRef<number>
   balanceRechargeMultiplier: ComputedRef<number>
   subscriptionUsdToCnyRate: ComputedRef<number>
+  bonusQuote: ComputedRef<RechargeBonusQuote>
+  payBaseAmount: ComputedRef<number>
+  discountAmount: ComputedRef<number>
   creditedAmount: ComputedRef<number>
+  showBonusRow: ComputedRef<boolean>
+  showCreditedBalance: ComputedRef<boolean>
+  showActualPay: ComputedRef<boolean>
   globalMinAmount: ComputedRef<number>
   globalMaxAmount: ComputedRef<number>
   selectedLimit: ComputedRef<PaymentChannelOption | undefined>
@@ -73,9 +85,6 @@ export function usePaymentChannelPricing(options: PaymentChannelPricingOptions):
     const rate = options.checkout.value.subscription_usd_to_cny_rate
     return Number.isFinite(rate) && rate > 0 ? rate : 0
   })
-  const creditedAmount = computed(() =>
-    Math.round((validAmount.value * balanceRechargeMultiplier.value) * 100) / 100,
-  )
 
   function paymentChannelFeeRate(channel: PaymentChannelOption | undefined): number {
     const rate = channel?.fee_rate
@@ -161,6 +170,27 @@ export function usePaymentChannelPricing(options: PaymentChannelPricingOptions):
 
   const selectedLimit = computed(() => selectedChannel.value)
   const selectedCurrency = computed(() => normalizePaymentCurrency(selectedLimit.value?.currency))
+  const rechargeBonusTiers = computed(() => normalizeRechargeBonusTiers(options.checkout.value.recharge_bonus_tiers))
+  const rechargeBonusMode = computed(() => normalizeRechargeBonusMode(options.checkout.value.recharge_bonus_mode))
+  const bonusQuote = computed(() => quoteRechargeBonus(
+    rechargeBonusTiers.value,
+    validAmount.value,
+    {
+      multiplier: balanceRechargeMultiplier.value,
+      mode: rechargeBonusMode.value,
+      currencyDigits: paymentCurrencyFractionDigits(selectedCurrency.value),
+    },
+  ))
+  const payBaseAmount = computed(() => bonusQuote.value.payBase)
+  const discountAmount = computed(() => roundPaymentAmount(
+    validAmount.value - payBaseAmount.value,
+    selectedCurrency.value,
+  ))
+  const creditedAmount = computed(() => bonusQuote.value.credited)
+  const showBonusRow = computed(() => bonusQuote.value.mode !== 'discount' && bonusQuote.value.bonus > 0)
+  const showCreditedBalance = computed(() =>
+    balanceRechargeMultiplier.value !== 1 || bonusQuote.value.percent > 0,
+  )
   const localeCode = computed(() => {
     const raw = options.locale()
     if (typeof raw === 'string') return raw
@@ -198,32 +228,33 @@ export function usePaymentChannelPricing(options: PaymentChannelPricingOptions):
   const methodOptions = computed<PaymentChannelOption[]>(() =>
     channelOptions.value.map(channel => ({
       ...channel,
-      available: channel.available && balanceAmountFitsChannel(channel),
+      available: channel.available && balanceAmountFitsChannel(channel, payBaseAmount.value),
     })),
   )
   const feeRate = computed(() => paymentChannelFeeRate(selectedChannel.value))
+  const showActualPay = computed(() => feeRate.value > 0 || discountAmount.value > 0)
   const feeAmount = computed(() =>
     feeRate.value > 0
-      && validAmount.value > 0
-      && isPaymentAmountRepresentable(validAmount.value, selectedCurrency.value)
-      ? paymentFeeAmount(validAmount.value, feeRate.value, selectedCurrency.value)
+      && payBaseAmount.value > 0
+      && isPaymentAmountRepresentable(payBaseAmount.value, selectedCurrency.value)
+      ? paymentFeeAmount(payBaseAmount.value, feeRate.value, selectedCurrency.value)
       : 0,
   )
   const totalAmount = computed(() =>
-    selectedChannel.value && isPaymentAmountRepresentable(validAmount.value, selectedCurrency.value)
-      ? balanceTotalAmountForChannel(validAmount.value, selectedChannel.value)
-      : validAmount.value,
+    selectedChannel.value && isPaymentAmountRepresentable(payBaseAmount.value, selectedCurrency.value)
+      ? balanceTotalAmountForChannel(payBaseAmount.value, selectedChannel.value)
+      : payBaseAmount.value,
   )
   const amountError = computed(() => {
     if (validAmount.value <= 0) return ''
-    if (!channelOptions.value.some(channel => channel.available && balanceAmountFitsChannel(channel))) {
+    if (!channelOptions.value.some(channel => channel.available && balanceAmountFitsChannel(channel, payBaseAmount.value))) {
       return options.t('payment.amountNoMethod')
     }
     const limit = selectedLimit.value
     if (!limit || limit.amount_ranges?.length) return ''
     const currency = normalizePaymentCurrency(limit.currency)
-    if (!isPaymentAmountRepresentable(validAmount.value, currency)) return ''
-    const payAmount = balanceTotalAmountForChannel(validAmount.value, limit)
+    if (!isPaymentAmountRepresentable(payBaseAmount.value, currency)) return ''
+    const payAmount = balanceTotalAmountForChannel(payBaseAmount.value, limit)
     if (limit.single_min > 0 && payAmount < limit.single_min) {
       return options.t('payment.amountTooLow', { min: formatSelectedPaymentAmount(limit.single_min) })
     }
@@ -235,7 +266,7 @@ export function usePaymentChannelPricing(options: PaymentChannelPricingOptions):
   const canSubmit = computed(() =>
     validAmount.value > 0
       && !!selectedChannel.value
-      && balanceAmountFitsChannel(selectedChannel.value)
+      && balanceAmountFitsChannel(selectedChannel.value, payBaseAmount.value)
       && selectedLimit.value?.available !== false,
   )
 
@@ -298,9 +329,9 @@ export function usePaymentChannelPricing(options: PaymentChannelPricingOptions):
     ([tab, currentAmount, channelId]) => {
       if (tab !== 'recharge' || currentAmount <= 0) return
       const current = channelOptions.value.find(channel => channel.id === channelId)
-      if (current && current.available && balanceAmountFitsChannel(current)) return
+      if (current && current.available && balanceAmountFitsChannel(current, payBaseAmount.value)) return
       const available = channelOptions.value.find(channel =>
-        channel.available && balanceAmountFitsChannel(channel),
+        channel.available && balanceAmountFitsChannel(channel, payBaseAmount.value),
       )
       if (available) options.selectedChannelId.value = available.id
     },
@@ -326,7 +357,13 @@ export function usePaymentChannelPricing(options: PaymentChannelPricingOptions):
     validAmount,
     balanceRechargeMultiplier,
     subscriptionUsdToCnyRate,
+    bonusQuote,
+    payBaseAmount,
+    discountAmount,
     creditedAmount,
+    showBonusRow,
+    showCreditedBalance,
+    showActualPay,
     globalMinAmount,
     globalMaxAmount,
     selectedLimit,

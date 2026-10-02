@@ -10,13 +10,15 @@ import (
 
 const (
 	// ActionCyberPolicy records an in-scope upstream cyber policy event.
-	ActionCyberPolicy = "cyber_policy"
-	cyberPolicyMode   = "post_upstream"
-	cyberPolicySource = "openai"
+	ActionCyberPolicy      = "cyber_policy"
+	cyberPolicyMode        = "post_upstream"
+	cyberPolicyLogOnlyMode = "cyber_log_only"
+	cyberPolicySource      = "openai"
 )
 
 // CyberPolicyEvent contains the upstream rejection details needed by local risk control.
 type CyberPolicyEvent struct {
+	LogOnly         bool
 	RequestID       string
 	UserID          int64
 	UserEmail       string
@@ -117,7 +119,7 @@ func RecordCyberPolicyEvent(ctx context.Context, event CyberPolicyEvent, adapter
 
 	record := buildCyberPolicyRecord(event, policy, adapter.Redact)
 	penalty := PenaltyResult{}
-	if policy.InGroupScope && !policy.ExcludeFromBanCount {
+	if policy.InGroupScope && !policy.ExcludeFromBanCount && !event.LogOnly {
 		penalty = adapter.ApplyPenalty(ctx, record)
 		record.ViolationCount = penalty.ViolationCount
 		record.AutoBanned = penalty.AutoBanned
@@ -129,7 +131,7 @@ func RecordCyberPolicyEvent(ctx context.Context, event CyberPolicyEvent, adapter
 	} else {
 		record.ID = logID
 	}
-	if !policy.InGroupScope || !adapter.EmailAvailable() || strings.TrimSpace(record.UserEmail) == "" {
+	if event.LogOnly || !policy.InGroupScope || !adapter.EmailAvailable() || strings.TrimSpace(record.UserEmail) == "" {
 		return
 	}
 
@@ -170,6 +172,10 @@ func buildCyberPolicyRecord(event CyberPolicyEvent, policy Policy, redact func(s
 	if !policy.InGroupScope {
 		action = ActionCyberPolicyOutOfScope
 	}
+	mode := cyberPolicyMode
+	if event.LogOnly {
+		mode = cyberPolicyLogOnlyMode
+	}
 	return &Record{
 		RequestID:       event.RequestID,
 		UserID:          positiveInt64Ptr(event.UserID),
@@ -181,7 +187,7 @@ func buildCyberPolicyRecord(event CyberPolicyEvent, policy Policy, redact func(s
 		Endpoint:        event.Endpoint,
 		Provider:        cyberPolicySource,
 		Model:           event.Model,
-		Mode:            cyberPolicyMode,
+		Mode:            mode,
 		Action:          action,
 		Flagged:         true,
 		HighestCategory: ActionCyberPolicy,
