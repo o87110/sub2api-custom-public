@@ -2185,6 +2185,12 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
             "enforceGroupModelAccess": 1,
             "strings.TrimSpace": 1,
         }),
+        ("doGrokNativeXSearch", {
+            "account.GetMappedModel": 1,
+            "enforceGroupModelAccess": 1,
+            "strings.TrimSpace": 1,
+            "xai.ResolveDefaultTextModel": 1,
+        }),
     ),
     "backend/internal/handler/image_task_handler.go": _approved_call_deltas(
         ("refreshGroupModelAccessBeforeRun", {

@@ -555,6 +555,18 @@ class ThinBridgeContractTests(unittest.TestCase):
             control,
         )
 
+    def test_v0213_approves_grok_x_search_model_access_calls(self) -> None:
+        calls = validator.APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+            "backend/internal/handler/gateway_web_search.go"
+        ]
+        for call in (
+            ("doGrokNativeXSearch", "account.GetMappedModel"),
+            ("doGrokNativeXSearch", "enforceGroupModelAccess"),
+            ("doGrokNativeXSearch", "strings.TrimSpace"),
+            ("doGrokNativeXSearch", "xai.ResolveDefaultTextModel"),
+        ):
+            self.assertIn(call, calls)
+
     def test_rejects_control_flow_in_a_dto_bridge(self) -> None:
         fixture = self.fixture(candidate_content="if (enabled) { value = 2 }\n", kind="dto")
         with self.assertRaisesRegex(validator.ContractError, "introduces control flow"):
