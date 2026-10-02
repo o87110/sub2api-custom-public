@@ -136,7 +136,7 @@ func TestCreateRenewalOrderLeavesLimitedInventoryUntracked(t *testing.T) {
 	order, err := svc.createOrderInTx(ctx, CreateOrderRequest{
 		UserID: user.ID, PaymentType: "test", OrderType: payment.OrderTypeSubscription,
 		ClientIP: "127.0.0.1", SrcHost: "api.example.com",
-	}, &User{ID: user.ID, Email: user.Email, Username: user.Username}, plan, true, &PaymentConfig{OrderTimeoutMin: 15}, 20, 20, 0, 20, nil)
+	}, &User{ID: user.ID, Email: user.Email, Username: user.Username}, plan, true, &PaymentConfig{OrderTimeoutMin: 15}, 20, 20, 0, 20, 0, nil)
 	require.NoError(t, err)
 	require.Equal(t, subscriptioninventory.StateUntracked, order.PlanInventoryState)
 	reloaded, err := client.SubscriptionPlan.Get(ctx, plan.ID)
@@ -148,7 +148,7 @@ func TestCreateRenewalOrderLeavesLimitedInventoryUntracked(t *testing.T) {
 	_, err = svc.createOrderInTx(ctx, CreateOrderRequest{
 		UserID: user.ID, PaymentType: "test", OrderType: payment.OrderTypeSubscription,
 		ClientIP: "127.0.0.1", SrcHost: "api.example.com",
-	}, &User{ID: user.ID, Email: user.Email, Username: user.Username}, plan, true, &PaymentConfig{OrderTimeoutMin: 15}, 20, 20, 0, 20, nil)
+	}, &User{ID: user.ID, Email: user.Email, Username: user.Username}, plan, true, &PaymentConfig{OrderTimeoutMin: 15}, 20, 20, 0, 20, 0, nil)
 	require.Error(t, err)
 	require.Equal(t, "PLAN_SOLD_OUT", infraerrors.Reason(err))
 }

@@ -371,6 +371,7 @@ func (a *contentModerationCyberPolicyAdapter) UpdateLogEmailSent(ctx context.Con
 
 func toCustomCyberPolicyEvent(in CyberPolicyRecordInput) custommoderation.CyberPolicyEvent {
 	return custommoderation.CyberPolicyEvent{
+		LogOnly:         in.LogOnly,
 		RequestID:       in.RequestID,
 		UserID:          in.UserID,
 		UserEmail:       in.UserEmail,
