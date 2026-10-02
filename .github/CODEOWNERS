@@ -61,6 +61,7 @@
 /backend/internal/handler/openai_gateway_custom_test.go @o87110
 /backend/internal/handler/gateway_handler.go @o87110
 /backend/internal/handler/gateway_handler_billing_error_test.go @o87110
+/backend/internal/handler/gateway_handler_claude_code_fallback_test.go @o87110
 /backend/internal/handler/group_model_access_test.go @o87110
 /backend/internal/handler/gemini_v1beta_handler_test.go @o87110
 /backend/internal/handler/image_task_handler_test.go @o87110
