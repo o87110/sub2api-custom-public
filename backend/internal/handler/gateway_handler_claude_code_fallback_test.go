@@ -63,6 +63,27 @@ func (r *groupMapRepo) GetByIDLite(ctx context.Context, id int64) (*service.Grou
 	return r.GetByID(ctx, id)
 }
 
+type claudeFallbackBillingUserRepo struct {
+	service.UserRepository
+	user *service.User
+}
+
+func (r *claudeFallbackBillingUserRepo) GetByID(context.Context, int64) (*service.User, error) {
+	return r.user, nil
+}
+
+type claudeFallbackBillingAPIKeyRepo struct {
+	service.APIKeyRepository
+	groups map[int64]*service.Group
+}
+
+func (r *claudeFallbackBillingAPIKeyRepo) GetGroupByIDForMinimumBalance(_ context.Context, id int64) (*service.Group, error) {
+	if group, ok := r.groups[id]; ok {
+		return group, nil
+	}
+	return nil, service.ErrGroupNotFound
+}
+
 func TestGatewayOpenAICompatibleHandlersClaudeCodeOnlyFallback(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -135,7 +156,16 @@ func TestGatewayOpenAICompatibleHandlersClaudeCodeOnlyFallback(t *testing.T) {
 					nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 				)
 				cfg := &config.Config{RunMode: config.RunModeSimple}
-				billingCacheService := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
+				billingCacheService := service.NewBillingCacheService(
+					nil,
+					&claudeFallbackBillingUserRepo{user: &service.User{ID: 9330, Balance: 100}},
+					nil,
+					&claudeFallbackBillingAPIKeyRepo{groups: map[int64]*service.Group{
+						primaryGroupID:  primary,
+						fallbackGroupID: fallback,
+					}},
+					nil, nil, cfg, nil,
+				)
 				t.Cleanup(billingCacheService.Stop)
 				h := &GatewayHandler{
 					gatewayService:      gatewayService,
