@@ -411,8 +411,14 @@ class ThinBridgeContractTests(unittest.TestCase):
             "backend/internal/service/openai_gateway_chat_completions.go"
         ]
 
-        self.assertIn(("forwardAsChatCompletions", "err.Error"), calls)
-        self.assertIn(("forwardAsChatCompletions", "writeChatCompletionsError"), calls)
+        self.assertEqual(
+            2,
+            calls.count(("forwardAsChatCompletions", "err.Error")),
+        )
+        self.assertEqual(
+            2,
+            calls.count(("forwardAsChatCompletions", "writeChatCompletionsError")),
+        )
 
     def test_v021_gateway_approvals_exclude_official_error_helpers(self) -> None:
         current = "578785ee7fb35030b094b69624efe25670a36f5f"
