@@ -86,6 +86,28 @@ describe('PaymentChannelSettings', () => {
     })
   })
 
+  it('defaults the EasyPay Alipay warning on and persists an explicit off state', async () => {
+    const wrapper = mount(PaymentChannelSettings, {
+      props: {
+        modelValue: {},
+        providers: [provider(1, 'easypay', true)],
+        defaultFeeRate: 2.5,
+      },
+    })
+
+    const toggle = wrapper.get('[data-test="payment-notice-toggle-easypay_alipay"] button')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    await toggle.trigger('click')
+
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toEqual({
+      easypay_alipay: { payment_notice_enabled: false },
+    })
+
+    await toggle.trigger('click')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toEqual({})
+  })
+
   it('does not collapse an unfinished decimal fee during parent model updates', async () => {
     const wrapper = mount(PaymentChannelSettings, {
       props: {

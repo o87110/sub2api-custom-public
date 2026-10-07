@@ -4,6 +4,7 @@ import PaymentView from '../PaymentView.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import PaymentChannelSelector from '@/custom/payment-channels/PaymentChannelSelector.vue'
+import AlipayPaymentWarningDialog from '@/custom/payment-channels/AlipayPaymentWarningDialog.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 import { formatPaymentAmount } from '@/components/payment/currency'
 import en from '@/i18n/locales/en'
@@ -682,6 +683,109 @@ describe('PaymentView provider channel selection', () => {
       payment_type: 'alipay',
       provider_key: 'alipay',
     }))
+    expect(wrapper.findComponent(AlipayPaymentWarningDialog).props('show')).toBe(false)
+  })
+
+  it('requires confirmation before creating an EasyPay Alipay recharge order', async () => {
+    const wrapper = await mountRecharge({ method_options: alipayChannels })
+    createOrder.mockResolvedValue({
+      order_id: 903,
+      amount: 10,
+      pay_amount: 10,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'alipay',
+      provider_key: 'easypay',
+      qr_code: 'easypay-alipay-qr',
+    })
+
+    wrapper.findComponent(AmountInput).vm.$emit('update:modelValue', 10)
+    await flushPromises()
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit).toBeTruthy()
+
+    await submit!.trigger('click')
+    await flushPromises()
+
+    const warning = wrapper.findComponent(AlipayPaymentWarningDialog)
+    expect(warning.props('show')).toBe(true)
+    expect(createOrder).not.toHaveBeenCalled()
+
+    warning.vm.$emit('cancel')
+    await flushPromises()
+    expect(warning.props('show')).toBe(false)
+    expect(createOrder).not.toHaveBeenCalled()
+
+    await submit!.trigger('click')
+    await flushPromises()
+    warning.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledTimes(1)
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({
+      payment_type: 'alipay',
+      provider_key: 'easypay',
+    }))
+  })
+
+  it('requires confirmation before creating an EasyPay Alipay subscription order', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: { method_options: alipayChannels },
+    })
+    createOrder.mockResolvedValue({
+      order_id: 904,
+      amount: 128,
+      pay_amount: 128,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'alipay',
+      provider_key: 'easypay',
+      qr_code: 'easypay-alipay-qr',
+    })
+
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submit).toBeTruthy()
+    await submit!.trigger('click')
+    await flushPromises()
+
+    const warning = wrapper.findComponent(AlipayPaymentWarningDialog)
+    expect(warning.props('show')).toBe(true)
+    expect(createOrder).not.toHaveBeenCalled()
+
+    warning.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledTimes(1)
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({
+      order_type: 'subscription',
+      payment_type: 'alipay',
+      provider_key: 'easypay',
+    }))
+  })
+
+  it('skips the warning when the EasyPay Alipay channel disables it', async () => {
+    const wrapper = await mountRecharge({
+      method_options: [{ ...alipayChannels[0], payment_notice_enabled: false }],
+    })
+    createOrder.mockResolvedValue({
+      order_id: 905,
+      amount: 10,
+      pay_amount: 10,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'alipay',
+      provider_key: 'easypay',
+      qr_code: 'easypay-alipay-qr',
+    })
+
+    wrapper.findComponent(AmountInput).vm.$emit('update:modelValue', 10)
+    await flushPromises()
+    const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    await submit!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent(AlipayPaymentWarningDialog).props('show')).toBe(false)
+    expect(createOrder).toHaveBeenCalledTimes(1)
   })
 
   it('uses the selected channel fee for subscription totals', async () => {
@@ -895,6 +999,10 @@ describe('PaymentView provider channel selection', () => {
     const submit = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
     expect(selector.props('selected')).toBe('easypay_alipay')
     await submit!.trigger('click')
+    await Promise.resolve()
+    const warning = wrapper.findComponent(AlipayPaymentWarningDialog)
+    expect(warning.props('show')).toBe(true)
+    warning.vm.$emit('confirm')
     await Promise.resolve()
     expect(createOrder).toHaveBeenCalledTimes(1)
 

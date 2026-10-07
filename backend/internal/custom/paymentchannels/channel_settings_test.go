@@ -8,7 +8,7 @@ import (
 
 func TestParseChannelSettingsNormalizesOverrides(t *testing.T) {
 	settings, err := ParseChannelSettings(`{
-		"easypay_alipay":{"display_name":" 支付宝优惠通道 ","fee_rate":1.5},
+		"easypay_alipay":{"display_name":" 支付宝优惠通道 ","fee_rate":1.5,"payment_notice_enabled":false},
 		"official_alipay":{"display_name":"支付宝备用通道","fee_rate":null},
 		"easypay_wxpay":{"fee_rate":0},
 		"stripe":{}
@@ -21,6 +21,9 @@ func TestParseChannelSettingsNormalizesOverrides(t *testing.T) {
 	}
 	if got := settings["easypay_alipay"].FeeRate; got == nil || *got != 1.5 {
 		t.Fatalf("fee rate = %v", got)
+	}
+	if got := settings["easypay_alipay"].PaymentNoticeEnabled; got == nil || *got {
+		t.Fatalf("payment notice enabled = %v", got)
 	}
 	if got := settings["official_alipay"].FeeRate; got != nil {
 		t.Fatalf("null fee rate must inherit, got %v", *got)
@@ -71,10 +74,12 @@ func TestChannelSettingUnmarshalRejectsUnknownFields(t *testing.T) {
 func TestApplyChannelSettingsAndResolveFeeRate(t *testing.T) {
 	zero := 0.0
 	custom := 1.25
+	noticeDisabled := false
 	settings := ChannelSettings{
 		"easypay_alipay": {
-			DisplayName: "支付宝优惠通道",
-			FeeRate:     &custom,
+			DisplayName:          "支付宝优惠通道",
+			FeeRate:              &custom,
+			PaymentNoticeEnabled: &noticeDisabled,
 		},
 		"official_alipay": {
 			DisplayName: "支付宝备用通道",
@@ -92,6 +97,9 @@ func TestApplyChannelSettingsAndResolveFeeRate(t *testing.T) {
 	got := ApplyChannelSettings(input, settings)
 	if got[0].DisplayName != "支付宝优惠通道" || got[0].FeeRate != custom {
 		t.Fatalf("EasyPay override = %+v", got[0])
+	}
+	if got[0].PaymentNoticeEnabled {
+		t.Fatal("explicitly disabled EasyPay Alipay payment notice was re-enabled")
 	}
 	if got[1].DisplayName != "支付宝备用通道" || got[1].FeeRate != 2.5 {
 		t.Fatalf("official override = %+v", got[1])
@@ -114,5 +122,16 @@ func TestApplyChannelSettingsAndResolveFeeRate(t *testing.T) {
 	}
 	if fee := ResolveFeeRate(MethodAlipay, "", 2.5, settings); fee != 2.5 {
 		t.Fatalf("legacy provider-agnostic fee = %v", fee)
+	}
+}
+
+func TestApplyChannelSettingsDefaultsEasyPayAlipayNoticeOn(t *testing.T) {
+	got := ApplyChannelSettings([]MethodOption{{
+		ID:          "easypay_alipay",
+		PaymentType: MethodAlipay,
+		ProviderKey: ProviderEasyPay,
+	}}, nil)
+	if len(got) != 1 || !got[0].PaymentNoticeEnabled {
+		t.Fatalf("default EasyPay Alipay payment notice = %+v", got)
 	}
 }

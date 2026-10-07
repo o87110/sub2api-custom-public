@@ -281,6 +281,14 @@
       @cancel="cancelBepusdtNetworkSelection"
       @confirm="confirmBepusdtNetworkSelection"
     />
+    <AlipayPaymentWarningDialog
+      :show="showAlipayWarningDialog"
+      :amount="pendingAlipayOrder?.displayAmount || 0"
+      :currency="selectedCurrency"
+      :locale="paymentLocale"
+      @cancel="cancelAlipayWarning"
+      @confirm="confirmAlipayWarning"
+    />
   </AppLayout>
 </template>
 
@@ -326,11 +334,13 @@ import Icon from '@/components/icons/Icon.vue'
 import { planValiditySuffix as validitySuffixOf } from '@/components/payment/validity'
 import PaymentChannelSelector from '@/custom/payment-channels/PaymentChannelSelector.vue'
 import BepusdtNetworkDialog from '@/custom/payment-channels/BepusdtNetworkDialog.vue'
+import AlipayPaymentWarningDialog from '@/custom/payment-channels/AlipayPaymentWarningDialog.vue'
 import {
   ALIPAY_MOBILE_PRECREATE_DEEP_LINK,
   findPaymentChannel,
   paymentChannelSupports,
 } from '@/custom/payment-channels/paymentChannels'
+import { useAlipayPaymentWarning } from '@/custom/payment-channels/useAlipayPaymentWarning'
 import { usePaymentChannelPricing } from '@/custom/payment-channels/usePaymentChannelPricing'
 import {
   isPlanPurchasable,
@@ -346,6 +356,7 @@ import { buildPaymentErrorToastMessage, describePaymentScenarioError } from './p
 
 const i18n = useI18n()
 const { t } = i18n
+const paymentLocale = computed(() => i18n.locale?.value)
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -711,6 +722,17 @@ async function confirmSubscribe() {
 const showBepusdtNetworkDialog = ref(false)
 const pendingBepusdtOrder = ref<{ amount: number; orderType: OrderType; planId?: number } | null>(null)
 
+const {
+  showAlipayWarningDialog,
+  pendingAlipayOrder,
+  requestAlipayWarning,
+  cancelAlipayWarning,
+  confirmAlipayWarning,
+} = useAlipayPaymentWarning({
+  selectedChannel,
+  createOrder: (orderAmount, orderType, planId) => createOrder(orderAmount, orderType, planId),
+})
+
 function isBepusdtNativeChannel(channel = selectedChannel.value): boolean {
   return channel?.payment_type === 'usdt'
     && channel.provider_key === 'easypay'
@@ -719,6 +741,14 @@ function isBepusdtNativeChannel(channel = selectedChannel.value): boolean {
 }
 
 async function beginOrder(orderAmount: number, orderType: OrderType, planId?: number) {
+  if (requestAlipayWarning(
+    orderAmount,
+    orderType === 'subscription' ? subTotalAmount.value : totalAmount.value,
+    orderType,
+    planId,
+  )) {
+    return
+  }
   if (isBepusdtNativeChannel()) {
     pendingBepusdtOrder.value = { amount: orderAmount, orderType, planId }
     showBepusdtNetworkDialog.value = true

@@ -16,6 +16,7 @@ import type { BasePaginationResponse } from '@/types'
 export interface PaymentChannelSetting {
   display_name?: string
   fee_rate?: number | null
+  payment_notice_enabled?: boolean
 }
 
 export type PaymentChannelSettings = Record<string, PaymentChannelSetting>

@@ -51,6 +51,20 @@
                 {{ copy.instances(channel.instanceCount) }}
               </span>
             </div>
+            <ToggleSwitch
+              v-if="channel.id === 'easypay_alipay'"
+              class="mt-3 items-start"
+              :data-test="`payment-notice-toggle-${channel.id}`"
+              :label="copy.paymentNoticeEnabled"
+              :checked="drafts[channel.id]?.paymentNoticeEnabled !== false"
+              @toggle="updatePaymentNoticeEnabled(channel.id, !(drafts[channel.id]?.paymentNoticeEnabled !== false))"
+            />
+            <p
+              v-if="channel.id === 'easypay_alipay'"
+              class="mt-1 text-xs text-gray-400 dark:text-dark-400"
+            >
+              {{ copy.paymentNoticeHint }}
+            </p>
           </div>
         </div>
 
@@ -149,6 +163,7 @@ import type { PaymentChannelSettings } from '@/api/admin/payment'
 import type { ProviderInstance } from '@/types/payment'
 import { paymentChannelLabel, type PaymentChannelOption } from './paymentChannels'
 import { aggregateAdminPaymentChannels, type AdminPaymentChannel } from './adminPaymentChannels'
+import ToggleSwitch from '@/components/payment/ToggleSwitch.vue'
 import alipayIcon from '@/assets/icons/alipay.svg'
 import wxpayIcon from '@/assets/icons/wxpay.svg'
 import stripeIcon from '@/assets/icons/stripe.svg'
@@ -158,6 +173,7 @@ import paymentIcon from '@/assets/icons/payment.svg'
 interface ChannelDraft {
   displayName: string
   feeRate: string
+  paymentNoticeEnabled: boolean
 }
 
 interface ChannelErrors {
@@ -183,7 +199,7 @@ const isZh = computed(() => locale.value.toLowerCase().startsWith('zh'))
 
 const copy = computed(() => isZh.value ? {
   title: '用户渠道配置',
-  description: '按用户实际看到的聚合渠道设置名称和手续费。留空时使用系统名称并继承默认支付手续费率。',
+  description: '按用户实际看到的聚合渠道设置名称、手续费和支付提示。留空时使用系统名称并继承默认支付手续费率。',
   empty: '创建支付服务商后，可在这里配置用户看到的渠道。',
   enabled: '当前可用',
   disabled: '已禁用',
@@ -195,11 +211,13 @@ const copy = computed(() => isZh.value ? {
   inheritHint: (rate: number) => `留空继承默认 ${formatRate(rate)}%`,
   freeHint: '免手续费',
   customFeeHint: (rate: string) => `使用 ${rate}%`,
+  paymentNoticeEnabled: '支付宝尾差提示',
+  paymentNoticeHint: '关闭后，易支付支付宝直接进入支付页面。',
   invalidName: '名称最多 100 个字符，且不能包含控制字符。',
   invalidFee: '请输入 0–100，最多两位小数。',
 } : {
   title: 'User channel settings',
-  description: 'Customize names and fees for provider-grouped channels shown to users. Empty values use the system name and default fee.',
+  description: 'Customize names, fees, and payment prompts for provider-grouped channels shown to users. Empty values use the system name and default fee.',
   empty: 'Create a payment provider to configure its user-facing channel here.',
   enabled: 'Available',
   disabled: 'Disabled',
@@ -211,6 +229,8 @@ const copy = computed(() => isZh.value ? {
   inheritHint: (rate: number) => `Empty inherits default ${formatRate(rate)}%`,
   freeHint: 'No fee',
   customFeeHint: (rate: string) => `Use ${rate}%`,
+  paymentNoticeEnabled: 'Alipay amount warning',
+  paymentNoticeHint: 'When disabled, EasyPay Alipay opens the payment page directly.',
   invalidName: 'Use at most 100 characters and no control characters.',
   invalidFee: 'Enter 0–100 with at most two decimal places.',
 })
@@ -226,6 +246,7 @@ watch(
         feeRate: setting?.fee_rate === null || setting?.fee_rate === undefined
           ? ''
           : String(setting.fee_rate),
+        paymentNoticeEnabled: setting?.payment_notice_enabled !== false,
       }
       errors[channel.id] = {}
     }
@@ -251,6 +272,12 @@ function updateFeeRate(channelID: string, value: string) {
   emitChannelSetting(channelID)
 }
 
+function updatePaymentNoticeEnabled(channelID: string, value: boolean) {
+  if (channelID !== 'easypay_alipay') return
+  drafts[channelID].paymentNoticeEnabled = value
+  emitChannelSetting(channelID)
+}
+
 function emitChannelSetting(channelID: string) {
   const draft = drafts[channelID]
   if (!draft || errors[channelID]?.displayName || errors[channelID]?.feeRate) return
@@ -258,12 +285,16 @@ function emitChannelSetting(channelID: string) {
   const next: PaymentChannelSettings = { ...(props.modelValue || {}) }
   const displayName = draft.displayName.trim()
   const feeRate = draft.feeRate === '' ? undefined : Number(draft.feeRate)
-  if (!displayName && feeRate === undefined) {
+  const paymentNoticeEnabled = channelID === 'easypay_alipay'
+    ? draft.paymentNoticeEnabled
+    : undefined
+  if (!displayName && feeRate === undefined && paymentNoticeEnabled !== false) {
     delete next[channelID]
   } else {
     next[channelID] = {
       ...(displayName ? { display_name: displayName } : {}),
       ...(feeRate === undefined ? {} : { fee_rate: feeRate }),
+      ...(paymentNoticeEnabled === false ? { payment_notice_enabled: false } : {}),
     }
   }
   emit('update:modelValue', next)

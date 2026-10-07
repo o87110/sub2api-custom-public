@@ -249,6 +249,7 @@ jobs:
       ${{
         needs.verify-target.outputs.is_pull_request == 'true' &&
         needs.verify-target.outputs.is_official_upgrade != 'true' &&
+        needs.impact.outputs.mode != 'full' &&
         needs.impact.outputs.frontend_changed == 'true'
       }}
     runs-on: ubuntu-latest
