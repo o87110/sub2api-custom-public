@@ -338,9 +338,9 @@ import AlipayPaymentWarningDialog from '@/custom/payment-channels/AlipayPaymentW
 import {
   ALIPAY_MOBILE_PRECREATE_DEEP_LINK,
   findPaymentChannel,
-  isEasyPayAlipayChannel,
   paymentChannelSupports,
 } from '@/custom/payment-channels/paymentChannels'
+import { useAlipayPaymentWarning } from '@/custom/payment-channels/useAlipayPaymentWarning'
 import { usePaymentChannelPricing } from '@/custom/payment-channels/usePaymentChannelPricing'
 import {
   isPlanPurchasable,
@@ -721,13 +721,17 @@ async function confirmSubscribe() {
 
 const showBepusdtNetworkDialog = ref(false)
 const pendingBepusdtOrder = ref<{ amount: number; orderType: OrderType; planId?: number } | null>(null)
-const showAlipayWarningDialog = ref(false)
-const pendingAlipayOrder = ref<{
-  amount: number
-  displayAmount: number
-  orderType: OrderType
-  planId?: number
-} | null>(null)
+
+const {
+  showAlipayWarningDialog,
+  pendingAlipayOrder,
+  requestAlipayWarning,
+  cancelAlipayWarning,
+  confirmAlipayWarning,
+} = useAlipayPaymentWarning({
+  selectedChannel,
+  createOrder: (orderAmount, orderType, planId) => createOrder(orderAmount, orderType, planId),
+})
 
 function isBepusdtNativeChannel(channel = selectedChannel.value): boolean {
   return channel?.payment_type === 'usdt'
@@ -737,14 +741,12 @@ function isBepusdtNativeChannel(channel = selectedChannel.value): boolean {
 }
 
 async function beginOrder(orderAmount: number, orderType: OrderType, planId?: number) {
-  if (isEasyPayAlipayChannel(selectedChannel.value) && selectedChannel.value?.payment_notice_enabled !== false) {
-    pendingAlipayOrder.value = {
-      amount: orderAmount,
-      displayAmount: orderType === 'subscription' ? subTotalAmount.value : totalAmount.value,
-      orderType,
-      planId,
-    }
-    showAlipayWarningDialog.value = true
+  if (requestAlipayWarning(
+    orderAmount,
+    orderType === 'subscription' ? subTotalAmount.value : totalAmount.value,
+    orderType,
+    planId,
+  )) {
     return
   }
   if (isBepusdtNativeChannel()) {
@@ -766,19 +768,6 @@ async function confirmBepusdtNetworkSelection(network: string) {
   pendingBepusdtOrder.value = null
   if (!pending) return
   await createOrder(pending.amount, pending.orderType, pending.planId, { paymentNetwork: network })
-}
-
-function cancelAlipayWarning() {
-  showAlipayWarningDialog.value = false
-  pendingAlipayOrder.value = null
-}
-
-async function confirmAlipayWarning() {
-  const pending = pendingAlipayOrder.value
-  showAlipayWarningDialog.value = false
-  pendingAlipayOrder.value = null
-  if (!pending) return
-  await createOrder(pending.amount, pending.orderType, pending.planId)
 }
 
 async function createOrder(orderAmount: number, orderType: OrderType, planId?: number, options: CreateOrderOptions = {}) {
