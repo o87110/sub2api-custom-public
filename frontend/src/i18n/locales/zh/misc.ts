@@ -355,6 +355,15 @@ export default {
       officialWxpay: '官方渠道微信',
       unavailable: '当前金额不可用',
     },
+    alipayWarning: {
+      title: '支付宝付款必读',
+      alert: '请严格按照付款页面显示的金额支付，一分钱都不能差！',
+      amountNotice: '付款页面显示的金额可能带有几分钱的尾数。例如本次应付 {amount}，实际需要支付的可能是 {amountPlusOneCent} / {amountPlusTwoCents}，请以付款页面显示的金额为准。',
+      tailIsMarker: '尾数不是手续费，而是系统用来识别您这笔订单的标记。',
+      mismatchWillFail: '如果实际支付金额与付款页面要求的金额不一致，系统将无法识别订单，充值不会到账！',
+      cancel: '取消',
+      confirm: '确认充值',
+    },
     status: {
       pending: '待支付',
       paid: '已支付',

@@ -331,6 +331,15 @@ export default {
       officialWxpay: 'Official WeChat Pay',
       unavailable: 'Unavailable for this amount',
     },
+    alipayWarning: {
+      title: 'Read Before Alipay Payment',
+      alert: 'Pay exactly the amount shown on the payment page. The amount must match to the cent!',
+      amountNotice: 'The payment page may show a small trailing adjustment. For example, an order of {amount} may require {amountPlusOneCent} / {amountPlusTwoCents}. Always pay the amount shown on the payment page.',
+      tailIsMarker: 'The trailing amount is not a service fee. It is a marker used to identify your order.',
+      mismatchWillFail: 'If the amount you pay does not match the amount requested on the payment page, the order cannot be identified and the recharge will not arrive.',
+      cancel: 'Cancel',
+      confirm: 'Confirm Recharge',
+    },
     status: {
       pending: 'Pending',
       paid: 'Paid',

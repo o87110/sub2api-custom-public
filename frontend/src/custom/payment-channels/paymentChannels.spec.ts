@@ -3,6 +3,7 @@ import type { CheckoutInfoResponse } from '@/types/payment'
 import {
   ALIPAY_MOBILE_PRECREATE_DEEP_LINK,
   findPaymentChannel,
+  isEasyPayAlipayChannel,
   isGatewayChannelFailureCode,
   normalizePaymentChannelOptions,
   paymentChannelLabel,
@@ -202,6 +203,38 @@ describe('isGatewayChannelFailureCode', () => {
 
   it('does not classify an invalid provider selection as a transient channel failure', () => {
     expect(isGatewayChannelFailureCode('INVALID_PAYMENT_PROVIDER_SELECTION')).toBe(false)
+  })
+})
+
+describe('isEasyPayAlipayChannel', () => {
+  it('matches the canonical EasyPay Alipay channel', () => {
+    expect(isEasyPayAlipayChannel({
+      id: 'easypay_alipay',
+      payment_type: 'alipay',
+      provider_key: 'easypay',
+      fee_rate: 0,
+      daily_limit: 0,
+      single_min: 0,
+      single_max: 0,
+      available: true,
+    })).toBe(true)
+  })
+
+  it.each([
+    ['official_alipay', 'alipay', 'alipay'],
+    ['easypay_wxpay', 'wxpay', 'easypay'],
+    ['alipay', 'alipay', ''],
+  ])('does not match %s', (id, paymentType, providerKey) => {
+    expect(isEasyPayAlipayChannel({
+      id,
+      payment_type: paymentType,
+      provider_key: providerKey,
+      fee_rate: 0,
+      daily_limit: 0,
+      single_min: 0,
+      single_max: 0,
+      available: true,
+    })).toBe(false)
   })
 })
 

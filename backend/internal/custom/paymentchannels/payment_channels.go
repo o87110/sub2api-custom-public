@@ -54,19 +54,20 @@ type NetworkOption struct {
 }
 
 type MethodOption struct {
-	ID             string          `json:"id"`
-	PaymentType    string          `json:"payment_type"`
-	ProviderKey    string          `json:"provider_key"`
-	DisplayName    string          `json:"display_name,omitempty"`
-	Currency       string          `json:"currency"`
-	FeeRate        float64         `json:"fee_rate"`
-	DailyLimit     float64         `json:"daily_limit"`
-	SingleMin      float64         `json:"single_min"`
-	SingleMax      float64         `json:"single_max"`
-	AmountRanges   []AmountRange   `json:"amount_ranges,omitempty"`
-	NetworkOptions []NetworkOption `json:"network_options,omitempty"`
-	Available      bool            `json:"available"`
-	Capabilities   []string        `json:"capabilities,omitempty"`
+	ID                   string          `json:"id"`
+	PaymentType          string          `json:"payment_type"`
+	ProviderKey          string          `json:"provider_key"`
+	DisplayName          string          `json:"display_name,omitempty"`
+	Currency             string          `json:"currency"`
+	FeeRate              float64         `json:"fee_rate"`
+	DailyLimit           float64         `json:"daily_limit"`
+	SingleMin            float64         `json:"single_min"`
+	SingleMax            float64         `json:"single_max"`
+	AmountRanges         []AmountRange   `json:"amount_ranges,omitempty"`
+	NetworkOptions       []NetworkOption `json:"network_options,omitempty"`
+	Available            bool            `json:"available"`
+	Capabilities         []string        `json:"capabilities,omitempty"`
+	PaymentNoticeEnabled bool            `json:"payment_notice_enabled"`
 }
 
 type channelKey struct {

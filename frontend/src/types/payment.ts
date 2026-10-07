@@ -80,6 +80,7 @@ export interface PaymentMethodOption {
     code: string
     display_name: string
   }>
+  payment_notice_enabled?: boolean
 }
 
 /** Response from /payment/limits API */

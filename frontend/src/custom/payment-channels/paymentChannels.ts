@@ -23,6 +23,7 @@ export interface PaymentChannelOption {
     code: string
     display_name: string
   }>
+  payment_notice_enabled?: boolean
   legacy?: boolean
 }
 
@@ -109,6 +110,12 @@ export function paymentChannelSupports(option: PaymentChannelOption | undefined,
   return !!option?.capabilities?.includes(capability)
 }
 
+export function isEasyPayAlipayChannel(option: PaymentChannelOption | undefined): boolean {
+  if (!option) return false
+  if (option.id === 'easypay_alipay') return true
+  return option.payment_type === 'alipay' && option.provider_key === 'easypay'
+}
+
 export function findBackupPaymentChannel(
   options: PaymentChannelOption[],
   currentChannelID: string,
@@ -158,6 +165,9 @@ function normalizeApiOption(raw: PaymentMethodOption): PaymentChannelOption | nu
       ? raw.capabilities.filter((capability): capability is string => typeof capability === 'string')
       : undefined,
     network_options: normalizeNetworkOptions(raw.network_options),
+    payment_notice_enabled: typeof raw.payment_notice_enabled === 'boolean'
+      ? raw.payment_notice_enabled
+      : undefined,
   }
 }
 

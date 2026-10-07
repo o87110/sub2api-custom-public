@@ -20,8 +20,9 @@ var channelIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 // ChannelSetting customizes one user-facing, provider-grouped payment channel.
 // A nil FeeRate inherits the global default while an explicit zero disables fees.
 type ChannelSetting struct {
-	DisplayName string   `json:"display_name,omitempty"`
-	FeeRate     *float64 `json:"fee_rate,omitempty"`
+	DisplayName          string   `json:"display_name,omitempty"`
+	FeeRate              *float64 `json:"fee_rate,omitempty"`
+	PaymentNoticeEnabled *bool    `json:"payment_notice_enabled,omitempty"`
 }
 
 // UnmarshalJSON keeps admin API requests as strict as persisted configuration.
@@ -99,12 +100,19 @@ func NormalizeChannelSettings(input ChannelSettings) (ChannelSettings, error) {
 			feeRate = &value
 		}
 
-		if displayName == "" && feeRate == nil {
+		var paymentNoticeEnabled *bool
+		if setting.PaymentNoticeEnabled != nil {
+			value := *setting.PaymentNoticeEnabled
+			paymentNoticeEnabled = &value
+		}
+
+		if displayName == "" && feeRate == nil && paymentNoticeEnabled == nil {
 			continue
 		}
 		normalized[channelID] = ChannelSetting{
-			DisplayName: displayName,
-			FeeRate:     feeRate,
+			DisplayName:          displayName,
+			FeeRate:              feeRate,
+			PaymentNoticeEnabled: paymentNoticeEnabled,
 		}
 	}
 	return normalized, nil
@@ -128,6 +136,7 @@ func SerializeChannelSettings(input ChannelSettings) (string, ChannelSettings, e
 func ApplyChannelSettings(options []MethodOption, settings ChannelSettings) []MethodOption {
 	result := append([]MethodOption(nil), options...)
 	for i := range result {
+		result[i].PaymentNoticeEnabled = result[i].ID == StableID(MethodAlipay, ProviderEasyPay)
 		setting, ok := settings[result[i].ID]
 		if !ok {
 			continue
@@ -137,6 +146,9 @@ func ApplyChannelSettings(options []MethodOption, settings ChannelSettings) []Me
 		}
 		if setting.FeeRate != nil {
 			result[i].FeeRate = *setting.FeeRate
+		}
+		if setting.PaymentNoticeEnabled != nil {
+			result[i].PaymentNoticeEnabled = *setting.PaymentNoticeEnabled
 		}
 	}
 	return result
