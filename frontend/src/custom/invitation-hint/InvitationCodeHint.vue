@@ -22,7 +22,9 @@ const props = defineProps<{ text: string; url: string }>()
 const visibleText = computed(() => props.text.trim())
 const safeURL = computed(() => {
   const raw = props.url.trim()
-  if (!/^https?:\/\//i.test(raw) || /[\\\u0000-\u001f]/.test(raw)) return ''
+  if (!/^https?:\/\//i.test(raw) || [...raw].some(
+    (char) => char === '\\' || char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127
+  )) return ''
   try {
     const parsed = new URL(raw)
     if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname || parsed.username || parsed.password) {
