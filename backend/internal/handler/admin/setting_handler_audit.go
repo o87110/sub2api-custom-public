@@ -50,6 +50,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.InvitationCodeEnabled != after.InvitationCodeEnabled {
 		changed = append(changed, "invitation_code_enabled")
 	}
+	if req.invitationCodeHintTextProvided && before.InvitationCodeHintText != after.InvitationCodeHintText {
+		changed = append(changed, "invitation_code_hint_text")
+	}
+	if req.invitationCodeHintURLProvided && before.InvitationCodeHintURL != after.InvitationCodeHintURL {
+		changed = append(changed, "invitation_code_hint_url")
+	}
 	if before.PasswordResetEnabled != after.PasswordResetEnabled {
 		changed = append(changed, "password_reset_enabled")
 	}

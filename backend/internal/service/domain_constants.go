@@ -234,6 +234,8 @@ const (
 	SettingKeyPasswordResetEnabled                = "password_reset_enabled"                // 是否启用忘记密码功能（需要先开启邮件验证）
 	SettingKeyFrontendURL                         = "frontend_url"                          // 前端基础URL，用于生成邮件中的重置密码链接
 	SettingKeyInvitationCodeEnabled               = "invitation_code_enabled"               // 是否启用邀请码注册
+	SettingKeyInvitationCodeHintText              = "invitation_code_hint_text"             // 注册页邀请码提示文字
+	SettingKeyInvitationCodeHintURL               = "invitation_code_hint_url"              // 注册页邀请码提示链接
 	SettingKeyAffiliateEnabled                    = "affiliate_enabled"                     // 邀请返利功能总开关
 	SettingKeyAffiliateRebateRate                 = "affiliate_rebate_rate"                 // 邀请返利比例（百分比，0-100）
 	SettingKeyAffiliateRebateFreezeHours          = "affiliate_rebate_freeze_hours"         // 返利冻结期（小时，0=不冻结）

@@ -1581,6 +1581,10 @@
                 </div>
                 <Toggle v-model="form.invitation_code_enabled" />
               </div>
+              <InvitationHintSettings
+                v-model:text="form.invitation_code_hint_text"
+                v-model:url="form.invitation_code_hint_url"
+              />
               <!-- Password Reset - Only show when email verification is enabled -->
               <div
                 v-if="form.email_verify_enabled"
@@ -9045,6 +9049,7 @@ import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import PaymentProviderList from "@/components/payment/PaymentProviderList.vue";
 import PaymentProviderDialog from "@/components/payment/PaymentProviderDialog.vue";
 import UserPaymentChannelSettings from "@/custom/payment-channels/PaymentChannelSettings.vue";
+import InvitationHintSettings from "@/custom/invitation-hint/InvitationHintSettings.vue";
 import type { PaymentChannelSettings } from "@/api/admin/payment";
 import GroupBadge from "@/components/common/GroupBadge.vue";
 import GroupOptionItem from "@/components/common/GroupOptionItem.vue";
@@ -9796,6 +9801,8 @@ const form = reactive<SettingsForm>({
   registration_email_domain_quota_enabled: false,
   promo_code_enabled: true,
   invitation_code_enabled: false,
+  invitation_code_hint_text: "",
+  invitation_code_hint_url: "",
   password_reset_enabled: false,
   totp_enabled: false,
   totp_encryption_key_configured: false,
@@ -11516,6 +11523,8 @@ async function saveSettings() {
         form.registration_email_domain_quota_enabled,
       promo_code_enabled: form.promo_code_enabled,
       invitation_code_enabled: form.invitation_code_enabled,
+      invitation_code_hint_text: form.invitation_code_hint_text,
+      invitation_code_hint_url: form.invitation_code_hint_url,
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
       passkey_enabled: form.passkey_enabled,

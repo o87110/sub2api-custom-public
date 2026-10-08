@@ -37,6 +37,8 @@ type SystemSettings struct {
 	PasswordResetEnabled                bool                     `json:"password_reset_enabled"`
 	FrontendURL                         string                   `json:"frontend_url"`
 	InvitationCodeEnabled               bool                     `json:"invitation_code_enabled"`
+	InvitationCodeHintText              string                   `json:"invitation_code_hint_text"`
+	InvitationCodeHintURL               string                   `json:"invitation_code_hint_url"`
 	TotpEnabled                         bool                     `json:"totp_enabled"`                   // TOTP 双因素认证
 	TotpEncryptionKeyConfigured         bool                     `json:"totp_encryption_key_configured"` // TOTP 加密密钥是否已配置
 	PasskeyEnabled                      bool                     `json:"passkey_enabled"`
@@ -376,6 +378,8 @@ type PublicSettings struct {
 	PromoCodeEnabled                    bool                     `json:"promo_code_enabled"`
 	PasswordResetEnabled                bool                     `json:"password_reset_enabled"`
 	InvitationCodeEnabled               bool                     `json:"invitation_code_enabled"`
+	InvitationCodeHintText              string                   `json:"invitation_code_hint_text"`
+	InvitationCodeHintURL               string                   `json:"invitation_code_hint_url"`
 	TotpEnabled                         bool                     `json:"totp_enabled"` // TOTP 双因素认证
 	PasskeyEnabled                      bool                     `json:"passkey_enabled"`
 	LoginAgreementEnabled               bool                     `json:"login_agreement_enabled"`

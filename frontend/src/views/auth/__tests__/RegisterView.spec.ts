@@ -28,6 +28,8 @@ const publicSettings = {
   email_verify_enabled: false,
   promo_code_enabled: false,
   invitation_code_enabled: false,
+  invitation_code_hint_text: '',
+  invitation_code_hint_url: '',
   affiliate_enabled: true,
   turnstile_enabled: true,
   turnstile_site_key: 'site-key',
@@ -234,6 +236,73 @@ describe('RegisterView', () => {
 
     expect(wrapper.find('[data-testid="affiliate-invitation-field"]').exists()).toBe(false)
     expect(wrapper.get('#invitation_code').exists()).toBe(true)
+  })
+
+  it('shows invitation hint text only beside the required invitation code', async () => {
+    getPublicSettingsMock.mockResolvedValueOnce({
+      ...publicSettings,
+      invitation_code_enabled: true,
+      invitation_code_hint_text: '  获取邀请码  '
+    })
+    const wrapper = mountRegister()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="invitation-code-hint-text"]').text()).toBe('获取邀请码')
+    expect(wrapper.find('[data-testid="invitation-code-hint-link"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="affiliate-invitation-field"]').exists()).toBe(false)
+  })
+
+  it('opens a configured invitation hint link in a new tab', async () => {
+    getPublicSettingsMock.mockResolvedValueOnce({
+      ...publicSettings,
+      invitation_code_enabled: true,
+      invitation_code_hint_text: '获取邀请码',
+      invitation_code_hint_url: 'https://example.com/invite#steps'
+    })
+    const wrapper = mountRegister()
+    await flushPromises()
+
+    const link = wrapper.get('[data-testid="invitation-code-hint-link"]')
+    expect(link.text()).toBe('获取邀请码')
+    expect(link.attributes('href')).toBe('https://example.com/invite#steps')
+    expect(link.attributes('target')).toBe('_blank')
+    expect(link.attributes('rel')).toBe('noopener noreferrer')
+  })
+
+  it('hides the hint unless invitation registration and text are both configured', async () => {
+    getPublicSettingsMock.mockResolvedValueOnce({
+      ...publicSettings,
+      invitation_code_hint_text: '获取邀请码',
+      invitation_code_hint_url: 'https://example.com/invite'
+    })
+    const disabled = mountRegister()
+    await flushPromises()
+    expect(disabled.find('[data-testid^="invitation-code-hint-"]').exists()).toBe(false)
+    disabled.unmount()
+
+    getPublicSettingsMock.mockResolvedValueOnce({
+      ...publicSettings,
+      invitation_code_enabled: true,
+      invitation_code_hint_text: '   ',
+      invitation_code_hint_url: 'https://example.com/invite'
+    })
+    const emptyText = mountRegister()
+    await flushPromises()
+    expect(emptyText.find('[data-testid^="invitation-code-hint-"]').exists()).toBe(false)
+  })
+
+  it('renders plain text if persisted invitation link is unsafe', async () => {
+    getPublicSettingsMock.mockResolvedValueOnce({
+      ...publicSettings,
+      invitation_code_enabled: true,
+      invitation_code_hint_text: '获取邀请码',
+      invitation_code_hint_url: 'javascript:alert(1)'
+    })
+    const wrapper = mountRegister()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="invitation-code-hint-text"]').text()).toBe('获取邀请码')
+    expect(wrapper.find('[data-testid="invitation-code-hint-link"]').exists()).toBe(false)
   })
 
   it('submits a non-whitelist email domain so the backend can enforce its registration quota', async () => {

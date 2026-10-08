@@ -121,9 +121,10 @@
 
         <!-- Invitation Code Input (Required when enabled) -->
         <div v-if="invitationCodeEnabled">
-          <label for="invitation_code" class="input-label">
-            {{ t('auth.invitationCodeLabel') }}
-          </label>
+          <div class="mb-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <label for="invitation_code" class="input-label !mb-0">{{ t('auth.invitationCodeLabel') }}</label>
+            <InvitationCodeHint :text="invitationCodeHintText" :url="invitationCodeHintURL" />
+          </div>
           <div class="relative">
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
               <Icon name="key" size="md" :class="invitationValidation.valid ? 'text-green-500' : 'text-gray-400 dark:text-dark-500'" />
@@ -374,6 +375,7 @@ import OidcOAuthSection from '@/components/auth/OidcOAuthSection.vue'
 import WechatOAuthSection from '@/components/auth/WechatOAuthSection.vue'
 import EmailOAuthButtons from '@/components/auth/EmailOAuthButtons.vue'
 import LoginAgreementPrompt from '@/components/auth/LoginAgreementPrompt.vue'
+import InvitationCodeHint from '@/custom/invitation-hint/InvitationCodeHint.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/CaptchaChallenge.vue'
 import { useAuthStore, useAppStore } from '@/stores'
@@ -430,6 +432,8 @@ const promoCodeEnabled = ref<boolean>(
   appStore.cachedPublicSettings?.promo_code_enabled === true
 )
 const invitationCodeEnabled = ref<boolean>(false)
+const invitationCodeHintText = ref('')
+const invitationCodeHintURL = ref('')
 const affiliateEnabled = ref<boolean>(false)
 const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
@@ -567,6 +571,8 @@ onMounted(async () => {
     emailVerifyEnabled.value = settings.email_verify_enabled
     promoCodeEnabled.value = settings.promo_code_enabled
     invitationCodeEnabled.value = settings.invitation_code_enabled
+    invitationCodeHintText.value = settings.invitation_code_hint_text || ''
+    invitationCodeHintURL.value = settings.invitation_code_hint_url || ''
     affiliateEnabled.value = settings.affiliate_enabled
     turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''

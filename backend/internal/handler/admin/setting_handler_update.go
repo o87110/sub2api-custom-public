@@ -32,6 +32,8 @@ type UpdateSettingsRequest struct {
 	PasswordResetEnabled                bool                         `json:"password_reset_enabled"`
 	FrontendURL                         string                       `json:"frontend_url"`
 	InvitationCodeEnabled               bool                         `json:"invitation_code_enabled"`
+	InvitationCodeHintText              string                       `json:"invitation_code_hint_text"`
+	InvitationCodeHintURL               string                       `json:"invitation_code_hint_url"`
 	TotpEnabled                         bool                         `json:"totp_enabled"`             // TOTP 双因素认证
 	PasskeyEnabled                      *bool                        `json:"passkey_enabled"`          // Passkey 登录（省略=保持现值）
 	SessionBindingEnabled               *bool                        `json:"session_binding_enabled"`  // 会话 IP/UA 绑定（省略=保持现值）
@@ -394,6 +396,11 @@ type UpdateSettingsRequest struct {
 	AuthSourceDingTalkPlatformQuotas map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_dingtalk_platform_quotas"`
 
 	AllowUserViewErrorRequests *bool `json:"allow_user_view_error_requests"`
+
+	// These markers are populated from the raw JSON payload so settings audit
+	// can distinguish an omitted field from an explicitly cleared value.
+	invitationCodeHintTextProvided bool `json:"-"`
+	invitationCodeHintURLProvided  bool `json:"-"`
 }
 
 // UpdateSettings 更新系统设置
@@ -504,6 +511,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	_, req.invitationCodeHintTextProvided = sentFields["invitation_code_hint_text"]
+	_, req.invitationCodeHintURLProvided = sentFields["invitation_code_hint_url"]
 	auditReq := settingsAuditRequest(req)
 	omitted := omittedSettingKeys(sentFields)
 
@@ -1537,6 +1546,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PasswordResetEnabled:                req.PasswordResetEnabled,
 		FrontendURL:                         req.FrontendURL,
 		InvitationCodeEnabled:               req.InvitationCodeEnabled,
+		InvitationCodeHintText:              req.InvitationCodeHintText,
+		InvitationCodeHintURL:               req.InvitationCodeHintURL,
 		TotpEnabled:                         req.TotpEnabled,
 		PasskeyEnabled:                      passkeyEnabled,
 		SessionBindingEnabled:               sessionBindingEnabled,
@@ -2208,6 +2219,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PasswordResetEnabled:                                   updatedSettings.PasswordResetEnabled,
 		FrontendURL:                                            updatedSettings.FrontendURL,
 		InvitationCodeEnabled:                                  updatedSettings.InvitationCodeEnabled,
+		InvitationCodeHintText:                                 updatedSettings.InvitationCodeHintText,
+		InvitationCodeHintURL:                                  updatedSettings.InvitationCodeHintURL,
 		TotpEnabled:                                            updatedSettings.TotpEnabled,
 		TotpEncryptionKeyConfigured:                            h.settingService.IsTotpEncryptionKeyConfigured(),
 		PasskeyEnabled:                                         updatedSettings.PasskeyEnabled,
