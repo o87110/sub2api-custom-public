@@ -82,6 +82,34 @@ func TestSettingHandler_GetPublicSettings_ExposesForceEmailOnThirdPartySignup(t 
 	require.True(t, resp.Data.ForceEmailOnThirdPartySignup)
 }
 
+func TestSettingHandler_GetPublicSettings_ExposesInvitationHint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := &settingHandlerPublicRepoStub{values: map[string]string{
+		service.SettingKeyInvitationCodeEnabled:  "true",
+		service.SettingKeyInvitationCodeHintText: "获取邀请码",
+		service.SettingKeyInvitationCodeHintURL:  "https://example.com/invite#steps",
+	}}
+	h := NewSettingHandler(service.NewSettingService(repo, &config.Config{}), "test-version")
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/settings/public", nil)
+
+	h.GetPublicSettings(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var resp struct {
+		Data struct {
+			Enabled bool   `json:"invitation_code_enabled"`
+			Text    string `json:"invitation_code_hint_text"`
+			URL     string `json:"invitation_code_hint_url"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &resp))
+	require.True(t, resp.Data.Enabled)
+	require.Equal(t, "获取邀请码", resp.Data.Text)
+	require.Equal(t, "https://example.com/invite#steps", resp.Data.URL)
+}
+
 func TestSettingHandler_GetPublicSettings_ExposesTencentCaptchaConfiguration(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

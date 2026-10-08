@@ -39,6 +39,63 @@ func TestUpdateSettingsPartialPayloadKeepsUnsentKeys(t *testing.T) {
 	require.Equal(t, "true", repo.values[service.SettingKeyTurnstileEnabled])
 }
 
+func TestUpdateSettingsInvitationHintPreservesOmittedFieldsAndValidatesURL(t *testing.T) {
+	h, repo := newStepUpSwitchTestHandler(t, map[string]string{
+		service.SettingKeyInvitationCodeHintText: "旧提示",
+		service.SettingKeyInvitationCodeHintURL:  "https://example.com/old",
+	})
+
+	omitted := doUpdateSettings(t, h, map[string]any{"risk_control_enabled": true}, nil)
+	require.Equal(t, http.StatusOK, omitted.Code)
+	require.Equal(t, "旧提示", repo.values[service.SettingKeyInvitationCodeHintText])
+	require.Equal(t, "https://example.com/old", repo.values[service.SettingKeyInvitationCodeHintURL])
+
+	updated := doUpdateSettings(t, h, map[string]any{
+		"invitation_code_hint_text": "  获取邀请码  ",
+		"invitation_code_hint_url":  "  https://example.com/invite?from=register#steps  ",
+	}, nil)
+	require.Equal(t, http.StatusOK, updated.Code)
+	require.Equal(t, "获取邀请码", repo.values[service.SettingKeyInvitationCodeHintText])
+	require.Equal(t, "https://example.com/invite?from=register#steps", repo.values[service.SettingKeyInvitationCodeHintURL])
+	require.Contains(t, updated.Body.String(), `"invitation_code_hint_text":"获取邀请码"`)
+
+	reenabled := doUpdateSettings(t, h, map[string]any{"invitation_code_enabled": true}, nil)
+	require.Equal(t, http.StatusOK, reenabled.Code)
+	require.Equal(t, "获取邀请码", repo.values[service.SettingKeyInvitationCodeHintText])
+	require.Equal(t, "https://example.com/invite?from=register#steps", repo.values[service.SettingKeyInvitationCodeHintURL])
+
+	invalid := doUpdateSettings(t, h, map[string]any{
+		"invitation_code_hint_url": "javascript:alert(1)",
+	}, nil)
+	require.Equal(t, http.StatusBadRequest, invalid.Code)
+	require.Contains(t, invalid.Body.String(), "INVALID_INVITATION_CODE_HINT_URL")
+	require.Equal(t, "https://example.com/invite?from=register#steps", repo.values[service.SettingKeyInvitationCodeHintURL])
+}
+
+func TestDiffSettingsInvitationHintOnlyAuditsFieldsPresentInPayload(t *testing.T) {
+	before := &service.SystemSettings{
+		InvitationCodeHintText: "旧提示",
+		InvitationCodeHintURL:  "https://example.com/old",
+	}
+	after := &service.SystemSettings{}
+
+	changed := diffSettings(before, after, nil, nil, UpdateSettingsRequest{})
+	require.NotContains(t, changed, service.SettingKeyInvitationCodeHintText)
+	require.NotContains(t, changed, service.SettingKeyInvitationCodeHintURL)
+
+	changed = diffSettings(before, after, nil, nil, UpdateSettingsRequest{
+		InvitationCodeHintText:         "新提示",
+		invitationCodeHintTextProvided: true,
+	})
+	require.Contains(t, changed, service.SettingKeyInvitationCodeHintText)
+	require.NotContains(t, changed, service.SettingKeyInvitationCodeHintURL)
+
+	changed = diffSettings(before, after, nil, nil, UpdateSettingsRequest{
+		invitationCodeHintURLProvided: true,
+	})
+	require.Contains(t, changed, service.SettingKeyInvitationCodeHintURL)
+}
+
 func TestUpdateSettingsSubscriptionRebateOmittedPreservesAndExplicitFalsePersists(t *testing.T) {
 	h, repo := newStepUpSwitchTestHandler(t, map[string]string{
 		service.SettingKeyAffiliateSubscriptionRebateEnabled: "true",

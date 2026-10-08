@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/invitationhint"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 )
 
@@ -164,6 +165,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyPromoCodeEnabled,
 		SettingKeyPasswordResetEnabled,
 		SettingKeyInvitationCodeEnabled,
+		SettingKeyInvitationCodeHintText,
+		SettingKeyInvitationCodeHintURL,
 		SettingKeyTotpEnabled,
 		SettingKeyPasskeyEnabled,
 		SettingKeyLoginAgreementEnabled,
@@ -308,6 +311,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		PromoCodeEnabled:                    settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
 		PasswordResetEnabled:                passwordResetEnabled,
 		InvitationCodeEnabled:               settings[SettingKeyInvitationCodeEnabled] == "true",
+		InvitationCodeHintText:              strings.TrimSpace(settings[SettingKeyInvitationCodeHintText]),
+		InvitationCodeHintURL:               invitationhint.SafeURL(settings[SettingKeyInvitationCodeHintURL]),
 		TotpEnabled:                         settings[SettingKeyTotpEnabled] == "true",
 		PasskeyEnabled:                      s.passkeyConfigured() && s.passkeySettingEnabled(settings),
 		LoginAgreementEnabled:               settings[SettingKeyLoginAgreementEnabled] == "true" && len(loginAgreementDocuments) > 0,
@@ -567,6 +572,8 @@ type PublicSettingsInjectionPayload struct {
 	PromoCodeEnabled                    bool                     `json:"promo_code_enabled"`
 	PasswordResetEnabled                bool                     `json:"password_reset_enabled"`
 	InvitationCodeEnabled               bool                     `json:"invitation_code_enabled"`
+	InvitationCodeHintText              string                   `json:"invitation_code_hint_text"`
+	InvitationCodeHintURL               string                   `json:"invitation_code_hint_url"`
 	TotpEnabled                         bool                     `json:"totp_enabled"`
 	PasskeyEnabled                      bool                     `json:"passkey_enabled"`
 	LoginAgreementEnabled               bool                     `json:"login_agreement_enabled"`
@@ -661,6 +668,8 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PromoCodeEnabled:                    settings.PromoCodeEnabled,
 		PasswordResetEnabled:                settings.PasswordResetEnabled,
 		InvitationCodeEnabled:               settings.InvitationCodeEnabled,
+		InvitationCodeHintText:              settings.InvitationCodeHintText,
+		InvitationCodeHintURL:               settings.InvitationCodeHintURL,
 		TotpEnabled:                         settings.TotpEnabled,
 		PasskeyEnabled:                      settings.PasskeyEnabled,
 		LoginAgreementEnabled:               settings.LoginAgreementEnabled,

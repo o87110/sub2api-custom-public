@@ -2,8 +2,8 @@
 backend/cmd/server/wire.go	backend/internal/custom/channelmonitor/wire.go|backend/internal/custom/moderation/wire.go|backend/internal/custom/subscriptionrepository/repository.go|backend/internal/custom/updater/wire.go
 backend/internal/handler/admin/payment_handler.go	backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/subscriptioninventory/inventory.go|backend/internal/custom/subscriptionbulkreset/service.go
 backend/internal/handler/admin/payment_handler_test.go	backend/internal/custom/subscriptioninventory/inventory_test.go
-backend/internal/handler/admin/setting_handler.go	backend/internal/custom/paymentchannels/channel_settings.go
-backend/internal/handler/admin/setting_handler_update.go	backend/internal/custom/paymentchannels/channel_settings.go
+backend/internal/handler/admin/setting_handler.go	backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/invitationhint/hint.go
+backend/internal/handler/admin/setting_handler_update.go	backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/invitationhint/hint.go
 backend/internal/handler/admin/subscription_handler.go	backend/internal/custom/idempotencyexecution/execution.go|backend/internal/custom/subscriptionrepository/application.go|backend/internal/custom/subscriptionrepository/bulk_reset.go|backend/internal/custom/subscriptionbulkreset/service.go
 backend/internal/handler/admin/system_handler.go	backend/internal/custom/updater/service.go
 backend/internal/handler/admin/system_handler_test.go	backend/internal/custom/updater/service_test.go
@@ -12,7 +12,7 @@ backend/internal/handler/auth_wechat_oauth.go	backend/internal/custom/paymentcha
 backend/internal/handler/auth_wechat_oauth_test.go	backend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go
 backend/internal/handler/batch_image_handler.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/handler/channel_monitor_user_handler.go	backend/internal/custom/channelmonitor/group_rate_resolver.go|backend/internal/custom/channelmonitor/group_rate_lookup.go|backend/internal/custom/channelmonitor/runtime_eligibility.go
-backend/internal/handler/dto/settings.go	backend/internal/custom/paymentchannels/channel_settings.go
+backend/internal/handler/dto/settings.go	backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/invitationhint/hint.go
 backend/internal/handler/gateway_handler.go	backend/internal/custom/groupaccess/minimum_balance.go|backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/handler/gateway_handler_chat_completions.go	backend/internal/custom/groupmodelaccess/policy.go
 backend/internal/handler/gateway_handler_responses.go	backend/internal/custom/groupmodelaccess/policy.go
@@ -114,6 +114,8 @@ backend/internal/service/payment_resume_service.go	backend/internal/custom/payme
 backend/internal/service/payment_resume_service_test.go	backend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/paymentchannels/resume_policy_test.go
 backend/internal/service/payment_service.go	backend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/subscriptionquota/term_snapshot.go|backend/internal/custom/paymentchannels/bepusdt_native.go
 backend/internal/service/redeem_service.go	backend/internal/custom/subscriptionquota/cycle.go
+backend/internal/service/setting_public.go	backend/internal/custom/invitationhint/hint.go
+backend/internal/service/setting_update.go	backend/internal/custom/invitationhint/hint.go
 backend/internal/service/subscription_service.go	backend/internal/custom/idempotencyexecution/execution.go|backend/internal/custom/subscriptionbulkreset/service.go|backend/internal/custom/subscriptionquota/cycle.go|backend/internal/custom/subscriptionrepository/application.go|backend/internal/custom/subscriptionrepository/bulk_reset.go|backend/internal/custom/subscriptionrepository/cycle_metadata.go
 backend/internal/service/update_service.go	backend/internal/custom/updater/service.go
 backend/internal/service/update_service_test.go	backend/internal/custom/updater/service_test.go
@@ -122,7 +124,7 @@ backend/internal/service/wire.go	backend/internal/custom/updater/wire.go
 frontend/src/api/__tests__/admin.system.rollback.spec.ts	frontend/src/custom/updater/__tests__/api.rollback.spec.ts
 frontend/src/api/admin/payment.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue
 frontend/src/api/admin/riskControl.ts	frontend/src/custom/moderation/api.ts|frontend/src/custom/moderation/userBanThresholds.ts
-frontend/src/api/admin/settings.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue
+frontend/src/api/admin/settings.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/invitation-hint/InvitationHintSettings.vue
 frontend/src/api/admin/subscriptions.ts	frontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue|frontend/src/custom/subscription-quota/ManualBulkResetEligibilityAction.vue|frontend/src/custom/subscription-quota/bulkReset.ts
 frontend/src/api/admin/system.ts	frontend/src/custom/updater/api.ts
 frontend/src/components/admin/monitor/MonitorFormDialog.vue	frontend/src/custom/channel-monitor/groupRate.ts|frontend/src/custom/channel-monitor/MonitorGroupRateFields.vue
@@ -142,11 +144,11 @@ frontend/src/components/payment/paymentFlow.ts	frontend/src/custom/payment-chann
 frontend/src/components/user/monitor/MonitorCard.vue	frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts
 frontend/src/features/channel-monitor-v2/RelayPulseMatrix.vue	frontend/src/custom/channel-monitor-v2/matrixWheelPolicy.ts
 frontend/src/i18n/locales/en/admin/channels.ts	frontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts|frontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue
-frontend/src/i18n/locales/en/admin/settings.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue
+frontend/src/i18n/locales/en/admin/settings.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/invitation-hint/InvitationHintSettings.vue
 frontend/src/i18n/locales/en/dashboard.ts	frontend/src/custom/api-keys/i18n.ts
 frontend/src/i18n/locales/en/misc.ts	frontend/src/custom/updater/i18n.ts|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/subscription-plan-inventory/InventoryQuantityCell.vue|frontend/src/custom/subscription-plan-inventory/InventoryQuantityInput.vue|frontend/src/custom/subscription-plan-inventory/SoldOutActionCell.vue|frontend/src/custom/subscription-plan-inventory/SoldOutActionSelect.vue|frontend/src/custom/subscription-plan-inventory/inventory.ts|frontend/src/custom/subscription-quota/SubscriptionCycleStats.vue|frontend/src/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue|frontend/src/custom/payment-channels/AlipayPaymentWarningDialog.vue
 frontend/src/i18n/locales/zh/admin/channels.ts	frontend/src/custom/moderation/i18n.ts|frontend/src/custom/channel-monitor/GroupRateBadge.vue|frontend/src/custom/channel-monitor/groupRate.ts|frontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue
-frontend/src/i18n/locales/zh/admin/settings.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue
+frontend/src/i18n/locales/zh/admin/settings.ts	frontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/invitation-hint/InvitationHintSettings.vue
 frontend/src/i18n/locales/zh/dashboard.ts	frontend/src/custom/api-keys/i18n.ts
 frontend/src/i18n/locales/zh/misc.ts	frontend/src/custom/updater/i18n.ts|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/BepusdtNetworkDialog.vue|frontend/src/custom/subscription-plan-inventory/InventoryQuantityCell.vue|frontend/src/custom/subscription-plan-inventory/InventoryQuantityInput.vue|frontend/src/custom/subscription-plan-inventory/SoldOutActionCell.vue|frontend/src/custom/subscription-plan-inventory/SoldOutActionSelect.vue|frontend/src/custom/subscription-plan-inventory/inventory.ts|frontend/src/custom/subscription-quota/SubscriptionCycleStats.vue|frontend/src/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue|frontend/src/custom/payment-channels/AlipayPaymentWarningDialog.vue
 frontend/src/router/index.ts	frontend/src/custom/moderation/views/RiskControlView.vue
@@ -156,7 +158,7 @@ frontend/src/utils/__tests__/releaseNotes.spec.ts|@removed	frontend/src/custom/u
 frontend/src/utils/releaseNotes.ts|@removed	frontend/src/custom/updater/releaseNotes.ts
 frontend/src/views/admin/GroupsView.vue	frontend/src/custom/group-access/GroupMinimumBalanceField.vue|frontend/src/custom/group-access/minimumBalance.ts|frontend/src/custom/group-model-access/GroupModelBlocklistField.vue|frontend/src/custom/group-model-access/blocklist.ts
 frontend/src/views/admin/RiskControlView.vue	frontend/src/custom/moderation/UserBanThresholdOverrides.vue|frontend/src/custom/moderation/userBanThresholds.ts|frontend/src/custom/moderation/views/RiskControlView.vue
-frontend/src/views/admin/SettingsView.vue	frontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/payment-channels/adminPaymentChannels.ts
+frontend/src/views/admin/SettingsView.vue	frontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/payment-channels/adminPaymentChannels.ts|frontend/src/custom/invitation-hint/InvitationHintSettings.vue
 frontend/src/views/admin/SubscriptionsView.vue	frontend/src/custom/subscription-quota/SubscriptionCycleStats.vue|frontend/src/custom/subscription-quota/BulkQuotaResetDialog.vue|frontend/src/custom/subscription-quota/BulkQuotaResetResultCount.vue|frontend/src/custom/subscription-quota/ManualBulkResetAssignmentToggle.vue|frontend/src/custom/subscription-quota/ManualBulkResetEligibilityAction.vue
 frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue	frontend/src/custom/affiliate-reversal/AffiliateReversalActionBar.vue|frontend/src/custom/affiliate-reversal/AffiliateReversalDialog.vue
 frontend/src/views/admin/__tests__/RiskControlView.spec.ts	frontend/src/custom/moderation/UserBanThresholdOverrides.spec.ts|frontend/src/custom/moderation/userBanThresholds.spec.ts|frontend/src/custom/moderation/views/__tests__/RiskControlView.spec.ts
@@ -166,6 +168,7 @@ frontend/src/views/admin/orders/AdminPaymentPlansView.vue	frontend/src/custom/su
 frontend/src/views/admin/orders/PlanEditDialog.vue	frontend/src/custom/subscription-plan-inventory/InventoryQuantityInput.vue|frontend/src/custom/subscription-plan-inventory/SoldOutActionSelect.vue|frontend/src/custom/subscription-plan-inventory/inventory.ts|frontend/src/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue
 frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts	frontend/src/custom/subscription-plan-inventory/__tests__/inventory.spec.ts
 frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts	frontend/src/custom/subscription-plan-inventory/__tests__/inventory.spec.ts|frontend/src/custom/subscription-quota/BulkQuotaResetEligibilityToggle.vue
+frontend/src/views/auth/RegisterView.vue	frontend/src/custom/invitation-hint/InvitationCodeHint.vue
 frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts	frontend/src/custom/payment-channels/paymentChannels.spec.ts
 frontend/src/views/user/KeysView.vue	frontend/src/custom/api-keys/ApiKeyBulkActions.vue|frontend/src/custom/api-keys/bulkActions.ts|frontend/src/custom/group-access/GroupBalanceWarning.vue|frontend/src/custom/group-access/minimumBalance.ts
 frontend/src/views/user/PaymentQRCodeView.vue	frontend/src/custom/payment-channels/usePaymentOrderRecovery.ts

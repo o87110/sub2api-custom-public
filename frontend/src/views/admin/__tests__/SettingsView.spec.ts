@@ -371,6 +371,8 @@ const baseSettingsResponse = {
   registration_email_suffix_whitelist: [],
   promo_code_enabled: true,
   invitation_code_enabled: false,
+  invitation_code_hint_text: "",
+  invitation_code_hint_url: "",
   password_reset_enabled: false,
   totp_enabled: false,
   totp_encryption_key_configured: false,
@@ -753,6 +755,33 @@ describe("admin SettingsView payment visible method controls", () => {
         { ...menuItems[0], hide_open_button: true },
         { ...menuItems[1], hide_open_button: false },
       ],
+    }));
+    wrapper.unmount();
+  });
+
+  it("keeps invitation hint fields editable while invitation registration is off", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      invitation_code_enabled: false,
+      invitation_code_hint_text: "旧提示",
+      invitation_code_hint_url: "https://example.com/old",
+    });
+    const wrapper = mountView();
+    await flushPromises();
+    await openSecurityTab(wrapper);
+
+    const settings = wrapper.get('[data-testid="invitation-hint-settings"]');
+    expect((settings.get('#invitation_code_hint_text').element as HTMLInputElement).value).toBe('旧提示');
+    expect((settings.get('#invitation_code_hint_url').element as HTMLInputElement).value).toBe('https://example.com/old');
+    await settings.get('#invitation_code_hint_text').setValue('获取邀请码');
+    await settings.get('#invitation_code_hint_url').setValue('https://example.com/invite#steps');
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      invitation_code_enabled: false,
+      invitation_code_hint_text: '获取邀请码',
+      invitation_code_hint_url: 'https://example.com/invite#steps',
     }));
     wrapper.unmount();
   });

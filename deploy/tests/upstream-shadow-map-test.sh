@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 shadow_map="${UPSTREAM_SHADOW_MAP:-$repo_root/.github/upstream-shadowed-sources.tsv}"
-expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-176}"
+expected_count="${UPSTREAM_SHADOW_EXPECTED_COUNT:-179}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -48,7 +48,7 @@ assert_mapping() {
   grep -Fqx -- "$1" "$rows" || fail "required exact shadow mapping is missing: $1"
 }
 
-if [[ "$expected_count" -eq 176 ]]; then
+if [[ "$expected_count" -eq 179 ]]; then
   assert_mapping $'backend/internal/repository/content_moderation_repo.go\tbackend/internal/custom/moderation/violation_counter.go'
   assert_mapping $'backend/internal/handler/openai_gateway_cyber_test.go\tbackend/internal/handler/openai_gateway_custom_test.go'
   assert_mapping $'backend/internal/repository/content_moderation_repo_test.go\tbackend/internal/custom/moderation/violation_counter_test.go'
@@ -74,7 +74,7 @@ if [[ "$expected_count" -eq 176 ]]; then
   assert_mapping $'backend/internal/payment/provider/easypay.go\tbackend/internal/custom/paymentchannels/easypay_policy.go|backend/internal/custom/paymentchannels/bepusdt_native.go'
   assert_mapping $'backend/internal/service/payment_order_result_test.go\tbackend/internal/custom/paymentchannels/payment_channels_test.go|backend/internal/custom/paymentchannels/channel_settings_test.go|backend/internal/custom/paymentchannels/order_policy_test.go|backend/internal/custom/paymentchannels/revalidation_test.go|backend/internal/custom/paymentchannels/order_coordinator_test.go'
   assert_mapping $'backend/internal/handler/payment_handler.go\tbackend/internal/custom/paymentchannels/payment_channels.go|backend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/subscriptioninventory/inventory.go'
-  assert_mapping $'backend/internal/handler/admin/setting_handler.go\tbackend/internal/custom/paymentchannels/channel_settings.go'
+  assert_mapping $'backend/internal/handler/admin/setting_handler.go\tbackend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/invitationhint/hint.go'
   assert_mapping $'backend/internal/handler/admin/payment_handler.go\tbackend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/subscriptioninventory/inventory.go|backend/internal/custom/subscriptionbulkreset/service.go'
   assert_mapping $'backend/internal/handler/admin/payment_handler_test.go\tbackend/internal/custom/subscriptioninventory/inventory_test.go'
   assert_mapping $'backend/internal/service/payment_config_service.go\tbackend/internal/custom/paymentchannels/channel_settings.go|backend/internal/custom/subscriptioninventory/inventory.go|backend/internal/custom/subscriptionbulkreset/service.go'
@@ -112,7 +112,10 @@ if [[ "$expected_count" -eq 176 ]]; then
   assert_mapping $'frontend/src/components/payment/AmountInput.vue\tfrontend/src/custom/payment-channels/paymentMoney.ts'
   assert_mapping $'frontend/src/views/user/PaymentView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/BepusdtNetworkDialog.vue|frontend/src/custom/payment-channels/paymentMoney.ts|frontend/src/custom/payment-channels/usePaymentChannelPricing.ts|frontend/src/custom/payment-channels/usePaymentChannelRecovery.ts|frontend/src/custom/payment-channels/paymentRecoveryRoute.ts|frontend/src/custom/subscription-plan-inventory/inventory.ts'
   assert_mapping $'frontend/src/views/user/__tests__/PaymentView.spec.ts\tfrontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/paymentMoney.spec.ts|frontend/src/custom/payment-channels/usePaymentChannelPricing.spec.ts|frontend/src/custom/payment-channels/usePaymentChannelRecovery.spec.ts|frontend/src/custom/subscription-plan-inventory/__tests__/inventory.spec.ts'
-  assert_mapping $'frontend/src/views/admin/SettingsView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/payment-channels/adminPaymentChannels.ts'
+  assert_mapping $'frontend/src/views/admin/SettingsView.vue\tfrontend/src/custom/payment-channels/PaymentChannelSelector.vue|frontend/src/custom/payment-channels/paymentChannels.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/payment-channels/adminPaymentChannels.ts|frontend/src/custom/invitation-hint/InvitationHintSettings.vue'
+  assert_mapping $'backend/internal/service/setting_public.go\tbackend/internal/custom/invitationhint/hint.go'
+  assert_mapping $'backend/internal/service/setting_update.go\tbackend/internal/custom/invitationhint/hint.go'
+  assert_mapping $'frontend/src/views/auth/RegisterView.vue\tfrontend/src/custom/invitation-hint/InvitationCodeHint.vue'
   assert_mapping $'frontend/src/views/admin/__tests__/SettingsView.spec.ts\tfrontend/src/custom/payment-channels/PaymentChannelSelector.spec.ts|frontend/src/custom/payment-channels/paymentChannels.spec.ts|frontend/src/custom/payment-channels/PaymentChannelSettings.spec.ts|frontend/src/custom/payment-channels/adminPaymentChannels.spec.ts'
   assert_mapping $'frontend/src/api/admin/payment.ts\tfrontend/src/custom/payment-channels/PaymentChannelSettings.vue'
   assert_mapping $'frontend/src/components/payment/PaymentProviderDialog.vue\tfrontend/src/custom/payment-channels/PaymentChannelSettings.vue|frontend/src/custom/payment-channels/easypayPolicy.ts|frontend/src/custom/payment-channels/BepusdtNetworkDialog.vue'
@@ -446,6 +449,8 @@ backend/internal/service/payment_service.go
 backend/internal/service/idempotency.go
 backend/internal/service/idempotency_test.go
 backend/internal/service/redeem_service.go
+backend/internal/service/setting_public.go
+backend/internal/service/setting_update.go
 backend/internal/service/subscription_service.go
 backend/internal/service/user_subscription_port.go
 backend/internal/service/update_service.go
@@ -498,6 +503,7 @@ frontend/src/views/admin/orders/__tests__/AdminPaymentPlansView.spec.ts
 frontend/src/views/admin/orders/__tests__/PlanEditDialog.spec.ts
 frontend/src/views/admin/affiliates/AdminAffiliateRecordsTable.vue
 frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts
+frontend/src/views/auth/RegisterView.vue
 frontend/src/views/user/KeysView.vue
 frontend/src/views/user/__tests__/KeysView.spec.ts
 frontend/src/views/user/PaymentQRCodeView.vue

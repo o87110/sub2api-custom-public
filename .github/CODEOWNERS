@@ -29,6 +29,7 @@
 /backend/internal/config/config.go @o87110
 /backend/internal/custom/** @o87110
 /backend/internal/handler/wire.go @o87110
+/backend/internal/handler/setting_handler_public_test.go @o87110
 /backend/internal/handler/api_key_handler.go @o87110
 /backend/internal/handler/channel_monitor_user_handler.go @o87110
 /backend/internal/handler/channel_monitor_user_handler_custom_test.go @o87110
@@ -273,6 +274,7 @@
 /frontend/src/views/admin/__tests__/ChannelMonitorView.grok.spec.ts @o87110
 /frontend/src/views/admin/__tests__/SettingsView.spec.ts @o87110
 /frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts @o87110
+/frontend/src/views/auth/__tests__/RegisterView.spec.ts @o87110
 /frontend/src/views/user/KeysView.vue @o87110
 /frontend/src/views/user/PaymentView.vue @o87110
 /frontend/src/views/user/__tests__/SubscriptionsView.spec.ts @o87110
