@@ -23,7 +23,7 @@
       <div
         v-for="channel in channels"
         :key="channel.id"
-        class="grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-800/60 md:grid-cols-[minmax(180px,0.8fr)_minmax(220px,1fr)_minmax(190px,0.7fr)] md:items-start"
+        class="grid grid-cols-1 items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-800/60 sm:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_140px_minmax(200px,1.25fr)_minmax(140px,0.75fr)]"
         :data-test="`channel-setting-${channel.id}`"
       >
         <div class="flex min-w-0 items-center gap-3">
@@ -51,24 +51,29 @@
                 {{ copy.instances(channel.instanceCount) }}
               </span>
             </div>
+          </div>
+        </div>
+
+        <div
+          class="min-w-0"
+          :class="{ 'hidden sm:block': channel.id !== 'easypay_alipay' }"
+          :aria-hidden="channel.id !== 'easypay_alipay' ? true : undefined"
+        >
+          <template v-if="channel.id === 'easypay_alipay'">
             <ToggleSwitch
-              v-if="channel.id === 'easypay_alipay'"
-              class="mt-3 items-start"
+              class="gap-2"
               :data-test="`payment-notice-toggle-${channel.id}`"
               :label="copy.paymentNoticeEnabled"
               :checked="drafts[channel.id]?.paymentNoticeEnabled !== false"
               @toggle="updatePaymentNoticeEnabled(channel.id, !(drafts[channel.id]?.paymentNoticeEnabled !== false))"
             />
-            <p
-              v-if="channel.id === 'easypay_alipay'"
-              class="mt-1 text-xs text-gray-400 dark:text-dark-400"
-            >
+            <p class="mt-2 text-center text-xs leading-relaxed text-gray-500 dark:text-dark-400">
               {{ copy.paymentNoticeHint }}
             </p>
-          </div>
+          </template>
         </div>
 
-        <div>
+        <div class="min-w-0">
           <label
             class="input-label"
             :for="`${channel.id}-display-name`"
@@ -104,7 +109,7 @@
           </p>
         </div>
 
-        <div>
+        <div class="min-w-0">
           <label
             class="input-label"
             :for="`${channel.id}-fee-rate`"
