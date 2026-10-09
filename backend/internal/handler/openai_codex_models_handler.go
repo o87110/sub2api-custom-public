@@ -153,6 +153,10 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to complete Codex models manifest")
 			return
 		}
+		if err := service.ApplyPinnedCodexModelsMapping(manifest, account, apiKey.Group); err != nil {
+			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to apply model mappings")
+			return
+		}
 		if err := h.gatewayService.MergeGroupConfiguredCodexModels(c.Request.Context(), apiKey.Group, manifest, manifestIfNoneMatch); err != nil {
 			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to build Codex models manifest")
 			return
