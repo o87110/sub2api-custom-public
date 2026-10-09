@@ -4,7 +4,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	986484bc10559a6976a3a13da60edf6a2f40e30f	-	-	database-boundary-unit+candidate-tree-test	登记全部 Custom 数据库结构与只读 SQL 例外，并绑定 vendor-0.2.7 准确 Blob 与语义指纹
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	be5e9b1d18169f6412319db7d083f33edb2e932b	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记 v0.2.1、v0.2.4 与 v0.2.5 候选路径、精确预算及调用面
-.github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	38907c3d119bde7ce0f23a95140f6280724eb12f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+.github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	ea3c6f23a53b1fc996b68ee96cf8e99d1339195a	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	a9b5393465763df1ba71168896f39b50ce45acad	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/upgrades/0.1.162.md	A	keep	A	custom-docs-ops	@absent	a873781565b70fa65a9ed5e2f88ddb762faeb81b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
