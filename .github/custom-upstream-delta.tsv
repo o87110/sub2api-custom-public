@@ -129,8 +129,8 @@ backend/ent/usersubscriptioncycle_create.go	A	keep	A	generated	@absent	b536af491
 backend/ent/usersubscriptioncycle_delete.go	A	keep	A	generated	@absent	92b59601325de80f3529ac3afca7224757825cd1	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期删除器
 backend/ent/usersubscriptioncycle_query.go	A	keep	A	generated	@absent	a84bdee411e8257a69e60c26cb768e20c6c5fc06	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期查询器
 backend/ent/usersubscriptioncycle_update.go	A	keep	A	generated	@absent	89ad56d75bd030e74deca285db073713573e7b50	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期更新器
-backend/go.mod	M	keep	M	fixed-path	941f519d08e7289c7a5f1d5a0809c38e2aa365dd	169df2c2c0b39a00d130da9b93cd45925380274d	-	-	candidate-tree+targeted-CI	同步官方 Go 1.27.2 toolchain directive
-backend/go.sum	M	keep	M	fixed-path	caf01c3b6be75e2863b1a1faa329bda598e9e81f	a0488e0026afa2727ac392802263fbfddf945171	-	-	go-generate+clean-diff+go-build	补齐 Wire v0.7.0 生成工具所需的 subcommands 校验和
+backend/go.mod	M	keep	M	fixed-path	941f519d08e7289c7a5f1d5a0809c38e2aa365dd	2e68ebc9ac2b2654d615dc9b38bf9bf985e679a1	-	-	candidate-tree+targeted-CI	同步官方 v0.2.15 Go 1.27.2 toolchain 与依赖版本
+backend/go.sum	M	keep	M	fixed-path	caf01c3b6be75e2863b1a1faa329bda598e9e81f	78270b757eed20139391ade40589c11b8df95f80	-	-	go-generate+clean-diff+go-build	同步官方 v0.2.15 工具链依赖校验和
 backend/internal/config/custom_artifacts_test.go	A	keep	A	custom-test	@absent	afcc1070e845c90c8069619914a77134580230ef	-	-	test-executed-in-CI	验证二改行为和发布边界
 backend/internal/custom/affiliatereversal/cache_invalidation_test.go	A	keep	A	custom-test	@absent	d6462381cb7f4b4a9451a10dc5dbb2ab19a970c8	-	-	affiliate-reversal-unit+go-test	验证首次缓存失效失败后按订单恢复邀请人并可重复失效，且使用独立超时上下文
 backend/internal/custom/affiliatereversal/calculator.go	A	keep	A	custom-backend	@absent	c97ee7cbc2bdca5c172b7a54e8069bb030fca989	backend/internal/repository/affiliate_repo.go	backend/internal/custom/affiliatereversal/calculator.go	affiliate-reversal-unit+postgres-integration+go-test	按冻结、可用返利、用户余额固定顺序计算严格追回及负余额快照
