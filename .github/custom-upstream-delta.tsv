@@ -4,7 +4,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	ff015488080e9316f854ef7d9f6dc3ff216adc69	-	-	database-boundary-unit+candidate-tree-test	登记全部 Custom 数据库结构与只读 SQL 例外，并绑定 vendor-0.2.7 准确 Blob 与语义指纹
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	be5e9b1d18169f6412319db7d083f33edb2e932b	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记 v0.2.1、v0.2.4 与 v0.2.5 候选路径、精确预算及调用面
-.github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	38907c3d119bde7ce0f23a95140f6280724eb12f	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
+.github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	ea3c6f23a53b1fc996b68ee96cf8e99d1339195a	-	-	candidate-tree+targeted-CI	同步 v0.2.15 Go 1.27.2 与 golangci-lint 2.14.0 控制面工具版本
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	dbfd7eb0a11a8a7707ecb8d5d4f9be9362209b8c	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/upgrades/0.1.162.md	A	keep	A	custom-docs-ops	@absent	a873781565b70fa65a9ed5e2f88ddb762faeb81b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
@@ -130,7 +130,7 @@ backend/ent/usersubscriptioncycle_create.go	A	keep	A	generated	@absent	b536af491
 backend/ent/usersubscriptioncycle_delete.go	A	keep	A	generated	@absent	92b59601325de80f3529ac3afca7224757825cd1	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期删除器
 backend/ent/usersubscriptioncycle_query.go	A	keep	A	generated	@absent	a84bdee411e8257a69e60c26cb768e20c6c5fc06	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期查询器
 backend/ent/usersubscriptioncycle_update.go	A	keep	A	generated	@absent	89ad56d75bd030e74deca285db073713573e7b50	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期更新器
-backend/go.sum	M	keep	M	fixed-path	78270b757eed20139391ade40589c11b8df95f80	ad15edd8455897ec1b012f5ed2540e53caf96713	-	-	go-generate+clean-diff+go-build	补齐 Wire v0.7.0 生成工具所需的 subcommands 校验和
+backend/go.sum	M	keep	M	fixed-path	78270b757eed20139391ade40589c11b8df95f80	15ea1a00465593ac9e9726fa3db91c05eb0eb2e7	-	-	go-generate+clean-diff+go-build	同步官方 v0.2.15 工具链依赖并保留 Wire v0.7.0 校验和
 backend/internal/config/custom_artifacts_test.go	A	keep	A	custom-test	@absent	afcc1070e845c90c8069619914a77134580230ef	-	-	test-executed-in-CI	验证二改行为和发布边界
 backend/internal/custom/affiliatereversal/cache_invalidation_test.go	A	keep	A	custom-test	@absent	d6462381cb7f4b4a9451a10dc5dbb2ab19a970c8	-	-	affiliate-reversal-unit+go-test	验证首次缓存失效失败后按订单恢复邀请人并可重复失效，且使用独立超时上下文
 backend/internal/custom/affiliatereversal/calculator.go	A	keep	A	custom-backend	@absent	c97ee7cbc2bdca5c172b7a54e8069bb030fca989	backend/internal/repository/affiliate_repo.go	backend/internal/custom/affiliatereversal/calculator.go	affiliate-reversal-unit+postgres-integration+go-test	按冻结、可用返利、用户余额固定顺序计算严格追回及负余额快照
