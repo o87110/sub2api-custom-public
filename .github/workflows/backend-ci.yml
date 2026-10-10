@@ -372,6 +372,11 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
       - name: Integration tests
+        env:
+          # Use the public ECR mirror for Testcontainers' Docker Hub images;
+          # GitHub-hosted runners can otherwise hit Docker Hub pull limits.
+          TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: public.ecr.aws/docker/library
+          TESTCONTAINERS_RYUK_DISABLED: "true"
         run: |
           SUB2API_TEST_POSTGRES_TIMEZONE=UTC \
             PGOPTIONS="-c timezone=UTC" \
