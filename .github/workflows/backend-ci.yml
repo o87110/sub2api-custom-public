@@ -378,6 +378,9 @@ jobs:
           TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: public.ecr.aws/docker/library
           TESTCONTAINERS_RYUK_DISABLED: "true"
         run: |
+          redis_image="public.ecr.aws/docker/library/redis:8.4-alpine"
+          docker pull --quiet "$redis_image"
+          docker tag "$redis_image" redis:8.4-alpine
           SUB2API_TEST_POSTGRES_TIMEZONE=UTC \
             PGOPTIONS="-c timezone=UTC" \
             /bin/bash deploy/tests/backend-integration-test.sh
