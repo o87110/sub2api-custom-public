@@ -2754,6 +2754,37 @@ APPROVED_DELEGATE_VIEW_CALL_DELTAS.update({
     ),
 })
 
+# v0.2.16 adds the official explicit-cache context read inside the Gemini
+# native request bridge. The upgrade candidate also retains the Custom
+# selection-access context, so this exact Vendor baseline has two
+# c.Request.Context calls in GeminiV1BetaModels.
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "01842576b3d5c1e2545b5a99ad555d36e28ed306",
+    "backend/internal/handler/gemini_v1beta_handler.go",
+)] = APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+    "backend/internal/handler/gemini_v1beta_handler.go"
+] + (("GeminiV1BetaModels", "c.Request.Context"),)
+
+_v0216_raw_chat_calls = Counter(
+    (
+        "forwardAsRawChatCompletionsWithStartTime" if function_name == "forwardAsRawChatCompletions" else function_name,
+        call,
+    )
+    for function_name, call in APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/service/openai_gateway_chat_completions_raw.go"
+    ]
+)
+_v0216_raw_chat_calls.update(
+    {
+        ("forwardAsRawChatCompletionsWithStartTime", "err.Error"): 2,
+        ("forwardAsRawChatCompletionsWithStartTime", "writeChatCompletionsError"): 5,
+    }
+)
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    "01842576b3d5c1e2545b5a99ad555d36e28ed306",
+    "backend/internal/service/openai_gateway_chat_completions_raw.go",
+)] = tuple(_v0216_raw_chat_calls.elements())
+
 _v0184_codex_models_calls = Counter(
     APPROVED_DELEGATE_VIEW_CALL_DELTAS[
         "backend/internal/handler/openai_codex_models_handler.go"
