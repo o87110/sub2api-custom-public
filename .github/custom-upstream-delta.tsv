@@ -1,5 +1,5 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	35db9863ca370c34847613b1140b4c9db3fe871e	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	d1ecde13d99f88f85de381c29a1e1233400b203f	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
 .github/audit-exceptions.yml	M	keep	M	fixed-path	5881136f578df07d9abac471222fe3b6e0769424	5563f24a5ddea92b6f1d126ba3c49dd64131de9b	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	0470ed7405f581ea25629fab8e9e83c040cbf337	-	-	database-boundary-unit+candidate-tree-test	登记全部 Custom 数据库结构与只读 SQL 例外，并绑定 vendor-0.2.7 准确 Blob 与语义指纹
@@ -32,7 +32,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.2.14.md	A	keep	A	custom-docs-ops	@absent	8d972acf6568c382a8a5581101458ed4fb2842da	-	-	documentation-consistency-review	记录官方 v0.2.14 升级、二改交集审查、数据库评审与发布门禁状态
 .github/upgrades/0.2.15.md	A	keep	A	custom-docs-ops	@absent	235d7e2deed0267cbd0c854fae21548e8b4035ca	-	-	candidate-tree+targeted-CI	Official v0.2.15 upgrade report
 .github/upgrades/0.2.16.md	A	keep	A	custom-docs-ops	@absent	f5221379ea6e460e5e9f0d4437f030003d165742	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.2.16 升级、二改交集审查、数据库评审与验证证据
-.github/upgrades/0.2.17.md	A	keep	A	custom-docs-ops	@absent	b01cd1ae7dd3a7aa6cdb2d867cc9ad6097924ba6	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.2.17 升级、二改交集审查、数据库评审与验证证据
+.github/upgrades/0.2.17.md	A	keep	A	custom-docs-ops	@absent	38f409172714b1f0a9f3b31f20cd8cba5a366ffb	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.2.17 升级、二改交集审查、数据库评审与验证证据
 .github/upgrades/0.2.4.md	A	keep	A	custom-docs-ops	@absent	7073a3588111cfdddad6df85e5e901bd45c5f3e2	-	-	candidate-tree	0.2.4 upgrade report
 .github/upgrades/0.2.5.md	A	keep	A	custom-docs-ops	@absent	f372553e36737a23c2850277d40847d6113cc420	-	-	candidate-tree+targeted-CI	记录 v0.2.5 升级候选树报告
 .github/upgrades/0.2.7.md	A	keep	A	custom-docs-ops	@absent	1c3e9fdcdfce5c881d7ba76a855ffa3129dcbe1c	-	-	candidate-tree+targeted-CI	记录 v0.2.7 升级候选树、冲突语义移植、数据库审查与验证证据
@@ -43,8 +43,8 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
 .github/workflows/release.yml	M	keep	M	fixed-path	e70f1680e0071f97d00671f6a3709c0fa8d5a803	fc9d57a34c6bc752e72b2898c40124097508e8bd	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	8caec3ff4221c819fdd206323078f4c25dcd45e2	1979814c511a7366861363450497c282367355a1	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	3f2ffc4526411cae4ca2adc01f1766cec8a359f6	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、返利撤销后端、Migration 与前端集成测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 EasyPay 回归测试
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	c22fd75c8644df87b8795df824cb1fe46f122e72	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护返利撤销后端、Migration、前端集成测试及其他高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
+.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	1c25974bb3f10f8f5d65eb3474e40f79b6034d13	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、返利撤销后端、Migration 与前端集成测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 EasyPay 回归测试
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	dd2be9b0469068bafed4930836d199606e09daa2	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护返利撤销后端、Migration、前端集成测试及其他高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
 .gitignore	M	keep	M	fixed-path	0c977fdfa31018365be0f834d05ee5b50506c6c8	1f9f2710a5f54a8b0f1394f989e26655012fcad9	-	-	candidate-tree+targeted-CI	保留 Custom 文档与控制面白名单，并补齐官方已跟踪 seedance 文档的候选树白名单
 .goreleaser.yaml	M	keep	M	fixed-path	19adfdf6dc489acd4af4ed82bdf63f64e16b8e33	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 AGENTS.md	A	keep	A	custom-docs-ops	@absent	96e736e67995af280d711e30f828e9314da88800	-	-	documentation-consistency-review+candidate-tree-test	明确同 SHA CI 证据复用、Integration 登记、自动发布输入、前端 Artifact 与缓存信任边界
