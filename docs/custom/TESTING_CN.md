@@ -26,6 +26,9 @@ Lint 和构建，并以 `full-validation` 作为自动发布硬条件。后端 I
 必须证明六包全部执行、新增标签包未登记时失败，且
 无 Integration 标签的 `internal/service` 不进入日志；该入口不再通过 `./...` 重跑
 普通 Unit 测试。
+CI Integration 先从公开 ECR 同时准备固定版本的 Redis、PostgreSQL 镜像；该源不可用时
+改用 `mirror.gcr.io/library` 的相同官方镜像。两个来源都失败时测试直接失败，不跳过
+真实容器用例；本地运行不执行这一步镜像预拉。
 
 Security Scan 不在每个 PR 触发，继续由 `main` Push、每周定时和可信手工扫描独立报告；
 它不是自动发布硬门禁。`upgrade/vX.Y.Z` PR 的普通 CI 只执行快速结构检查，后端、前端、
