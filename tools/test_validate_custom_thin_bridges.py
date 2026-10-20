@@ -215,6 +215,44 @@ class ThinBridgeContractTests(unittest.TestCase):
         with patch.object(validator, "BASELINE_DELEGATE_VIEW_CALL_DELTAS", override):
             validator.validate(fixture.args())
 
+    def test_upgrade_adds_overlapping_official_and_custom_call_counts(self) -> None:
+        main_content = "func bridge() {\n    helper()\n}\n"
+        official_content = "func bridge() {\n    helper()\n    helper()\n}\n"
+        candidate_content = "func bridge() {\n    helper()\n    helper()\n    helper()\n}\n"
+        fixture = self.fixture(
+            bridge_path="backend/internal/handler/example.go",
+            base_content=main_content,
+            candidate_content=candidate_content,
+            kind="delegate",
+            shadow_required=True,
+        )
+        fixture._write(fixture.bridge_path, official_content)
+        fixture._git("add", ".")
+        fixture._git("commit", "-qm", "official")
+        official_commit = fixture._git("rev-parse", "HEAD").strip()
+        row = validator.ContractRow(
+            fixture.bridge_path, "delegate", True, fixture.additions,
+            fixture.deletions, (),
+        )
+        overrides = {
+            (official_commit, fixture.bridge_path): (("bridge", "helper"),),
+        }
+        with patch.object(validator, "BASELINE_DELEGATE_VIEW_CALL_DELTAS", overrides):
+            validator.validate_delegate_view_structure(
+                row, fixture.baseline, main_content, candidate_content, {4},
+                custom_baseline=True,
+                upgrade_baseline_commit=official_commit,
+                repo_root_for_structure=fixture.root,
+            )
+            with self.assertRaisesRegex(validator.ContractError, "unapproved executable call"):
+                validator.validate_delegate_view_structure(
+                    row, fixture.baseline, main_content,
+                    candidate_content.replace("    helper()\n}\n", "    helper()\n    helper()\n}\n"),
+                    {4, 5}, custom_baseline=True,
+                    upgrade_baseline_commit=official_commit,
+                    repo_root_for_structure=fixture.root,
+                )
+
     def test_payment_config_call_override_is_bound_to_reviewed_vendor_commits(self) -> None:
         path = "backend/internal/service/payment_config_service.go"
         previous = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[
