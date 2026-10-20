@@ -101,3 +101,49 @@ func TestEasyPayBepusdtNativeNotification(t *testing.T) {
 		t.Fatalf("notification = %+v", notification)
 	}
 }
+
+func TestEasyPayBepusdtNativeConfirmNotification(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload string
+		wantErr bool
+	}{
+		{name: "confirmed", payload: `{"status_code":200,"data":{"trade_id":"trade-1","order_id":"order-1","money":"12.34","status":2}}`},
+		{name: "wrong order", payload: `{"status_code":200,"data":{"trade_id":"trade-1","order_id":"order-2","money":"12.34","status":2}}`, wantErr: true},
+		{name: "wrong trade", payload: `{"status_code":200,"data":{"trade_id":"trade-2","order_id":"order-1","money":"12.34","status":2}}`, wantErr: true},
+		{name: "wrong amount", payload: `{"status_code":200,"data":{"trade_id":"trade-1","order_id":"order-1","money":"12.35","status":2}}`, wantErr: true},
+		{name: "unpaid", payload: `{"status_code":200,"data":{"trade_id":"trade-1","order_id":"order-1","money":"12.34","status":1}}`, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/api/v1/pay/info" {
+					t.Errorf("query path = %s", r.URL.Path)
+				}
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Errorf("decode query: %v", err)
+				} else if body["trade_id"] != "trade-1" {
+					t.Errorf("query trade_id = %v", body["trade_id"])
+				}
+				_, _ = w.Write([]byte(tt.payload))
+			}))
+			defer server.Close()
+			provider, err := NewEasyPay("native", map[string]string{
+				"apiBase": server.URL, "apiToken": "native-token",
+				"notifyUrl": "https://sub.example/notify", "returnUrl": "https://sub.example/result",
+				paymentchannels.EasyPayProtocolConfigKey: paymentchannels.EasyPayProtocolBepusdt,
+				paymentchannels.BepusdtNetworksConfigKey: "bep20",
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = provider.ConfirmNotification(context.Background(), &payment.PaymentNotification{
+				TradeNo: "trade-1", OrderID: "order-1", Amount: 12.34, Status: payment.NotificationStatusSuccess,
+			})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ConfirmNotification error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

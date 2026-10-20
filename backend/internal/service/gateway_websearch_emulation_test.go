@@ -5,11 +5,13 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/websearch"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -377,4 +379,133 @@ func TestShouldEmulateWebSearch_DefaultMode_NilChannelService(t *testing.T) {
 	groupID := int64(42)
 	// nil channelService + default mode → returns false
 	require.False(t, svc.shouldEmulateWebSearch(context.Background(), account, &groupID, webSearchToolBody))
+}
+
+func TestShouldEmulateWebSearchFor_OpenAIAPIKeyAccountEnabled(t *testing.T) {
+	mgr := websearch.NewManager([]websearch.ProviderConfig{{Type: "brave", APIKey: "k"}}, nil)
+	SetWebSearchManager(mgr)
+	defer SetWebSearchManager(nil)
+
+	setGlobalWebSearchConfig(&WebSearchEmulationConfig{
+		Enabled:   true,
+		Providers: []WebSearchProviderConfig{{Type: "brave", APIKey: "k"}},
+	})
+	defer clearGlobalWebSearchConfig()
+
+	settingSvc := newSettingServiceForWebSearchTest(true)
+	account := &Account{
+		ID:       1,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Extra:    map[string]any{featureKeyWebSearchEmulation: WebSearchModeEnabled},
+	}
+	groupID := int64(0)
+	require.True(t, shouldEmulateWebSearchFor(context.Background(), settingSvc, nil, account, &groupID, webSearchToolBody))
+	require.False(t, shouldEmulateWebSearchFor(context.Background(), settingSvc, nil, account, &groupID, nonWebSearchToolBody))
+}
+
+func TestOpenAIMessagesWebSearchEmulationBlocksMappedModelBeforeSearch(t *testing.T) {
+	previousManager := getWebSearchManager()
+	previousConfig := webSearchEmulationCache.Load()
+	SetWebSearchManager(websearch.NewManager([]websearch.ProviderConfig{{Type: "brave", APIKey: "k"}}, nil))
+	setGlobalWebSearchConfig(&WebSearchEmulationConfig{Enabled: true, Providers: []WebSearchProviderConfig{{Type: "brave", APIKey: "k"}}})
+	t.Cleanup(func() {
+		SetWebSearchManager(previousManager)
+		if previousConfig == nil {
+			clearGlobalWebSearchConfig()
+		} else {
+			webSearchEmulationCache.Store(previousConfig)
+		}
+	})
+
+	account := &Account{
+		ID:       1,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Extra:    map[string]any{featureKeyWebSearchEmulation: WebSearchModeEnabled},
+		Credentials: map[string]any{"model_mapping": map[string]any{
+			"public-model": "blocked-upstream-model",
+		}},
+	}
+	body := []byte(`{"model":"public-model","tools":[{"type":"web_search"}],"messages":[{"role":"user","content":"test"}]}`)
+	ctx, cancel := context.WithCancel(WithCurrentGroupModelAccess(context.Background(), &Group{ModelsListConfig: GroupModelsListConfig{
+		BlockedModels: []string{"blocked-upstream-model"},
+	}}))
+	cancel()
+	settingSvc := newSettingServiceForWebSearchTest(true)
+	groupID := int64(0)
+	require.True(t, shouldEmulateWebSearchFor(ctx, settingSvc, nil, account, &groupID, body))
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest("POST", "/v1/messages", nil).WithContext(ctx)
+	svc := &OpenAIGatewayService{settingService: settingSvc}
+
+	result, err := svc.ForwardAsAnthropic(ctx, c, account, body, "", "")
+
+	require.Nil(t, result)
+	require.True(t, IsGroupModelBlockedError(err))
+	require.Equal(t, "blocked-upstream-model", GroupModelBlockedModel(err))
+	require.Equal(t, 404, recorder.Code)
+}
+
+// Exercise the shared interception gate, including channel inheritance.
+func TestShouldEmulateWebSearchFor_AccountChannelModes(t *testing.T) {
+	previousManager := getWebSearchManager()
+	previousConfig := webSearchEmulationCache.Load()
+	SetWebSearchManager(websearch.NewManager([]websearch.ProviderConfig{{Type: "brave", APIKey: "k"}}, nil))
+	t.Cleanup(func() {
+		SetWebSearchManager(previousManager)
+		if previousConfig == nil {
+			clearGlobalWebSearchConfig()
+		} else {
+			webSearchEmulationCache.Store(previousConfig)
+		}
+	})
+
+	settingSvc := newSettingServiceForWebSearchTest(true)
+	groupID := int64(42)
+	for _, platform := range []string{PlatformOpenAI, PlatformAnthropic} {
+		for _, accountType := range []string{AccountTypeAPIKey, AccountTypeOAuth, AccountTypeSetupToken} {
+			for _, mode := range []string{WebSearchModeDefault, WebSearchModeEnabled, WebSearchModeDisabled} {
+				for _, channelEnabled := range []bool{false, true} {
+					channelMode := "channel_off"
+					if channelEnabled {
+						channelMode = "channel_on"
+					}
+					t.Run(platform+"/"+accountType+"/"+mode+"/"+channelMode, func(t *testing.T) {
+						account := &Account{
+							Platform: platform, Type: accountType,
+							Extra: map[string]any{featureKeyWebSearchEmulation: mode},
+						}
+						channelSvc := newChannelServiceWithCache(groupID, &Channel{
+							ID: 10, Status: StatusActive,
+							FeaturesConfig: map[string]any{
+								featureKeyWebSearchEmulation: map[string]any{platform: channelEnabled},
+							},
+						})
+						want := channelEnabled
+						if accountType == AccountTypeAPIKey {
+							switch mode {
+							case WebSearchModeEnabled:
+								want = true
+							case WebSearchModeDisabled:
+								want = false
+							}
+						} else if platform == PlatformOpenAI {
+							want = false
+						}
+						for _, globalEnabled := range []bool{false, true} {
+							setGlobalWebSearchConfig(&WebSearchEmulationConfig{
+								Enabled:   globalEnabled,
+								Providers: []WebSearchProviderConfig{{Type: "brave", APIKey: "k"}},
+							})
+							require.Equal(t, globalEnabled && want, shouldEmulateWebSearchFor(
+								context.Background(), settingSvc, channelSvc, account, &groupID, webSearchToolBody),
+								"globalEnabled=%v", globalEnabled)
+						}
+					})
+				}
+			}
+		}
+	}
 }

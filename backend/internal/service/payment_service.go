@@ -141,6 +141,8 @@ type RefundPlan struct {
 	SubDaysToDeduct          int
 	SubscriptionID           int64
 	SubscriptionTermSnapshot *subscriptionquota.TermSnapshot
+	// deductionHeld 表示扣减已在进入 REFUND_PENDING 前执行并保留，终态收敛时不再重复扣减。
+	deductionHeld bool
 }
 
 type RefundResult struct {
