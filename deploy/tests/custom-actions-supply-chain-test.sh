@@ -151,6 +151,12 @@ for job in full-backend-unit full-backend-integration full-backend-build full-fr
   grep -Fq 'boundaries' <<<"$block" &&
     fail "CI validation job must not wait on boundaries: $job"
 done
+grep -Fq '/bin/bash ../deploy/tests/backend-integration-test.sh' \
+  <<<"$(job_block "$backend_ci" pr-backend)" ||
+  fail "PR backend validation does not use the Integration runner"
+grep -Fq '/bin/bash deploy/tests/backend-integration-test.sh' \
+  <<<"$(job_block "$backend_ci" full-backend-integration)" ||
+  fail "full backend validation does not use the Integration runner"
 grep -Fq "if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'" \
   "$backend_ci" || fail "frontend Release Artifact is not limited to trusted main CI events"
 grep -Fq 'name: release-frontend-dist-${{ needs.verify-target.outputs.checkout_sha }}' \
@@ -202,6 +208,102 @@ if /bin/bash "$integration_runner" check \
   --backend-root "$integration_fixture" >/dev/null 2>&1; then
   fail "a legacy Integration constraint without the exact go:build contract was accepted"
 fi
+rm -f "$integration_fixture/internal/middleware/legacy_integration_test.go"
+fake_bin="$integration_fixture/fake-bin"
+mkdir -p "$fake_bin"
+cat > "$fake_bin/docker" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'docker %s\n' "$*" >> "$INTEGRATION_IMAGE_TEST_LOG"
+case "$1" in
+  pull)
+    [[ "$2" == '--quiet' ]] || exit 2
+    case "$INTEGRATION_IMAGE_TEST_MODE" in
+      primary) exit 0 ;;
+      fallback)
+        [[ "$3" != 'public.ecr.aws/docker/library/postgres:18.1-alpine3.23' ]]
+        ;;
+      failed) exit 1 ;;
+      *) exit 2 ;;
+    esac
+    ;;
+  tag) exit 0 ;;
+  *) exit 2 ;;
+esac
+EOF
+cat > "$fake_bin/go" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'go %s | prefix=%s | ryuk=%s\n' "$*" \
+  "${TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX:-}" \
+  "${TESTCONTAINERS_RYUK_DISABLED:-}" >> "$INTEGRATION_IMAGE_TEST_LOG"
+EOF
+chmod +x "$fake_bin/docker" "$fake_bin/go"
+image_test_log="$integration_fixture/images.log"
+image_test_output="$integration_fixture/images.out"
+
+CI=true INTEGRATION_IMAGE_TEST_MODE=primary \
+  INTEGRATION_IMAGE_TEST_LOG="$image_test_log" PATH="$fake_bin:$PATH" \
+  /bin/bash "$integration_runner" run > "$image_test_output" 2>&1 ||
+  fail "Integration image primary registry contract failed"
+grep -Fq 'docker pull --quiet public.ecr.aws/docker/library/redis:8.4-alpine' "$image_test_log" ||
+  fail "Integration did not prepare primary Redis image"
+grep -Fq 'docker pull --quiet public.ecr.aws/docker/library/postgres:18.1-alpine3.23' "$image_test_log" ||
+  fail "Integration did not prepare primary PostgreSQL image"
+grep -Fq 'docker tag public.ecr.aws/docker/library/redis:8.4-alpine redis:8.4-alpine' "$image_test_log" ||
+  fail "Integration did not tag primary Redis image"
+grep -Fq 'docker tag public.ecr.aws/docker/library/postgres:18.1-alpine3.23 postgres:18.1-alpine3.23' "$image_test_log" ||
+  fail "Integration did not tag primary PostgreSQL image"
+[[ "$(grep -Fc 'go test -tags=integration ' "$image_test_log")" -eq 1 ]] ||
+  fail "Integration did not run the registered packages exactly once"
+grep -Fq '| prefix=public.ecr.aws/docker/library | ryuk=true' "$image_test_log" ||
+  fail "Integration did not use the prepared primary registry"
+if grep -Fq 'mirror.gcr.io' "$image_test_log"; then
+  fail "Integration unexpectedly used fallback registry after primary success"
+fi
+
+: > "$image_test_log"
+CI=true INTEGRATION_IMAGE_TEST_MODE=fallback \
+  INTEGRATION_IMAGE_TEST_LOG="$image_test_log" PATH="$fake_bin:$PATH" \
+  /bin/bash "$integration_runner" run > "$image_test_output" 2>&1 ||
+  fail "Integration image fallback registry contract failed"
+grep -Fq 'docker pull --quiet public.ecr.aws/docker/library/postgres:18.1-alpine3.23' "$image_test_log" ||
+  fail "Integration did not detect incomplete primary registry preparation"
+grep -Fq 'docker pull --quiet mirror.gcr.io/library/redis:8.4-alpine' "$image_test_log" ||
+  fail "Integration did not prepare fallback Redis image"
+grep -Fq 'docker pull --quiet mirror.gcr.io/library/postgres:18.1-alpine3.23' "$image_test_log" ||
+  fail "Integration did not prepare fallback PostgreSQL image"
+grep -Fq 'docker tag mirror.gcr.io/library/redis:8.4-alpine redis:8.4-alpine' "$image_test_log" ||
+  fail "Integration did not tag fallback Redis image"
+grep -Fq 'docker tag mirror.gcr.io/library/postgres:18.1-alpine3.23 postgres:18.1-alpine3.23' "$image_test_log" ||
+  fail "Integration did not tag fallback PostgreSQL image"
+[[ "$(grep -Fc 'go test -tags=integration ' "$image_test_log")" -eq 1 ]] ||
+  fail "Integration did not run the registered packages exactly once after fallback"
+grep -Fq '| prefix=mirror.gcr.io/library | ryuk=true' "$image_test_log" ||
+  fail "Integration did not use the prepared fallback registry"
+
+: > "$image_test_log"
+if CI=true INTEGRATION_IMAGE_TEST_MODE=failed \
+  INTEGRATION_IMAGE_TEST_LOG="$image_test_log" PATH="$fake_bin:$PATH" \
+  /bin/bash "$integration_runner" run > "$image_test_output" 2>&1; then
+  fail "Integration accepted both image registries failing"
+fi
+grep -Fq 'docker pull --quiet public.ecr.aws/docker/library/redis:8.4-alpine' "$image_test_log" ||
+  fail "Integration did not try primary registry"
+grep -Fq 'docker pull --quiet mirror.gcr.io/library/redis:8.4-alpine' "$image_test_log" ||
+  fail "Integration did not try fallback registry"
+if grep -Fq 'go test' "$image_test_log"; then
+  fail "Integration ran Go tests without prepared images"
+fi
+grep -Fq 'could not prepare Redis and PostgreSQL Integration images from either registry' \
+  "$image_test_output" || fail "Integration registry failure was not explicit"
+
+: > "$image_test_log"
+CI=true INTEGRATION_IMAGE_TEST_MODE=failed \
+  INTEGRATION_IMAGE_TEST_LOG="$image_test_log" PATH="$fake_bin:$PATH" \
+  /bin/bash "$integration_runner" check --backend-root "$integration_fixture" \
+  > "$image_test_output" 2>&1 || fail "Integration check required images"
+[[ ! -s "$image_test_log" ]] || fail "Integration check accessed Docker or Go"
 rm -rf "$integration_fixture"
 
 upgrade_backend_job="$(
@@ -220,6 +322,8 @@ grep -Fq 'git merge-base --is-ancestor "$CUSTOM_UPSTREAM_BASE_COMMIT" HEAD' \
   fail "upgrade golangci-lint does not verify that the explicit baseline is an ancestor"
 grep -Fq -- '--new-from-rev "$CUSTOM_UPSTREAM_BASE_COMMIT"' <<<"$upgrade_backend_job" ||
   fail "upgrade golangci-lint is not scoped to changes from the explicit custom baseline"
+grep -Fq '/bin/bash deploy/tests/backend-integration-test.sh' <<<"$upgrade_backend_job" ||
+  fail "upstream upgrade backend validation does not use the Integration runner"
 grep -Fq 'is_official_upgrade: ${{ steps.resolve.outputs.is_official_upgrade }}' \
   "$backend_ci" ||
   fail "CI does not expose exact official-upgrade classification"

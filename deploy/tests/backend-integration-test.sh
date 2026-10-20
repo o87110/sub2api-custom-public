@@ -99,6 +99,29 @@ if [[ "$command_name" == "check" ]]; then
   exit 0
 fi
 
+prepare_ci_images() {
+  local prefix redis_image postgres_image
+  for prefix in public.ecr.aws/docker/library mirror.gcr.io/library; do
+    redis_image="$prefix/redis:8.4-alpine"
+    postgres_image="$prefix/postgres:18.1-alpine3.23"
+    if docker pull --quiet "$redis_image" &&
+      docker pull --quiet "$postgres_image" &&
+      docker tag "$redis_image" redis:8.4-alpine &&
+      docker tag "$postgres_image" postgres:18.1-alpine3.23; then
+      export TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX="$prefix"
+      export TESTCONTAINERS_RYUK_DISABLED=true
+      echo "Prepared Integration images from $prefix"
+      return 0
+    fi
+    echo "WARN: could not prepare Integration images from $prefix" >&2
+  done
+  fail "could not prepare Redis and PostgreSQL Integration images from either registry"
+}
+
+if [[ "${CI:-}" == "true" ]]; then
+  prepare_ci_images
+fi
+
 (
   cd "$backend_root"
   go test -tags=integration "${integration_packages[@]}"

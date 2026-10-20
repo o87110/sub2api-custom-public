@@ -6831,6 +6831,67 @@ BASELINE_DELEGATE_VIEW_CONTROL[(_v028_vendor_commit, "backend/internal/service/g
     add=(("ForwardAsResponses", "if reasoningEffort == nil {"),),
 )
 
+# v0.2.17 changes the exact Vendor surface of several retained Custom bridges.
+# Keep these approvals bound to the official commit; historical snapshots remain
+# valid for their original baselines.
+_v0217_vendor_commit = "060d0160417782cd962a0c7f460f6cd4565d4916"
+BASELINE_UPGRADE_NEW_BRIDGE_FUNCTIONS: dict[tuple[str, str], frozenset[str]] = {
+    (_v0217_vendor_commit, "backend/internal/service/payment_refund.go"): frozenset({
+        "validHeldSubscriptionSnapshot",
+    }),
+}
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v0217_vendor_commit, "backend/internal/handler/gateway_handler.go",
+)] = (
+    ("billingErrorDetails", "pkgerrors.Message"),
+    ("billingErrorDetails", "pkgerrors.Reason"),
+)
+for _path, _calls in {
+    "backend/internal/payment/provider/easypay.go": (
+        ("ConfirmNotification", "client.Info"),
+        ("ConfirmNotification", "e.apiBase"),
+        ("ConfirmNotification", "fmt.Errorf"),
+        ("ConfirmNotification", "fmt.Errorf"),
+        ("ConfirmNotification", "math.Abs"),
+        ("ConfirmNotification", "paymentchannels.IsBepusdtNativeConfig"),
+        ("ConfirmNotification", "paymentchannels.NewBepusdtClient"),
+    ),
+    "backend/internal/service/openai_gateway_messages.go": (
+        ("ForwardAsAnthropic", "String"),
+        ("ForwardAsAnthropic", "applyOpenAICompatModelNormalization"),
+        ("ForwardAsAnthropic", "gjson.GetBytes"),
+        ("ForwardAsAnthropic", "normalizeOpenAIModelForUpstream"),
+        ("ForwardAsAnthropic", "resolveOpenAIForwardModel"),
+    ),
+    "backend/internal/service/payment_refund.go": (
+        ("QueryAndFinalizeRefund", "fmt.Errorf"),
+        ("QueryAndFinalizeRefund", "validHeldSubscriptionSnapshot"),
+        ("markRefundPending", "fmt.Errorf"),
+        ("markRefundPending", "validHeldSubscriptionSnapshot"),
+        ("returnHeldRefundDeduction", "fmt.Errorf"),
+        ("returnHeldRefundDeduction", "s.subscriptionSvc.RestoreSubscriptionTermAfterRefund"),
+    ),
+}.items():
+    BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v0217_vendor_commit, _path)] = (
+        _reviewed_baseline_delta(APPROVED_DELEGATE_VIEW_CALL_DELTAS[_path], add=_calls)
+    )
+for _path, _control in {
+    "backend/internal/payment/provider/easypay.go": (
+        ("ConfirmNotification", "if paymentchannels.IsBepusdtNativeConfig(e.config) {"),
+        ("ConfirmNotification", "if err != nil {"),
+        ("ConfirmNotification", "if err != nil {"),
+        ("ConfirmNotification", "if info.Status != 2 || info.TradeID != n.TradeNo || info.OrderID != n.OrderID || math.Abs(info.Money-n.Amount) > easypayAmountTolerance {"),
+    ),
+    "backend/internal/service/payment_refund.go": (
+        ("QueryAndFinalizeRefund", "if !validHeldSubscriptionSnapshot(pendingDetail.SubscriptionTermSnapshot, pendingDetail.SubscriptionID, o) {"),
+        ("QueryAndFinalizeRefund", "if pendingDetail.DeductionHeld && pendingDetail.DeductionType == payment.DeductionTypeSubscription && pendingDetail.SubDaysDeducted > 0 {"),
+        ("markRefundPending", "if subscriptionDeductionHeld &&"),
+    ),
+}.items():
+    BASELINE_DELEGATE_VIEW_CONTROL[(_v0217_vendor_commit, _path)] = (
+        _reviewed_baseline_delta(APPROVED_DELEGATE_VIEW_CONTROL[_path], add=_control)
+    )
+
 FUNCTION_START_PATTERNS = (
 
 
@@ -7266,6 +7327,9 @@ def validate_delegate_view_structure(
     approved_new = approved_new | APPROVED_UPGRADE_NEW_BRIDGE_FUNCTIONS.get(
         row.path, frozenset()
     )
+    approved_new = approved_new | BASELINE_UPGRADE_NEW_BRIDGE_FUNCTIONS.get(
+        (upgrade_baseline_commit or baseline_commit, row.path), frozenset()
+    )
     if (
         custom_baseline
         and upgrade_baseline_commit
@@ -7330,7 +7394,7 @@ def validate_delegate_view_structure(
                 delegate_view_call_surface(official_content)
                 - delegate_view_call_surface(baseline_content)
             )
-            approved_calls |= official_calls & added_calls
+            approved_calls = (approved_calls + official_calls) & added_calls
     elif baseline_commit == _v024_vendor_commit:
         # The v0.2.4 Vendor rewrite may remove historical bridge calls that
         # remain in older approval snapshots. Only approvals present in the
