@@ -171,7 +171,6 @@ export function usePaymentChannelRecovery(options: PaymentChannelRecoveryOptions
       const stripeRouteUrl = result.client_secret
         ? options.resolveRoute('/payment/stripe', {
             order_id: String(result.order_id),
-            client_secret: result.client_secret,
             method: stripeMethod,
             resume_token: result.resume_token || undefined,
           })

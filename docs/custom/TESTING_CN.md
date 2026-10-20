@@ -279,10 +279,12 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
 - 候选树数据库边界检查必须确认无 Migration、Schema、实体字段或 SQL 变化。
 - BEpusdt native 测试必须覆盖四种网络到完整 `trade_type` 的固定映射、BEP20 默认
   选择、网络失效拒绝、JSON 签名、`create-transaction` 创建、`pay/info` 查询、
-  `cancel-transaction` 取消及 status `1/2/3` 回调；native 路径不得访问 `/api.php`
-  或 `/mapi.php`，不得启用退款；
+  `cancel-transaction` 取消及 status `1/2/3` 回调；回调上游确认必须经 `pay/info`
+  核对订单号、交易号、状态和金额，身份或金额不符时拒绝履约；native 路径不得访问
+  `/api.php` 或 `/mapi.php`，不得启用退款；
 - 前端测试必须确认 USDT 弹窗只展示 USDT、取消不创建订单、确认后才发送
-  `payment_network`，桌面弹窗和移动端跳转均保存恢复快照；
+  `payment_network`，桌面弹窗和移动端跳转均保存恢复快照；Stripe 主路径和同渠道
+  备用扫码路由不携带 `client_secret`，支付页只接受同订单的本地恢复快照；
 
 ## 10. 渠道监控分组名称与展示倍率
 
@@ -392,6 +394,8 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
 - PostgreSQL Integration 必须覆盖三项事务语义：单项同键重放只清零并计数一次；退款
   扣减后发生合法 `AdvanceCycle` 时快照恢复返回 stale 且不得覆盖新周期；扣减将导致过期
   时快照捕获与软删除在同一事务完成，无并发变更时可精确恢复删除状态和支付来源；
+- 退款进入待定后需保留同一周期快照；网关最终失败时按快照精确恢复并保持幂等，
+  不得只按订阅天数回加或重复归还库存；
 - 普通用户与管理员 DTO 都返回累计和次数，三个前端入口在次数为 `0` 时隐藏整行、
   大于 `0` 时显示两位小数金额，不显示周期日期或待生效周期数量；
 - Migration 回填保留现有窗口用量，并在历史日志仍存在时纳入当前 legacy 周期累计；

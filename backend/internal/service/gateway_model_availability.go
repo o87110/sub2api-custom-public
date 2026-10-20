@@ -147,6 +147,9 @@ type ModelAvailabilityDiagnosis struct {
 	// the requested model before applying the group blocklist, but every such
 	// path is removed by that local policy.
 	PolicyBlocked bool
+	// HasRetiredSubscriptionModel records a ChatGPT upstream blocked by model
+	// retirement, so an unsupported request can include migration guidance.
+	HasRetiredSubscriptionModel bool
 }
 
 // ModelAvailabilityDiagnoser is implemented by gateway services that can

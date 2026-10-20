@@ -76,6 +76,7 @@ describe('payment channel recovery policy', () => {
     }))
     const paymentState = ref(emptyRecovery())
     const paymentPhase = ref<'select' | 'paying'>('select')
+    const resolveRoute = vi.fn((path: string, _query: Record<string, string | undefined>) => path)
     const recovery = usePaymentChannelRecovery({
       channelOptions: channels,
       selectedChannelId: ref('official'),
@@ -89,7 +90,7 @@ describe('payment channel recovery policy', () => {
       subscriptionAmountFitsChannel: () => true,
       createPaymentOrder,
       submitOrder: vi.fn(),
-      resolveRoute: () => '/payment/stripe',
+      resolveRoute,
       replaceRoute: vi.fn(),
       persistRecoverySnapshot: vi.fn(),
       isMobile: () => true,
@@ -126,6 +127,35 @@ describe('payment channel recovery policy', () => {
       { attemptedChannelId: 'official', orderType: 'balance', orderAmount: 88 },
     )).toContain('payment.errors.switchChannelHint')
     expect(createPaymentOrder).toHaveBeenCalledTimes(1)
+
+    createPaymentOrder.mockResolvedValueOnce({
+      order_id: 779,
+      amount: 88,
+      pay_amount: 88,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'wxpay',
+      provider_key: 'wxpay',
+      qr_code: 'weixin://wxpay/fallback',
+      out_trade_no: 'sub2_qr_779',
+      client_secret: 'pi_secret_779',
+    })
+    await recovery.attemptMobileQrFallback(
+      { reason: 'WECHAT_H5_NOT_AUTHORIZED' },
+      {
+        orderAmount: 88,
+        orderType: 'balance',
+        paymentType: 'wxpay',
+        providerKey: 'wxpay',
+        paymentChannelId: 'official',
+        attempted: false,
+      },
+    )
+    expect(resolveRoute).toHaveBeenCalledWith('/payment/stripe', expect.objectContaining({
+      order_id: '779',
+      method: 'wechat_pay',
+    }))
+    expect(resolveRoute.mock.calls.at(-1)?.[1]).not.toHaveProperty('client_secret')
   })
 
   it('preserves payment context in the WeChat OAuth redirect', () => {
