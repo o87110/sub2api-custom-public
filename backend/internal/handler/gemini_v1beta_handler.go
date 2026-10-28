@@ -9,6 +9,7 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -96,8 +97,7 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		}
 		if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
 			if filtered, _, ok := filterUpstreamGeminiModelsBody(body, apiKey.Group.ModelAllowlist); ok {
-				c.Data(http.StatusOK, "application/json", filtered)
-				return true
+				body = filtered
 			}
 		}
 		displayEnabled := forcePlatform != service.PlatformAntigravity && apiKey.Group != nil && (apiKey.Group.CustomModelsListEnabled() || apiKey.Group.ModelAllowlistEnabled())
@@ -137,6 +137,25 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 
 	if models, ok := customGeminiModelsList(apiKey.Group); ok {
 		c.JSON(http.StatusOK, models)
+		return
+	}
+
+	// 分组内 Gemini 账号都声明了 model_mapping 时，列表与 /v1/models 同源（含白名单口径），不透传单个账号的上游列表。
+	if declared, err := h.geminiCompatService.DeclaredModelIDs(c.Request.Context(), apiKey.GroupID); err == nil && len(declared) > 0 {
+		ids := append([]string{}, declared...)
+		for _, id := range agModelIDs {
+			if !slices.Contains(declared, id) {
+				ids = append(ids, id)
+			}
+		}
+		if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
+			ids = apiKey.Group.ModelAllowlist.FilterForListing(ids)
+		}
+		declaredModels := make([]gemini.Model, 0, len(ids))
+		for _, id := range ids {
+			declaredModels = append(declaredModels, gemini.FallbackModel(id))
+		}
+		filterAndWriteModels(gemini.ModelsListResponse{Models: declaredModels}, service.PlatformGemini)
 		return
 	}
 
@@ -300,6 +319,18 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 	if forcePlatform == service.PlatformAntigravity || effectivePlatform == service.PlatformAntigravity {
 		c.JSON(http.StatusOK, antigravity.FallbackGeminiModel(modelName))
 		return
+	}
+
+	// 分组内 Gemini 账号都声明了 model_mapping 时，按列表接口的同一来源判断模型是否存在。
+	if declared, err := h.geminiCompatService.DeclaredModelIDs(c.Request.Context(), apiKey.GroupID); err == nil && len(declared) > 0 {
+		if agModelIDs, agErr := h.geminiCompatService.AntigravityGeminiModelIDs(c.Request.Context(), apiKey.GroupID, true); agErr == nil {
+			if service.DeclaredModelsCover(declared, modelName) || service.DeclaredModelsCover(agModelIDs, modelName) {
+				c.JSON(http.StatusOK, gemini.FallbackModel(modelName))
+				return
+			}
+			googleError(c, http.StatusNotFound, "models/"+modelName+" is not found")
+			return
+		}
 	}
 
 	account, err := h.geminiCompatService.SelectAccountForModelsEndpoints(c.Request.Context(), apiKey.GroupID)

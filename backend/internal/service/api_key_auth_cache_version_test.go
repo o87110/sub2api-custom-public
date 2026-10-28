@@ -2,6 +2,18 @@ package service
 
 import "testing"
 
+func TestAPIKeyService_RejectsSnapshotsWithoutCustomImageCountBilling(t *testing.T) {
+	for _, version := range []int{22, 25} {
+		svc := &APIKeyService{}
+		apiKey, ok, err := svc.applyAuthCacheEntry("k-old-image-billing", &APIKeyAuthCacheEntry{
+			Snapshot: &APIKeyAuthSnapshot{Version: version},
+		})
+		if err != nil || ok || apiKey != nil {
+			t.Fatalf("expected snapshot v%d to be rejected, got key=%v ok=%v err=%v", version, apiKey, ok, err)
+		}
+	}
+}
+
 func TestAPIKeyService_RejectsV10AuthSnapshotWithoutModelAllowlist(t *testing.T) {
 	groupID := int64(9)
 	svc := &APIKeyService{}
