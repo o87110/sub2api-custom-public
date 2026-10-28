@@ -1,9 +1,9 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	d1ecde13d99f88f85de381c29a1e1233400b203f	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	1eee517595c962124b05cea0e796b3efcf35277c	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
 .github/audit-exceptions.yml	M	keep	M	fixed-path	5881136f578df07d9abac471222fe3b6e0769424	5563f24a5ddea92b6f1d126ba3c49dd64131de9b	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	3a4b88df56d1713e6a9768dbe8abd823b060d17c	-	-	database-boundary-unit+candidate-tree-test	登记全部 Custom 数据库结构与只读 SQL 例外，并绑定 vendor-0.2.7 准确 Blob 与语义指纹
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	81b25caab6b20f1f83cfba5336451030ea500319	-	-	candidate-tree+shadow-map+thin-bridge-contract	reviewed exact thin bridge budgets for v0.2.1/v0.2.4/v0.2.5/v0.2.14/v0.2.15
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	9bac1ebd35eee623750f10270db172db5769fd7f	-	-	candidate-tree+shadow-map+thin-bridge-contract	reviewed exact thin bridge budgets for v0.2.1/v0.2.4/v0.2.5/v0.2.14/v0.2.15
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	13e666e8ab525d84d74c812e6f820daaf81ef53b	-	-	candidate-tree+targeted-CI	同步 v0.2.18 Go 1.27.3 与 golangci-lint 2.14.0 控制面工具版本
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	8c358a86d1992205e237507abb439f7546bfaa3e	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -44,8 +44,8 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
 .github/workflows/release.yml	M	keep	M	fixed-path	9cef765b6237468c64689cd88f37ded2496905de	9c92d231e7c74d27246a9d6d30ea87371151c27d	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	88da184e5dc54dd996310500bf4231b516fc53b7	a441517f9680b2c7a63993b9b45cdcd26cdef14b	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	1c25974bb3f10f8f5d65eb3474e40f79b6034d13	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、返利撤销后端、Migration 与前端集成测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 EasyPay 回归测试
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	dd2be9b0469068bafed4930836d199606e09daa2	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护返利撤销后端、Migration、前端集成测试及其他高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
+.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	f174cf5b98df8abe7cf48d18c250792118c23d63	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、返利撤销后端、Migration 与前端集成测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 EasyPay 回归测试
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	035db6439f33c7ba1b6e6ba4e392ef7647cbe5dc	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护返利撤销后端、Migration、前端集成测试及其他高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
 .gitignore	M	keep	M	fixed-path	0c977fdfa31018365be0f834d05ee5b50506c6c8	1f9f2710a5f54a8b0f1394f989e26655012fcad9	-	-	candidate-tree+targeted-CI	保留 Custom 文档与控制面白名单，并补齐官方已跟踪 seedance 文档的候选树白名单
 .goreleaser.yaml	M	keep	M	fixed-path	19adfdf6dc489acd4af4ed82bdf63f64e16b8e33	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 AGENTS.md	A	keep	A	custom-docs-ops	@absent	96e736e67995af280d711e30f828e9314da88800	-	-	documentation-consistency-review+candidate-tree-test	明确同 SHA CI 证据复用、Integration 登记、自动发布输入、前端 Artifact 与缓存信任边界
@@ -502,7 +502,7 @@ docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	762ea34280de20a2f9
 docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	88b9a8afcaf25bcab6c506c1d01b713084f38806	-	-	documentation-consistency-review	记录生产发布信任链及 Vendor Tag 误触发官方 Release 的事件收敛与失败关闭规则
 docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	49b4f1997d733d9ce78831c71acdf37c68530bc9	-	-	documentation-consistency-review	明确发布权限、资产信任边界及 Vendor Tag 误触发官方 Release 时的取消与失败关闭策略
 docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	126a74c595c727922dd66c6b15dee73df2613026	-	-	docs-review+database-boundary-review	记录支付订单上游不可用本地降级、库存释放、审计和已支付保护回归
-docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	dc243b85eef1748a524c67413f475294ab9df705	-	-	documentation-consistency-review	记录 Vendor Tag 事件收敛、官方 Release 误触发取消及精确最终器恢复要求
+docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	5260a185378a4b8f6e45b1ac1db4acc4de87ed0e	-	-	documentation-consistency-review	记录 Vendor Tag 事件收敛、官方 Release 误触发取消及精确最终器恢复要求
 frontend/package.json	M	keep	M	fixed-path	fa12747fa719982ff28270938f3e03f6e9b1bd24	0a9e5c4938dfed97a2dd54e1da4fc349e6be027b	-	-	frontend-security+pnpm-audit+build	在既有 PostCSS 安全升级上，以最小条件 Override 将受影响 nanoid 版本固定到 3.3.18
 frontend/pnpm-lock.yaml	M	keep	M	fixed-path	d2714896a99f863dd7347362107d34b52796ac4b	41ee066ccb31156b40dea49144888a2cadeda3b4	-	-	frontend-security+pnpm-audit+build	锁定 PostCSS 间接依赖 nanoid 3.3.18 及对应完整性摘要
 frontend/src/api/__tests__/admin.affiliates.reversal.spec.ts	A	keep	A	custom-test	@absent	fd0bfd87e3f814b677c518d6297364a728de58fc	-	-	affiliate-reversal-vitest+typecheck	验证状态筛选、预览载荷及稳定 Idempotency-Key 撤销提交
@@ -662,7 +662,7 @@ frontend/src/views/user/__tests__/PaymentView.spec.ts	M	keep	M	official-thin-bri
 frontend/src/views/user/__tests__/SubscriptionsView.spec.ts	A	keep	A	custom-test	@absent	5eabfe508d381c6ce27a886d3c7414e97adbf490	-	-	targeted-test	subscription renewal policy
 frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	M	keep	M	official-thin-bridge	85b2b0fd7040ed44f8940073061c2e5fbde8b795	70cb86b322dc890bd84ccf7f8631c2cda9d415fd	frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	frontend/src/custom/payment-channels/usePaymentChannelRecovery.spec.ts	thin-bridge-review+go-test+candidate-tree-test	验证微信恢复查询保留并清理原服务商
 frontend/src/views/user/paymentWechatResume.ts	M	keep	M	official-thin-bridge	8121bc56fc4bd590385ad4780422dc95584aa0b1	9e753cd42ca8b0672e7b793fbadadf9d4c208091	frontend/src/views/user/paymentWechatResume.ts	frontend/src/custom/payment-channels/paymentRecoveryRoute.ts	thin-bridge-review+go-test+candidate-tree-test	微信支付恢复查询的服务商薄适配
-tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	f8c9d2adf7d5313a2d973d5c7b2fc7421de03304	-	-	thin-bridge-contract-unit+candidate-tree-test	验证未来缺失路径可预登记且实际出现的未登记路径仍失败关闭，并绑定 v0.2.4 官方列排序调用与控制流
+tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	acd2259b3b1810d75f0a84630bc1eeaa919e9087	-	-	thin-bridge-contract-unit+candidate-tree-test	验证未来缺失路径可预登记且实际出现的未登记路径仍失败关闭，并绑定 v0.2.4 官方列排序调用与控制流
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
-tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	4fc487dd2617bd607f2071f60e21d3e07864e565	-	-	thin-bridge-contract-unit+candidate-tree-test	绑定 v0.2.1、v0.2.4 与 v0.2.5 调用控制面并精确登记官方列排序调用与控制流，仅跳过候选树中尚不存在的预登记路径
+tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	2c306d08d318efeffd2d1074d8635e3803597ef5	-	-	thin-bridge-contract-unit+candidate-tree-test	绑定 v0.2.1、v0.2.4 与 v0.2.5 调用控制面并精确登记官方列排序调用与控制流，仅跳过候选树中尚不存在的预登记路径
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
