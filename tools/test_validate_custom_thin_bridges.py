@@ -1167,5 +1167,37 @@ class ThinBridgeContractTests(unittest.TestCase):
         )
 
 
+class V0219ProjectionBridgeTests(unittest.TestCase):
+    def test_reviewed_calls_reject_extra_count_and_wrong_owner(self) -> None:
+        cases = (
+            ("backend/internal/handler/admin/subscription_handler.go", "ResetQuota", "executeAdminIdempotentJSONWithResponse"),
+            ("backend/internal/handler/admin/subscription_handler.go", "ResetQuota", "adminSubscriptionResponse"),
+            ("backend/internal/handler/gemini_v1beta_handler.go", "GeminiV1BetaListModels", "filterAndWriteModels"),
+        )
+        for path, owner, callee in cases:
+            with self.subTest(path=path, callee=callee):
+                row = validator.ContractRow(path, "delegate", True, 0, 0, ())
+                approved = validator.BASELINE_DELEGATE_VIEW_CALL_DELTAS[(validator._v0219_vendor_commit, path)]
+                count = approved.count((owner, callee))
+                self.assertGreater(count, 0)
+                baseline = f"func {owner}() {{\n}}\nfunc Other() {{\n}}\n"
+                def check(target_owner: str, calls: int) -> None:
+                    content = baseline.replace(
+                        f"func {target_owner}() {{\n}}",
+                        f"func {target_owner}() {{\n" + (f"    {callee}()\n" * calls) + "}",
+                    )
+                    validator.validate_delegate_view_structure(
+                        row, "trusted-custom", baseline, content,
+                        set(range(1, len(content.splitlines()) + 1)),
+                        custom_baseline=True,
+                        upgrade_baseline_commit=validator._v0219_vendor_commit,
+                    )
+                check(owner, count)
+                with self.assertRaisesRegex(validator.ContractError, "unapproved executable call"):
+                    check(owner, count + 1)
+                with self.assertRaisesRegex(validator.ContractError, "unapproved executable call"):
+                    check("Other", 1)
+
+
 if __name__ == "__main__":
     unittest.main()

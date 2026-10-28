@@ -6892,6 +6892,30 @@ for _path, _control in {
         _reviewed_baseline_delta(APPROVED_DELEGATE_VIEW_CONTROL[_path], add=_control)
     )
 
+# v0.2.19 keeps response projection after idempotency replay and sends the new
+# declared Gemini catalog through the existing Custom model policy filter.
+_v0219_vendor_commit = "dece26153621959ccd7635814f4b2d08304e681a"
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v0219_vendor_commit, "backend/internal/handler/admin/subscription_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/handler/admin/subscription_handler.go"
+    ],
+    remove=(("ResetQuota", "executeAdminIdempotentJSON"),),
+    add=(
+        ("ResetQuota", "executeAdminIdempotentJSONWithResponse"),
+        ("ResetQuota", "adminSubscriptionResponse"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v0219_vendor_commit, "backend/internal/handler/gemini_v1beta_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/handler/gemini_v1beta_handler.go"
+    ],
+    add=(("GeminiV1BetaListModels", "filterAndWriteModels"),),
+)
+
 FUNCTION_START_PATTERNS = (
 
 

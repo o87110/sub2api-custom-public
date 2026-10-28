@@ -623,6 +623,7 @@ jobs:
           protected_pattern="${protected_pattern}|^frontend/src/views/user/__tests__/SubscriptionsView\.spec\.ts$"
           protected_pattern="${protected_pattern}|^frontend/src/components/payment/__tests__/PaymentProviderDialog\.spec\.ts$"
           protected_pattern="${protected_pattern}|^backend/internal/service/(payment_order_type_test|payment_refund_pending_hold_test)\.go$"
+          protected_pattern="${protected_pattern}|^backend/internal/(repository/custom_admin_key_review_test|server/routes/custom_admin_key_group_models_test)\.go$"
           grep -E "$protected_pattern" /tmp/overlap-files.txt > /tmp/protected-overlap.txt || true
           grep -E "$protected_pattern" /tmp/upgrade-head-files.txt > /tmp/upgrade-protected-files.txt || true
           cat \

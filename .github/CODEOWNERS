@@ -120,6 +120,8 @@
 /backend/internal/service/admin_service.go @o87110
 /backend/internal/service/admin_service_group_test.go @o87110
 /backend/internal/service/admin_service_composite_group_test.go @o87110
+/backend/internal/repository/custom_admin_key_review_test.go @o87110
+/backend/internal/server/routes/custom_admin_key_group_models_test.go @o87110
 /backend/internal/service/affiliate_service.go @o87110
 /backend/internal/service/affiliate_subscription_rebate_test.go @o87110
 /backend/internal/service/api_key_auth_cache.go @o87110
