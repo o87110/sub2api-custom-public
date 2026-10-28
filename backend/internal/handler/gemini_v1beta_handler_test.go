@@ -3,17 +3,46 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/groupmodelaccess"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGeminiV1BetaDeclaredModelsPreserveCustomBlocklist(t *testing.T) {
+	for _, allowlistEnabled := range []bool{false, true} {
+		f := newGeminiDeclaredModelsFixture(t, []service.Account{{
+			ID: 1, Platform: service.PlatformGemini, Type: service.AccountTypeAPIKey,
+			Credentials: map[string]any{"api_key": "test", "model_mapping": map[string]any{
+				"gemini-allowed": "gemini-allowed", "gemini-blocked": "gemini-blocked",
+			}},
+		}})
+		f.handler.gatewayService = &service.GatewayService{}
+		c, rec := f.context("/v1beta/models", "", service.GroupModelAllowlist{
+			Enabled: allowlistEnabled, Models: []string{"gemini-allowed", "gemini-blocked"},
+		})
+		key, _ := middleware.GetAPIKeyFromContext(c)
+		key.Group.Hydrated = true
+		key.Group.Status = service.StatusActive
+		ctx := context.WithValue(c.Request.Context(), ctxkey.Group, key.Group)
+		ctx = groupmodelaccess.WithPolicy(ctx, groupmodelaccess.NewPolicy([]string{"gemini-blocked"}))
+		c.Request = c.Request.WithContext(ctx)
+		f.handler.GeminiV1BetaListModels(c)
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), "models/gemini-allowed")
+		require.NotContains(t, rec.Body.String(), "gemini-blocked")
+		require.Zero(t, f.upstream.calls)
+	}
+}
 
 func TestGeminiV1BetaListModels_AllowlistFiltersNativeResponse(t *testing.T) {
 	body := []byte(`{"models":[{"name":"models/gemini-2.5-pro"},{"name":"models/gemini-2.5-flash"}],"nextPageToken":"next"}`)
