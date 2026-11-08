@@ -57,15 +57,25 @@ func TestResetQuotaScopedResponseProjectsFreshAndReplayedResults(t *testing.T) {
 			}
 		})
 		router.POST("/subscriptions/:id/reset-quota", handler.ResetQuota)
-		for i, mode := range []string{"admin", "write", "read"} {
+		modes := []string{"admin", "write", "read"}
+		if key != "" {
+			// A replay under the same authorization scope succeeds, while
+			// reusing the key after the policy changes is rejected.
+			modes = []string{"admin", "admin", "write"}
+		}
+		for i, mode := range modes {
 			request := httptest.NewRequest(http.MethodPost, "/subscriptions/42/reset-quota", bytes.NewBufferString(`{"daily":true}`))
 			request.Header.Set("Content-Type", "application/json")
 			request.Header.Set("Idempotency-Key", key)
 			request.Header.Set("X-Test-Mode", mode)
 			recorder := httptest.NewRecorder()
 			router.ServeHTTP(recorder, request)
+			if key != "" && mode == "write" {
+				require.Equal(t, http.StatusConflict, recorder.Code, recorder.Body.String())
+				continue
+			}
 			require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
-			if key != "" && i > 0 {
+			if key != "" && i == 1 {
 				require.Equal(t, "true", recorder.Header().Get("X-Idempotency-Replayed"))
 			}
 			var result struct {
