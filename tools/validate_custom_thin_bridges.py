@@ -6916,6 +6916,34 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
     add=(("GeminiV1BetaListModels", "filterAndWriteModels"),),
 )
 
+# Official v0.2.20 keeps the raw Chat Completions bridge split between the
+# existing Custom Sol/model-access checks and the new generic GPT-6.1 check.
+# Bind the generic error-reporting calls to the exact official baseline.
+_v0220_vendor_commit = "dab829a4e9b7d1cc307189aea8b0319eb29e29d0"
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v0220_vendor_commit,
+    "backend/internal/service/openai_gateway_chat_completions_raw.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/service/openai_gateway_chat_completions_raw.go"
+    ],
+    add=(
+        ("forwardAsRawChatCompletionsWithStartTime", "err.Error"),
+        ("forwardAsRawChatCompletionsWithStartTime", "writeChatCompletionsError"),
+    ),
+)
+
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v0220_vendor_commit,
+    "backend/internal/service/openai_gateway_messages.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/service/openai_gateway_messages.go"
+    ],
+    add=(
+        ("ForwardAsAnthropic", "err.Error"),
+        ("ForwardAsAnthropic", "writeAnthropicError"),
+    ),
+)
+
 FUNCTION_START_PATTERNS = (
 
 
