@@ -3,7 +3,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/audit-exceptions.yml	M	keep	M	fixed-path	5881136f578df07d9abac471222fe3b6e0769424	5563f24a5ddea92b6f1d126ba3c49dd64131de9b	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	9eb28c14740e1793b8aca6d6934e94c80c3ef8c8	-	-	database-boundary-unit+candidate-tree-test	登记全部 Custom 数据库结构与只读 SQL 例外，并绑定 vendor-0.2.7 准确 Blob 与语义指纹
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	9bac1ebd35eee623750f10270db172db5769fd7f	-	-	candidate-tree+shadow-map+thin-bridge-contract	reviewed exact thin bridge budgets for v0.2.1/v0.2.4/v0.2.5/v0.2.14/v0.2.15
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	4b62b08e6833d7d3d3c6b9e82cdb487d359ef5a5	-	-	candidate-tree+shadow-map+thin-bridge-contract	reviewed exact thin bridge budgets for v0.2.1/v0.2.4/v0.2.5/v0.2.14/v0.2.15/v0.2.20
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	13e666e8ab525d84d74c812e6f820daaf81ef53b	-	-	candidate-tree+targeted-CI	同步 v0.2.18 Go 1.27.3 与 golangci-lint 2.14.0 控制面工具版本
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	6c51e234b4ba6b1b5a93b5e11401736d386280fb	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
