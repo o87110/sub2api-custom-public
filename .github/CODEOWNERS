@@ -278,6 +278,7 @@
 /frontend/src/views/admin/__tests__/groupsModelsListLayout.spec.ts @o87110
 /frontend/src/views/admin/__tests__/ChannelMonitorView.grok.spec.ts @o87110
 /frontend/src/views/admin/__tests__/SettingsView.spec.ts @o87110
+/frontend/src/views/admin/__tests__/SubscriptionsView.userUsageLink.spec.ts @o87110
 /frontend/src/views/auth/__tests__/WechatPaymentCallbackView.spec.ts @o87110
 /frontend/src/views/auth/__tests__/RegisterView.spec.ts @o87110
 /frontend/src/views/user/KeysView.vue @o87110
