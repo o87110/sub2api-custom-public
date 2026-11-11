@@ -154,6 +154,7 @@ docs/*
 !docs/CUSTOM_DEVELOPMENT_CN.md
 !docs/custom/
 !docs/custom/*.md
+!docs/OPENAI_IMAGES_CODEX.md
 !docs/BATCH_IMAGE_MVP.md
 !docs/COMPOSITE_GROUPS.md
 !docs/PLUGIN_DEVELOPMENT.md
