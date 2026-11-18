@@ -3,7 +3,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/audit-exceptions.yml	M	keep	M	fixed-path	5881136f578df07d9abac471222fe3b6e0769424	5563f24a5ddea92b6f1d126ba3c49dd64131de9b	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	00b95ccbfba8782121469c277ceae20ea9750be8	-	-	database-boundary-unit+candidate-tree-test	将原有 Custom 数据库例外重新绑定至准确 vendor-0.2.23 Blob 与语义指纹，不增减例外路径
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	a3f987e57bd667c807c1fded063b3f4ebd2c682f	-	-	candidate-tree+shadow-map+thin-bridge-contract	固定官方影子源行预算与历史基线覆盖，登记 v0.2.20 全部语义移植预算
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	bf073d199817985b7ab94a6f4986d2aa86e55908	-	-	candidate-tree+shadow-map+thin-bridge-contract	固定官方影子源行预算与历史基线覆盖，登记 v0.2.20 全部语义移植预算
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	ec7ef1cc11f254fc7700211469714e3668f26c00	-	-	candidate-tree+targeted-CI	同步 v0.2.18 Go 1.27.3 与 golangci-lint 2.14.0 控制面工具版本
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	16b67f99c1d9c247020b590f0021be778baf8a7e	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -516,7 +516,7 @@ docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	762ea34280de20a2f9
 docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	88b9a8afcaf25bcab6c506c1d01b713084f38806	-	-	documentation-consistency-review	记录生产发布信任链及 Vendor Tag 误触发官方 Release 的事件收敛与失败关闭规则
 docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	49b4f1997d733d9ce78831c71acdf37c68530bc9	-	-	documentation-consistency-review	明确发布权限、资产信任边界及 Vendor Tag 误触发官方 Release 时的取消与失败关闭策略
 docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	126a74c595c727922dd66c6b15dee73df2613026	-	-	docs-review+database-boundary-review	记录支付订单上游不可用本地降级、库存释放、审计和已支付保护回归
-docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	a8c1b8e5f1fa1f8a3986e256660b5ff73ff722bb	-	-	documentation-consistency-review	记录 Vendor Tag 事件收敛、官方 Release 误触发取消及精确最终器恢复要求
+docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	da2a0dd082e5a941deaccb44feafa1d9b9e72669	-	-	documentation-consistency-review	记录 Vendor Tag 事件收敛、官方 Release 误触发取消及精确最终器恢复要求
 frontend/package.json	M	keep	M	fixed-path	e42bcb03f8d152fb95f2f0c1a9c5b4ac64b5d0e9	2a0660fe84e4a927ce41da618b85da8d90b78a34	-	-	frontend-security+pnpm-audit+build	在既有 PostCSS 安全升级上，以最小条件 Override 将受影响 nanoid 版本固定到 3.3.18
 frontend/pnpm-lock.yaml	M	keep	M	fixed-path	1bf73beac90414b189414988cd7cf4d311dc2b04	de078a6b9b95b81cd5fe8abdde8d095d6f37e6cc	-	-	frontend-security+pnpm-audit+build	锁定 PostCSS 间接依赖 nanoid 3.3.18 及对应完整性摘要
 frontend/src/api/__tests__/admin.affiliates.reversal.spec.ts	A	keep	A	custom-test	@absent	fd0bfd87e3f814b677c518d6297364a728de58fc	-	-	affiliate-reversal-vitest+typecheck	验证状态筛选、预览载荷及稳定 Idempotency-Key 撤销提交
