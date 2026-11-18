@@ -255,43 +255,57 @@ func TestAsyncImageHandlerSubmitRejectsWhenBodyCannotBeRetained(t *testing.T) {
 // When object storage is not configured the feature is fully disabled: the
 // endpoints must return 404 without creating a task or writing to Redis.
 func TestAsyncImageHandlerReloadsBlockedModelsBeforeRun(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
-	tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
-	owner := service.ImageTaskOwner{UserID: 7, APIKeyID: 9}
-	task, err := tasks.Create(context.Background(), owner)
-	require.NoError(t, err)
-	groupID := int64(3)
-	latest := &service.APIKey{
-		ID: 9, UserID: 7, GroupID: &groupID,
-		Group: &service.Group{
-			ID: groupID, Platform: service.PlatformOpenAI, AllowImageGeneration: true,
-			ModelsListConfig: service.GroupModelsListConfig{BlockedModels: []string{"gpt-image-1"}},
-		},
+	for _, tt := range []struct {
+		name       string
+		platform   string
+		model      string
+		missingKey bool
+		wantStatus int
+		wantCode   string
+		wantType   string
+	}{
+		{name: "OpenAI blocked", platform: service.PlatformOpenAI, model: "gpt-image-1", wantStatus: http.StatusNotFound, wantCode: "model_not_found", wantType: "invalid_request_error"},
+		{name: "Grok blocked", platform: service.PlatformGrok, model: "grok-imagine-image", wantStatus: http.StatusNotFound, wantCode: "model_not_found", wantType: "invalid_request_error"},
+		{name: "Grok key unavailable", platform: service.PlatformGrok, model: "grok-imagine-image", missingKey: true, wantStatus: http.StatusServiceUnavailable, wantType: "api_error"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
+			tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+			owner := service.ImageTaskOwner{UserID: 7, APIKeyID: 9}
+			task, err := tasks.Create(context.Background(), owner)
+			require.NoError(t, err)
+			groupID := int64(3)
+			latest := &service.APIKey{
+				ID: 9, UserID: 7, GroupID: &groupID,
+				Group: &service.Group{
+					ID: groupID, Platform: tt.platform, AllowImageGeneration: true,
+					ModelsListConfig: service.GroupModelsListConfig{BlockedModels: []string{tt.model}},
+				},
+			}
+			keys := map[int64]*service.APIKey{9: latest}
+			if tt.missingKey {
+				delete(keys, 9)
+			}
+			apiKeyService := service.NewAPIKeyService(&dailyUsageAPIKeyRepoStub{keys: keys}, nil, nil, nil, nil, nil, nil)
+			h := &AsyncImageHandler{tasks: tasks, openAI: &OpenAIGatewayHandler{apiKeyService: apiKeyService}}
+			recorder := httptest.NewRecorder()
+			taskCtx, _ := gin.CreateTestContext(recorder)
+			taskCtx.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", strings.NewReader("{\"model\":\""+tt.model+"\",\"prompt\":\"cat\"}"))
+			taskCtx.Request.Header.Set("Content-Type", "application/json")
+			taskCtx.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+				ID: 9, UserID: 7, GroupID: &groupID,
+				Group: &service.Group{ID: groupID, Platform: tt.platform, AllowImageGeneration: true},
+			})
+			require.False(t, h.refreshGroupModelAccessBeforeRun(task.ID, taskCtx))
+			stored, getErr := tasks.Get(context.Background(), owner, task.ID)
+			require.NoError(t, getErr)
+			require.Equal(t, service.ImageTaskStatusFailed, stored.Status)
+			require.Equal(t, tt.wantStatus, stored.HTTPStatus)
+			require.Equal(t, tt.wantCode, gjson.GetBytes(stored.Error, "code").String())
+			require.Equal(t, tt.wantType, gjson.GetBytes(stored.Error, "type").String())
+		})
 	}
-	apiKeyRepo := &dailyUsageAPIKeyRepoStub{keys: map[int64]*service.APIKey{9: latest}}
-	apiKeyService := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, nil)
-	h := &AsyncImageHandler{
-		tasks:  tasks,
-		openAI: &OpenAIGatewayHandler{apiKeyService: apiKeyService},
-	}
-	recorder := httptest.NewRecorder()
-	taskCtx, _ := gin.CreateTestContext(recorder)
-	taskCtx.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", strings.NewReader(`{"model":"gpt-image-1","prompt":"cat"}`))
-	taskCtx.Request.Header.Set("Content-Type", "application/json")
-	taskCtx.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-		ID: 9, UserID: 7, GroupID: &groupID,
-		Group: &service.Group{ID: groupID, Platform: service.PlatformOpenAI, AllowImageGeneration: true},
-	})
-
-	allowed := h.refreshGroupModelAccessBeforeRun(task.ID, taskCtx)
-
-	require.False(t, allowed)
-	stored, getErr := tasks.Get(context.Background(), owner, task.ID)
-	require.NoError(t, getErr)
-	require.Equal(t, service.ImageTaskStatusFailed, stored.Status)
-	require.Equal(t, http.StatusNotFound, stored.HTTPStatus)
-	require.Equal(t, "model_not_found", gjson.GetBytes(stored.Error, "code").String())
 }
 
 func TestAsyncImageHandlerDisabledReturns404(t *testing.T) {
