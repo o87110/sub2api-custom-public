@@ -66,6 +66,7 @@
 /backend/internal/handler/group_model_access_test.go @o87110
 /backend/internal/handler/gemini_v1beta_handler_test.go @o87110
 /backend/internal/handler/image_task_handler_test.go @o87110
+/backend/internal/handler/grok_media_slots_test.go @o87110
 /backend/internal/handler/no_account_error_test.go @o87110
 /backend/internal/repository/api_key_minimum_balance_repo.go @o87110
 /backend/internal/repository/api_key_repo.go @o87110
