@@ -3,7 +3,7 @@ package service
 import "testing"
 
 func TestAPIKeyService_RejectsSnapshotsWithoutCustomImageCountBilling(t *testing.T) {
-	for _, version := range []int{22, 25} {
+	for _, version := range []int{22, 25, 27} {
 		svc := &APIKeyService{}
 		apiKey, ok, err := svc.applyAuthCacheEntry("k-old-image-billing", &APIKeyAuthCacheEntry{
 			Snapshot: &APIKeyAuthSnapshot{Version: version},

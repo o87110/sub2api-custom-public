@@ -240,7 +240,11 @@ func newGrokMediaSlotHandler(t *testing.T, oauth, mismatch bool, platforms ...st
 	bindings.writes = 0
 	billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	t.Cleanup(billing.Stop)
-	handler := NewOpenAIGatewayHandler(gateway, concurrency, billing, service.NewAPIKeyService(nil, nil, nil, nil, nil, nil, cfg), nil, nil, nil, nil, cfg)
+	policyContext, _ := grokMediaSlotContext(context.Background(), false)
+	apiKey, ok := middleware2.GetAPIKeyFromContext(policyContext)
+	require.True(t, ok)
+	apiKeyRepo := &dailyUsageAPIKeyRepoStub{keys: map[int64]*service.APIKey{apiKey.ID: apiKey}}
+	handler := NewOpenAIGatewayHandler(gateway, concurrency, billing, service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, cfg), nil, nil, nil, nil, cfg)
 	return handler, slots, bindings, upstream
 }
 
