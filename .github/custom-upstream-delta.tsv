@@ -38,7 +38,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.2.20.md	A	keep	A	custom-docs-ops	@absent	1be59b8218754ff6b6f2ba0ea9ea5deb1cb7ee89	-	-	documentation-review+candidate-tree-test	记录官方 v0.2.20 升级、数据库迁移评审、二改影响与验证证据
 .github/upgrades/0.2.21.md	A	keep	A	custom-docs-ops	@absent	bdbebc169aa32702d44f58b4f78f6badba4f8ad9	-	-	documentation-review+candidate-tree-test	记录官方 v0.2.21 升级、数据库迁移评审、二改影响与验证证据
 .github/upgrades/0.2.22.md	A	keep	A	custom-docs-ops	@absent	4658fe5a84419ce7068ef3971694121393f48c96	-	-	upgrade-review+database-review+candidate-tree-test	记录官方 v0.2.22 升级、数据库迁移、影子源语义审核和准确提交验证证据
-.github/upgrades/0.2.23.md	A	keep	A	custom-docs-ops	@absent	d6450c5d45c8546d693a79e22d47975cdc482701	-	-	database-review+candidate-tree-test	记录 v0.2.23 的正式提交、影子源语义、数据库只读核对和回退限制
+.github/upgrades/0.2.23.md	A	keep	A	custom-docs-ops	@absent	cc1f5354b62ec573e7f71d2186d3e5ecc30bec9e	-	-	database-review+candidate-tree-test	记录 v0.2.23 的正式提交、影子源语义、数据库只读核对和回退限制
 .github/upgrades/0.2.4.md	A	keep	A	custom-docs-ops	@absent	7073a3588111cfdddad6df85e5e901bd45c5f3e2	-	-	candidate-tree	0.2.4 upgrade report
 .github/upgrades/0.2.5.md	A	keep	A	custom-docs-ops	@absent	f372553e36737a23c2850277d40847d6113cc420	-	-	candidate-tree+targeted-CI	记录 v0.2.5 升级候选树报告
 .github/upgrades/0.2.7.md	A	keep	A	custom-docs-ops	@absent	1c3e9fdcdfce5c881d7ba76a855ffa3129dcbe1c	-	-	candidate-tree+targeted-CI	记录 v0.2.7 升级候选树、冲突语义移植、数据库审查与验证证据
