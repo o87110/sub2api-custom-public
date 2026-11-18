@@ -129,7 +129,7 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
-        run: go version | grep -q 'go1.27.3'
+        run: /bin/bash deploy/tests/verify-go-toolchain.sh
       - name: Resolve exact candidate tree
         id: candidate
         env:
@@ -348,7 +348,7 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
-        run: go version | grep -q 'go1.27.3'
+        run: /bin/bash deploy/tests/verify-go-toolchain.sh
       - name: Unit tests
         working-directory: backend
         run: make test-unit
