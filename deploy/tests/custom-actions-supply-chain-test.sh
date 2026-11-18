@@ -88,6 +88,8 @@ grep -Eq '^QEMU_BINFMT_IMAGE=[^[:space:]]+@sha256:[0-9a-f]{64}$' "$versions_file
   fail "QEMU/binfmt image is not pinned by digest"
 grep -Eq "^go ${GO_VERSION}$" "$repo_root/backend/go.mod" ||
   fail "backend/go.mod does not match the declared Go version"
+
+/bin/bash "$repo_root/deploy/tests/verify-go-toolchain-test.sh"
 grep -Fq 'source ../.github/custom-upstream-baseline.env' \
   "$repo_root/.github/workflows/backend-ci.yml" ||
   fail "golangci-lint does not load the explicit custom baseline"
