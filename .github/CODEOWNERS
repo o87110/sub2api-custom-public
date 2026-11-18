@@ -215,6 +215,8 @@
 /deploy/tests/upstream-shadow-map-test.sh @o87110
 /deploy/tests/custom-upstream-delta-test.sh @o87110
 /deploy/tests/install-custom-tools.sh @o87110
+/deploy/tests/verify-go-toolchain.sh @o87110
+/deploy/tests/verify-go-toolchain-test.sh @o87110
 /deploy/tests/upstream-sync-safety-test.sh @o87110
 /deploy/tests/custom-release-safety-test.sh @o87110
 /deploy/tests/frontend-dist-safety-test.sh @o87110

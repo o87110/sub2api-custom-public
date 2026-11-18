@@ -1,10 +1,10 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	45c7c686328d61afc8f199d687b7dc3596100d4b	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	df2f8463fc303e4ade425915dac13cb3ec551d4e	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
 .github/audit-exceptions.yml	M	keep	M	fixed-path	5881136f578df07d9abac471222fe3b6e0769424	5563f24a5ddea92b6f1d126ba3c49dd64131de9b	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	440e4a6b385ef67656c9bb7ec3b84b1b071d7a8f	-	-	database-boundary-unit+candidate-tree-test	登记全部 Custom 数据库结构与只读 SQL 例外，并绑定 vendor-0.2.20 准确 Blob 与语义指纹
 .github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	a3f987e57bd667c807c1fded063b3f4ebd2c682f	-	-	candidate-tree+shadow-map+thin-bridge-contract	固定官方影子源行预算与历史基线覆盖，登记 v0.2.20 全部语义移植预算
-.github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	13e666e8ab525d84d74c812e6f820daaf81ef53b	-	-	candidate-tree+targeted-CI	同步 v0.2.18 Go 1.27.3 与 golangci-lint 2.14.0 控制面工具版本
+.github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	ec7ef1cc11f254fc7700211469714e3668f26c00	-	-	candidate-tree+targeted-CI	同步 v0.2.18 Go 1.27.3 与 golangci-lint 2.14.0 控制面工具版本
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	5dc434aed1b6d33bb1e872bf87a9401a3eaef7d1	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/upgrades/0.1.162.md	A	keep	A	custom-docs-ops	@absent	a873781565b70fa65a9ed5e2f88ddb762faeb81b	-	-	documentation-consistency-review	同步二改行为、发布门禁与运维约束
@@ -37,17 +37,17 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/upgrades/0.2.19.md	A	keep	A	custom-docs-ops	@absent	cf68c99c225228c6e4fc4bc24726002235045e29	-	-	documentation-review+candidate-tree-test	Record official v0.2.19 semantic merge, database review and regression evidence
 .github/upgrades/0.2.20.md	A	keep	A	custom-docs-ops	@absent	1be59b8218754ff6b6f2ba0ea9ea5deb1cb7ee89	-	-	documentation-review+candidate-tree-test	记录官方 v0.2.20 升级、数据库迁移评审、二改影响与验证证据
 .github/upgrades/0.2.21.md	A	keep	A	custom-docs-ops	@absent	bdbebc169aa32702d44f58b4f78f6badba4f8ad9	-	-	documentation-review+candidate-tree-test	记录官方 v0.2.21 升级、数据库迁移评审、二改影响与验证证据
-.github/upgrades/0.2.22.md	A	keep	A	custom-docs-ops	@absent	2072aeffa8d1ae763e2e8995acb670e25fe3a82e	-	-	upgrade-review+database-review+candidate-tree-test	记录官方 v0.2.22 升级、数据库迁移、影子源语义审核和准确提交验证证据
+.github/upgrades/0.2.22.md	A	keep	A	custom-docs-ops	@absent	c37f3bba3a4c43328dcbce3bda86efd5f5fcfbc4	-	-	upgrade-review+database-review+candidate-tree-test	记录官方 v0.2.22 升级、数据库迁移、影子源语义审核和准确提交验证证据
 .github/upgrades/0.2.4.md	A	keep	A	custom-docs-ops	@absent	7073a3588111cfdddad6df85e5e901bd45c5f3e2	-	-	candidate-tree	0.2.4 upgrade report
 .github/upgrades/0.2.5.md	A	keep	A	custom-docs-ops	@absent	f372553e36737a23c2850277d40847d6113cc420	-	-	candidate-tree+targeted-CI	记录 v0.2.5 升级候选树报告
 .github/upgrades/0.2.7.md	A	keep	A	custom-docs-ops	@absent	1c3e9fdcdfce5c881d7ba76a855ffa3129dcbe1c	-	-	candidate-tree+targeted-CI	记录 v0.2.7 升级候选树、冲突语义移植、数据库审查与验证证据
 .github/upgrades/0.2.8.md	A	keep	A	custom-docs-ops	@absent	c057c2b5f8a78c58fdfea174011e1dc07b91deb7	-	-	documentation-consistency-review+candidate-tree-test	同步官方升级记录与仓库边界文档
 .github/upgrades/0.2.9.md	A	keep	A	custom-docs-ops	@absent	be5b33822e5d0b5013c7f803b6f6b159e86fe9da	-	-	documentation-consistency-review+candidate-tree-test	记录官方 v0.2.9 升级、二改交集审查、数据库无变更结论与验证证据
 .github/upstream-shadowed-sources.tsv	A	keep	A	fixed-path	@absent	94356514389defe7026b6832357781ab41971f12	-	-	candidate-tree+shadow-map+thin-bridge-contract	登记 v0.2.1 与 v0.2.4 重命名前后的官方影子源替代关系
-.github/workflows/backend-ci.yml	M	keep	M	fixed-path	751f1fb0fd0c283354f3b77da4aeacdfebc15a86	89a9fe4d3d8449d9c493da86ca2dc7af9d2e64bf	-	-	yaml-parse+action-pin+actionlint+container-safety	并行边界门禁、收窄 Integration 包并为准确 main SHA 产出前端 Release Artifact；集成 harness 保持 UTC，分组用量测试在事务内显式设置业务时区；CI 薄桥接校验绑定受信任 Custom 基线
+.github/workflows/backend-ci.yml	M	keep	M	fixed-path	751f1fb0fd0c283354f3b77da4aeacdfebc15a86	f8230efe73fc0be71bb97244273cbe9da6a2d3b7	-	-	yaml-parse+action-pin+actionlint+container-safety	并行边界门禁、收窄 Integration 包并为准确 main SHA 产出前端 Release Artifact；集成 harness 保持 UTC，分组用量测试在事务内显式设置业务时区；CI 薄桥接校验绑定受信任 Custom 基线
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
-.github/workflows/release.yml	M	keep	M	fixed-path	b5780a6be5275eebbe48bf55bf2c9180aa340b37	9c92d231e7c74d27246a9d6d30ea87371151c27d	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
-.github/workflows/security-scan.yml	M	keep	M	fixed-path	19893aae9797a436cc0bad31847a5fc1ce477165	a441517f9680b2c7a63993b9b45cdcd26cdef14b	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
+.github/workflows/release.yml	M	keep	M	fixed-path	b5780a6be5275eebbe48bf55bf2c9180aa340b37	d0c57a24cd032cda941441ffc7beef511f2f8e6d	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
+.github/workflows/security-scan.yml	M	keep	M	fixed-path	19893aae9797a436cc0bad31847a5fc1ce477165	3c22b8d3aefa53005dfeb96a5439a4f8f4011b46	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
 .github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	bdf506aa5e27137a4beb1dcaa8af55398d67d7e3	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、返利撤销后端、Migration 与前端集成测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 EasyPay 回归测试
 .github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	d6fbd95ef6176d5639d7fc71615c62e13aee973f	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护返利撤销后端、Migration、前端集成测试及其他高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
 .gitignore	M	keep	M	fixed-path	fb355d7e05e1981f4441045dadd1878788c88608	d7b9fb764d2fc586a84aea70513ee0da00542497	-	-	candidate-tree+targeted-CI	保留 Custom 文档与控制面白名单，并补齐官方已跟踪 seedance 文档的候选树白名单
@@ -137,6 +137,7 @@ backend/ent/usersubscriptioncycle_create.go	A	keep	A	generated	@absent	b536af491
 backend/ent/usersubscriptioncycle_delete.go	A	keep	A	generated	@absent	92b59601325de80f3529ac3afca7224757825cd1	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期删除器
 backend/ent/usersubscriptioncycle_query.go	A	keep	A	generated	@absent	a84bdee411e8257a69e60c26cb768e20c6c5fc06	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期查询器
 backend/ent/usersubscriptioncycle_update.go	A	keep	A	generated	@absent	89ad56d75bd030e74deca285db073713573e7b50	-	-	go-generate+clean-diff+go-test	由 Ent Schema 生成订阅统计周期更新器
+backend/go.mod	M	restore	RESTORED	whole-file-restore	73577069cae1a7f2adfccac8fc5a75f56e1d06bc	73577069cae1a7f2adfccac8fc5a75f56e1d06bc	-	-	exact-official-blob+candidate-tree-test	相对准确官方 v0.2.22 完全一致；不保留无关官方实现差异
 backend/go.sum	M	keep	M	fixed-path	45db03410cba4fb027aaa85b1f7da86ca1976672	1d9ced081e394afb96504d0a0dc0c7267c8be0a2	-	-	go-generate+clean-diff+go-build	同步官方 v0.2.15 工具链依赖并保留 Wire v0.7.0 校验和
 backend/internal/config/custom_artifacts_test.go	A	keep	A	custom-test	@absent	afcc1070e845c90c8069619914a77134580230ef	-	-	test-executed-in-CI	验证二改行为和发布边界
 backend/internal/custom/affiliatereversal/cache_invalidation_test.go	A	keep	A	custom-test	@absent	d6462381cb7f4b4a9451a10dc5dbb2ab19a970c8	-	-	affiliate-reversal-unit+go-test	验证首次缓存失效失败后按订单恢复邀请人并可重复失效，且使用独立超时上下文
@@ -306,7 +307,6 @@ backend/internal/repository/auth_cache_invalidation_profit_integration_test.go	M
 backend/internal/repository/channel_monitor_group_rate_integration_test.go	A	keep	A	custom-test	@absent	dc2480382a67116011bce5dcd4b01abdb2d87398	-	-	channel-monitor-integration+go-test	验证倍率覆盖值和显示模板的 PostgreSQL 创建、更新、清空与复制持久化
 backend/internal/repository/channel_monitor_repo.go	M	keep	M	official-thin-bridge	c4586bc38c27304294f8704970903c1b439c7154	3083880352a109653efc86874942e15be2aaad1b	-	-	thin-bridge-review+go-test+candidate-tree-test	渠道监控仓储增量持久化倍率覆盖值和显示模板字段
 backend/internal/repository/custom_admin_key_review_test.go	M	keep	M	custom-test	fabf36b073925ecd0544ac9be75bd3020c852322	f45cc844c63c07534fddcaec167dff5876f5629d	-	-	go-test-unit+candidate-tree-test	Adapt official constructor fixture to the existing Custom ChannelRepository injection without changing assertions
-backend/internal/repository/custom_usage_billing_cycle_integration_test.go	A	keep	A	custom-test	@absent	f760573cd58ef332f8d0556e8854a7c179fead46	-	-	postgres-integration+go-test+candidate-tree-test	验证官方同用户批量扣费保留二改周期用量原子累加、重放去重与整批事务回滚
 backend/internal/repository/fixtures_integration_test.go	M	keep	M	custom-test	cffc6be98e189be7789e871b2ffd1eda9aa7dbef	55188bd64cc9b47707ee16bd1f532e48ab723f95	-	-	subscription-cycle-postgres-integration+go-test	扩展 PostgreSQL 订阅测试夹具以初始化周期记录
 backend/internal/repository/group_repo.go	M	keep	M	official-thin-bridge	f185870c071be1afa624eff69f8b8f7dd023f353	7a63848b96a8fb9b6ca15c9917ec6009fe93d4ce	-	-	thin-bridge-review+go-test+candidate-tree-test	分组仓储创建、更新和实体转换薄接入最低余额字段
 backend/internal/repository/group_usage_rollup_trigger_integration_test.go	M	keep	M	custom-test	c145bef4ebbe6d1a88e2ee3ed0f4d16044738fb5	f635e7d7fceb1ca755b8805950bc62a697e1e060	-	-	postgres-integration+timezone-validation+go-test	让分组用量触发器集成测试在事务内显式使用业务时区，同时保持共享 harness 的 UTC 断言
@@ -314,7 +314,7 @@ backend/internal/repository/integration_harness_test.go	M	keep	M	custom-test	d33
 backend/internal/repository/usage_billing_repo.go	M	keep	M	official-thin-bridge	e7cc6ea847e5f5b3157aa501a01c379b6fa79092	e571fb959c6c9340509d1796891b875f89f78839	backend/internal/repository/usage_billing_repo.go	backend/internal/custom/subscriptionquota/persistence.go	thin-bridge-review+go-test+candidate-tree-test	官方计费用量写入后薄接入本周期累计
 backend/internal/repository/user_subscription_lock_test.go	M	keep	M	custom-test	b7d2e59d529a1b87b7860a49007611291821be79	ac4ee85d9cfd9c8f6f31bf2f07fb787040851291	-	-	subscription-cycle-unit+go-test	同步 Ent 新增订阅周期列的行锁 SQLMock 夹具
 backend/internal/repository/user_subscription_repo.go	M	keep	M	official-thin-bridge	0af3eda985cf0eae1687ea829943fabf3c64d04b	d79ee6c828b07f5da0a3fcc233bc2df56f25aa3d	backend/internal/repository/user_subscription_repo.go	backend/internal/custom/subscriptionrepository/repository.go	thin-bridge-review+go-test+candidate-tree-test	官方仓储只保留基础持久化构造与新增统计字段 DTO 映射，事务编排下沉 Custom
-backend/internal/repository/user_subscription_repo_integration_test.go	M	keep	M	custom-test	28f4c1b7d3eaa899fde73310593c97077d1b2a5a	f33b4564f6e02ec54aa029f1f66faa74559149bb	-	-	subscription-cycle-postgres-integration+go-test	验证周期推进、手动资格开关、硬删除清理、并发累计、单项重放、跨 Scope 隔离、准确 TTL、过期 reclaim、原子退款撤销及完整 CAS 语义
+backend/internal/repository/user_subscription_repo_integration_test.go	M	keep	M	custom-test	28f4c1b7d3eaa899fde73310593c97077d1b2a5a	fd6f6520ee57fe661beef5f78402ac73ccd582cf	-	-	subscription-cycle-postgres-integration+go-test	验证周期推进、手动资格开关、硬删除清理、并发累计、单项重放、跨 Scope 隔离、准确 TTL、过期 reclaim、原子退款撤销及完整 CAS 语义
 backend/internal/repository/wire.go	M	keep	M	fixed-path	786392193ff2f56b0bb6c2950aa6797138d8bdaf	40d3a91fb901716ff82b67456660f8ce24cd32cc	backend/internal/repository/wire.go	backend/internal/custom/updater/wire.go	thin-bridge-review+go-test+candidate-tree-test	官方影子源变更，复核二改目标与最薄接入关系
 backend/internal/server/api_contract_test.go	M	keep	M	custom-test	df8bf1dd80e1015baffaf9ec4348b389409314b7	f73fd02ebac46a807f2f0d3b73be0c2ad90a9977	-	-	group-model-blocklist-unit+go-test+invitation-hint-go-test	验证分组模型黑名单创建、更新、复制、缓存、协议响应、映射调度和最终转发守卫；补齐邀请码提示设置响应契约
 backend/internal/server/middleware/api_key_auth.go	M	keep	M	official-thin-bridge	c2dd7bf8f317bc36b8c1e1ed861ebc504d863c84	a3f8313098102c7ee7f41d4166b9aab60a9c7449	backend/internal/server/middleware/api_key_auth.go	backend/internal/custom/groupmodelaccess/policy.go	thin-bridge-review+go-test+candidate-tree-test	官方运行路径薄接入分组模型双重黑名单、映射后调度排除与转发前终检
@@ -491,7 +491,7 @@ deploy/release/wait-for-required-ci.sh	A	keep	A	fixed-path	@absent	b3bc57953cdd2
 deploy/tests/backend-integration-test.sh	A	keep	A	custom-test	@absent	a79513f890f088db473af2072d4f7abcdb9a8af4	-	-	backend-integration-contract+test-executed-in-CI	只运行并校验全部已登记 Integration 标签包，包括订阅仓储真实 PostgreSQL 原子资格重置用例
 deploy/tests/ci-impact-test.sh	A	keep	A	custom-test	@absent	6baf1abab452a60976914719b335c51aa9856a99	-	-	targeted-CI+candidate-tree-test	保留官方升级测试与二改回归夹具
 deploy/tests/ci-impact.sh	A	keep	A	custom-test	@absent	37f63a94d608fa3a2f01a2a37fc7e84edc5ed898	-	-	targeted-CI+candidate-tree-test	保留官方升级测试与二改回归夹具
-deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	f4a4641d861b022e090667de9ad4325a1bcdd4e4	-	-	test-executed-in-CI+actionlint	验证并行 CI、订阅仓储 Integration 登记、准确 SHA Artifact 与 Blob 过滤契约
+deploy/tests/custom-actions-supply-chain-test.sh	A	keep	A	custom-test	@absent	8310eeaae8c8dfa05d131321b67c14f2b4cc1432	-	-	test-executed-in-CI+actionlint	验证并行 CI、订阅仓储 Integration 登记、准确 SHA Artifact 与 Blob 过滤契约
 deploy/tests/custom-candidate-tree.sh	A	keep	A	custom-test	@absent	98e8b540b35ad7233c21340ce3dd1969db55ed51	-	-	test-executed-in-CI	验证二改行为和发布边界
 deploy/tests/custom-database-boundary-test.sh	A	keep	A	custom-test	@absent	e2fd073da8d9946fc43bdaac4e426931848f58cd	-	-	database-boundary-unit+candidate-tree-test	验证二改行为和发布边界
 deploy/tests/custom-release-safety-test.sh	A	keep	A	custom-test	@absent	361e16b491ff71d305c566795628c7c796694739	-	-	goreleaser-check+release-safety+runtime-resource-test	验证发布输入分类、同 SHA 门禁复用、前端来源、Manifest 兼容、缓存与耗时契约
@@ -504,6 +504,8 @@ deploy/tests/install-custom-tools.sh	A	keep	A	custom-test	@absent	1f5a5f35dcaa6b
 deploy/tests/rehearsal-compose-safety-test.sh	A	keep	A	custom-test	@absent	bd464c44ed971fa96c024b8dc90ea52a44ecfdd1	-	-	compose-runtime-persistence-test	验证 Compose runtime 持久化、旧部署迁移顺序及宿主机执行隔离边界
 deploy/tests/upstream-shadow-map-test.sh	A	keep	A	custom-test	@absent	a158ef529861bd33fec8e853cfb399419e3b14c5	-	-	candidate-tree+shadow-map+thin-bridge-contract	验证 176 条映射及 v0.2.1 与 v0.2.4 重命名前后的 178 个影子源路径
 deploy/tests/upstream-sync-safety-test.sh	A	keep	A	custom-test	@absent	91c52121db33b483e90ceafe5521f52a1f698416	-	-	upstream-sync+crlf-ledger-test	覆盖 Vendor Tag 创建时 Release Workflow 停用、事件收敛、恢复后轮询和误触发取消的失败关闭夹具
+deploy/tests/verify-go-toolchain-test.sh	A	keep	A	custom-test	@absent	66a33a5ebed99cda40547ea041d63758fa9794a9	-	-	go-toolchain-positive-negative-fixtures+CI+candidate-tree-test	复用严格 Go 补丁版本门禁并验证版本不一致、重复声明和非法版本均失败关闭
+deploy/tests/verify-go-toolchain.sh	A	keep	A	fixed-path	@absent	5c59b25d046cc953e27453bc7ad8910005786e54	-	-	go-toolchain-positive-negative-fixtures+CI+candidate-tree-test	复用严格 Go 补丁版本门禁并验证版本不一致、重复声明和非法版本均失败关闭
 deploy/upstream/validate-upgrade-report-maintenance.sh	A	keep	A	fixed-path	@absent	f5a53260391239668e82cadba98d48d814a3d803	-	-	upstream-sync+candidate-tree	固定工具路径中的二改上游升级控制面最小差异
 docs/CUSTOM_DEVELOPMENT_CN.md	A	keep	A	custom-docs-ops	@absent	071fc3d22796db60bf3168c0adf750cbc13f2871	-	-	docs-review+affiliate-reversal-tests	登记返利撤销后端与前端 Custom 目录及既有二改边界
 docs/custom/FEATURES_CN.md	A	keep	A	custom-docs-ops	@absent	c7b152b468d68fc95a69c4156aec820411aa37ed	-	-	docs-review+database-boundary-review	记录支付渠道不可用时订单本地取消/过期降级及迟到支付恢复策略
@@ -512,7 +514,7 @@ docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	762ea34280de20a2f9
 docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	88b9a8afcaf25bcab6c506c1d01b713084f38806	-	-	documentation-consistency-review	记录生产发布信任链及 Vendor Tag 误触发官方 Release 的事件收敛与失败关闭规则
 docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	49b4f1997d733d9ce78831c71acdf37c68530bc9	-	-	documentation-consistency-review	明确发布权限、资产信任边界及 Vendor Tag 误触发官方 Release 时的取消与失败关闭策略
 docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	126a74c595c727922dd66c6b15dee73df2613026	-	-	docs-review+database-boundary-review	记录支付订单上游不可用本地降级、库存释放、审计和已支付保护回归
-docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	7305ffcad098b5023c900bb4aebc6bd1409be3b2	-	-	documentation-consistency-review	记录 Vendor Tag 事件收敛、官方 Release 误触发取消及精确最终器恢复要求
+docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	c26e22a8b378868d9f16158df8e8dedf1ad5cf35	-	-	documentation-consistency-review	记录 Vendor Tag 事件收敛、官方 Release 误触发取消及精确最终器恢复要求
 frontend/package.json	M	keep	M	fixed-path	e42bcb03f8d152fb95f2f0c1a9c5b4ac64b5d0e9	2a0660fe84e4a927ce41da618b85da8d90b78a34	-	-	frontend-security+pnpm-audit+build	在既有 PostCSS 安全升级上，以最小条件 Override 将受影响 nanoid 版本固定到 3.3.18
 frontend/pnpm-lock.yaml	M	keep	M	fixed-path	1bf73beac90414b189414988cd7cf4d311dc2b04	de078a6b9b95b81cd5fe8abdde8d095d6f37e6cc	-	-	frontend-security+pnpm-audit+build	锁定 PostCSS 间接依赖 nanoid 3.3.18 及对应完整性摘要
 frontend/src/api/__tests__/admin.affiliates.reversal.spec.ts	A	keep	A	custom-test	@absent	fd0bfd87e3f814b677c518d6297364a728de58fc	-	-	affiliate-reversal-vitest+typecheck	验证状态筛选、预览载荷及稳定 Idempotency-Key 撤销提交
