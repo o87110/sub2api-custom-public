@@ -3,7 +3,7 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/audit-exceptions.yml	M	keep	M	fixed-path	5881136f578df07d9abac471222fe3b6e0769424	5563f24a5ddea92b6f1d126ba3c49dd64131de9b	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	be1b8b678f7cf760cec14e2db85e1bf203020e02	-	-	database-boundary-unit+candidate-tree-test	将原有 Custom 数据库例外重新绑定至准确 vendor-0.2.24 Blob 与语义指纹，不增减例外路径
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	bf073d199817985b7ab94a6f4986d2aa86e55908	-	-	candidate-tree+shadow-map+thin-bridge-contract	固定官方影子源行预算与历史基线覆盖，登记 v0.2.20 全部语义移植预算
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	c1e5f409a3c6fff4d8a035d39e6d62bbb88b85da	-	-	candidate-tree+shadow-map+thin-bridge-contract	固定官方影子源行预算与历史基线覆盖，登记 v0.2.20 全部语义移植预算
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	ec7ef1cc11f254fc7700211469714e3668f26c00	-	-	candidate-tree+targeted-CI	同步 v0.2.18 Go 1.27.3 与 golangci-lint 2.14.0 控制面工具版本
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	66f3f424ad93acdf0696d7ea0ee0417c55ca811e	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -518,7 +518,7 @@ docs/custom/OPERATIONS_CN.md	A	keep	A	custom-docs-ops	@absent	762ea34280de20a2f9
 docs/custom/REPOSITORY_RELEASE_CN.md	A	keep	A	custom-docs-ops	@absent	88b9a8afcaf25bcab6c506c1d01b713084f38806	-	-	documentation-consistency-review	记录生产发布信任链及 Vendor Tag 误触发官方 Release 的事件收敛与失败关闭规则
 docs/custom/SECURITY_CN.md	A	keep	A	custom-docs-ops	@absent	49b4f1997d733d9ce78831c71acdf37c68530bc9	-	-	documentation-consistency-review	明确发布权限、资产信任边界及 Vendor Tag 误触发官方 Release 时的取消与失败关闭策略
 docs/custom/TESTING_CN.md	A	keep	A	custom-docs-ops	@absent	126a74c595c727922dd66c6b15dee73df2613026	-	-	docs-review+database-boundary-review	记录支付订单上游不可用本地降级、库存释放、审计和已支付保护回归
-docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	da2a0dd082e5a941deaccb44feafa1d9b9e72669	-	-	documentation-consistency-review	记录 Vendor Tag 事件收敛、官方 Release 误触发取消及精确最终器恢复要求
+docs/custom/UPSTREAM_SYNC_CN.md	A	keep	A	custom-docs-ops	@absent	4db6531c9b11a4e48f0b1fd8deba7628ef0a9478	-	-	documentation-consistency-review	记录 Vendor Tag 事件收敛、官方 Release 误触发取消及精确最终器恢复要求
 frontend/package.json	M	keep	M	fixed-path	e42bcb03f8d152fb95f2f0c1a9c5b4ac64b5d0e9	2a0660fe84e4a927ce41da618b85da8d90b78a34	-	-	frontend-security+pnpm-audit+build	在既有 PostCSS 安全升级上，以最小条件 Override 将受影响 nanoid 版本固定到 3.3.18
 frontend/pnpm-lock.yaml	M	keep	M	fixed-path	1bf73beac90414b189414988cd7cf4d311dc2b04	de078a6b9b95b81cd5fe8abdde8d095d6f37e6cc	-	-	frontend-security+pnpm-audit+build	锁定 PostCSS 间接依赖 nanoid 3.3.18 及对应完整性摘要
 frontend/src/api/__tests__/admin.affiliates.reversal.spec.ts	A	keep	A	custom-test	@absent	fd0bfd87e3f814b677c518d6297364a728de58fc	-	-	affiliate-reversal-vitest+typecheck	验证状态筛选、预览载荷及稳定 Idempotency-Key 撤销提交
@@ -681,5 +681,5 @@ frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	M	keep	M	official-
 frontend/src/views/user/paymentWechatResume.ts	M	keep	M	official-thin-bridge	8121bc56fc4bd590385ad4780422dc95584aa0b1	9e753cd42ca8b0672e7b793fbadadf9d4c208091	frontend/src/views/user/paymentWechatResume.ts	frontend/src/custom/payment-channels/paymentRecoveryRoute.ts	thin-bridge-review+go-test+candidate-tree-test	微信支付恢复查询的服务商薄适配
 tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	acd2259b3b1810d75f0a84630bc1eeaa919e9087	-	-	thin-bridge-contract-unit+candidate-tree-test	验证未来缺失路径可预登记且实际出现的未登记路径仍失败关闭，并绑定 v0.2.4 官方列排序调用与控制流
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
-tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	a4ba4b0bd60b55e7aff4b1d2c49e11be64ab7a2f	-	-	thin-bridge-contract-unit+candidate-tree-test	精确维护官方影子桥接调用与结构审查，登记 v0.2.20 raw Chat 与 Anthropic 语义移植
+tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	4fc5366cfa6005fd63006832cb79ee5a279818f7	-	-	thin-bridge-contract-unit+candidate-tree-test	精确维护官方影子桥接调用与结构审查，登记 v0.2.20 raw Chat 与 Anthropic 语义移植
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异

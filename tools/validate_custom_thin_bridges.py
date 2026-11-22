@@ -6944,6 +6944,29 @@ BASELINE_DELEGATE_VIEW_CALL_DELTAS[(_v0220_vendor_commit,
     ),
 )
 
+# Official v0.2.24 expands Anthropic model listings with long-context
+# variants. The Custom nil-guarded gateway models path absorbs the official
+# control flow verbatim; bind that shape to the exact vendor baseline.
+_v0224_vendor_commit = "5c2982a81b46e2142d0143d2f83c1ce9c4da1d24"
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v0224_vendor_commit,
+    "backend/internal/handler/gateway_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/gateway_handler.go"
+    ],
+    add=(
+        ("Models", "if platform == service.PlatformAnthropic {"),
+        ("Models", "if apiKey != nil {"),
+        ("Models", "if group != nil && group.ModelAllowlistEnabled() {"),
+        ("Models", "} else if len(source) == 0 {"),
+        (
+            "Models",
+            "if len(availableModels) > 0 || len(expanded) > len(source) || (group != nil && group.ModelAllowlistEnabled()) {",
+        ),
+    ),
+)
+
 FUNCTION_START_PATTERNS = (
 
 
