@@ -174,6 +174,13 @@ Release；若仍因竞态出现，先取消运行再失败关闭，只允许通�
 
 ## 10. 阻断恢复
 
+官方 v0.2.24 升级合并后 `main` CI 补录两项：`backend/internal/server/routes/gateway.go`
+相对新基线的 `+47/-0` 薄桥预算 override（升级门禁按机械合并树跳过该 auto-merge 文件，
+合并后 boundaries 按候选树重算），以及 `admin_service_create_user_test.go` 进入
+sync/gate 保护模式与 CODEOWNERS（该官方测试因 25 参数签名适配成为二改保留差异）。
+补录不修改业务实现、结构校验或历史预算；生产发布等待补录后的准确 `main` 提交通过
+CI，已有 Vendor Tag 不移动。
+
 官方 v0.2.24 的薄桥预算按官方提交
 `5c2982a81b46e2142d0143d2f83c1ce9c4da1d24` 精确登记 `gateway_handler.go` 的语义移植
 预算 `+22/-15`：官方 Anthropic 长上下文模型扩展整体并入二改 nil 防御外壳后，相对新
