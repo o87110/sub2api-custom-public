@@ -119,6 +119,7 @@
 /backend/internal/service/admin_group_duplicate_test.go @o87110
 /backend/internal/service/admin_group_minimum_balance_custom_test.go @o87110
 /backend/internal/service/admin_service.go @o87110
+/backend/internal/service/admin_service_create_user_test.go @o87110
 /backend/internal/service/admin_service_group_test.go @o87110
 /backend/internal/service/admin_service_composite_group_test.go @o87110
 /backend/internal/repository/custom_admin_key_review_test.go @o87110
