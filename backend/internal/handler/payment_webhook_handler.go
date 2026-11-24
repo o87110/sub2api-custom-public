@@ -153,9 +153,12 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 		c.String(http.StatusInternalServerError, "handle failed")
 		return
 	}
-	if notification != nil && notification.Metadata["protocol"] == paymentchannels.EasyPayProtocolBepusdt {
-		c.String(http.StatusOK, "ok")
-		return
+	if notification != nil {
+		switch notification.Metadata["protocol"] {
+		case paymentchannels.EasyPayProtocolBepusdt, paymentchannels.EasyPayProtocolGmpay:
+			c.String(http.StatusOK, "ok")
+			return
+		}
 	}
 
 	writeSuccessResponse(c, resolvedProviderKey)

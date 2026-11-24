@@ -26,6 +26,8 @@
             :currency="paymentState.currency || selectedCurrency"
             :out-trade-no="paymentState.outTradeNo"
             :mobile-alipay-deep-link="paymentState.alipayMobilePrecreateDeepLink"
+            :payment-network="paymentState.paymentNetwork"
+            :crypto-amount="paymentState.cryptoAmount"
             @done="onPaymentDone"
             @success="onPaymentSuccess"
             @settled="onPaymentSettled"
@@ -432,6 +434,7 @@ function emptyPaymentState(): PaymentRecoverySnapshot {
     orderType: '',
     paymentMode: '',
     paymentNetwork: '',
+    cryptoAmount: 0,
     resumeToken: '',
     alipayMobilePrecreateDeepLink: false,
     createdAt: 0,

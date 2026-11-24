@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/stretchr/testify/require"
 )
@@ -180,6 +181,137 @@ func TestBuildPaymentOrderProviderSnapshot_IncludesBepusdtNetwork(t *testing.T) 
 	require.Equal(t, "bepusdt_native", snapshot["protocol"])
 	require.Equal(t, "bep20", snapshot["payment_network"])
 	require.Equal(t, "usdt.bep20", snapshot["upstream_trade_type"])
+}
+
+func TestBuildPaymentOrderProviderSnapshot_IncludesGmpayNetwork(t *testing.T) {
+	snapshot := buildPaymentOrderProviderSnapshot(&payment.InstanceSelection{
+		InstanceID:  "68",
+		ProviderKey: payment.TypeEasyPay,
+		Config: map[string]string{
+			"pid":             "1000",
+			"easypayProtocol": "epusdt_gmpay",
+			"gmpayNetworks":   "trc20",
+			"secretKey":       "secret",
+		},
+		PaymentMode: "qrcode",
+	}, CreateOrderRequest{PaymentType: "usdt", PaymentNetwork: "trc20"})
+
+	require.Equal(t, "epusdt_gmpay", snapshot["protocol"])
+	require.Equal(t, "1000", snapshot["merchant_id"])
+	require.Equal(t, "trc20", snapshot["payment_network"])
+	require.Equal(t, "tron", snapshot["upstream_network"])
+	require.NotContains(t, snapshot, "upstream_trade_type")
+	require.NotContains(t, snapshot, "secretKey")
+}
+
+func TestValidateProviderSnapshotMetadata_GmpayNetworkBinding(t *testing.T) {
+	gmpayOrder := func() *dbent.PaymentOrder {
+		return &dbent.PaymentOrder{
+			PaymentType: "usdt",
+			ProviderSnapshot: map[string]any{
+				"schema_version":   2,
+				"provider_key":     payment.TypeEasyPay,
+				"merchant_id":      "1000",
+				"protocol":         "epusdt_gmpay",
+				"payment_network":  "trc20",
+				"upstream_network": "tron",
+			},
+		}
+	}
+
+	t.Run("matching network and pid pass", func(t *testing.T) {
+		err := validateProviderSnapshotMetadata(gmpayOrder(), payment.TypeEasyPay, map[string]string{
+			"pid": "1000", "network": "tron",
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("pid mismatch fails", func(t *testing.T) {
+		err := validateProviderSnapshotMetadata(gmpayOrder(), payment.TypeEasyPay, map[string]string{
+			"pid": "9999", "network": "tron",
+		})
+		require.ErrorContains(t, err, "pid mismatch")
+	})
+
+	t.Run("cashier network switch fails for manual review", func(t *testing.T) {
+		err := validateProviderSnapshotMetadata(gmpayOrder(), payment.TypeEasyPay, map[string]string{
+			"pid": "1000", "network": "binance",
+		})
+		require.ErrorContains(t, err, "gmpay network mismatch")
+	})
+
+	// Orders are always created with callback_version=2, so a verified
+	// callback without the network field is malformed and must be rejected.
+	t.Run("callback without network field fails", func(t *testing.T) {
+		err := validateProviderSnapshotMetadata(gmpayOrder(), payment.TypeEasyPay, map[string]string{
+			"pid": "1000",
+		})
+		require.ErrorContains(t, err, "missing network")
+	})
+}
+
+func TestValidateGmpayPaymentBinding(t *testing.T) {
+	gmpayOrder := func(tradeNo string, payAmount float64) *dbent.PaymentOrder {
+		return &dbent.PaymentOrder{
+			PaymentType:    "usdt",
+			PaymentTradeNo: tradeNo,
+			PayAmount:      payAmount,
+			ProviderSnapshot: map[string]any{
+				"schema_version":   2,
+				"provider_key":     payment.TypeEasyPay,
+				"protocol":         "epusdt_gmpay",
+				"payment_network":  "trc20",
+				"upstream_network": "tron",
+			},
+		}
+	}
+
+	t.Run("matching trade and exact amount pass", func(t *testing.T) {
+		require.NoError(t, validateGmpayPaymentBinding(gmpayOrder("trade-1", 100), "trade-1", 100))
+		// Canonical -1 formatting: upstream precision must not fail a match.
+		require.NoError(t, validateGmpayPaymentBinding(gmpayOrder("trade-1", 100), "trade-1", 100.0000))
+	})
+
+	t.Run("trade mismatch fails", func(t *testing.T) {
+		err := validateGmpayPaymentBinding(gmpayOrder("trade-1", 100), "trade-other", 100)
+		require.ErrorContains(t, err, "trade_no mismatch")
+	})
+
+	t.Run("amount mismatch fails exact comparison", func(t *testing.T) {
+		err := validateGmpayPaymentBinding(gmpayOrder("trade-1", 100), "trade-1", 99.99)
+		require.ErrorContains(t, err, "amount mismatch")
+	})
+
+	t.Run("empty stored trade is rejected", func(t *testing.T) {
+		// GMPay orders always persist the creation trade_id; an empty stored
+		// value means the binding was lost and must not fulfill.
+		err := validateGmpayPaymentBinding(gmpayOrder("", 100), "trade-1", 100)
+		require.ErrorContains(t, err, "trade_no mismatch")
+	})
+
+	t.Run("empty notified trade is rejected", func(t *testing.T) {
+		err := validateGmpayPaymentBinding(gmpayOrder("trade-1", 100), "", 100)
+		require.ErrorContains(t, err, "trade_no mismatch")
+	})
+
+	t.Run("trade comparison is case-sensitive", func(t *testing.T) {
+		err := validateGmpayPaymentBinding(gmpayOrder("Trade-1", 100), "trade-1", 100)
+		require.ErrorContains(t, err, "trade_no mismatch")
+	})
+
+	t.Run("non-gmpay orders skip strict binding", func(t *testing.T) {
+		order := &dbent.PaymentOrder{
+			PaymentType:    "usdt",
+			PaymentTradeNo: "trade-1",
+			PayAmount:      100,
+			ProviderSnapshot: map[string]any{
+				"schema_version": 2,
+				"provider_key":   payment.TypeEasyPay,
+				"protocol":       "bepusdt_native",
+			},
+		}
+		require.NoError(t, validateGmpayPaymentBinding(order, "trade-other", 99.99))
+	})
 }
 
 func TestBuildPaymentOrderProviderSnapshot_IncludesProviderCurrency(t *testing.T) {

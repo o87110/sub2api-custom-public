@@ -19,6 +19,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/gmpayprovider"
 	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 )
@@ -54,6 +55,7 @@ type easyPayCustomMethod struct {
 // Rainbow config keys: pid, pkey, apiBase, notifyUrl, returnUrl, cid, cidAlipay, cidWxpay,
 // refundSuccessCode (0 or 1; defaults to 1).
 // BEpusdt native config keys: apiBase, apiToken, notifyUrl, returnUrl, easypayProtocol, bepusdtNetworks.
+// GMPay native config keys: apiBase (HTTPS), pid, secretKey, notifyUrl, returnUrl, easypayProtocol, gmpayNetworks.
 func NewEasyPay(instanceID string, config map[string]string) (*EasyPay, error) {
 	protocol, err := paymentchannels.NormalizeEasyPayProtocol(config[paymentchannels.EasyPayProtocolConfigKey])
 	if err != nil {
@@ -72,6 +74,13 @@ func NewEasyPay(instanceID string, config map[string]string) (*EasyPay, error) {
 			}
 		}
 		if _, err := paymentchannels.ParseBepusdtNetworks(config[paymentchannels.BepusdtNetworksConfigKey]); err != nil {
+			return nil, err
+		}
+	} else if protocol == paymentchannels.EasyPayProtocolGmpay {
+		if err := paymentchannels.ValidateGmpayRequiredConfig(config); err != nil {
+			return nil, err
+		}
+		if _, err := paymentchannels.ParseGmpayNetworks(config[paymentchannels.GmpayNetworksConfigKey]); err != nil {
 			return nil, err
 		}
 	} else {
@@ -133,7 +142,7 @@ func (e *EasyPay) apiBase() string {
 func (e *EasyPay) Name() string        { return "EasyPay" }
 func (e *EasyPay) ProviderKey() string { return payment.TypeEasyPay }
 func (e *EasyPay) SupportedTypes() []payment.PaymentType {
-	if paymentchannels.IsBepusdtNativeConfig(e.config) {
+	if paymentchannels.IsBepusdtNativeConfig(e.config) || paymentchannels.IsGmpayConfig(e.config) {
 		return []payment.PaymentType{paymentchannels.BepusdtPaymentType}
 	}
 	types := []payment.PaymentType{payment.TypeAlipay, payment.TypeWxpay}
@@ -159,6 +168,9 @@ func (e *EasyPay) MerchantIdentityMetadata() map[string]string {
 func (e *EasyPay) CreatePayment(ctx context.Context, req payment.CreatePaymentRequest) (*payment.CreatePaymentResponse, error) {
 	if paymentchannels.IsBepusdtNativeConfig(e.config) {
 		return e.createBepusdtPayment(ctx, req)
+	}
+	if paymentchannels.IsGmpayConfig(e.config) {
+		return gmpayprovider.CreatePayment(ctx, e.apiBase(), e.config, req)
 	}
 	// Payment mode determined by instance config, not payment type.
 	// "popup" → hosted page (submit.php); "qrcode"/default → API call (mapi.php).
@@ -389,6 +401,9 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 		}
 		return &payment.QueryOrderResponse{TradeNo: response.TradeID, Status: status, Amount: response.Money}, nil
 	}
+	if paymentchannels.IsGmpayConfig(e.config) {
+		return gmpayprovider.QueryOrder(ctx, e.apiBase(), e.config, tradeNo)
+	}
 	result, err := e.queryOrder(ctx, tradeNo)
 	if err != nil {
 		return nil, err
@@ -513,6 +528,9 @@ func (e *EasyPay) ConfirmNotification(ctx context.Context, n *payment.PaymentNot
 		}
 		return nil
 	}
+	if paymentchannels.IsGmpayConfig(e.config) {
+		return gmpayprovider.ConfirmNotification(ctx, e.apiBase(), e.config, n)
+	}
 	result, err := e.queryOrder(ctx, n.OrderID)
 	if err != nil {
 		return fmt.Errorf("easypay confirm: %w", err)
@@ -577,6 +595,9 @@ func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[st
 			Metadata: map[string]string{"protocol": paymentchannels.EasyPayProtocolBepusdt},
 		}, nil
 	}
+	if paymentchannels.IsGmpayConfig(e.config) {
+		return gmpayprovider.VerifyNotification(e.config, rawBody)
+	}
 	values, err := url.ParseQuery(rawBody)
 	if err != nil {
 		return nil, fmt.Errorf("parse notify: %w", err)
@@ -621,6 +642,9 @@ func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[st
 }
 
 func (e *EasyPay) Refund(ctx context.Context, req payment.RefundRequest) (*payment.RefundResponse, error) {
+	if paymentchannels.IsGmpayConfig(e.config) {
+		return nil, fmt.Errorf("gmpay native mode does not support refunds")
+	}
 	if paymentchannels.IsBepusdtNativeConfig(e.config) {
 		return nil, fmt.Errorf("bepusdt native mode does not support refunds")
 	}

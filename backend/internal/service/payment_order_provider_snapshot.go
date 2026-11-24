@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 )
 
@@ -21,6 +22,7 @@ type paymentOrderProviderSnapshot struct {
 	Protocol           string
 	PaymentNetwork     string
 	UpstreamTradeType  string
+	UpstreamNetwork    string
 }
 
 func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSnapshot {
@@ -39,6 +41,7 @@ func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSna
 		Protocol:           psSnapshotStringValue(order.ProviderSnapshot["protocol"]),
 		PaymentNetwork:     psSnapshotStringValue(order.ProviderSnapshot["payment_network"]),
 		UpstreamTradeType:  psSnapshotStringValue(order.ProviderSnapshot["upstream_trade_type"]),
+		UpstreamNetwork:    psSnapshotStringValue(order.ProviderSnapshot["upstream_network"]),
 	}
 	if snapshot.SchemaVersion == 0 &&
 		snapshot.ProviderInstanceID == "" &&
@@ -49,7 +52,8 @@ func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSna
 		snapshot.Currency == "" &&
 		snapshot.Protocol == "" &&
 		snapshot.PaymentNetwork == "" &&
-		snapshot.UpstreamTradeType == "" {
+		snapshot.UpstreamTradeType == "" &&
+		snapshot.UpstreamNetwork == "" {
 		return nil
 	}
 	return snapshot
@@ -197,6 +201,23 @@ func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey str
 				return fmt.Errorf("easypay pid mismatch: expected %s, got %s", expected, actual)
 			}
 		}
+		// GMPay orders are created with a concrete upstream network and the
+		// integration always requests callback_version=2, so a verified
+		// callback must carry the network. When it differs from the snapshot
+		// the user switched networks on the hosted cashier (settled via a
+		// child order): the fiat amount is unchanged, but the order must not
+		// auto-fulfill — it stays pending for manual review instead.
+		if snapshot.Protocol == "epusdt_gmpay" && snapshot.PaymentNetwork != "" {
+			if expected := strings.TrimSpace(snapshot.UpstreamNetwork); expected != "" {
+				actual := strings.TrimSpace(metadata["network"])
+				if actual == "" {
+					return fmt.Errorf("gmpay notification missing network field")
+				}
+				if !strings.EqualFold(expected, actual) {
+					return fmt.Errorf("gmpay network mismatch: expected %s, got %s (cashier network switch requires manual review)", expected, actual)
+				}
+			}
+		}
 	case payment.TypeStripe:
 		if expected := strings.TrimSpace(snapshot.Currency); expected != "" {
 			actual := strings.ToUpper(strings.TrimSpace(metadata["currency"]))
@@ -231,6 +252,33 @@ func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey str
 		}
 	}
 
+	return nil
+}
+
+// validateGmpayPaymentBinding enforces the GMPay strict fulfillment rules on
+// top of the shared metadata validation: the platform trade id must exactly
+// match the one stored at order creation (GMPay orders always persist it —
+// creation fails without a trade_id — so an empty stored value is rejected,
+// and the comparison is case-sensitive because trade ids are opaque tokens),
+// and the fiat amount is compared exactly after canonical -1 precision
+// formatting (no shared float tolerance).
+func validateGmpayPaymentBinding(order *dbent.PaymentOrder, tradeNo string, paid float64) error {
+	if order == nil {
+		return nil
+	}
+	snapshot := psOrderProviderSnapshot(order)
+	if snapshot == nil || snapshot.Protocol != "epusdt_gmpay" {
+		return nil
+	}
+	expected := strings.TrimSpace(order.PaymentTradeNo)
+	actual := strings.TrimSpace(tradeNo)
+	if expected == "" || actual == "" || expected != actual {
+		return fmt.Errorf("gmpay trade_no mismatch: expected %q, got %q", expected, tradeNo)
+	}
+	if !paymentchannels.GmpayAmountEquals(paid, order.PayAmount) {
+		return fmt.Errorf("gmpay amount mismatch: expected %s, got %s",
+			strconv.FormatFloat(order.PayAmount, 'f', -1, 64), strconv.FormatFloat(paid, 'f', -1, 64))
+	}
 	return nil
 }
 

@@ -29,11 +29,18 @@ export interface EasyPayCustomMethod {
 
 export const EASYPAY_PROTOCOL_RAINBOW = 'rainbow_epay'
 export const EASYPAY_PROTOCOL_BEPUSDT = 'bepusdt_native'
+export const EASYPAY_PROTOCOL_GMPAY = 'epusdt_gmpay'
 export const BEPUSDT_NETWORK_OPTIONS: TypeOption[] = [
   { value: 'bep20', label: 'BEP20' },
   { value: 'trc20', label: 'TRC20' },
   { value: 'polygon', label: 'Polygon' },
   { value: 'plasma', label: 'Plasma' },
+]
+/** EPUSDT GMPay first-phase whitelist (upstream: binance/tron/polygon). */
+export const GMPAY_NETWORK_OPTIONS: TypeOption[] = [
+  { value: 'bep20', label: 'BEP20' },
+  { value: 'trc20', label: 'TRC20' },
+  { value: 'polygon', label: 'Polygon' },
 ]
 
 /** Callback URL paths for a provider. */
@@ -138,6 +145,7 @@ export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
     { key: 'pid', label: 'PID', sensitive: false },
     { key: 'pkey', label: 'PKey', sensitive: true },
     { key: 'apiToken', label: '', sensitive: true, optional: true },
+    { key: 'secretKey', label: '', sensitive: true, optional: true },
     { key: 'apiBase', label: '', sensitive: false },
     {
       key: 'refundSuccessCode', label: '', sensitive: false, defaultValue: '1',

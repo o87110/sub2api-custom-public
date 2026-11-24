@@ -6967,6 +6967,130 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     ),
 )
 
+# Official v0.2.24 merges main with the post-merge budget records unchanged.
+# The EPUSDT GMPay native protocol extends the EasyPay bridge with a one-line
+# delegation per provider method; the webhook acknowledges GMPay JSON
+# callbacks with the same plain "ok" as BEpusdt. Reviewed control flow:
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v0224_vendor_commit,
+    "backend/internal/handler/payment_webhook_handler.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/handler/payment_webhook_handler.go"
+    ],
+    add=(
+        ("handleNotify", "if notification != nil {"),
+        ("handleNotify", "switch notification.Metadata[\"protocol\"] {"),
+    ),
+)
+# EPUSDT GMPay native protocol: the EasyPay provider delegates each GMPay
+# branch with one call into internal/custom/gmpayprovider plus the protocol
+# predicate; configuration validation stays in paymentchannels.
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v0224_vendor_commit,
+    "backend/internal/payment/provider/easypay.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/payment/provider/easypay.go"
+    ],
+    add=(
+        ("ConfirmNotification", "e.apiBase"),
+        ("ConfirmNotification", "gmpayprovider.ConfirmNotification"),
+        ("ConfirmNotification", "paymentchannels.IsGmpayConfig"),
+        ("CreatePayment", "e.apiBase"),
+        ("CreatePayment", "gmpayprovider.CreatePayment"),
+        ("CreatePayment", "paymentchannels.IsGmpayConfig"),
+        ("NewEasyPay", "paymentchannels.ParseGmpayNetworks"),
+        ("NewEasyPay", "paymentchannels.ValidateGmpayRequiredConfig"),
+        ("QueryOrder", "gmpayprovider.QueryOrder"),
+        ("QueryOrder", "paymentchannels.IsGmpayConfig"),
+        ("Refund", "paymentchannels.IsGmpayConfig"),
+        ("SupportedTypes", "paymentchannels.IsGmpayConfig"),
+        ("VerifyNotification", "gmpayprovider.VerifyNotification"),
+        ("VerifyNotification", "paymentchannels.IsGmpayConfig"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v0224_vendor_commit,
+    "backend/internal/payment/provider/easypay.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/payment/provider/easypay.go"
+    ],
+    add=(
+        ("ConfirmNotification", "if paymentchannels.IsGmpayConfig(e.config) {"),
+        ("CreatePayment", "if paymentchannels.IsGmpayConfig(e.config) {"),
+        ("NewEasyPay", "if _, err := paymentchannels.ParseGmpayNetworks(config[paymentchannels.GmpayNetworksConfigKey]); err != nil {"),
+        ("NewEasyPay", "if err := paymentchannels.ValidateGmpayRequiredConfig(config); err != nil {"),
+        ("NewEasyPay", "} else if protocol == paymentchannels.EasyPayProtocolGmpay {"),
+        ("QueryOrder", "if paymentchannels.IsGmpayConfig(e.config) {"),
+        ("Refund", "if paymentchannels.IsGmpayConfig(e.config) {"),
+        ("SupportedTypes", "if paymentchannels.IsBepusdtNativeConfig(e.config) || paymentchannels.IsGmpayConfig(e.config) {"),
+        ("VerifyNotification", "if paymentchannels.IsGmpayConfig(e.config) {"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v0224_vendor_commit,
+    "backend/internal/service/payment_config_providers.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/service/payment_config_providers.go"
+    ],
+    add=(
+        ("validateEasyPayNativeInstance", "paymentchannels.ValidateGmpayProviderMode"),
+        ("validateEasyPayCustomMethods", "paymentchannels.IsNativeUsdtProtocol"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v0224_vendor_commit,
+    "backend/internal/service/payment_fulfillment.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/service/payment_fulfillment.go"
+    ],
+    add=(
+        ("confirmPayment", "validateGmpayPaymentBinding"),
+        ("confirmPayment", "err.Error"),
+        ("confirmPayment", "s.writeAuditLog"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v0224_vendor_commit,
+    "backend/internal/service/payment_fulfillment.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/service/payment_fulfillment.go"
+    ],
+    add=(
+        ("confirmPayment", "if err := validateGmpayPaymentBinding(o, tradeNo, paid); err != nil {"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
+    _v0224_vendor_commit,
+    "backend/internal/service/payment_order.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CALL_DELTAS[
+        "backend/internal/service/payment_order.go"
+    ],
+    add=(
+        ("buildPaymentOrderProviderSnapshot", "paymentchannels.GmpayNetworkByCode"),
+    ),
+)
+BASELINE_DELEGATE_VIEW_CONTROL[(
+    _v0224_vendor_commit,
+    "backend/internal/service/payment_order.go",
+)] = _reviewed_baseline_delta(
+    APPROVED_DELEGATE_VIEW_CONTROL[
+        "backend/internal/service/payment_order.go"
+    ],
+    add=(
+        ("buildPaymentOrderProviderSnapshot", "case paymentchannels.EasyPayProtocolBepusdt:"),
+        ("buildPaymentOrderProviderSnapshot", "case paymentchannels.EasyPayProtocolGmpay:"),
+        ("buildPaymentOrderProviderSnapshot", "switch protocol {"),
+        ("buildPaymentOrderProviderSnapshot", "if mapped, ok := paymentchannels.GmpayNetworkByCode(network); ok {"),
+    ),
+)
+
 FUNCTION_START_PATTERNS = (
 
 

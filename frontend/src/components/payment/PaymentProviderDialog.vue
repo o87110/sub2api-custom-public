@@ -35,10 +35,11 @@
       <!-- Toggles + Payment mode + Supported types (single row) -->
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
         <ToggleSwitch :label="t('common.enabled')" :checked="form.enabled" @toggle="form.enabled = !form.enabled" />
-        <ToggleSwitch v-if="!isBepusdtNative" :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
-        <span v-else class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.validationBepusdtMode') }}</span>
+        <ToggleSwitch v-if="!isUsdtNative" :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
+        <span v-else class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ isGmpayNative ? t('admin.settings.payment.validationGmpayMode') : t('admin.settings.payment.validationBepusdtMode') }}</span>
         <ToggleSwitch v-if="form.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="form.allow_user_refund" @toggle="form.allow_user_refund = !form.allow_user_refund" />
         <div v-if="supportsPaymentMode && !isBepusdtNative" class="flex items-center gap-2">
+          <span v-if="isGmpayNative" class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.gmpayModeHint') }}</span>
           <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.paymentMode') }}</span>
           <div class="flex gap-1.5">
             <button
@@ -88,16 +89,16 @@
             >{{ protocol.label }}</button>
           </div>
         </div>
-        <div v-if="isBepusdtNative" class="space-y-3">
+        <div v-if="isUsdtNative" class="space-y-3">
           <div>
-            <label class="input-label">{{ t('admin.settings.payment.bepusdtNetworks') }}</label>
+            <label class="input-label">{{ isGmpayNative ? t('admin.settings.payment.gmpayNetworks') : t('admin.settings.payment.bepusdtNetworks') }}</label>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <label v-for="network in BEPUSDT_NETWORK_OPTIONS" :key="network.value" class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-dark-600">
+              <label v-for="network in nativeNetworkOptions" :key="network.value" class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-dark-600">
                 <input v-model="bepusdtNetworkSelection" type="checkbox" :value="network.value" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                 <span>{{ network.label }}</span>
               </label>
             </div>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.bepusdtNetworksHint') }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ isGmpayNative ? t('admin.settings.payment.gmpayNetworksHint') : t('admin.settings.payment.bepusdtNetworksHint') }}</p>
           </div>
         </div>
       </div>
@@ -350,7 +351,9 @@ import { classifyEasyPayCustomType } from '@/custom/payment-channels/easypayPoli
 import {
   BEPUSDT_NETWORK_OPTIONS,
   EASYPAY_PROTOCOL_BEPUSDT,
+  EASYPAY_PROTOCOL_GMPAY,
   EASYPAY_PROTOCOL_RAINBOW,
+  GMPAY_NETWORK_OPTIONS,
   PROVIDER_CONFIG_FIELDS,
   PROVIDER_SUPPORTED_TYPES,
   PROVIDER_CALLBACK_PATHS,
@@ -470,9 +473,15 @@ const callbackPaths = computed(() => PROVIDER_CALLBACK_PATHS[form.provider_key] 
 
 const supportsPaymentMode = computed(() => providerSupportsPaymentMode(form.provider_key))
 const isBepusdtNative = computed(() => form.provider_key === 'easypay' && config.easypayProtocol === EASYPAY_PROTOCOL_BEPUSDT)
+const isGmpayNative = computed(() => form.provider_key === 'easypay' && config.easypayProtocol === EASYPAY_PROTOCOL_GMPAY)
+/** Native USDT protocol family: locks supported_types to usdt, disables refunds. */
+const isUsdtNative = computed(() => isBepusdtNative.value || isGmpayNative.value)
+const nativeNetworkOptions = computed(() => (isGmpayNative.value ? GMPAY_NETWORK_OPTIONS : BEPUSDT_NETWORK_OPTIONS))
+const nativeNetworksConfigKey = computed(() => (isGmpayNative.value ? 'gmpayNetworks' : 'bepusdtNetworks'))
 const easypayProtocolOptions = computed(() => [
   { value: EASYPAY_PROTOCOL_RAINBOW, label: t('admin.settings.payment.easypayProtocolRainbow') },
   { value: EASYPAY_PROTOCOL_BEPUSDT, label: t('admin.settings.payment.easypayProtocolBepusdt') },
+  { value: EASYPAY_PROTOCOL_GMPAY, label: t('admin.settings.payment.easypayProtocolGmpay') },
 ])
 
 const paymentModeOptions = computed(() => {
@@ -491,7 +500,7 @@ const paymentModeOptions = computed(() => {
 })
 
 const availableTypes = computed(() => {
-  if (isBepusdtNative.value) {
+  if (isUsdtNative.value) {
     return [{ value: 'usdt', label: t('payment.methods.usdt', 'USDT') }]
   }
   const base = getAvailableTypes(form.provider_key, props.allPaymentTypes, props.redirectLabel)
@@ -517,8 +526,9 @@ const resolvedFields = computed(() => {
   const fields = PROVIDER_CONFIG_FIELDS[form.provider_key] || []
   return fields.filter((field) => {
     if (form.provider_key !== 'easypay') return true
-    if (isBepusdtNative.value) return !['pid', 'pkey', 'cidAlipay', 'cidWxpay'].includes(field.key)
-    return field.key !== 'apiToken'
+    if (isGmpayNative.value) return ['pid', 'secretKey', 'apiBase'].includes(field.key)
+    if (isBepusdtNative.value) return !['pid', 'pkey', 'secretKey', 'cidAlipay', 'cidWxpay'].includes(field.key)
+    return field.key !== 'apiToken' && field.key !== 'secretKey'
   }).map(f => ({
     ...f,
     label: f.label || t(`admin.settings.payment.field_${f.key}`),
@@ -648,14 +658,24 @@ function onKeyChange() {
 }
 
 function setEasyPayProtocol(protocol: string) {
-  config.easypayProtocol = protocol === EASYPAY_PROTOCOL_BEPUSDT
-    ? EASYPAY_PROTOCOL_BEPUSDT
-    : EASYPAY_PROTOCOL_RAINBOW
-  if (config.easypayProtocol === EASYPAY_PROTOCOL_BEPUSDT) {
+  if (protocol === EASYPAY_PROTOCOL_BEPUSDT) {
+    config.easypayProtocol = EASYPAY_PROTOCOL_BEPUSDT
+  } else if (protocol === EASYPAY_PROTOCOL_GMPAY) {
+    config.easypayProtocol = EASYPAY_PROTOCOL_GMPAY
+  } else {
+    config.easypayProtocol = EASYPAY_PROTOCOL_RAINBOW
+  }
+  if (isUsdtNative.value) {
     form.supported_types = ['usdt']
-    form.payment_mode = PAYMENT_MODE_POPUP
+    // GMPay defaults to in-site QR (the hosted cashier allows network
+    // switching, which requires manual review); BEpusdt is popup-only.
+    form.payment_mode = isGmpayNative.value ? PAYMENT_MODE_QRCODE : PAYMENT_MODE_POPUP
     form.refund_enabled = false
     form.allow_user_refund = false
+    // New GMPay instances stay disabled until live verification completes.
+    if (isGmpayNative.value && !props.editing) {
+      form.enabled = false
+    }
     easyPayCustomMethods.splice(0, easyPayCustomMethods.length)
     if (bepusdtNetworkSelection.value.length === 0) {
       bepusdtNetworkSelection.value = ['bep20']
@@ -736,21 +756,35 @@ function handleSave() {
     return
   }
   if (form.provider_key === 'easypay') {
-    if (isBepusdtNative.value) {
+    if (isUsdtNative.value) {
       if (!bepusdtNetworkSelection.value.length) {
-        emitValidationError(t('admin.settings.payment.validationBepusdtNetworkRequired'))
+        emitValidationError(isGmpayNative.value
+          ? t('admin.settings.payment.validationGmpayNetworkRequired')
+          : t('admin.settings.payment.validationBepusdtNetworkRequired'))
         return
       }
-      if (!props.editing && !(config.apiToken || '').trim()) {
+      if (isGmpayNative.value) {
+        if (!props.editing && !((config.pid || '').trim())) {
+          emitValidationError(t('admin.settings.payment.validationGmpayPidRequired'))
+          return
+        }
+        if (!props.editing && !((config.secretKey || '').trim())) {
+          emitValidationError(t('admin.settings.payment.validationGmpaySecretRequired'))
+          return
+        }
+        if (form.payment_mode !== PAYMENT_MODE_QRCODE && form.payment_mode !== PAYMENT_MODE_POPUP) {
+          form.payment_mode = PAYMENT_MODE_QRCODE
+        }
+      } else if (!props.editing && !(config.apiToken || '').trim()) {
         emitValidationError(t('admin.settings.payment.validationBepusdtTokenRequired'))
         return
       }
-      config.bepusdtNetworks = BEPUSDT_NETWORK_OPTIONS
+      config[nativeNetworksConfigKey.value] = nativeNetworkOptions.value
         .map(option => option.value)
         .filter(code => bepusdtNetworkSelection.value.includes(code))
         .join(',')
       form.supported_types = ['usdt']
-      form.payment_mode = PAYMENT_MODE_POPUP
+      if (isBepusdtNative.value) form.payment_mode = PAYMENT_MODE_POPUP
       form.refund_enabled = false
       form.allow_user_refund = false
     }
@@ -937,13 +971,14 @@ function loadProvider(provider: ProviderInstance) {
   }
   if (provider.provider_key === 'easypay') {
     config.easypayProtocol = config.easypayProtocol || EASYPAY_PROTOCOL_RAINBOW
-    bepusdtNetworkSelection.value = (config.bepusdtNetworks || '')
+    const networkOptions = isGmpayNative.value ? GMPAY_NETWORK_OPTIONS : BEPUSDT_NETWORK_OPTIONS
+    bepusdtNetworkSelection.value = (config[nativeNetworksConfigKey.value] || '')
       .split(',')
       .map(value => value.trim().toLowerCase())
-      .filter(value => BEPUSDT_NETWORK_OPTIONS.some(option => option.value === value))
-    if (config.easypayProtocol === EASYPAY_PROTOCOL_BEPUSDT) {
+      .filter(value => networkOptions.some(option => option.value === value))
+    if (isUsdtNative.value) {
       form.supported_types = ['usdt']
-      form.payment_mode = PAYMENT_MODE_POPUP
+      if (isBepusdtNative.value) form.payment_mode = PAYMENT_MODE_POPUP
       form.refund_enabled = false
       form.allow_user_refund = false
     }

@@ -168,7 +168,16 @@ func matchingInstanceRecords(records []InstanceRecord, providerKey, paymentType,
 			continue
 		}
 		if strings.TrimSpace(paymentNetwork) != "" && normalize(record.ProviderKey) == ProviderEasyPay {
-			if !IsBepusdtNativeConfig(record.Config) || ValidateBepusdtPaymentNetwork(record.Config, paymentType, paymentNetwork) != nil {
+			switch {
+			case IsBepusdtNativeConfig(record.Config):
+				if ValidateBepusdtPaymentNetwork(record.Config, paymentType, paymentNetwork) != nil {
+					continue
+				}
+			case IsGmpayConfig(record.Config):
+				if ValidateGmpayPaymentNetwork(record.Config, paymentType, paymentNetwork) != nil {
+					continue
+				}
+			default:
 				continue
 			}
 		}

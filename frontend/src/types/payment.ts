@@ -272,6 +272,8 @@ export interface CreateOrderResult {
   out_trade_no?: string
   payment_mode?: string
   payment_network?: string
+  /** On-chain payments: actual token amount payable (e.g. USDT). */
+  crypto_amount?: number
   resume_token?: string
   alipay_mobile_precreate_deep_link?: boolean
   oauth?: WechatOAuthInfo

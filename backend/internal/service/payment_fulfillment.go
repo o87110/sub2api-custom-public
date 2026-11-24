@@ -131,6 +131,17 @@ func (s *PaymentService) confirmPayment(ctx context.Context, oid int64, tradeNo 
 		})
 		return err
 	}
+	// GMPay strict binding: the platform trade id must match the one stored at
+	// order creation (empty stored value only on legacy/redirect flows), and
+	// the fiat amount is compared exactly after canonical -1 precision
+	// formatting instead of the shared float tolerance.
+	if err := validateGmpayPaymentBinding(o, tradeNo, paid); err != nil {
+		s.writeAuditLog(ctx, o.ID, "PAYMENT_PROVIDER_METADATA_MISMATCH", pk, map[string]any{
+			"detail":  err.Error(),
+			"tradeNo": tradeNo,
+		})
+		return err
+	}
 	if !isValidProviderAmount(paid) {
 		s.writeAuditLog(ctx, o.ID, "PAYMENT_INVALID_AMOUNT", pk, map[string]any{
 			"expected": o.PayAmount,

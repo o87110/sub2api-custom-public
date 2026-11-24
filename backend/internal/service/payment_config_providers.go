@@ -112,7 +112,7 @@ var pendingOrderStatuses = []string{
 // Key matching is case-insensitive. Non-listed keys (e.g. appId, notifyUrl,
 // stripe publishableKey) are returned in plaintext by the admin GET API.
 var providerSensitiveConfigFields = map[string]map[string]struct{}{
-	payment.TypeEasyPay:   {"pkey": {}, "apitoken": {}},
+	payment.TypeEasyPay:   {"pkey": {}, "apitoken": {}, "secretkey": {}},
 	payment.TypeAlipay:    {"privatekey": {}, "publickey": {}, "alipaypublickey": {}},
 	payment.TypeWxpay:     {"privatekey": {}, "apiv3key": {}, "publickey": {}},
 	payment.TypeStripe:    {"secretkey": {}, "webhooksecret": {}},
@@ -124,7 +124,7 @@ var providerSensitiveConfigFields = map[string]map[string]struct{}{
 // all provider identity fields that are snapshotted into orders or used by
 // webhook/refund verification.
 var providerPendingOrderProtectedConfigFields = map[string]map[string]struct{}{
-	payment.TypeEasyPay:   {"pkey": {}, "pid": {}, "apitoken": {}, "apibase": {}, "easypayprotocol": {}, "bepusdtnetworks": {}},
+	payment.TypeEasyPay:   {"pkey": {}, "pid": {}, "apitoken": {}, "secretkey": {}, "apibase": {}, "easypayprotocol": {}, "bepusdtnetworks": {}, "gmpaynetworks": {}},
 	payment.TypeAlipay:    {"privatekey": {}, "publickey": {}, "alipaypublickey": {}, "appid": {}},
 	payment.TypeWxpay:     {"privatekey": {}, "apiv3key": {}, "publickey": {}, "appid": {}, "mpappid": {}, "mchid": {}, "publickeyid": {}, "certserial": {}},
 	payment.TypeStripe:    {"secretkey": {}, "webhooksecret": {}, "currency": {}},
@@ -244,9 +244,9 @@ func validateEasyPayCustomMethods(config map[string]string, supportedTypes strin
 	if err != nil {
 		return infraerrors.BadRequest("VALIDATION_ERROR", err.Error())
 	}
-	isNative := protocol == paymentchannels.EasyPayProtocolBepusdt
+	isNative := paymentchannels.IsNativeUsdtProtocol(protocol)
 	if isNative && strings.TrimSpace(config["customMethods"]) != "" {
-		return infraerrors.BadRequest("VALIDATION_ERROR", "BEpusdt native mode does not accept customMethods")
+		return infraerrors.BadRequest("VALIDATION_ERROR", "native USDT mode does not accept customMethods")
 	}
 	raw := strings.TrimSpace(config["customMethods"])
 	methods := make([]easyPayCustomMethodConfig, 0)
@@ -477,6 +477,9 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 
 func validateEasyPayNativeInstance(config map[string]string, supportedTypes, paymentMode string, refundEnabled bool) error {
 	if err := paymentchannels.ValidateBepusdtProviderMode(config, supportedTypes, paymentMode, refundEnabled); err != nil {
+		return infraerrors.BadRequest("VALIDATION_ERROR", err.Error())
+	}
+	if err := paymentchannels.ValidateGmpayProviderMode(config, supportedTypes, paymentMode, refundEnabled); err != nil {
 		return infraerrors.BadRequest("VALIDATION_ERROR", err.Error())
 	}
 	return nil

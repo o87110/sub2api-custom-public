@@ -52,7 +52,7 @@ func NormalizeEasyPayProtocol(raw string) (string, error) {
 		return EasyPayProtocolRainbow, nil
 	}
 	switch protocol {
-	case EasyPayProtocolRainbow, EasyPayProtocolBepusdt:
+	case EasyPayProtocolRainbow, EasyPayProtocolBepusdt, EasyPayProtocolGmpay:
 		return protocol, nil
 	default:
 		return "", fmt.Errorf("unsupported easypay protocol: %s", protocol)
@@ -62,6 +62,19 @@ func NormalizeEasyPayProtocol(raw string) (string, error) {
 func IsBepusdtNativeConfig(config map[string]string) bool {
 	protocol, err := NormalizeEasyPayProtocol(config[EasyPayProtocolConfigKey])
 	return err == nil && protocol == EasyPayProtocolBepusdt
+}
+
+// IsNativeUsdtProtocol reports whether the protocol string identifies one of
+// the native USDT JSON protocols (BEpusdt or EPUSDT GMPay). Verified
+// notifications of these protocols expect the plain "ok" webhook
+// acknowledgement, and their orders are reconciled by upstream trade_id.
+func IsNativeUsdtProtocol(protocol string) bool {
+	switch protocol {
+	case EasyPayProtocolBepusdt, EasyPayProtocolGmpay:
+		return true
+	default:
+		return false
+	}
 }
 
 func BepusdtNetworkByCode(code string) (BepusdtNetwork, bool) {
@@ -177,6 +190,12 @@ func ValidatePaymentNetworkSelection(paymentType, network string, selection *Ord
 		return nil
 	}
 	if !IsBepusdtNativeConfig(selection.Config) {
+		if IsGmpayConfig(selection.Config) {
+			if err := ValidateGmpayPaymentNetwork(selection.Config, paymentType, network); err != nil {
+				return infraerrors.BadRequest("INVALID_PAYMENT_NETWORK", err.Error())
+			}
+			return nil
+		}
 		if network != "" {
 			return infraerrors.BadRequest("INVALID_PAYMENT_NETWORK", "payment network requires BEpusdt native protocol")
 		}

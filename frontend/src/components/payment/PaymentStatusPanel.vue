@@ -185,6 +185,30 @@
             </div>
           </div>
           <p v-if="scanHint" class="text-center text-sm text-gray-500 dark:text-gray-400">{{ scanHint }}</p>
+          <!-- On-chain USDT details: exact amount, receiving address and the
+               only accepted network. The QR encodes the bare address. -->
+          <div v-if="usdtPaymentDetails" class="w-full space-y-2 rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
+            <div v-if="usdtPaymentDetails.amount" class="flex items-center justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">{{ t('payment.qr.usdtAmount') }}</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ usdtPaymentDetails.amount }} USDT</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">{{ t('payment.qr.usdtNetwork') }}</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ usdtPaymentDetails.network }}</span>
+            </div>
+            <div class="space-y-1.5 text-sm">
+              <span class="text-gray-500 dark:text-gray-400">{{ t('payment.qr.usdtAddress') }}</span>
+              <div class="flex items-start justify-between gap-2">
+                <code class="min-w-0 flex-1 break-all rounded bg-white px-2 py-1.5 text-xs text-gray-900 dark:bg-dark-900 dark:text-gray-100">{{ usdtPaymentDetails.address }}</code>
+                <button
+                  type="button"
+                  class="btn btn-secondary shrink-0 px-2.5 py-1.5 text-xs"
+                  @click="copyUsdtAddress"
+                >{{ addressCopied ? t('payment.qr.addressCopied') : t('payment.qr.copyAddress') }}</button>
+              </div>
+            </div>
+            <p class="text-xs text-amber-600 dark:text-amber-400">{{ t('payment.qr.usdtNetworkOnlyWarning') }}</p>
+          </div>
           <button v-if="payUrl" class="btn btn-secondary text-sm" @click="reopenPopup">
             {{ t('payment.qr.openPayWindow') }}
           </button>
@@ -256,6 +280,8 @@ const props = defineProps<{
   currency?: string
   outTradeNo?: string
   mobileAlipayDeepLink?: boolean
+  paymentNetwork?: string
+  cryptoAmount?: number
 }>()
 
 type PaymentOutcome = 'success' | 'cancelled' | 'expired'
@@ -276,6 +302,34 @@ const deepLinkState = ref<AlipayDeepLinkState>('idle')
 const deepLinkFallbackVisible = ref(false)
 const paymentCurrency = computed(() => normalizePaymentCurrency(props.currency))
 const creditedAmountSymbol = currencySymbol('USD')
+const addressCopied = ref(false)
+
+// On-chain USDT QR payloads carry the bare receiving address. Show the exact
+// token amount, the network and the address only when the backend provided a
+// payment network alongside the QR content.
+const usdtPaymentDetails = computed<{ amount: string; network: string; address: string } | null>(() => {
+  if (props.paymentType !== 'usdt' || !props.paymentNetwork || !props.qrCode) return null
+  const address = props.qrCode.trim()
+  if (!address || /^https?:\/\//i.test(address)) return null
+  const networkLabels: Record<string, string> = { bep20: 'BEP20', trc20: 'TRC20', polygon: 'Polygon', plasma: 'Plasma' }
+  const amount = props.cryptoAmount && props.cryptoAmount > 0
+    ? String(props.cryptoAmount)
+    : ''
+  return {
+    amount,
+    network: networkLabels[props.paymentNetwork] || props.paymentNetwork.toUpperCase(),
+    address,
+  }
+})
+
+async function copyUsdtAddress() {
+  if (!usdtPaymentDetails.value) return
+  try {
+    await navigator.clipboard.writeText(usdtPaymentDetails.value.address)
+    addressCopied.value = true
+    setTimeout(() => { addressCopied.value = false }, 2000)
+  } catch { /* clipboard unavailable; the address stays selectable */ }
+}
 const localeCode = computed(() => {
   const raw = i18n.locale as unknown
   if (typeof raw === 'string') return raw
