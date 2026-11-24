@@ -6,11 +6,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/enttest"
+	"github.com/Wei-Shaw/sub2api/internal/custom/gmpayprovider"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -1558,4 +1561,546 @@ func newPaymentOrderLifecycleTestClient(t *testing.T) *dbent.Client {
 	client := enttest.NewClient(t, enttest.WithOptions(dbent.Driver(drv)))
 	t.Cleanup(func() { _ = client.Close() })
 	return client
+}
+
+// createGmpayLifecycleOrder creates a pending GMPay order with the snapshot
+// and trade binding a real creation would persist.
+func createGmpayLifecycleOrder(t *testing.T, client *dbent.Client, outTradeNo, tradeNo string) *dbent.PaymentOrder {
+	return createGmpayLifecycleInventoryOrder(t, client, outTradeNo, tradeNo, nil, time.Now().Add(time.Hour))
+}
+
+// createGmpayLifecycleInventoryOrder builds a GMPay order, optionally bound
+// to a plan with a live reserved inventory unit and an arbitrary expiry.
+func createGmpayLifecycleInventoryOrder(t *testing.T, client *dbent.Client, outTradeNo, tradeNo string, plan *dbent.SubscriptionPlan, expiresAt time.Time) *dbent.PaymentOrder {
+	t.Helper()
+	ctx := context.Background()
+	user, err := client.User.Create().
+		SetEmail("gmpay-" + outTradeNo + "@example.com").
+		SetPasswordHash("hash").
+		SetUsername("gmpay-" + outTradeNo).
+		Save(ctx)
+	require.NoError(t, err)
+	create := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(88).
+		SetPayAmount(88).
+		SetFeeRate(0).
+		SetRechargeCode("GMPAY-" + outTradeNo).
+		SetOutTradeNo(outTradeNo).
+		SetPaymentType("usdt").
+		SetProviderKey(payment.TypeEasyPay).
+		SetPaymentTradeNo(tradeNo).
+		SetStatus(OrderStatusPending).
+		SetExpiresAt(expiresAt).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("api.example.com").
+		SetProviderSnapshot(map[string]any{
+			"schema_version":   2,
+			"provider_key":     payment.TypeEasyPay,
+			"protocol":         "epusdt_gmpay",
+			"payment_network":  "trc20",
+			"upstream_network": "tron",
+		})
+	if plan != nil {
+		create = create.
+			SetOrderType(payment.OrderTypeSubscription).
+			SetPlanID(plan.ID).
+			SetPlanInventoryState(subscriptioninventory.StateReserved)
+	} else {
+		create = create.SetOrderType(payment.OrderTypeBalance)
+	}
+	order, err := create.Save(ctx)
+	require.NoError(t, err)
+	return order
+}
+
+// gmpayLifecycleInventoryFixture creates a limited plan (one unit already
+// reserved by the order) plus an already-expired GMPay subscription order,
+// wired to the stub provider through the real instance path.
+func gmpayLifecycleInventoryFixture(t *testing.T, client *dbent.Client, outTradeNo, tradeNo string) (*dbent.PaymentOrder, *dbent.SubscriptionPlan) {
+	t.Helper()
+	ctx := context.Background()
+	plan, err := client.SubscriptionPlan.Create().
+		SetGroupID(1).
+		SetName("GMPay protective plan " + outTradeNo).
+		SetPrice(88).
+		SetRemainingQuantity(4).
+		SetForSale(true).
+		SetInventoryAutoDelisted(false).
+		Save(ctx)
+	require.NoError(t, err)
+	inst, err := client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeEasyPay).
+		SetName("EPUSDT GMPay " + outTradeNo).
+		SetConfig("{}").
+		SetSupportedTypes("usdt").
+		SetEnabled(true).
+		SetPaymentMode("qrcode").
+		Save(ctx)
+	require.NoError(t, err)
+	order := createGmpayLifecycleInventoryOrder(t, client, outTradeNo, tradeNo, plan, time.Now().Add(-time.Minute))
+	_, err = client.PaymentOrder.UpdateOneID(order.ID).
+		SetProviderInstanceID(strconv.FormatInt(inst.ID, 10)).
+		Save(ctx)
+	require.NoError(t, err)
+	return order, plan
+}
+
+// gmpayLifecycleFixture wires a GMPay order to a stub provider through the
+// real instance path (snapshot orders never fall back to the registry).
+func gmpayLifecycleFixture(t *testing.T, client *dbent.Client, outTradeNo, tradeNo string) *dbent.PaymentOrder {
+	t.Helper()
+	ctx := context.Background()
+	inst, err := client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeEasyPay).
+		SetName("EPUSDT GMPay " + outTradeNo).
+		SetConfig("{}").
+		SetSupportedTypes("usdt").
+		SetEnabled(true).
+		SetPaymentMode("qrcode").
+		Save(ctx)
+	require.NoError(t, err)
+	order := createGmpayLifecycleOrder(t, client, outTradeNo, tradeNo)
+	_, err = client.PaymentOrder.UpdateOneID(order.ID).
+		SetProviderInstanceID(strconv.FormatInt(inst.ID, 10)).
+		Save(ctx)
+	require.NoError(t, err)
+	return order
+}
+
+// TestGmpayQueryPaidDoesNotAutoFulfill: a switched-network child payment
+// settles the parent upstream without touching its network projection, so a
+// paid checkout query is not trustworthy fulfillment evidence. The order must
+// stay pending (no balance credit, no trade_no rewrite) and wait for the
+// signed callback.
+func TestGmpayQueryPaidDoesNotAutoFulfill(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+
+	provider := &paymentOrderLifecycleQueryProvider{
+		key: payment.TypeEasyPay,
+		resp: &payment.QueryOrderResponse{
+			TradeNo:  "gmpay-trade-original",
+			Status:   payment.ProviderStatusPaid,
+			Amount:   88,
+			Metadata: map[string]string{gmpayprovider.GmpayQueryPaidMetadataKey: "true"},
+		},
+	}
+	restore := replacePaymentProviderFactoryForTest(t, provider)
+	defer restore()
+	svc := &PaymentService{entClient: client, loadBalancer: &captureLoadBalancer{}}
+	order := gmpayLifecycleFixture(t, client, "sub2_gmpay_query_paid", "gmpay-trade-original")
+
+	got, err := svc.VerifyOrderByOutTradeNo(ctx, order.OutTradeNo, order.UserID)
+	require.NoError(t, err)
+	// Upstream reports paid: the caller learns the upstream state, but the
+	// local order must not be fulfilled on query-only evidence.
+	require.Equal(t, OrderStatusPending, got.Status)
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusPending, reloaded.Status)
+	require.Equal(t, "gmpay-trade-original", reloaded.PaymentTradeNo)
+
+	audits, err := svc.GetOrderAuditLogs(ctx, order.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, audits)
+	actions := make([]string, 0, len(audits))
+	for _, entry := range audits {
+		actions = append(actions, entry.Action)
+	}
+	require.Contains(t, actions, "GMPAY_QUERY_PAID_UNVERIFIED")
+	held, _, holdErr := svc.gmpayProtectiveHoldState(ctx, order.ID)
+	require.NoError(t, holdErr)
+	require.True(t, held, "query-paid hold must be persisted")
+}
+
+// TestGmpayQueryPaidDifferentTradeNoKeepsBinding: even when the query answers
+// with a different trade id, the locally bound payment_trade_no must never be
+// rewritten and the order must not fulfill.
+func TestGmpayQueryPaidDifferentTradeNoKeepsBinding(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+
+	provider := &paymentOrderLifecycleQueryProvider{
+		key: payment.TypeEasyPay,
+		resp: &payment.QueryOrderResponse{
+			TradeNo:  "gmpay-trade-foreign",
+			Status:   payment.ProviderStatusPaid,
+			Amount:   88,
+			Metadata: map[string]string{gmpayprovider.GmpayQueryPaidMetadataKey: "true"},
+		},
+	}
+	restore := replacePaymentProviderFactoryForTest(t, provider)
+	defer restore()
+	svc := &PaymentService{entClient: client, loadBalancer: &captureLoadBalancer{}}
+	order := gmpayLifecycleFixture(t, client, "sub2_gmpay_trade_rewrite", "gmpay-trade-original")
+
+	_, err := svc.VerifyOrderByOutTradeNo(ctx, order.OutTradeNo, order.UserID)
+	require.NoError(t, err)
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, "gmpay-trade-original", reloaded.PaymentTradeNo)
+	require.Equal(t, OrderStatusPending, reloaded.Status)
+}
+
+// TestGmpayManualReviewHoldSurvivesQueryOutage: once status 6 has been seen,
+// the hold is persisted on the audit trail — a later query outage must not
+// fall back to the provider-unavailable local cancel path and release the
+// reserved inventory.
+// assertGmpayOrderAndInventoryUntouched verifies both the order status and
+// the reserved inventory unit stayed unchanged.
+func assertGmpayOrderAndInventoryUntouched(t *testing.T, client *dbent.Client, svc *PaymentService, order *dbent.PaymentOrder, plan *dbent.SubscriptionPlan) {
+	t.Helper()
+	reloaded, err := client.PaymentOrder.Get(context.Background(), order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusPending, reloaded.Status)
+	require.Equal(t, subscriptioninventory.StateReserved, reloaded.PlanInventoryState)
+	reloadedPlan, err := client.SubscriptionPlan.Get(context.Background(), plan.ID)
+	require.NoError(t, err)
+	require.Equal(t, plan.RemainingQuantity, reloadedPlan.RemainingQuantity)
+}
+
+// TestGmpayManualReviewHoldSurvivesQueryOutage: once status 6 has been seen
+// on an already-expired order with a live reserved inventory unit, the hold
+// is persisted on the audit trail — a later query outage must not fall back
+// to the provider-unavailable local cancel path and release the inventory.
+func TestGmpayManualReviewHoldSurvivesQueryOutage(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+
+	provider := &paymentOrderLifecycleQueryProvider{
+		key: payment.TypeEasyPay,
+		resp: &payment.QueryOrderResponse{
+			TradeNo:  "gmpay-trade-hold",
+			Status:   payment.ProviderStatusPending,
+			Amount:   88,
+			Metadata: map[string]string{gmpayprovider.GmpayManualReviewMetadataKey: "true"},
+		},
+	}
+	restore := replacePaymentProviderFactoryForTest(t, provider)
+	defer restore()
+	svc := &PaymentService{entClient: client, loadBalancer: &captureLoadBalancer{}}
+	order, plan := gmpayLifecycleInventoryFixture(t, client, "sub2_gmpay_hold_outage", "gmpay-trade-hold")
+
+	// The order is already expired; the expiry sweep contacts upstream, sees
+	// status 6 and must skip it (status and inventory untouched).
+	expired, err := svc.ExpireTimedOutOrders(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, expired)
+	assertGmpayOrderAndInventoryUntouched(t, client, svc, order, plan)
+
+	// Next query fails entirely (outage): the persisted hold must keep the
+	// local transition held instead of expiring/cancelling the order.
+	provider.resp = nil
+	provider.queryErr = fmt.Errorf("upstream unreachable")
+	expired, err = svc.ExpireTimedOutOrders(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, expired)
+	assertGmpayOrderAndInventoryUntouched(t, client, svc, order, plan)
+
+	_, err = svc.CancelOrder(ctx, order.ID, order.UserID)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "manual review")
+	assertGmpayOrderAndInventoryUntouched(t, client, svc, order, plan)
+}
+
+// TestGmpayManualReviewHoldReentryPersists: status may oscillate 6 → waiting
+// → 6 while the order is still live. The audit table has a unique
+// (order_id, action) index, so the second hold entry must still persist —
+// after the re-entry, a query outage on the (now expired) order must be
+// protected again.
+func TestGmpayManualReviewHoldReentryPersists(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+
+	manualReview := &payment.QueryOrderResponse{
+		TradeNo:  "gmpay-trade-reentry",
+		Status:   payment.ProviderStatusPending,
+		Amount:   88,
+		Metadata: map[string]string{gmpayprovider.GmpayManualReviewMetadataKey: "true"},
+	}
+	waiting := &payment.QueryOrderResponse{
+		TradeNo: "gmpay-trade-reentry",
+		Status:  payment.ProviderStatusPending,
+		Amount:  88,
+	}
+	provider := &paymentOrderLifecycleQueryProvider{key: payment.TypeEasyPay, resp: manualReview}
+	restore := replacePaymentProviderFactoryForTest(t, provider)
+	defer restore()
+	svc := &PaymentService{entClient: client, loadBalancer: &captureLoadBalancer{}}
+	order, plan := gmpayLifecycleInventoryFixture(t, client, "sub2_gmpay_hold_reentry", "gmpay-trade-reentry")
+	// Keep the order live (not yet expired) for the reconciliation-driven
+	// status oscillation, then flip it to expired for the outage check.
+	_, err := client.PaymentOrder.UpdateOneID(order.ID).
+		SetExpiresAt(time.Now().Add(time.Hour)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	// 6 → hold recorded.
+	_, err = svc.VerifyOrderByOutTradeNo(ctx, order.OutTradeNo, order.UserID)
+	require.NoError(t, err)
+	held, _, holdErr := svc.gmpayProtectiveHoldState(ctx, order.ID)
+	require.NoError(t, holdErr)
+	require.True(t, held)
+
+	// Waiting → hold released, order stays pending (reconcile never cancels).
+	provider.resp = waiting
+	_, err = svc.VerifyOrderByOutTradeNo(ctx, order.OutTradeNo, order.UserID)
+	require.NoError(t, err)
+	held, _, holdErr = svc.gmpayProtectiveHoldState(ctx, order.ID)
+	require.NoError(t, holdErr)
+	require.False(t, held)
+
+	// 6 again → the second hold entry must survive the unique action index.
+	provider.resp = manualReview
+	_, err = svc.VerifyOrderByOutTradeNo(ctx, order.OutTradeNo, order.UserID)
+	require.NoError(t, err)
+	held, _, holdErr = svc.gmpayProtectiveHoldState(ctx, order.ID)
+	require.NoError(t, holdErr)
+	require.True(t, held)
+
+	// Now expire the order and simulate a query outage: protection holds.
+	_, err = client.PaymentOrder.UpdateOneID(order.ID).
+		SetExpiresAt(time.Now().Add(-time.Minute)).
+		Save(ctx)
+	require.NoError(t, err)
+	provider.resp = nil
+	provider.queryErr = fmt.Errorf("upstream unreachable")
+
+	expired, err := svc.ExpireTimedOutOrders(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, expired)
+	assertGmpayOrderAndInventoryUntouched(t, client, svc, order, plan)
+}
+
+// TestGmpayQueryPaidHoldSurvivesOutage: an order whose paid state was only
+// observed via query (waiting for the signed callback) must not be expired —
+// inventory included — when a later query fails.
+func TestGmpayQueryPaidHoldSurvivesOutage(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+
+	provider := &paymentOrderLifecycleQueryProvider{
+		key: payment.TypeEasyPay,
+		resp: &payment.QueryOrderResponse{
+			// Matches the locally bound trade and amount exactly; without the
+			// protective hold this is precisely the response that used to let
+			// the order expire on the next outage.
+			TradeNo:  "gmpay-trade-paidwait",
+			Status:   payment.ProviderStatusPaid,
+			Amount:   88,
+			Metadata: map[string]string{gmpayprovider.GmpayQueryPaidMetadataKey: "true"},
+		},
+	}
+	restore := replacePaymentProviderFactoryForTest(t, provider)
+	defer restore()
+	svc := &PaymentService{entClient: client, loadBalancer: &captureLoadBalancer{}}
+	order, plan := gmpayLifecycleInventoryFixture(t, client, "sub2_gmpay_paid_outage", "gmpay-trade-paidwait")
+
+	// User tries to cancel; upstream already reports paid (query evidence),
+	// so the cancel is refused and the order waits for the signed callback.
+	_, err := svc.CancelOrder(ctx, order.ID, order.UserID)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "already been paid")
+	assertGmpayOrderAndInventoryUntouched(t, client, svc, order, plan)
+
+	// Query outage + expiry sweep: the persisted query-paid hold protects the
+	// order and its reserved inventory from the local expiry path.
+	provider.resp = nil
+	provider.queryErr = fmt.Errorf("upstream unreachable")
+
+	expired, err := svc.ExpireTimedOutOrders(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, expired)
+	assertGmpayOrderAndInventoryUntouched(t, client, svc, order, plan)
+}
+
+// TestGmpayQueryPaidHoldNotReleasedByPendingStatus: after a paid was observed
+// via query, non-terminal upstream answers (status 5, on-chain confirming)
+// must NOT release the protective hold — the payment may already be settling
+// on-chain. The expiry sweep must keep the order and its reserved inventory.
+func TestGmpayQueryPaidHoldNotReleasedByPendingStatus(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+
+	paidResp := &payment.QueryOrderResponse{
+		TradeNo:  "gmpay-trade-pending5",
+		Status:   payment.ProviderStatusPaid,
+		Amount:   88,
+		Metadata: map[string]string{gmpayprovider.GmpayQueryPaidMetadataKey: "true"},
+	}
+	confirmingResp := &payment.QueryOrderResponse{
+		// status 5 (on-chain confirming) maps to a plain pending with no
+		// markers — precisely the response that used to release the hold.
+		TradeNo: "gmpay-trade-pending5",
+		Status:  payment.ProviderStatusPending,
+		Amount:  88,
+	}
+	provider := &paymentOrderLifecycleQueryProvider{key: payment.TypeEasyPay, resp: paidResp}
+	restore := replacePaymentProviderFactoryForTest(t, provider)
+	defer restore()
+	svc := &PaymentService{entClient: client, loadBalancer: &captureLoadBalancer{}}
+	order, plan := gmpayLifecycleInventoryFixture(t, client, "sub2_gmpay_pending5", "gmpay-trade-pending5")
+
+	// Paid observed via query: hold persisted, order kept.
+	_, err := svc.CancelOrder(ctx, order.ID, order.UserID)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "already been paid")
+	held, reason, holdErr := svc.gmpayProtectiveHoldState(ctx, order.ID)
+	require.NoError(t, holdErr)
+	require.True(t, held)
+	require.Equal(t, gmpayProtectReasonQueryPaid, reason)
+
+	// Upstream now answers status 5 (non-terminal): the hold must survive and
+	// the already-expired order must not be swept with its inventory.
+	provider.resp = confirmingResp
+	expired, err := svc.ExpireTimedOutOrders(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, expired)
+	assertGmpayOrderAndInventoryUntouched(t, client, svc, order, plan)
+}
+
+// TestGmpayHoldReadFailureKeepsProtection: when the protective-hold audit
+// read itself fails while the upstream query is also failing, the local
+// cancel/expiry path must hold conservatively — an unknown state is not "no
+// protection".
+func TestGmpayHoldReadFailureKeepsProtection(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+
+	paidResp := &payment.QueryOrderResponse{
+		TradeNo:  "gmpay-trade-readfail",
+		Status:   payment.ProviderStatusPaid,
+		Amount:   88,
+		Metadata: map[string]string{gmpayprovider.GmpayQueryPaidMetadataKey: "true"},
+	}
+	provider := &paymentOrderLifecycleQueryProvider{key: payment.TypeEasyPay, resp: paidResp}
+	restore := replacePaymentProviderFactoryForTest(t, provider)
+	defer restore()
+	svc := &PaymentService{entClient: client, loadBalancer: &captureLoadBalancer{}}
+	order, plan := gmpayLifecycleInventoryFixture(t, client, "sub2_gmpay_readfail", "gmpay-trade-readfail")
+
+	// Paid observed via query: hold persisted.
+	_, err := svc.CancelOrder(ctx, order.ID, order.UserID)
+	require.Error(t, err)
+	held, _, holdErr := svc.gmpayProtectiveHoldState(ctx, order.ID)
+	require.NoError(t, holdErr)
+	require.True(t, held)
+
+	// Both the upstream query and the local audit read now fail.
+	provider.resp = nil
+	provider.queryErr = fmt.Errorf("upstream unreachable")
+	originalRead := gmpayReadProtectiveHold
+	gmpayReadProtectiveHold = func(context.Context, *dbent.Client, int64) (bool, string, error) {
+		return false, "", fmt.Errorf("audit storage unavailable")
+	}
+	defer func() { gmpayReadProtectiveHold = originalRead }()
+
+	expired, err := svc.ExpireTimedOutOrders(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, expired)
+	assertGmpayOrderAndInventoryUntouched(t, client, svc, order, plan)
+
+	_, err = svc.CancelOrder(ctx, order.ID, order.UserID)
+	require.Error(t, err)
+	assertGmpayOrderAndInventoryUntouched(t, client, svc, order, plan)
+}
+
+func TestGmpayPromotesManualReviewHoldToQueryPaid(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+	const trade = "gmpay-trade-hold-promotion"
+	manual := &payment.QueryOrderResponse{TradeNo: trade, Status: payment.ProviderStatusPending, Amount: 88,
+		Metadata: map[string]string{gmpayprovider.GmpayManualReviewMetadataKey: "true"}}
+	provider := &paymentOrderLifecycleQueryProvider{key: payment.TypeEasyPay, resp: manual}
+	defer replacePaymentProviderFactoryForTest(t, provider)()
+	svc := &PaymentService{entClient: client, loadBalancer: &captureLoadBalancer{}}
+	order, plan := gmpayLifecycleInventoryFixture(t, client, "sub2_gmpay_hold_promotion", trade)
+	_, err := svc.VerifyOrderByOutTradeNo(ctx, order.OutTradeNo, order.UserID)
+	require.NoError(t, err)
+	provider.resp = &payment.QueryOrderResponse{TradeNo: trade, Status: payment.ProviderStatusPaid, Amount: 88,
+		Metadata: map[string]string{gmpayprovider.GmpayQueryPaidMetadataKey: "true"}}
+	_, err = svc.VerifyOrderByOutTradeNo(ctx, order.OutTradeNo, order.UserID)
+	require.NoError(t, err)
+	provider.resp = manual
+	_, err = svc.VerifyOrderByOutTradeNo(ctx, order.OutTradeNo, order.UserID)
+	require.NoError(t, err)
+	held, reason, err := svc.gmpayProtectiveHoldState(ctx, order.ID)
+	require.NoError(t, err)
+	require.True(t, held)
+	require.Equal(t, gmpayProtectReasonQueryPaid, reason)
+	provider.resp = &payment.QueryOrderResponse{TradeNo: trade, Status: payment.ProviderStatusPending, Amount: 88}
+	expired, err := svc.ExpireTimedOutOrders(ctx)
+	require.NoError(t, err)
+	require.Zero(t, expired)
+	assertGmpayOrderAndInventoryUntouched(t, client, svc, order, plan)
+}
+
+func TestGmpayProtectiveReleaseRequiresCurrentEvidence(t *testing.T) {
+	const trade = "gmpay-trade-release-evidence"
+	for _, tc := range []struct {
+		name, status, tradeNo, failure string
+		wantExpired                    bool
+	}{
+		{name: "release recheck unavailable", status: payment.ProviderStatusPending, tradeNo: trade, failure: "read"},
+		{name: "release audit write unavailable", status: payment.ProviderStatusPending, tradeNo: trade, failure: "write"},
+		{name: "terminal status for another trade", status: payment.ProviderStatusFailed, tradeNo: "gmpay-other-trade"},
+		{name: "terminal status for the bound trade", status: payment.ProviderStatusFailed, tradeNo: trade, wantExpired: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			client := newPaymentOrderLifecycleTestClient(t)
+			provider := &paymentOrderLifecycleQueryProvider{key: payment.TypeEasyPay, resp: &payment.QueryOrderResponse{
+				TradeNo: trade, Status: payment.ProviderStatusPending, Amount: 88,
+				Metadata: map[string]string{gmpayprovider.GmpayManualReviewMetadataKey: "true"},
+			}}
+			defer replacePaymentProviderFactoryForTest(t, provider)()
+			svc := &PaymentService{entClient: client, loadBalancer: &captureLoadBalancer{}}
+			order, plan := gmpayLifecycleInventoryFixture(t, client, "sub2_gmpay_release_evidence", trade)
+			_, err := svc.VerifyOrderByOutTradeNo(ctx, order.OutTradeNo, order.UserID)
+			require.NoError(t, err)
+			provider.resp = &payment.QueryOrderResponse{TradeNo: tc.tradeNo, Status: tc.status, Amount: 88}
+			injected := false
+			switch tc.failure {
+			case "read":
+				reads := 0
+				original := gmpayReadProtectiveHold
+				defer func() { gmpayReadProtectiveHold = original }()
+				gmpayReadProtectiveHold = func(ctx context.Context, c *dbent.Client, id int64) (bool, string, error) {
+					reads++
+					if reads > 1 {
+						injected = true
+						return false, "", errors.New("release recheck unavailable")
+					}
+					return original(ctx, c, id)
+				}
+			case "write":
+				client.PaymentAuditLog.Use(func(next dbent.Mutator) dbent.Mutator {
+					return dbent.MutateFunc(func(context.Context, dbent.Mutation) (dbent.Value, error) {
+						injected = true
+						return nil, errors.New("release audit write unavailable")
+					})
+				})
+			}
+			expired, err := svc.ExpireTimedOutOrders(ctx)
+			require.NoError(t, err)
+			if tc.failure != "" {
+				require.True(t, injected)
+			}
+			if tc.wantExpired {
+				require.Equal(t, 1, expired)
+				got, err := client.PaymentOrder.Get(ctx, order.ID)
+				require.NoError(t, err)
+				require.Equal(t, OrderStatusExpired, got.Status)
+				require.Equal(t, subscriptioninventory.StateReleased, got.PlanInventoryState)
+				return
+			}
+			require.Zero(t, expired)
+			assertGmpayOrderAndInventoryUntouched(t, client, svc, order, plan)
+		})
+	}
 }

@@ -274,6 +274,53 @@ frontend/src/views/user/KeysView.vue
   确认成功才履约；不将官方 EasyPay 的 `/api.php` 确认请求用于 native 实例；
 - BEpusdt 负责钱包地址生成、交易哈希查询、区块确认和链上到账监听，Sub2API 只负责
   订单金额、签名、回调验签和最终履约；
+- 新增 `epusdt_gmpay` 协议（EPUSDT v2.1.4 GMPay 原生 API）：签名是小写十六进制
+  HMAC-SHA256（canonical 规则排除 `signature`/空值、数字 `-1` 精度、ASCII 键序、
+  `k=v&` 拼接，密钥为商户 `secret_key`；官方文档页所写 MD5 已过时，以 v2.1.4 源码
+  为准）；建单固定传 `token=usdt` + `network`（`bep20→binance`、`trc20→tron`、
+  `polygon→polygon` 白名单，配置键 `gmpayNetworks`）和 `callback_version=2`，不创建
+  status=4 占位订单；上游按 `order_id` 幂等重放（同参数返回原单，参数不同返回
+  `10002`）；
+- GMPay 支付模式为 `qrcode`（站内展示收款地址二维码、USDT 应付金额、网络与复制
+  地址，`qr_code=receive_address`、`crypto_amount=actual_amount` 透出到前端）或
+  `popup`（跳转官方收银台）；协议校验强制 HTTPS 网关、仅 `usdt`、禁用退款；
+- GMPay 无商户鉴权查单与取消接口：订单核验使用公开收银台投影
+  `GET /pay/checkout-counter-resp/{trade_id}`（安全性依赖 trade_id 保密与 HTTPS 直连
+  配置的 apiBase）；状态映射 `2→paid`、`3→failed`、`1/5→pending`；**切网子单付款只
+  翻转父单状态与 `pay_by_sub_id`，父单投影的网络/金额/地址保持原选值，因此查单
+  `paid` 不能证明实际付款网络与快照一致——查单驱动的对账一律不自动入账（留
+  `GMPAY_QUERY_PAID_UNVERIFIED` 审计，订单保持 pending 等待带子单网络的签名回调或
+  人工处理），也绝不改写建单绑定的 `payment_trade_no`**；**`6`（待人工复核）映射
+  pending 并携带 `gmpay_manual_review` 标记，本地取消、用户取消与超时过期任务遇到
+  该标记一律暂缓且以审计日志持久化——保护记录使用带序号的
+  `GMPAY_PROTECT_HOLD#N`/`GMPAY_PROTECT_RELEASE#N`（绕开审计表 `(order_id, action)`
+  唯一索引），状态 `6 → 等待 → 6` 反复进出均可重复持久化，活跃状态由最新
+  `GMPAY_PROTECT_*` 记录判定；后续查单超时也不回退到"上游不可用"的本地取消路径，
+  不释放预留库存；查单明确返回未复核的等待状态或上游终态失败时自动解除 hold 恢复
+  正常过期，且**按保护原因区分解除：`manual_review` 可被普通 pending 应答解除，
+  `query_paid` 保护不被任何非终态应答（含 status=5 链上确认中）解除并直接阻止本地
+  取消/过期；发现 `paid` 时将已有人工复核保护升级为 `query_paid`，不得降级。
+  仅绑定交易的终态失败或签名回调履约可结束已付款保护；保护记录读取或解除写入
+  失败时按未知处理，同样阻止本地取消/过期**；**查单仅观察到 `paid`（等签名回调）同样持久化为
+  保护状态（reason=query_paid），订单到期后查单故障不会被本地过期或释放库存**；查单引用与
+  BEpusdt 相同使用 `payment_trade_no`；上游以 HTTP 4xx 携带业务码（如 `10002` 订单
+  冲突）时客户端仍解析 JSON body 透出业务码，不丢失为裸 HTTP 错误；
+- GMPay 回调仅在支付成功时发送（status=2），v2 携带参与签名的 `network` 字段；回调
+  验签使用实例 `secretKey` 且 `token` 必须为 USDT，履约前经 `checkout-counter-resp`
+  二次核验 trade_id、状态与法币金额（canonical `-1` 精度字符串精确相等，无浮点容差）；
+  履约层执行 GMPay 严格绑定：平台交易号必须等于建单保存的 `payment_trade_no`，法币
+  金额与本地订单精确十进制相等（不走通用浮点容差）；快照校验 `pid` 与 `network`
+  绑定——回调缺失 `network` 字段或与快照不一致（收银台切换网络、子订单结算）一律
+  拒绝自动履约，保持待核验由人工处理；上游建单时固定回调签名密钥（Pin），商户轮换
+  `secretKey` 后历史回调用旧密钥签名——验签失败时回调被拒绝且**不自动入账**（查单
+  只能确认上游已付款但不能补足网络证明），此类订单依赖上述保护状态保持 pending，
+  需人工核对后处理；webhook 对 GMPay 成功回调响应纯文本 `ok`；后台新建 GMPay 服务
+  商默认保持禁用，联调通过后再启用；
+- GMPay 服务商编排（创建、查询、确认、回调解析）位于
+  `internal/custom/gmpayprovider`，官方 EasyPay 每个方法仅一行委托；协议常量、网络
+  白名单、客户端与签名位于 `internal/custom/paymentchannels/epusdt_gmpay.go`；
+- BEpusdt 与 GMPay 实例可共存：`easypay_usdt` 渠道聚合两协议网络并集，建单按
+  所选网络与实例协议白名单精确路由，互不误路由；
 - 本功能不新增 Migration、Schema、实体字段或 SQL。
 
 主要实现：

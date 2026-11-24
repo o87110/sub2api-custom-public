@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
+	"github.com/Wei-Shaw/sub2api/internal/custom/gmpayprovider"
 	"github.com/Wei-Shaw/sub2api/internal/custom/paymentchannels"
 	"github.com/Wei-Shaw/sub2api/internal/custom/subscriptioninventory"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
@@ -22,15 +24,16 @@ import (
 
 // Cancel rate limit configuration constants.
 const (
-	rateLimitUnitDay           = "day"
-	rateLimitUnitMinute        = "minute"
-	rateLimitUnitHour          = "hour"
-	rateLimitModeFixed         = "fixed"
-	checkPaidResultAlreadyPaid = "already_paid"
-	checkPaidResultCancelled   = "cancelled"
-	checkPaidResultUnpaid      = "unpaid"
-	checkPaidResultUnavailable = "unavailable"
-	checkPaidResultInvalid     = "invalid"
+	rateLimitUnitDay            = "day"
+	rateLimitUnitMinute         = "minute"
+	rateLimitUnitHour           = "hour"
+	rateLimitModeFixed          = "fixed"
+	checkPaidResultAlreadyPaid  = "already_paid"
+	checkPaidResultCancelled    = "cancelled"
+	checkPaidResultUnpaid       = "unpaid"
+	checkPaidResultUnavailable  = "unavailable"
+	checkPaidResultInvalid      = "invalid"
+	checkPaidResultManualReview = "manual_review"
 
 	paymentOrderReconcileLimit = 20
 )
@@ -143,13 +146,30 @@ func (s *PaymentService) cancelCore(ctx context.Context, o *dbent.PaymentOrder, 
 		case checkPaidResultUnavailable:
 			// A provider outage must not leave local orders and reserved inventory
 			// stuck forever. Continue with the conditional local transition; late
-			// payment reconciliation still protects the existing grace window.
+			// payment reconciliation still protects the existing grace window —
+			// unless a persisted GMPay protective hold (manual review, or a
+			// paid observed via query while the signed callback is in flight)
+			// says the order may already be settled upstream. An unreadable
+			// hold state is unknown, not absent: hold conservatively.
+			held, _, holdErr := s.gmpayProtectiveHoldState(ctx, o.ID)
+			if holdErr != nil {
+				slog.Warn("read gmpay protective hold failed; holding local transition conservatively", "orderID", o.ID, "targetStatus", fs, "error", holdErr)
+				return checkPaidResultManualReview, nil
+			}
+			if held {
+				slog.Warn("payment status unavailable but gmpay protective hold is active; holding local transition", "orderID", o.ID, "targetStatus", fs)
+				return checkPaidResultManualReview, nil
+			}
 			upstreamUnavailable = true
 			slog.Warn("payment status unavailable; proceeding with local order transition", "orderID", o.ID, "targetStatus", fs)
 		case checkPaidResultInvalid:
 			// A malformed paid response (for example, an invalid amount) is not an
 			// outage. Keep the conservative behavior and let the caller retry later.
 			return checkPaidResultUnavailable, nil
+		case checkPaidResultManualReview:
+			// The upstream payment may already be settled and awaits human
+			// confirmation; never expire/cancel or release inventory here.
+			return checkPaidResultManualReview, nil
 		}
 	}
 	c, err := subscriptioninventory.TransitionPendingOrderAndRelease(ctx, s.entClient, o.ID, fs)
@@ -190,6 +210,8 @@ func normalizeCancelOutcome(outcome string, err error) (string, error) {
 		return "", infraerrors.ServiceUnavailable("PAYMENT_STATUS_UNAVAILABLE", "payment provider status is temporarily unavailable")
 	case checkPaidResultInvalid:
 		return "", infraerrors.ServiceUnavailable("PAYMENT_STATUS_UNAVAILABLE", "payment provider status is temporarily unavailable")
+	case checkPaidResultManualReview:
+		return "", infraerrors.Conflict("ORDER_UPSTREAM_MANUAL_REVIEW", "the upstream payment is under manual review and cannot be cancelled yet")
 	case checkPaidResultCancelled:
 		return outcome, nil
 	default:
@@ -257,6 +279,27 @@ func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.Paym
 			}
 			resp = retriedResp
 		}
+		// GMPay paid came from the checkout projection: a switched-network
+		// child payment settles the parent without touching its network,
+		// amount or address, so the projection cannot prove the paid network
+		// matches the snapshot. Never fulfill (and never rewrite the locally
+		// bound trade_no) on this evidence — the signed callback carries the
+		// settled child's network and remains the only auto-fulfill path.
+		// The observation is persisted as a protective hold so a later query
+		// outage cannot expire the order (and release inventory) while the
+		// callback is still in flight.
+		if resp.Metadata[gmpayprovider.GmpayQueryPaidMetadataKey] == "true" {
+			s.writeAuditLog(ctx, o.ID, "GMPAY_QUERY_PAID_UNVERIFIED", prov.ProviderKey(), map[string]any{
+				"tradeNo": resp.TradeNo,
+				"paid":    resp.Amount,
+			})
+			if err := s.recordGmpayProtectiveHold(ctx, o, gmpayProtectReasonQueryPaid); err != nil {
+				slog.Error("persist gmpay query-paid protection failed", "orderID", o.ID, "error", err)
+				return checkPaidResultManualReview
+			}
+			slog.Warn("gmpay paid observed via query only; awaiting verified callback before fulfillment", "orderID", o.ID, "queryRef", queryRef)
+			return checkPaidResultAlreadyPaid
+		}
 		notificationTradeNo := o.PaymentTradeNo
 		if upstreamTradeNo := strings.TrimSpace(resp.TradeNo); paymentOrderShouldPersistUpstreamTradeNo(queryRef, upstreamTradeNo, notificationTradeNo) {
 			if _, updateErr := s.entClient.PaymentOrder.Update().
@@ -279,7 +322,50 @@ func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.Paym
 		// A terminal upstream failure already proves that no payment was made.
 		// Do not issue a second close/cancel request: providers commonly reject
 		// cancellation after the trade has already been closed.
+		if psOrderIsGmpay(o) {
+			if strings.TrimSpace(resp.TradeNo) != queryRef || queryRef != strings.TrimSpace(o.PaymentTradeNo) {
+				return checkPaidResultManualReview
+			}
+			if !s.releaseGmpayProtectiveHold(ctx, o, true) {
+				return checkPaidResultManualReview
+			}
+		}
 		return checkPaidResultUnpaid
+	}
+	// GMPay status 6 (manual review): the on-chain payment may already be
+	// settled upstream while a human still has to confirm it. Expiring or
+	// cancelling the local order here would release reserved inventory for a
+	// payment that can still be confirmed, so the transition is held and the
+	// hold is persisted on the audit trail — a later query outage must not
+	// fall back to the provider-unavailable cancel path.
+	if resp.Metadata[gmpayprovider.GmpayManualReviewMetadataKey] == "true" {
+		if err := s.recordGmpayProtectiveHold(ctx, o, gmpayProtectReasonManualReview); err != nil {
+			slog.Error("persist gmpay manual-review protection failed", "orderID", o.ID, "error", err)
+		}
+		slog.Warn("upstream order awaits manual review; holding local transition", "orderID", o.ID, "queryRef", queryRef)
+		return checkPaidResultManualReview
+	}
+	// GMPay protective holds gate the local cancel/expire transition here:
+	// a manual-review hold is released by a plain pending answer (the review
+	// concluded without payment) and the order may resume normal expiry; a
+	// query-paid hold survives non-terminal pending answers — including
+	// status 5, on-chain confirming — and blocks the transition outright
+	// (only a terminal upstream failure may release it). An unreadable hold
+	// state is unknown, not absent: hold conservatively.
+	if psOrderIsGmpay(o) {
+		active, reason, err := s.gmpayProtectiveHoldState(ctx, o.ID)
+		switch {
+		case err != nil:
+			slog.Warn("read gmpay protective hold failed; holding local transition conservatively", "orderID", o.ID, "queryRef", queryRef, "error", err)
+			return checkPaidResultManualReview
+		case active && reason == gmpayProtectReasonQueryPaid:
+			slog.Warn("gmpay order already reported paid via query; holding local transition", "orderID", o.ID, "queryRef", queryRef)
+			return checkPaidResultManualReview
+		case active:
+			if !s.releaseGmpayProtectiveHold(ctx, o, false) {
+				return checkPaidResultManualReview
+			}
+		}
 	}
 	if !opts.cancelIfUnpaid {
 		return checkPaidResultUnpaid
@@ -294,6 +380,126 @@ func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.Paym
 		}
 	}
 	return checkPaidResultUnpaid
+}
+
+// GMPay protective holds persisted on the payment audit trail. The audit
+// table enforces a unique (order_id, action) index, so hold/release records
+// carry a per-order sequence suffix ("GMPAY_PROTECT_HOLD#2") and the active
+// state is derived from the newest GMPAY_PROTECT_* record — an order may
+// enter and leave protection repeatedly across its lifetime. A hold outlives
+// single query results: once status 6 or a query-only paid has been seen, a
+// later query outage must not fall back to the provider-unavailable local
+// cancel path (which would release reserved inventory for a possibly-settled
+// order).
+const (
+	gmpayProtectAnyPrefix     = "GMPAY_PROTECT_"
+	gmpayProtectHoldPrefix    = "GMPAY_PROTECT_HOLD"
+	gmpayProtectReleasePrefix = "GMPAY_PROTECT_RELEASE"
+)
+
+// Protective hold reasons persisted in the audit detail.
+const (
+	gmpayProtectReasonManualReview = "manual_review"
+	gmpayProtectReasonQueryPaid    = "query_paid"
+)
+
+func psOrderIsGmpay(o *dbent.PaymentOrder) bool {
+	snapshot := psOrderProviderSnapshot(o)
+	return snapshot != nil && snapshot.Protocol == "epusdt_gmpay"
+}
+
+func (s *PaymentService) appendGmpayProtectAudit(ctx context.Context, orderID int64, action, reason string) error {
+	id := strconv.FormatInt(orderID, 10)
+	n, err := s.entClient.PaymentAuditLog.Query().
+		Where(paymentauditlog.OrderIDEQ(id), paymentauditlog.ActionHasPrefix(gmpayProtectAnyPrefix)).Count(ctx)
+	if err != nil {
+		return err
+	}
+	detail, err := json.Marshal(map[string]string{"reason": reason})
+	if err != nil {
+		return err
+	}
+	_, err = s.entClient.PaymentAuditLog.Create().
+		SetOrderID(id).SetAction(fmt.Sprintf("%s#%d", action, n)).SetDetail(string(detail)).SetOperator("system").Save(ctx)
+	return err
+}
+
+// gmpayReadProtectiveHold is the raw audit-trail read behind the protective
+// hold state; it is a package-level variable so tests can inject read
+// failures. It returns (active, reason, err): err is a read failure — the
+// caller must treat it as "unknown" and act conservatively, never as "no
+// protection". A missing record is (false, "", nil).
+var gmpayReadProtectiveHold = func(ctx context.Context, client *dbent.Client, orderID int64) (bool, string, error) {
+	last, err := client.PaymentAuditLog.Query().
+		Where(
+			paymentauditlog.OrderIDEQ(strconv.FormatInt(orderID, 10)),
+			paymentauditlog.ActionHasPrefix(gmpayProtectAnyPrefix),
+		).
+		Order(dbent.Desc(paymentauditlog.FieldID)).
+		First(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return false, "", nil
+		}
+		return false, "", err
+	}
+	if !strings.HasPrefix(last.Action, gmpayProtectHoldPrefix) {
+		return false, "", nil
+	}
+	var detail struct {
+		Reason string `json:"reason"`
+	}
+	if err := json.Unmarshal([]byte(last.Detail), &detail); err != nil {
+		return false, "", err
+	}
+	if detail.Reason != gmpayProtectReasonManualReview && detail.Reason != gmpayProtectReasonQueryPaid {
+		return false, "", fmt.Errorf("invalid GMPay protection reason")
+	}
+	return true, detail.Reason, nil
+}
+
+// gmpayProtectiveHoldState reports whether the order is currently protected
+// and why. Read failures propagate: callers must hold (not cancel/expire)
+// when the state is unknown.
+func (s *PaymentService) gmpayProtectiveHoldState(ctx context.Context, orderID int64) (bool, string, error) {
+	if s == nil || s.entClient == nil {
+		return false, "", nil
+	}
+	return gmpayReadProtectiveHold(ctx, s.entClient, orderID)
+}
+
+func (s *PaymentService) recordGmpayProtectiveHold(ctx context.Context, o *dbent.PaymentOrder, reason string) error {
+	active, current, err := s.gmpayProtectiveHoldState(ctx, o.ID)
+	if err != nil {
+		return err
+	}
+	if active && (current == reason || current == gmpayProtectReasonQueryPaid) {
+		return nil
+	}
+	return s.appendGmpayProtectAudit(ctx, o.ID, gmpayProtectHoldPrefix, reason)
+}
+
+func (s *PaymentService) releaseGmpayProtectiveHold(ctx context.Context, o *dbent.PaymentOrder, terminalUnpaid bool) bool {
+	active, current, err := s.gmpayProtectiveHoldState(ctx, o.ID)
+	if err != nil {
+		slog.Warn("read gmpay protection before release failed", "orderID", o.ID, "error", err)
+		return false
+	}
+	if !active {
+		return true
+	}
+	if !terminalUnpaid && current != gmpayProtectReasonManualReview {
+		return false
+	}
+	reason := "upstream_awaiting_payment"
+	if terminalUnpaid {
+		reason = "upstream_terminal_failure"
+	}
+	if err := s.appendGmpayProtectAudit(ctx, o.ID, gmpayProtectReleasePrefix, reason); err != nil {
+		slog.Warn("persist gmpay protection release failed", "orderID", o.ID, "error", err)
+		return false
+	}
+	return true
 }
 
 func requeryPaidOrderOnce(ctx context.Context, prov payment.Provider, queryRef string) (*payment.QueryOrderResponse, bool) {
@@ -336,7 +542,7 @@ func paymentOrderQueryReference(order *dbent.PaymentOrder, prov payment.Provider
 
 	switch payment.GetBasePaymentType(providerKey) {
 	case payment.TypeEasyPay:
-		if snapshot := psOrderProviderSnapshot(order); snapshot != nil && snapshot.Protocol == paymentchannels.EasyPayProtocolBepusdt {
+		if snapshot := psOrderProviderSnapshot(order); snapshot != nil && paymentchannels.IsNativeUsdtProtocol(snapshot.Protocol) {
 			if tradeNo := strings.TrimSpace(order.PaymentTradeNo); tradeNo != "" {
 				return tradeNo
 			}
@@ -541,6 +747,10 @@ func (s *PaymentService) ExpireTimedOutOrders(ctx context.Context) (int, error) 
 		}
 		if outcome == checkPaidResultUnavailable || outcome == checkPaidResultInvalid {
 			slog.Warn("defer order expiry because payment status is unavailable", "orderID", o.ID)
+			continue
+		}
+		if outcome == checkPaidResultManualReview {
+			slog.Warn("defer order expiry because upstream payment awaits manual review", "orderID", o.ID)
 			continue
 		}
 		if outcome == checkPaidResultCancelled {

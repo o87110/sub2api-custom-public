@@ -282,6 +282,20 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
   `cancel-transaction` 取消及 status `1/2/3` 回调；回调上游确认必须经 `pay/info`
   核对订单号、交易号、状态和金额，身份或金额不符时拒绝履约；native 路径不得访问
   `/api.php` 或 `/mapi.php`，不得启用退款；
+- GMPay 测试必须锁定 EPUSDT v2.1.4 官方 HMAC-SHA256 签名向量
+  （`ced9141f...`）、三网络到 GMPay `network` 的固定映射（含 `plasma` 拒绝）、
+  协议模式矩阵（qrcode/popup、HTTPS、退款、类型）、保存入口 `usdt` 豁免
+  customMethods（GMPay 实例可建档）、`callback_version=2` 建单载荷、`10002` 冲突在
+  HTTP 400 与 HTTP 200 两种承载下均透出业务码、`checkout-counter-resp` 查询的状态
+  映射（`6` 保持 pending 且带 `gmpay_manual_review` 标记阻止过期/取消/释放库存）、
+  paid 查询结果必须携带 `gmpay_query_paid` 标记且**对账不得据此自动入账或改写
+  `payment_trade_no`**（服务级回归覆盖：查单 paid 订单保持 pending 并留审计、查单
+  异号不改写绑定、状态 6 后查单超时不释放库存、人工复核升级为已付款保护后不降级、
+  解除复读或写入失败及返回异号终态时保留库存）、确认的法币金额
+  精确比较、回调篡改、错误密钥与非 USDT token 拒绝、快照 `pid/network` 绑定（缺失
+  `network` 或收银台切换网络必须拒绝自动履约）、履约层交易号绑定与精确金额（空值
+  与大小写不一致均拒绝、非 GMPay 订单跳过）以及 BEpusdt/GMPay 多实例网络路由
+  隔离；webhook 对 GMPay 成功回调必须响应纯文本 `ok`；
 - 前端测试必须确认 USDT 弹窗只展示 USDT、取消不创建订单、确认后才发送
   `payment_network`，桌面弹窗和移动端跳转均保存恢复快照；Stripe 主路径和同渠道
   备用扫码路由不携带 `client_secret`，支付页只接受同订单的本地恢复快照；

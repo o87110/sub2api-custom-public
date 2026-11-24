@@ -126,6 +126,102 @@ func TestValidateEasyPayNativeInstance(t *testing.T) {
 	assert.Error(t, validateEasyPayNativeInstance(config, "alipay", "popup", false))
 }
 
+func TestValidateGmpayNativeInstance(t *testing.T) {
+	base := func() map[string]string {
+		return map[string]string{
+			"easypayProtocol": "epusdt_gmpay",
+			"pid":             "1000",
+			"secretKey":       "secret",
+			"apiBase":         "https://gw.example.com",
+			"gmpayNetworks":   "bep20,trc20,polygon",
+		}
+	}
+	assert.NoError(t, validateEasyPayNativeInstance(base(), "usdt", "qrcode", false))
+	assert.NoError(t, validateEasyPayNativeInstance(base(), "usdt", "popup", false))
+	assert.Error(t, validateEasyPayNativeInstance(base(), "usdt", "redirect", false))
+	assert.Error(t, validateEasyPayNativeInstance(base(), "usdt", "qrcode", true))
+	assert.Error(t, validateEasyPayNativeInstance(base(), "alipay,usdt", "qrcode", false))
+	httpBase := base()
+	httpBase["apiBase"] = "http://gw.example.com"
+	assert.Error(t, validateEasyPayNativeInstance(httpBase, "usdt", "qrcode", false))
+	// plasma is a BEpusdt-only network and must be rejected here.
+	plasma := base()
+	plasma["gmpayNetworks"] = "plasma"
+	assert.Error(t, validateEasyPayNativeInstance(plasma, "usdt", "qrcode", false))
+}
+
+// TestValidateEasyPayCustomMethodsGmpayUsdtIsNative guards the create/update
+// entrypoint: a GMPay instance declaring supported_types=["usdt"] must not be
+// asked for a customMethods mapping (regression: both save paths returned
+// "supported EasyPay custom type usdt has no customMethods mapping").
+func TestValidateEasyPayCustomMethodsGmpayUsdtIsNative(t *testing.T) {
+	config := map[string]string{
+		"easypayProtocol": "epusdt_gmpay",
+		"pid":             "1000",
+		"secretKey":       "secret",
+		"apiBase":         "https://gw.example.com",
+		"gmpayNetworks":   "bep20,trc20,polygon",
+	}
+	assert.NoError(t, validateEasyPayCustomMethods(config, "usdt"))
+	// customMethods stays rejected for native USDT protocols, GMPay included.
+	withCustom := map[string]string{}
+	for k, v := range config {
+		withCustom[k] = v
+	}
+	withCustom["customMethods"] = `[{"type":"vip","upstreamType":"vip","displayName":"VIP"}]`
+	assert.Error(t, validateEasyPayCustomMethods(withCustom, "usdt"))
+}
+
+// TestCreateProviderInstanceGmpayNative exercises the real create entrypoint
+// for GMPay instances in both enabled and disabled states — the exact path
+// that previously rejected "usdt" with a missing customMethods mapping.
+func TestCreateProviderInstanceGmpayNative(t *testing.T) {
+	t.Parallel()
+
+	newGmpayRequest := func(enabled bool) CreateProviderInstanceRequest {
+		return CreateProviderInstanceRequest{
+			ProviderKey:    "easypay",
+			Name:           "EPUSDT GMPay",
+			Enabled:        enabled,
+			PaymentMode:    "qrcode",
+			SupportedTypes: []string{"usdt"},
+			Config: map[string]string{
+				"easypayProtocol": "epusdt_gmpay",
+				"pid":             "1000",
+				"secretKey":       "gmpay-secret",
+				"apiBase":         "https://gw.example.com",
+				"notifyUrl":       "https://merchant.example.com/api/v1/payment/webhook/easypay",
+				"returnUrl":       "https://merchant.example.com/payment/result",
+				"gmpayNetworks":   "bep20,trc20,polygon",
+			},
+		}
+	}
+
+	t.Run("disabled draft saves", func(t *testing.T) {
+		t.Parallel()
+		client := newPaymentConfigServiceTestClient(t)
+		svc := &PaymentConfigService{
+			entClient:     client,
+			encryptionKey: []byte("0123456789abcdef0123456789abcdef"),
+		}
+		created, err := svc.CreateProviderInstance(context.Background(), newGmpayRequest(false))
+		require.NoError(t, err)
+		assert.Equal(t, "easypay", created.ProviderKey)
+	})
+
+	t.Run("enabled instance saves and validates config", func(t *testing.T) {
+		t.Parallel()
+		client := newPaymentConfigServiceTestClient(t)
+		svc := &PaymentConfigService{
+			entClient:     client,
+			encryptionKey: []byte("0123456789abcdef0123456789abcdef"),
+		}
+		created, err := svc.CreateProviderInstance(context.Background(), newGmpayRequest(true))
+		require.NoError(t, err)
+		assert.True(t, created.Enabled)
+	})
+}
+
 func TestValidateEasyPayCustomMethods(t *testing.T) {
 	t.Parallel()
 

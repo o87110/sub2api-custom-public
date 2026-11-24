@@ -95,8 +95,12 @@ func projectProviderRecords(records []ProviderRecord) []Instance {
 			}
 		}
 		networkOptions := []NetworkOption(nil)
-		if normalize(record.ProviderKey) == ProviderEasyPay && IsBepusdtNativeConfig(record.Config) && containsString(paymentTypes, BepusdtPaymentType) {
-			networkOptions = BepusdtNetworkOptions(record.Config)
+		if normalize(record.ProviderKey) == ProviderEasyPay && containsString(paymentTypes, BepusdtPaymentType) {
+			if IsBepusdtNativeConfig(record.Config) {
+				networkOptions = BepusdtNetworkOptions(record.Config)
+			} else if IsGmpayConfig(record.Config) {
+				networkOptions = GmpayNetworkOptions(record.Config)
+			}
 		}
 		currency := strings.ToUpper(strings.TrimSpace(record.Currency))
 		if currency == "" {

@@ -317,11 +317,17 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 		}
 		if protocol, err := paymentchannels.NormalizeEasyPayProtocol(sel.Config[paymentchannels.EasyPayProtocolConfigKey]); err == nil {
 			snapshot["protocol"] = protocol
-			if protocol == paymentchannels.EasyPayProtocolBepusdt {
-				if network := strings.TrimSpace(req.PaymentNetwork); network != "" {
-					snapshot["payment_network"] = network
+			if network := strings.TrimSpace(req.PaymentNetwork); network != "" {
+				switch protocol {
+				case paymentchannels.EasyPayProtocolBepusdt:
 					if mapped, ok := paymentchannels.BepusdtNetworkByCode(network); ok {
+						snapshot["payment_network"] = network
 						snapshot["upstream_trade_type"] = mapped.UpstreamType
+					}
+				case paymentchannels.EasyPayProtocolGmpay:
+					if mapped, ok := paymentchannels.GmpayNetworkByCode(network); ok {
+						snapshot["payment_network"] = network
+						snapshot["upstream_network"] = mapped.UpstreamNetwork
 					}
 				}
 			}
@@ -874,6 +880,7 @@ func buildCreateOrderResponse(order *dbent.PaymentOrder, req CreateOrderRequest,
 		CountryCode:    pr.CountryCode,
 		PaymentEnv:     pr.PaymentEnv,
 		PaymentNetwork: req.PaymentNetwork,
+		CryptoAmount:   pr.CryptoAmount,
 		OAuth:          pr.OAuth,
 		JSAPI:          pr.JSAPI,
 		JSAPIPayload:   pr.JSAPI,

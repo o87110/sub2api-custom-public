@@ -115,6 +115,7 @@ type CreateOrderResponse struct {
 	ExpiresAt                     time.Time                       `json:"expires_at"`
 	PaymentMode                   string                          `json:"payment_mode,omitempty"`
 	PaymentNetwork                string                          `json:"payment_network,omitempty"`
+	CryptoAmount                  float64                         `json:"crypto_amount,omitempty"`
 	ResumeToken                   string                          `json:"resume_token,omitempty"`
 	AlipayMobilePrecreateDeepLink bool                            `json:"alipay_mobile_precreate_deep_link,omitempty"`
 }

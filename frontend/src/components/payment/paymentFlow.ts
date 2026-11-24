@@ -50,6 +50,7 @@ export interface PaymentRecoverySnapshot {
   orderType: OrderType | ''
   paymentMode: string
   paymentNetwork?: string
+  cryptoAmount?: number
   resumeToken: string
   alipayMobilePrecreateDeepLink?: boolean
   createdAt: number
@@ -183,6 +184,7 @@ export function decidePaymentLaunch(
     orderType: context.orderType,
     paymentMode: (result.payment_mode || '').trim(),
     paymentNetwork: (result.payment_network || '').trim().toLowerCase(),
+    cryptoAmount: result.crypto_amount || 0,
     resumeToken: result.resume_token || '',
     alipayMobilePrecreateDeepLink: result.alipay_mobile_precreate_deep_link === true,
   }, context.now)
@@ -313,6 +315,7 @@ export function readPaymentRecoverySnapshot(
       || typeof parsed.payAmount !== 'number'
       || typeof parsed.paymentMode !== 'string'
       || (parsed.paymentNetwork != null && typeof parsed.paymentNetwork !== 'string')
+      || (parsed.cryptoAmount != null && typeof parsed.cryptoAmount !== 'number')
       || typeof parsed.resumeToken !== 'string'
       || (parsed.alipayMobilePrecreateDeepLink != null && typeof parsed.alipayMobilePrecreateDeepLink !== 'boolean')
       || typeof parsed.createdAt !== 'number'
@@ -348,6 +351,7 @@ export function readPaymentRecoverySnapshot(
       orderType: parsed.orderType === 'subscription' ? 'subscription' : 'balance',
       paymentMode: parsed.paymentMode,
       paymentNetwork: parsed.paymentNetwork || '',
+      cryptoAmount: typeof parsed.cryptoAmount === 'number' ? parsed.cryptoAmount : 0,
       resumeToken: parsed.resumeToken,
       alipayMobilePrecreateDeepLink: parsed.alipayMobilePrecreateDeepLink === true,
       createdAt: parsed.createdAt,
