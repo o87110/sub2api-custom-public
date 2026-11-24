@@ -17,7 +17,7 @@ func gmpayTestConfig(apiBase string) map[string]string {
 		"notifyUrl": "https://sub.example/notify", "returnUrl": "https://sub.example/result",
 		paymentchannels.EasyPayProtocolConfigKey: paymentchannels.EasyPayProtocolGmpay,
 		paymentchannels.GmpayNetworksConfigKey:   "bep20,trc20,polygon",
-		"paymentMode": "qrcode",
+		"paymentMode":                            "qrcode",
 	}
 }
 

@@ -64,7 +64,8 @@ func NewEasyPay(instanceID string, config map[string]string) (*EasyPay, error) {
 	if strings.TrimSpace(config["apiBase"]) == "" {
 		return nil, fmt.Errorf("easypay config missing required key: apiBase")
 	}
-	if protocol == paymentchannels.EasyPayProtocolBepusdt {
+	switch protocol {
+	case paymentchannels.EasyPayProtocolBepusdt:
 		if strings.TrimSpace(config[paymentchannels.EasyPayAPITokenConfigKey]) == "" {
 			return nil, fmt.Errorf("easypay config missing required key: apiToken")
 		}
@@ -76,14 +77,14 @@ func NewEasyPay(instanceID string, config map[string]string) (*EasyPay, error) {
 		if _, err := paymentchannels.ParseBepusdtNetworks(config[paymentchannels.BepusdtNetworksConfigKey]); err != nil {
 			return nil, err
 		}
-	} else if protocol == paymentchannels.EasyPayProtocolGmpay {
+	case paymentchannels.EasyPayProtocolGmpay:
 		if err := paymentchannels.ValidateGmpayRequiredConfig(config); err != nil {
 			return nil, err
 		}
 		if _, err := paymentchannels.ParseGmpayNetworks(config[paymentchannels.GmpayNetworksConfigKey]); err != nil {
 			return nil, err
 		}
-	} else {
+	default:
 		for _, k := range []string{"pid", "pkey", "notifyUrl", "returnUrl"} {
 			if strings.TrimSpace(config[k]) == "" {
 				return nil, fmt.Errorf("easypay config missing required key: %s", k)

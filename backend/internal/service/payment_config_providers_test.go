@@ -180,10 +180,10 @@ func TestCreateProviderInstanceGmpayNative(t *testing.T) {
 
 	newGmpayRequest := func(enabled bool) CreateProviderInstanceRequest {
 		return CreateProviderInstanceRequest{
-			ProviderKey:   "easypay",
-			Name:          "EPUSDT GMPay",
-			Enabled:       enabled,
-			PaymentMode:   "qrcode",
+			ProviderKey:    "easypay",
+			Name:           "EPUSDT GMPay",
+			Enabled:        enabled,
+			PaymentMode:    "qrcode",
 			SupportedTypes: []string{"usdt"},
 			Config: map[string]string{
 				"easypayProtocol": "epusdt_gmpay",
