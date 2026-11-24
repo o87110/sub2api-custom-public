@@ -1,10 +1,10 @@
 path	initial_status	decision	expected_status	category	base_blob	final_blob	shadow_source	shadow_target	verification	reason
 
-.github/CODEOWNERS	A	keep	A	fixed-path	@absent	aa43da1578272afaae94e0ecac3dc0d99050a5cd	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
+.github/CODEOWNERS	A	keep	A	fixed-path	@absent	8d934ec7d48efe0d33a5b68add72d6643d9a0c49	-	-	candidate-tree+targeted-CI	保护既有 Custom 边界及预落的 Apple 容器兼容脚本与测试控制面
 .github/audit-exceptions.yml	M	keep	M	fixed-path	5881136f578df07d9abac471222fe3b6e0769424	5563f24a5ddea92b6f1d126ba3c49dd64131de9b	-	-	pnpm-audit+exception-validation+candidate-tree-test	移除已过期且不再命中的依赖审计例外，并将仍有效的 xlsx 例外绑定公开仓库维护者
 .github/ci-impact.yml	A	keep	A	fixed-path	@absent	b9b7a9b540fb3aa3c9696e9f40fb8b8a28a8e0f1	-	-	candidate-tree+targeted-CI	官方升级固定路径变更
 .github/custom-database-exceptions.tsv	A	keep	A	fixed-path	@absent	be1b8b678f7cf760cec14e2db85e1bf203020e02	-	-	database-boundary-unit+candidate-tree-test	将原有 Custom 数据库例外重新绑定至准确 vendor-0.2.24 Blob 与语义指纹，不增减例外路径
-.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	84b5bacefa7b1216f7553120bdf22bcfd39e7a6f	-	-	candidate-tree+shadow-map+thin-bridge-contract	固定官方影子源行预算与历史基线覆盖，登记 v0.2.20 全部语义移植预算
+.github/custom-thin-bridge-contract.tsv	A	keep	A	fixed-path	@absent	924f974af1fea44c17711bb900ce19ad7f0d1972	-	-	candidate-tree+shadow-map+thin-bridge-contract	固定官方影子源行预算与历史基线覆盖，登记 v0.2.20 全部语义移植预算
 .github/custom-tool-versions.env	A	keep	A	fixed-path	@absent	ec7ef1cc11f254fc7700211469714e3668f26c00	-	-	candidate-tree+targeted-CI	同步 v0.2.18 Go 1.27.3 与 golangci-lint 2.14.0 控制面工具版本
 .github/custom-upstream-baseline.env	A	keep	A	fixed-path	@absent	66f3f424ad93acdf0696d7ea0ee0417c55ca811e	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
 .github/custom-upstream-delta.tsv	A	keep	A	fixed-path	@absent	@self	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
@@ -51,8 +51,8 @@ path	initial_status	decision	expected_status	category	base_blob	final_blob	shado
 .github/workflows/publish-custom.yml	A	keep	A	fixed-path	@absent	6718a4cb6d5de67edd911ea8f45c54e1e2139298	-	-	yaml-parse+action-pin+actionlint+release-safety	只在受控 Release 输入变化时自动创建新 Tag，并保留首次发布和恢复路径
 .github/workflows/release.yml	M	keep	M	fixed-path	b5780a6be5275eebbe48bf55bf2c9180aa340b37	d0c57a24cd032cda941441ffc7beef511f2f8e6d	-	-	yaml-parse+action-pin+actionlint+release-safety	复用准确 CI 前端 Artifact、同 SHA 边界证据与固定 scope OCI 缓存并记录耗时
 .github/workflows/security-scan.yml	M	keep	M	fixed-path	19893aae9797a436cc0bad31847a5fc1ce477165	3c22b8d3aefa53005dfeb96a5439a4f8f4011b46	-	-	yaml-parse+action-pin+actionlint	固定工具路径中的二改构建发布或控制面最小差异
-.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	6b1f914662dfb41c787da1eb3e46e011301ff2d8	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、返利撤销后端、Migration 与前端集成测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 EasyPay 回归测试
-.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	831368fa0cddff9822bec8aa48a5a80e5e217d93	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护返利撤销后端、Migration、前端集成测试及其他高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
+.github/workflows/upstream-sync.yml	A	keep	A	fixed-path	@absent	04d6a9bf7eb654e49a3b9c8929cbcc7b15eb3d0c	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	保留完整历史语义并保护内容审计缓存继承测试、返利撤销后端、Migration 与前端集成测试、Grok 继承测试修正、订阅周期、批量重置、分组模型黑名单及 EasyPay 回归测试
+.github/workflows/upstream-upgrade-gate.yml	A	keep	A	fixed-path	@absent	07fccbbcf58d154a702e59114e492e777f469afa	-	-	yaml-parse+action-pin+actionlint+upstream-sync-safety	升级门禁保护返利撤销后端、Migration、前端集成测试及其他高风险二改回归，并在 Vendor Tag 事件收敛后侦测、取消误触发的官方 Release，失败关闭生产调度
 .gitignore	M	keep	M	fixed-path	fb355d7e05e1981f4441045dadd1878788c88608	d7b9fb764d2fc586a84aea70513ee0da00542497	-	-	candidate-tree+targeted-CI	保留 Custom 文档与控制面白名单，并补齐官方已跟踪 seedance 文档的候选树白名单
 .goreleaser.yaml	M	keep	M	fixed-path	19adfdf6dc489acd4af4ed82bdf63f64e16b8e33	25504fd9bffaf9f80cae5368771f45c21c9b2914	-	-	goreleaser-check+release-safety	固定工具路径中的二改构建发布或控制面最小差异
 AGENTS.md	A	keep	A	custom-docs-ops	@absent	96e736e67995af280d711e30f828e9314da88800	-	-	documentation-consistency-review+candidate-tree-test	明确同 SHA CI 证据复用、Integration 登记、自动发布输入、前端 Artifact 与缓存信任边界
@@ -686,5 +686,5 @@ frontend/src/views/user/__tests__/paymentWechatResume.spec.ts	M	keep	M	official-
 frontend/src/views/user/paymentWechatResume.ts	M	keep	M	official-thin-bridge	8121bc56fc4bd590385ad4780422dc95584aa0b1	9e753cd42ca8b0672e7b793fbadadf9d4c208091	frontend/src/views/user/paymentWechatResume.ts	frontend/src/custom/payment-channels/paymentRecoveryRoute.ts	thin-bridge-review+go-test+candidate-tree-test	微信支付恢复查询的服务商薄适配
 tools/test_validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	acd2259b3b1810d75f0a84630bc1eeaa919e9087	-	-	thin-bridge-contract-unit+candidate-tree-test	验证未来缺失路径可预登记且实际出现的未登记路径仍失败关闭，并绑定 v0.2.4 官方列排序调用与控制流
 tools/test_validate_pnpm_audit.py	A	keep	A	custom-test	@absent	f2b4131c3cf849984aa455f80881c4b08e9f5be1	-	-	test-executed-in-CI	验证二改行为和发布边界
-tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	f2c70dc3c1554d51f461f5fc387ad98a6f51af52	-	-	thin-bridge-contract-unit+candidate-tree-test	精确维护官方影子桥接调用与结构审查，登记 v0.2.20 raw Chat 与 Anthropic 语义移植
+tools/validate_custom_thin_bridges.py	A	keep	A	custom-test	@absent	2da52e926deefe61348594b0811e7e89dd32fbdb	-	-	thin-bridge-contract-unit+candidate-tree-test	精确维护官方影子桥接调用与结构审查，登记 v0.2.20 raw Chat 与 Anthropic 语义移植
 tools/validate_pnpm_audit.py	A	keep	A	fixed-path	@absent	159001e030120b7b822bb2d671e9b865160e8d48	-	-	candidate-tree+targeted-CI	固定工具路径中的二改构建发布或控制面最小差异
