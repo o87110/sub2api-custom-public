@@ -482,6 +482,7 @@ jobs:
           protected_pattern="${protected_pattern}|^backend/internal/handler/payment_webhook_handler_test\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/service/payment_order_provider_snapshot_test\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/service/payment_config_providers_test\.go$"
+          protected_pattern="${protected_pattern}|^backend/internal/payment/provider/easypay_gmpay_test\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/handler/payment_plan_renewal_test\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/service/payment_plan_renewal(_test)?\.go$"
           protected_pattern="${protected_pattern}|^backend/internal/service/payment_order_provider_snapshot_test\.go$"

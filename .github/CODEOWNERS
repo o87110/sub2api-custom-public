@@ -94,6 +94,7 @@
 /backend/internal/server/routes/gateway_models_pinned_test.go @o87110
 /backend/internal/payment/load_balancer.go @o87110
 /backend/internal/payment/provider/easypay.go @o87110
+/backend/internal/payment/provider/easypay_gmpay_test.go @o87110
 /backend/internal/payment/provider/easypay_refund_test.go @o87110
 /backend/internal/payment/provider/easypay_bepusdt_test.go @o87110
 /backend/internal/handler/payment_webhook_handler.go @o87110

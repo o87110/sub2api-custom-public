@@ -7091,6 +7091,23 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
     ),
 )
 
+
+# Reuse only the exact v0.2.24 rules for bridge sources unchanged in v0.2.25.
+_v0225_vendor_commit = "348997267d756eab5729bb6b78a275a15d18796a"
+for _rules in (BASELINE_DELEGATE_VIEW_CALL_DELTAS, BASELINE_DELEGATE_VIEW_CONTROL):
+    for _bridge_path in (
+        "backend/internal/handler/gateway_handler.go",
+        "backend/internal/handler/payment_webhook_handler.go",
+        "backend/internal/payment/provider/easypay.go",
+        "backend/internal/service/payment_config_providers.go",
+        "backend/internal/service/payment_fulfillment.go",
+        "backend/internal/service/payment_order.go",
+    ):
+        _old_rules = _rules.get((_v0224_vendor_commit, _bridge_path))
+        if _old_rules is not None:
+            _rules[(_v0225_vendor_commit, _bridge_path)] = _old_rules
+
+
 FUNCTION_START_PATTERNS = (
 
 
