@@ -1052,6 +1052,22 @@ func (s *APIKeyService) IncrementUsage(ctx context.Context, keyID int64) error {
 	return nil
 }
 
+// BillingGroupInfo contains the display text for the group bound to an API key.
+type BillingGroupInfo struct {
+	Name        string `json:"group_name"`
+	Description string `json:"group_description"`
+}
+
+// GetBillingGroupInfo loads display text only when requested by the billing endpoint.
+func (s *APIKeyService) GetBillingGroupInfo(ctx context.Context, groupID int64, language string) (*BillingGroupInfo, error) {
+	group, err := s.groupRepo.GetByIDLite(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	name, description := group.I18n.Localize(language, group.Name, group.Description)
+	return &BillingGroupInfo{Name: name, Description: description}, nil
+}
+
 // AvailableGroupOption keeps structural group access separate from the
 // temporary minimum-balance gate so clients can explain a disabled option.
 type AvailableGroupOption struct {
