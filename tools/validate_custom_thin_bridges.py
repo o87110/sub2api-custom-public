@@ -7022,11 +7022,16 @@ BASELINE_DELEGATE_VIEW_CONTROL[(
         ("CreatePayment", "if paymentchannels.IsGmpayConfig(e.config) {"),
         ("NewEasyPay", "if _, err := paymentchannels.ParseGmpayNetworks(config[paymentchannels.GmpayNetworksConfigKey]); err != nil {"),
         ("NewEasyPay", "if err := paymentchannels.ValidateGmpayRequiredConfig(config); err != nil {"),
-        ("NewEasyPay", "} else if protocol == paymentchannels.EasyPayProtocolGmpay {"),
+        ("NewEasyPay", "switch protocol {"),
+        ("NewEasyPay", "case paymentchannels.EasyPayProtocolBepusdt:"),
+        ("NewEasyPay", "case paymentchannels.EasyPayProtocolGmpay:"),
         ("QueryOrder", "if paymentchannels.IsGmpayConfig(e.config) {"),
         ("Refund", "if paymentchannels.IsGmpayConfig(e.config) {"),
         ("SupportedTypes", "if paymentchannels.IsBepusdtNativeConfig(e.config) || paymentchannels.IsGmpayConfig(e.config) {"),
         ("VerifyNotification", "if paymentchannels.IsGmpayConfig(e.config) {"),
+    ),
+    remove=(
+        ("NewEasyPay", "if protocol == paymentchannels.EasyPayProtocolBepusdt {"),
     ),
 )
 BASELINE_DELEGATE_VIEW_CALL_DELTAS[(
