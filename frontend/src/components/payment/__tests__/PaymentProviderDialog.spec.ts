@@ -307,7 +307,8 @@ describe('PaymentProviderDialog payment guide', () => {
   ])('submits only usdt when creating a GMPay %s provider', async (modeLabel, paymentMode) => {
     const wrapper = mountDialog({ attachTo: document.body })
     try {
-      ;(wrapper.vm as unknown as { reset: (providerKey: string) => void }).reset('easypay')
+      const dialog = wrapper.vm as unknown as { reset: (providerKey: string) => void }
+      dialog.reset('easypay')
       await nextTick()
       const button = (label: string) => wrapper.findAll('button').find(item =>
         item.text() === `admin.settings.payment.${label}`,
