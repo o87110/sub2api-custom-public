@@ -861,7 +861,7 @@ function handleSave() {
 
 function syncEasyPayCustomMethods(): string[] {
   if (form.provider_key !== 'easypay') return []
-  if (isBepusdtNative.value) {
+  if (isUsdtNative.value) {
     form.supported_types = ['usdt']
     return []
   }

@@ -285,8 +285,9 @@ Artifact 上传和发布耗时。上线后至少比较五次新 Release；CI 中
 - GMPay 测试必须锁定 EPUSDT v2.1.4 官方 HMAC-SHA256 签名向量
   （`ced9141f...`）、三网络到 GMPay `network` 的固定映射（含 `plasma` 拒绝）、
   协议模式矩阵（qrcode/popup、HTTPS、退款、类型）、保存入口 `usdt` 豁免
-  customMethods（GMPay 实例可建档）、`callback_version=2` 建单载荷、`10002` 冲突在
-  HTTP 400 与 HTTP 200 两种承载下均透出业务码、`checkout-counter-resp` 查询的状态
+  customMethods（GMPay 实例可建档）、后台表单在二维码和弹窗模式提交时均保留
+  `supported_types: ['usdt']`（不被兼容模式过滤）、`callback_version=2` 建单载荷、
+  `10002` 冲突在 HTTP 400 与 HTTP 200 两种承载下均透出业务码、`checkout-counter-resp` 查询的状态
   映射（`6` 保持 pending 且带 `gmpay_manual_review` 标记阻止过期/取消/释放库存）、
   paid 查询结果必须携带 `gmpay_query_paid` 标记且**对账不得据此自动入账或改写
   `payment_trade_no`**（服务级回归覆盖：查单 paid 订单保持 pending 并留审计、查单

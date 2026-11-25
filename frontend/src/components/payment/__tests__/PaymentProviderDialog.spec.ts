@@ -53,8 +53,9 @@ function providerFactory(overrides: Partial<ProviderInstance> = {}): ProviderIns
   }
 }
 
-function mountDialog(options: { editing?: ProviderInstance | null } = {}) {
+function mountDialog(options: { editing?: ProviderInstance | null; attachTo?: HTMLElement } = {}) {
   return mount(PaymentProviderDialog, {
+    attachTo: options.attachTo,
     props: {
       show: true,
       saving: false,
@@ -298,6 +299,46 @@ describe('PaymentProviderDialog payment guide', () => {
     expect(payload.config.easypayProtocol).toBe('bepusdt_native')
     expect(payload.config.bepusdtNetworks).toBe('bep20')
     expect(payload.config.customMethods).toBeUndefined()
+  })
+
+  it.each([
+    ['modeQRCode', 'qrcode'],
+    ['modePopup', 'popup'],
+  ])('submits only usdt when creating a GMPay %s provider', async (modeLabel, paymentMode) => {
+    const wrapper = mountDialog({ attachTo: document.body })
+    try {
+      ;(wrapper.vm as unknown as { reset: (providerKey: string) => void }).reset('easypay')
+      await nextTick()
+      const button = (label: string) => wrapper.findAll('button').find(item =>
+        item.text() === `admin.settings.payment.${label}`,
+      )!
+      await button('easypayProtocolGmpay').trigger('click')
+      await button(modeLabel).trigger('click')
+      await wrapper.get('input[type="checkbox"][value="trc20"]').setValue(true)
+      await wrapper.get('input[type="checkbox"][value="polygon"]').setValue(true)
+      const [name, pid, apiBase] = wrapper.findAll('input[type="text"]')
+      await name.setValue('GMPay USDT')
+      await pid.setValue('1002')
+      await apiBase.setValue('https://gmpay.example.com')
+      await wrapper.get('textarea').setValue('gmpay-test-secret')
+
+      wrapper.get<HTMLButtonElement>('button[form="provider-form"][type="submit"]').element.click()
+      await nextTick()
+
+      expect(wrapper.emitted('save')).toHaveLength(1)
+      expect(wrapper.emitted('save')?.[0]?.[0]).toMatchObject({
+        supported_types: ['usdt'],
+        enabled: false,
+        payment_mode: paymentMode,
+        refund_enabled: false,
+        config: {
+          easypayProtocol: 'epusdt_gmpay',
+          gmpayNetworks: 'bep20,trc20,polygon',
+        },
+      })
+    } finally {
+      wrapper.unmount()
+    }
   })
 
   it('rejects a new native provider without an API token', async () => {
