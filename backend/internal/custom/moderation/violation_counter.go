@@ -35,6 +35,8 @@ func (c *sqlViolationCounter) CountFlaggedByUserSince(
 		return 0, fmt.Errorf("custom violation counter database is unavailable")
 	}
 
+	// 'image_safety' keeps an upstream image safety rejection as evidence only.
+	// The literal must match service.ContentModerationActionImageSafety.
 	var count int
 	err := c.db.QueryRowContext(ctx, `
 WITH last_auto_ban AS (
@@ -47,6 +49,7 @@ FROM content_moderation_logs
 WHERE user_id = $1
   AND flagged = TRUE
   AND action <> 'hash_block'
+  AND action <> 'image_safety'
   AND action <> 'cyber_policy_out_of_scope'
   AND ($3::bool IS FALSE OR action <> 'cyber_policy')
   AND created_at >= $2

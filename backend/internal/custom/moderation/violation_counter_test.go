@@ -31,6 +31,24 @@ func TestViolationCounterPermanentlyExcludesOutOfScopeAuditRows(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestViolationCounterExcludesImageSafetyEvidence(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	counter := NewViolationCounter(db)
+	since := time.Now().Add(-time.Hour)
+	mock.ExpectQuery(regexp.QuoteMeta("AND action <> 'hash_block'\n  AND action <> 'image_safety'\n  AND action <> 'cyber_policy_out_of_scope'")).
+		WithArgs(int64(1001), since, false).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+	count, err := counter.CountFlaggedByUserSince(context.Background(), 1001, since, false)
+
+	require.NoError(t, err)
+	require.Zero(t, count)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestViolationCounterPreservesCyberPolicyExclusionParameter(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)

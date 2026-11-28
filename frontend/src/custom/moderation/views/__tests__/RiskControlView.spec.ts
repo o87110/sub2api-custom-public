@@ -1006,4 +1006,35 @@ describe('admin RiskControlView', () => {
     expect(wrapper.text()).toContain('输入摘要')
     expect(wrapper.text()).not.toContain('输入开头与命中上下文')
   })
+
+  it('renders image safety rejections as log-only hits, not audit errors', async () => {
+    listLogs.mockResolvedValue({
+      items: [contentModerationLog({
+        endpoint: '/v1/images/generations',
+        model: 'gpt-image-2',
+        mode: 'risk_control_log_only',
+        action: 'image_safety',
+        flagged: true,
+        highest_category: 'image_safety',
+        highest_score: 1,
+        input_excerpt: 'draw something',
+        error: 'upstream_status=400\nYour request was rejected by the safety system.',
+        violation_count: 0,
+      })],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+    const wrapper = mountRiskControlView()
+
+    await flushPromises()
+    const badge = wrapper.findAll('span.rounded-md').find((el) => el.text() === 'admin.riskControl.action.imageSafety')
+
+    expect(badge).toBeDefined()
+    expect(badge!.classes()).toContain('bg-pink-100')
+    expect(badge!.classes()).not.toContain('bg-amber-100')
+    const rowText = (badge!.element as HTMLElement).closest('tr')?.textContent ?? ''
+    expect(rowText).toContain('未计入')
+  })
 })
